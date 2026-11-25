@@ -18,6 +18,7 @@ import {
   safeEmailUrl,
   textCss,
 } from "./settings.ts";
+import { sanitizeEmailHtml } from "./emailHtmlSanitizer.ts";
 
 const text = (value: unknown) =>
   formatDraftText(typeof value === "string" ? value : "");
@@ -550,6 +551,11 @@ export function renderExtendedBlock(
       return paragraph(block, block.body, "smallPrint", 12);
     case "headline":
       return heading(block);
+    case "html": {
+      // Only email-safe markup survives (see emailHtmlSanitizer).
+      const clean = sanitizeEmailHtml(block.customHtml);
+      return clean ? `<div data-newsletter-html="true">${clean}</div>` : "";
+    }
     case "youtube": {
       const id = youtubeVideoId(block.videoUrl || "");
       if (!id) return "";

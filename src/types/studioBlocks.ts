@@ -11,6 +11,7 @@ import type {
 } from "./newsletterDesign.ts";
 export type BlockType =
   | "preheader"
+  | "html"
   | "headline"
   | "youtube"
   | "navigation"
@@ -135,6 +136,8 @@ export interface StudioBlock {
   tableRows?: string[][];
   tableCaption?: string;
   chartData?: ChartPoint[];
+  /** HTML block: typed or pasted HTML, cleaned to email-safe markup on render. */
+  customHtml?: string;
   /** The Chart data box exactly as typed; chartData is parsed from it. */
   chartDataText?: string;
   chartUnit?: string;

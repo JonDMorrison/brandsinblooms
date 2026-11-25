@@ -30,6 +30,9 @@ export function isEditorEmptyBlock(block: StudioBlock): boolean {
   const links = block.links ?? [];
   const linksEmpty = !links.some((link) => present(link.label) || present(link.url));
   switch (block.type) {
+    case "html":
+      // Raw text, not tag-stripped: an HTML block may hold only an image.
+      return !(block.customHtml ?? "").trim();
     case "plain-text":
       return !anyPresent([block.body, block.headline, (block as { content?: unknown }).content, block.buttonUrl]);
     case "full-width-image":
@@ -116,6 +119,8 @@ function imageAndCopy(
 
 function layoutFor(block: StudioBlock): string | null {
   switch (block.type) {
+    case "html":
+      return `<div data-editor-placeholder="copy" style="border:1px dashed ${RULE};border-radius:6px;padding:16px;font-family:Menlo,Consolas,monospace;font-size:13px;line-height:1.5;color:${SAMPLE_TEXT};">&lt;p&gt;Your HTML goes here&lt;/p&gt;</div>`;
     case "plain-text":
       return editorSampleCopy({
         heading: null,
