@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   Dialog,
   DialogContent,
@@ -18,13 +19,13 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useTenant } from '@/hooks/useTenant';
 import { logActivity } from '@/lib/activityLogger';
+import { fetchSmsSegmentSendEstimate } from '@/lib/sms/smsAudienceEstimate';
 
 interface SegmentSMSDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   segmentId: string;
   segmentName: string;
-  customerCount?: number;
   isSystemSegment?: boolean;
 }
 
@@ -33,110 +34,49 @@ export const SegmentSMSDialog: React.FC<SegmentSMSDialogProps> = ({
   onOpenChange,
   segmentId,
   segmentName,
-  customerCount = 0,
   isSystemSegment = false,
 }) => {
   const [message, setMessage] = useState('');
   const [mediaUrl, setMediaUrl] = useState('');
   const [isSending, setIsSending] = useState(false);
-  const [smsEnabledCount, setSmsEnabledCount] = useState<number | null>(null);
-  const [loadingCount, setLoadingCount] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
   const { tenant } = useTenant();
   const tenantId = tenant?.id;
 
+  // Recipients under the one SMS eligibility rule (sms_eligible_customers),
+  // the same count send-sms-campaign and the enqueue worker use.
+  const estimateQuery = useQuery({
+    queryKey: ['sms-segment-send-estimate', tenantId, segmentId, isSystemSegment],
+    enabled: open && Boolean(tenantId && segmentId),
+    queryFn: () =>
+      fetchSmsSegmentSendEstimate({
+        tenantId: tenantId!,
+        segmentId,
+        isSystemSegment,
+      }),
+  });
+  const smsEnabledCount = estimateQuery.data?.eligible ?? null;
+  const audienceCount = estimateQuery.data?.audience ?? null;
+  const loadingCount = estimateQuery.isFetching;
+
   const characterCount = message.length;
   const segmentCount = Math.ceil(characterCount / 160);
   const isOverLimit = characterCount > 1600; // 10 segments max
-  const canSend = message.trim().length > 0 && !isOverLimit && smsEnabledCount && smsEnabledCount > 0;
-
-  // Fetch SMS-enabled customer count when dialog opens
-  useEffect(() => {
-    if (open && segmentId && tenantId) {
-      fetchSmsEnabledCount();
-    }
-  }, [open, segmentId, tenantId]);
+  const canSend =
+    message.trim().length > 0 &&
+    !isOverLimit &&
+    !loadingCount &&
+    smsEnabledCount !== null &&
+    smsEnabledCount > 0;
 
   // Reset form when dialog closes
   useEffect(() => {
     if (!open) {
       setMessage('');
       setMediaUrl('');
-      setSmsEnabledCount(null);
     }
   }, [open]);
-
-  const fetchSmsEnabledCount = async () => {
-    if (!tenantId) return;
-    
-    setLoadingCount(true);
-    try {
-      // Get customers in segment who have SMS enabled
-      let query = supabase
-        .from('crm_customers')
-        .select('id', { count: 'exact', head: true })
-        .eq('tenant_id', tenantId)
-        .eq('sms_opt_in', true)
-        .eq('opt_out', false)
-        .eq('suppressed', false)
-        .not('phone', 'is', null);
-
-      if (isSystemSegment) {
-        // Handle system segment filtering
-        switch (segmentId) {
-          case 'perks-members':
-            // Join with customer_loyalty_metrics
-            const { count: perksCount } = await supabase
-              .from('crm_customers')
-              .select('id, customer_loyalty_metrics!inner(is_perks_member)', { count: 'exact', head: true })
-              .eq('tenant_id', tenantId)
-              .eq('sms_opt_in', true)
-              .eq('opt_out', false)
-              .eq('suppressed', false)
-              .not('phone', 'is', null)
-              .eq('customer_loyalty_metrics.is_perks_member', true);
-            setSmsEnabledCount(perksCount || 0);
-            setLoadingCount(false);
-            return;
-          case 'high-value':
-            query = query.gte('total_spent', 500);
-            break;
-          case 'new-customers':
-            const thirtyDaysAgo = new Date();
-            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-            query = query.gte('created_at', thirtyDaysAgo.toISOString());
-            break;
-          case 'frequent-buyers':
-            query = query.gte('pos_order_count', 3);
-            break;
-          default:
-            // For other system segments, use a simplified count
-            break;
-        }
-        const { count } = await query;
-        setSmsEnabledCount(count || 0);
-      } else {
-        // Custom segment - get customers via customer_segments join
-        const { count } = await supabase
-          .from('customer_segments')
-          .select('customer_id, crm_customers!inner(id)', { count: 'exact', head: true })
-          .eq('segment_id', segmentId)
-          .eq('crm_customers.tenant_id', tenantId)
-          .eq('crm_customers.sms_opt_in', true)
-          .eq('crm_customers.opt_out', false)
-          .eq('crm_customers.suppressed', false)
-          .not('crm_customers.phone', 'is', null);
-        
-        setSmsEnabledCount(count || 0);
-      }
-    } catch (error) {
-      console.error('Error fetching SMS-enabled count:', error);
-      setSmsEnabledCount(0);
-    } finally {
-      setLoadingCount(false);
-    }
-  };
 
   const handleSend = async () => {
     if (!canSend || !tenantId || !user) return;
@@ -237,8 +177,14 @@ export const SegmentSMSDialog: React.FC<SegmentSMSDialogProps> = ({
       });
 
       onOpenChange(false);
-    } catch (error: any) {
-      console.error('Error sending SMS to segment:', error);
+    } catch (caught: unknown) {
+      console.error('Error sending SMS to segment:', caught);
+      const error = {
+        message:
+          caught instanceof Error
+            ? caught.message
+            : 'An error occurred while sending the SMS campaign.',
+      };
 
       // Log failure event
       if (tenantId && user) {
@@ -297,15 +243,21 @@ export const SegmentSMSDialog: React.FC<SegmentSMSDialogProps> = ({
               <p className="text-sm font-medium">SMS-Enabled Recipients</p>
               {loadingCount ? (
                 <p className="text-xs text-muted-foreground">Calculating...</p>
-              ) : (
-                <p className="text-xs text-muted-foreground">
-                  {smsEnabledCount} of {customerCount} customers can receive SMS
+              ) : estimateQuery.isError ? (
+                <p className="text-xs text-destructive">
+                  {estimateQuery.error instanceof Error
+                    ? estimateQuery.error.message
+                    : 'Unable to calculate recipients.'}
                 </p>
-              )}
+              ) : smsEnabledCount !== null && audienceCount !== null ? (
+                <p className="text-xs text-muted-foreground">
+                  {smsEnabledCount.toLocaleString()} of {audienceCount.toLocaleString()} customers can receive SMS
+                </p>
+              ) : null}
             </div>
             {smsEnabledCount !== null && (
               <Badge variant={smsEnabledCount > 0 ? 'default' : 'secondary'}>
-                {smsEnabledCount} recipients
+                {smsEnabledCount.toLocaleString()} recipients
               </Badge>
             )}
           </div>
