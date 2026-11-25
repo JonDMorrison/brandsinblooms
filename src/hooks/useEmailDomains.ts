@@ -1,4 +1,9 @@
 import { useState, useEffect } from "react";
+import {
+  feedbackFromVerifyError,
+  feedbackFromVerifyReply,
+  readFunctionErrorBody,
+} from "@/lib/email/verifyDomainFeedback";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenant } from "@/hooks/useTenant";
@@ -256,56 +261,26 @@ export const useEmailDomains = () => {
       );
 
       if (error) {
-        // Supabase FunctionsHttpError carries status/body on a non-enumerable `context` object
-        const status =
-          (error as any)?.context?.status ?? (error as any)?.status;
-        const body = (error as any)?.context?.body;
-
-        let parsed: any = null;
-        if (typeof body === "string") {
-          try {
-            parsed = JSON.parse(body);
-          } catch {
-            parsed = null;
-          }
-        }
-
-        const isRateLimited =
-          status === 429 || parsed?.error === "rate_limited";
-        if (isRateLimited) {
-          const retryAfterSeconds = Number(parsed?.retry_after_seconds ?? 90);
-          toast.info(`Please wait ${retryAfterSeconds}s before checking again`);
+        const { status, body } = await readFunctionErrorBody(error);
+        const feedback = feedbackFromVerifyError(
+          status,
+          body,
+          "Could not check this domain. Try again.",
+        );
+        toast[feedback.tone](feedback.message);
+        // A failed reply can still follow a saved status change.
+        await fetchEmailDomains();
+        if (feedback.rateLimited) {
           return {
             rate_limited: true,
-            retry_after_seconds: retryAfterSeconds,
-          } as any;
+            retry_after_seconds: feedback.retryAfterSeconds,
+          };
         }
-
-        toast.error(
-          parsed?.message || error.message || "Failed to verify email domain",
-        );
-        return {
-          success: false,
-          error: parsed?.message || error.message,
-        } as any;
+        return { success: false, error: feedback.message };
       }
 
-      const isSuccess = data?.ok || data?.status === "active";
-
-      if (isSuccess) {
-        toast.success(
-          data?.message || "Domain is now active and ready to send emails",
-        );
-      } else if (data?.status === "failed") {
-        toast.error(
-          data?.message ||
-            "Domain verification failed after maximum attempts. Click 'Retry' to try again.",
-        );
-      } else {
-        toast.warning(
-          data?.message || "Some DNS records are still pending verification",
-        );
-      }
+      const feedback = feedbackFromVerifyReply(data);
+      toast[feedback.tone](feedback.message);
 
       await fetchEmailDomains();
       return data;

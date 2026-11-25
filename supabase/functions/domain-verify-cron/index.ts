@@ -32,12 +32,31 @@ const handler = async (req: Request): Promise<Response> => {
     const { data: pendingDomains, error: fetchError } = await supabase
       .from('email_domains')
       .select('id, domain, tenant_id, status, verify_attempts, next_verify_at')
-      .in('status', ['pending_dns', 'verifying', 'pending'])
+      // 'failed' is included: Resend marks a domain failed when its first DNS
+      // look misses, and a later verify call re-checks it once DNS is added.
+      .in('status', ['pending_dns', 'verifying', 'pending', 'failed'])
       .not('resend_domain_id', 'is', null)
-      .or(`next_verify_at.lte.${now},next_verify_at.is.null`)
-      .lt('verify_attempts', 10)
+      // Scheduled checks (email-domain-verify sets next_verify_at, fast at
+      // first, then every 6 hours), plus never-checked domains.
+      .or(`next_verify_at.lte.${now},and(next_verify_at.is.null,verify_attempts.lt.10)`)
+      .lt('verify_attempts', 66)
       .order('next_verify_at', { ascending: true, nullsFirst: true })
       .limit(5); // Process max 5 at a time to avoid timeout
+
+    // Active domains still missing DMARC carry a next_verify_at (set by
+    // email-domain-verify). Re-check those on schedule so campaigns unblock
+    // soon after the customer adds DMARC.
+    const { data: dmarcPending } = await supabase
+      .from('email_domains')
+      .select('id, domain, tenant_id, status, verify_attempts, next_verify_at')
+      .in('status', ['active', 'warming_up'])
+      .not('resend_domain_id', 'is', null)
+      .not('next_verify_at', 'is', null)
+      .lte('next_verify_at', now)
+      .lt('verify_attempts', 66)
+      .order('next_verify_at', { ascending: true })
+      .limit(3);
+    if (pendingDomains && dmarcPending?.length) pendingDomains.push(...dmarcPending);
 
     if (fetchError) {
       console.error('❌ Error fetching pending domains:', fetchError);
@@ -80,7 +99,7 @@ const handler = async (req: Request): Promise<Response> => {
             body: JSON.stringify({
               email_domain_id: domain.id
             }),
-            signal: AbortSignal.timeout(10000)
+            signal: AbortSignal.timeout(30000)
           }
         );
 
