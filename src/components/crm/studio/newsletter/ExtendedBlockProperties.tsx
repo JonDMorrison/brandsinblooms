@@ -437,18 +437,23 @@ function CouponFields({
         }
       />
       <ImageSpacingFields value={block.appearance} onChange={(appearance) => update("appearance", appearance)} />
-      <StudioSwitchField
-        label="Coupon border"
-        checked={block.couponBorder !== false}
-        onChange={(value) => update("couponBorder", value)}
-      />
+      {!block.appearance?.border?.style && (
+        <StudioSwitchField
+          label="Default dashed border"
+          checked={block.couponBorder !== false}
+          onChange={(value) => update("couponBorder", value)}
+        />
+      )}
+      <p className="nl-note">Custom border settings below override the default dashed border.</p>
       <StudioSwitchField
         label="Scissors / cut line"
         checked={block.couponScissors !== false}
         onChange={(value) => update("couponScissors", value)}
       />
       <BadgeFields block={block} update={update} />
-      <ButtonFields block={block} update={update} />
+      <StudioSwitchField label="Show button" checked={block.showButton !== false}
+        onChange={(value) => update("showButton", value)} />
+      {block.showButton !== false && <ButtonFields block={block} update={update} />}
       <details>
         <summary>Add a barcode your till can scan</summary>
         <Field
@@ -601,6 +606,11 @@ function GalleryFields({
       {product && (
         <details className="nl-controls">
           <summary>Product display options</summary>
+          <Choice label="How the photos fit" value={block.imageFit || "contain"}
+            options={[{ value: "contain", label: "Show whole photo" }, { value: "cover", label: "Fill the space" }, { value: "fill", label: "Stretch to fit" }]}
+            onChange={(value) => update("imageFit", value as StudioBlock["imageFit"])} />
+          <NumericField label="Image height (px)" value={block.imageHeight ?? 220} min={120} max={480}
+            onChange={(value) => update("imageHeight", value)} />
           <StudioSwitchField
             label="Show prices"
             checked={block.showPrices !== false}

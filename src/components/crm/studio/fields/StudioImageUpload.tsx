@@ -1042,6 +1042,7 @@ export default function StudioImageUpload({
             </Typography>
           </Stack>
           <ImageUrlField
+            currentUrl={resolvedUrl ?? ""}
             expanded
             onApply={(url) => {
               setResolvedUrl(url);
@@ -1676,6 +1677,7 @@ export default function StudioImageUpload({
       ) : null}
       {sourceTabs ? null : (
         <ImageUrlField
+          currentUrl={resolvedUrl ?? ""}
           onApply={(url) => {
             setResolvedUrl(url);
             setErrorMessage(null);

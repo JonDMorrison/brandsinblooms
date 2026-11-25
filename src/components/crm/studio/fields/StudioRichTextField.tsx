@@ -510,6 +510,11 @@ export default function StudioRichTextField({
           ) : null}
           <EditorContent editor={editor} />
         </Box>
+        <Button type="button" size="sm" variant="plain" color="neutral" disabled={!onChange}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => editor.chain().focus("end").insertContent("<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>").run()}>
+          Insert lorem ipsum
+        </Button>
         <Typography
           level="body-xs"
           sx={{

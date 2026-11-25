@@ -4,24 +4,35 @@ import { useNewsletterDesign } from "./NewsletterDesignContext";
 import { resolveAssetUrl } from "@/lib/studio/newsletter/settings";
 export default function ImageUrlField({
   onApply,
+  currentUrl = "",
   expanded = false,
 }: {
   onApply: (url: string) => void;
+  currentUrl?: string;
   /** Start open (the Image block's "Paste link" tab). */
   expanded?: boolean;
 }) {
   const { settings } = useNewsletterDesign();
-  const [input, setInput] = React.useState("");
+  const [input, setInput] = React.useState(currentUrl);
   const [base, setBase] = React.useState("");
   const [error, setError] = React.useState("");
+  React.useEffect(() => {
+    setInput(currentUrl);
+    setBase("");
+    setError("");
+  }, [currentUrl]);
   return (
     <details className="nl-controls" open={expanded || undefined}>
-      <summary>Paste a link to a photo instead</summary>
+      <summary>Use a public image URL</summary>
       {Boolean(settings?.assetLocations?.length) && (
         <Choice
           label="Image location"
           value={base}
-          onChange={setBase}
+          onChange={(location) => {
+            setBase(location);
+            setInput(location ? "" : currentUrl);
+            setError("");
+          }}
           options={[
             { value: "", label: "Full public image URL" },
             ...(settings?.assetLocations || []).map((item) => ({
@@ -32,13 +43,23 @@ export default function ImageUrlField({
         />
       )}
       <Field
-        label={base ? "Image filename" : "Photo link"}
+        label={base ? "Image filename" : "Photo URL"}
         value={input}
         onChange={setInput}
         placeholder={
           base ? "spring-banner.jpg" : "https://example.com/images/banner.jpg"
         }
       />
+      {base && <p className="nl-note">Enter a filename or relative path from the selected image location.</p>}
+      <div className="nl-grid-2">
+        {[{ label: "Banner placeholder", size: "640x360" }, { label: "Square placeholder", size: "1200x1200" }].map(({ label, size }) => (
+          <button key={size} type="button" className="nl-quiet" onClick={() => {
+            setBase("");
+            setInput(`https://placehold.co/${size}/png`);
+            setError("");
+          }}>{label}</button>
+        ))}
+      </div>
       <button
         type="button"
         className="nl-quiet"
@@ -51,7 +72,8 @@ export default function ImageUrlField({
             return;
           }
           onApply(url);
-          setInput("");
+          setInput(url);
+          setBase("");
           setError("");
         }}
       >
@@ -64,7 +86,7 @@ export default function ImageUrlField({
       )}
       <p className="nl-note">
         The image stays at its original public URL. Keep that file available for
-        recipients.
+        recipients. Replace placeholder images before sending.
       </p>
     </details>
   );
