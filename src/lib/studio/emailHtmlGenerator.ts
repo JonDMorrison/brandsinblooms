@@ -1979,6 +1979,19 @@ function renderFooterSocialIcons(
     .join("")}</div>`;
 }
 
+/** "https://www.artsnursery.com/" → "www.artsnursery.com"; no address → "Website". */
+export function footerWebsiteLabel(url: string | null | undefined): string {
+  const value = (url ?? "").trim();
+  if (!value) return "Website";
+  try {
+    const parsed = new URL(/^https?:\/\//i.test(value) ? value : `https://${value}`);
+    const path = parsed.pathname.replace(/\/+$/, "");
+    return `${parsed.hostname}${path}`;
+  } catch {
+    return "Website";
+  }
+}
+
 function renderFooterLinks(
   block: StudioBlock,
   links: EmailFooterLinks,
@@ -2001,7 +2014,10 @@ function renderFooterLinks(
       visible: block.showManagePreferences !== false,
     },
     {
-      label: "Website",
+      // Show the address itself (www.artsnursery.com), not the word "Website".
+      label: footerWebsiteLabel(
+        links.websiteUrl || block.websiteUrl || designSystem?.company.websiteUrl,
+      ),
       href:
         links.websiteUrl ||
         block.websiteUrl ||
