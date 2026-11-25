@@ -4,7 +4,7 @@ import Input from "@mui/joy/Input";
 import Sheet from "@mui/joy/Sheet";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
-import { CheckCircle2, ExternalLink, Globe2, Link2, Mail, MessageSquare, Megaphone, Search, ShieldCheck, Trash2 } from "lucide-react";
+import { CheckCircle2, ExternalLink, Globe2, Link2, Mail, MessageSquare, Megaphone, Plus, Search, ShieldCheck, Trash2 } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "@/utils/toast";
 import { DesignSystemProvider, useDesignSystem } from "@/contexts/DesignSystemContext";
@@ -75,6 +75,8 @@ function ContentWorkspace() {
   const [busy,setBusy]=React.useState(false);
   const [error,setError]=React.useState("");
   const [connections,setConnections]=React.useState<ConnectedWebsite[]>([]);
+  // The connect form is only needed until a site is linked; after that it opens on request.
+  const [showConnectForm,setShowConnectForm]=React.useState(false);
   const [promotionItem,setPromotionItem]=React.useState<ConnectedContentItem|null>(null);
   const promotionPending=React.useRef(false);
   const handledDeepLink=React.useRef("");
@@ -120,7 +122,7 @@ function ContentWorkspace() {
     setBusy(true);setError("");
     try{
       await connectedContentRequest<{connected:boolean}>({action:"connect",code:code.trim()});
-      setCode("");
+      setCode("");setShowConnectForm(false);
       toast.success("Website connected. Published content is ready to promote.");
       await refresh();
     }catch(e){setError(e instanceof Error?e.message:"Couldn't connect this website.");}
@@ -188,7 +190,7 @@ function ContentWorkspace() {
         </Stack>
       </Stack>
 
-      {canManage?(
+      {canManage&&(connections.length>0?showConnectForm:(data!==null||Boolean(error)))?(
         <Sheet variant="outlined" sx={{borderRadius:"lg",p:{xs:2,md:2.5},bgcolor:"background.surface"}}>
           <Stack spacing={1.5}>
             <Stack direction="row" spacing={1} alignItems="center">
@@ -219,6 +221,8 @@ function ContentWorkspace() {
                 onClick={()=>window.open("https://bloomsites.app/dashboard/integrations/connected-content","_blank","noopener,noreferrer")}>
                 Open BloomSites connection page <ExternalLink size={15}/>
               </JoyButton>
+              {connections.length>0?<JoyButton color="neutral" variant="plain"
+                onClick={()=>{setShowConnectForm(false);setCode("");}}>Cancel</JoyButton>:null}
             </Stack>
           </Stack>
         </Sheet>
@@ -226,7 +230,16 @@ function ContentWorkspace() {
 
       {error?<Typography role="alert" level="body-sm" color="danger">{error}</Typography>:null}
       <Stack spacing={1}>
-        <Typography level="title-md">Your website connections</Typography>
+        <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
+          <Typography level="title-md">Your website connections</Typography>
+          {canManage&&connections.length>0&&!showConnectForm?(
+            <JoyButton size="sm" variant="outlined" color="neutral"
+              startDecorator={<Plus size={15} aria-hidden="true"/>}
+              onClick={()=>setShowConnectForm(true)}>
+              Connect another website
+            </JoyButton>
+          ):null}
+        </Stack>
         {connections.length===0&&!loading?
           <Typography level="body-sm" color="neutral">No connected websites yet. Generate a code in BloomSites to begin.</Typography>
           :null}
@@ -286,18 +299,18 @@ function ContentWorkspace() {
               One website was temporarily unavailable. Refresh to try again.
             </Typography>
           ):null}
-          <Box sx={{display:"grid",gridTemplateColumns:{xs:"1fr",md:"repeat(2,minmax(0,1fr))",xl:"repeat(3,minmax(0,1fr))"},gap:2}}>
+          <Box sx={{display:"grid",gridTemplateColumns:{xs:"1fr",sm:"repeat(2,minmax(0,1fr))",lg:"repeat(3,minmax(0,1fr))",xl:"repeat(4,minmax(0,1fr))"},gap:2}}>
             {(data?.items??[]).map(item=><Sheet key={item.siteId+item.id} variant="outlined"
-              sx={{p:2,borderRadius:"lg",aspectRatio:{xs:"auto",sm:"1 / 1"},minHeight:{xs:360,sm:0},bgcolor:promoteId===item.id?"neutral.50":"background.surface"}}>
+              sx={{p:1.5,borderRadius:"lg",bgcolor:promoteId===item.id?"neutral.50":"background.surface"}}>
               <Stack spacing={1.5} sx={{height:"100%"}}>
-                <Box sx={{flex:"1 1 0",minHeight:140,borderRadius:"md",overflow:"hidden",bgcolor:"neutral.100",display:"grid",placeItems:"center"}}>
+                <Box sx={{aspectRatio:"16 / 9",borderRadius:"md",overflow:"hidden",bgcolor:"neutral.100",display:"grid",placeItems:"center"}}>
                   {item.imageUrl?<Box component="img" src={item.imageUrl} alt="" sx={{width:"100%",height:"100%",objectFit:"cover"}}/>
                     :<Globe2 size={32} color="var(--joy-palette-neutral-400)"/>}
                 </Box>
-                <Stack spacing={0.5}>
-                  <Typography level="title-md">{item.title}</Typography>
+                <Stack spacing={0.5} sx={{flex:1}}>
+                  <Typography level="title-sm">{item.title}</Typography>
                   {item.eventStatus==="cancelled" || item.eventStatus==="sold_out" ? <Typography color="danger" level="body-sm">{item.eventStatus==="cancelled" ? "Cancelled" : "Sold out"}</Typography> : null}
-                  <Typography level="body-sm" color="neutral" sx={{minHeight:30}}>
+                  <Typography level="body-sm" color="neutral" sx={{display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}>
                     {item.description?.slice(0,125)||"Published on your website"}
                   </Typography>
                   <Typography level="body-xs" color="neutral">{item.siteName}</Typography>
