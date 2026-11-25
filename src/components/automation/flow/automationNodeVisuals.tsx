@@ -343,6 +343,31 @@ function getNodeIcon(nodeType: string, triggerType?: string) {
   }
 }
 
+/** Readable names for stored trigger keys shown on canvas nodes. */
+const TRIGGER_LABELS: Record<string, string> = {
+  repeat_purchase_90d: "No purchase in 90 days",
+  first_purchase: "First purchase",
+  "contact.created": "New contact added",
+  contact_created: "New contact added",
+  birthday: "Customer birthday",
+  form_submitted: "Form submitted",
+  segment_joined: "Joined a segment",
+  persona_assigned: "Persona assigned",
+  payment_received: "Payment received",
+};
+
+/** Turns keys like "we_miss_you" or "contact.created" into plain words. */
+export function humanizeAutomationKey(
+  key: string | null | undefined,
+  labels: Record<string, string> = {},
+): string {
+  const value = (key ?? "").trim();
+  if (!value) return "Not set";
+  if (labels[value]) return labels[value];
+  const words = value.replace(/[._-]+/g, " ").replace(/\s+/g, " ").trim();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
 function getTriggerSummary(data: Record<string, unknown>, triggerType: string) {
   const conditions =
     typeof data.conditions === "object" && data.conditions
@@ -364,7 +389,7 @@ function getTriggerSummary(data: Record<string, unknown>, triggerType: string) {
     return `Form: ${formName}`;
   }
 
-  return `Event: ${triggerType}`;
+  return `When: ${humanizeAutomationKey(triggerType, TRIGGER_LABELS)}`;
 }
 
 export function getAutomationNodeVisual(
@@ -432,7 +457,7 @@ export function getAutomationNodeVisual(
       ? getTriggerSummary(data, triggerType)
       : nodeType === "email"
         ? stringValue(data.template)
-          ? `Template: ${stringValue(data.template)}`
+          ? `Email: ${humanizeAutomationKey(stringValue(data.template))}`
           : stringValue(data.delay)
             ? `Send: ${stringValue(data.delay)}`
             : null
