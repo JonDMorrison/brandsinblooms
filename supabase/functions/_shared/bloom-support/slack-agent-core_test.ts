@@ -186,3 +186,13 @@ Deno.test("tool failures name a permission refusal only when the server refused"
   assertEquals(/outside your permissions/.test(tool), false);
   assertEquals(h.audited, ["support_overview:not_confirmed"]);
 });
+Deno.test("the model knows today's date and that all-sales totals are not category figures", async () => {
+  const h = harness([answer()], { now: () => Date.parse("2026-11-25T14:00:00Z") });
+  await runAgent(context(), h.deps);
+  const user = JSON.parse(String(h.requests[0][1].content));
+  assertEquals(user.today, "2026-11-25");
+  assertStringIncludes(AGENT_SYSTEM, "all_sales_total is total sales, never an events, fundraising or plant figure");
+  const spec = TOOL_SPECS.find(t => t.name === "revenue_by_client")!;
+  assertStringIncludes(spec.description, "must be null unless the staff member named a period");
+  assertStringIncludes(spec.description, "comma-separated");
+});
