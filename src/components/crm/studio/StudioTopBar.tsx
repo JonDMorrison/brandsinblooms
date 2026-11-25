@@ -121,8 +121,11 @@ const WIDE_TOOLBAR_QUERY = "@media (min-width: 1280px)";
 const NARROW_TOOLBAR_QUERY = "@media (max-width: 1279.98px)";
 const wideOnlySx = { [NARROW_TOOLBAR_QUERY]: { display: "none" } };
 const narrowOnlySx = { [WIDE_TOOLBAR_QUERY]: { display: "none" } };
-/** 1280–1439px: same controls, shorter labels, so the row still fits. */
-const COMPACT_TOOLBAR_QUERY = "@media (max-width: 1439.98px)";
+/**
+ * 1280–1599px: same controls, shorter labels (Save template icon-only), so the
+ * row fits. At 1440 the full labels needed ~1570px and the bar overflowed.
+ */
+const COMPACT_TOOLBAR_QUERY = "@media (max-width: 1599.98px)";
 const fullLabelSx = { [COMPACT_TOOLBAR_QUERY]: { display: "none" } };
 const compactLabelSx = { display: "none", [COMPACT_TOOLBAR_QUERY]: { display: "inline" } };
 
@@ -874,6 +877,7 @@ export default function StudioTopBar({
             variant="outlined"
             color="neutral"
             size="sm"
+            aria-label="Preview & Test"
             startDecorator={<Eye size={16} />}
             onClick={() => setPreviewOpen(true)}
             sx={{
@@ -886,7 +890,8 @@ export default function StudioTopBar({
               "&:hover": { bgcolor: "neutral.50" },
             }}
           >
-            Preview & Test
+            <Box component="span" sx={fullLabelSx}>Preview & Test</Box>
+            <Box component="span" sx={compactLabelSx}>Preview</Box>
           </Button>
 
           <Dropdown>

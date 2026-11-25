@@ -2337,11 +2337,16 @@ function CampaignStudioPageContent() {
         component="main"
         onKeyDownCapture={handleStudioTreeKeyDown}
         sx={{
-          width: "100vw",
+          width: "100%",
+          maxWidth: "100vw",
           height: APP_VIEWPORT_HEIGHT,
           overflow: "hidden",
           bgcolor: "background.surface",
           display: "grid",
+          // One column capped at the window. An implicit "auto" column grew
+          // to the toolbar's full width and the body row stretched with it,
+          // pushing the properties panel past the right edge.
+          gridTemplateColumns: "minmax(0, 1fr)",
           gridTemplateRows: "52px minmax(0, 1fr) 36px",
           "& button, & [role='button'], & input, & textarea": {
             transition: "all 120ms ease",
@@ -2431,6 +2436,10 @@ function CampaignStudioPageContent() {
                   md: `288px minmax(0, 1fr) ${effectivePropertiesPanelOpen ? 340 : 0}px`,
                   xl: `320px minmax(0, 1fr) ${effectivePropertiesPanelOpen ? 420 : 0}px`,
                 },
+                // Each column scrolls its own content. Without this the closed
+                // properties panel spilled past the right edge, and focusing a
+                // field scrolled the whole studio sideways.
+                "& > *": { minWidth: 0, overflow: "hidden" },
               }}
             >
               <Sheet
