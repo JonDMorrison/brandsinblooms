@@ -152,8 +152,77 @@ export default function SharedEmailBlockPreview({
     target.current = { field, index, blockId: block.id, itemId };
     input.current?.click();
   };
+  // Floating "Replace image" buttons, one per editable photo, positioned
+  // over the photo's bottom-right corner. The Photo Banner keeps its own.
+  const wrapper = React.useRef<HTMLDivElement>(null);
+  const [replaceTargets, setReplaceTargets] = React.useState<
+    Array<{ key: string; top: number; left: number; image: HTMLImageElement; label: string }>
+  >([]);
+  const showReplaceButtons =
+    Boolean(onUpdateBlockField) &&
+    hasVisibleContent &&
+    block.type !== "graphic-hero" &&
+    block.type !== "social-follow";
+  React.useLayoutEffect(() => {
+    const root = wrapper.current;
+    if (!root || !showReplaceButtons) {
+      setReplaceTargets([]);
+      return;
+    }
+    const measure = () => {
+      const base = root.getBoundingClientRect();
+      const images = Array.from(
+        root.querySelectorAll<HTMLImageElement>(
+          // Same images the click-to-replace handler accepts.
+          ".nl-preview img:not([data-newsletter-readonly])",
+        ),
+      );
+      setReplaceTargets(
+        images
+          .map((image, i) => {
+            const rect = image.getBoundingClientRect();
+            return {
+              key: `${i}-${image.getAttribute("data-newsletter-image")}-${image.getAttribute("data-newsletter-index") ?? 0}`,
+              top: rect.bottom - base.top,
+              left: rect.right - base.left,
+              image,
+              label: image.alt ? `Replace ${image.alt}` : "Replace image",
+              visible: rect.width > 0 && rect.height > 0,
+            };
+          })
+          .filter((target) => target.visible)
+          .map(({ visible: _visible, ...target }) => target),
+      );
+    };
+    measure();
+    // Re-measure once photos load (or fail and fall back to alt text).
+    const images = Array.from(root.querySelectorAll("img"));
+    images.forEach((image) => {
+      image.addEventListener("load", measure);
+      image.addEventListener("error", measure);
+    });
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
+    observer?.observe(root);
+    return () => {
+      images.forEach((image) => {
+        image.removeEventListener("load", measure);
+        image.removeEventListener("error", measure);
+      });
+      observer?.disconnect();
+    };
+  }, [html, showReplaceButtons]);
   return (
-    <Box aria-busy={busy} sx={{ position: "relative" }}>
+    <Box
+      ref={wrapper}
+      aria-busy={busy}
+      sx={{
+        position: "relative",
+        // Shown while the block is hovered or a button has keyboard focus.
+        "& .nl-replace-image": { opacity: 0, transition: "opacity 120ms ease" },
+        "&:hover .nl-replace-image, & .nl-replace-image:focus-visible": { opacity: 1 },
+        "@media (hover: none)": { "& .nl-replace-image": { opacity: 1 } },
+      }}
+    >
       {block.audience?.mode === "segments" && (
         <Box
           sx={{
@@ -261,6 +330,42 @@ export default function SharedEmailBlockPreview({
           {block.imageUrl ? "Replace image" : "Upload image"}
         </Box>
       )}
+      {replaceTargets.map((target) => (
+        <Box
+          key={target.key}
+          component="button"
+          type="button"
+          className="nl-replace-image"
+          aria-label={target.label}
+          disabled={busy}
+          onClick={(event) => {
+            event.stopPropagation();
+            choose(target.image);
+          }}
+          sx={{
+            position: "absolute",
+            top: target.top - 40,
+            left: target.left - 8,
+            transform: "translateX(-100%)",
+            px: 1.25,
+            py: 0.6,
+            border: "1px solid",
+            borderColor: "neutral.300",
+            borderRadius: "sm",
+            bgcolor: "#ffffff",
+            color: "#203b3b",
+            fontSize: 12,
+            fontWeight: 650,
+            whiteSpace: "nowrap",
+            cursor: busy ? "wait" : "pointer",
+            boxShadow: "sm",
+            zIndex: 2,
+            "&:focus-visible": { outline: "2px solid", outlineColor: "primary.500" },
+          }}
+        >
+          Replace image
+        </Box>
+      ))}
       {onUpdateBlockField && (
         <input
           ref={input}
