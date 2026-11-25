@@ -1994,8 +1994,8 @@ function renderFooterSocialIcons(
       // even unstripped, Gmail and Outlook do not render SVG in email. This
       // mirrors how the social-follow block renders its icons.
       const iconUrl = SOCIAL_ICON_URLS[link.platform];
-      if (iconUrl) {
-        return `<a href="${escapeAttribute(href)}" target="_blank" aria-label="${label}" style="display:inline-block;text-decoration:none;opacity:${placeholder ? 0.38 : 1};margin:${margin};"><img src="${escapeAttribute(iconUrl)}" alt="${label}" width="28" height="28" style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;" /></a>`;
+      if (iconUrl && iconStyle !== "minimal") {
+        return `<a href="${escapeAttribute(href)}" target="_blank" aria-label="${label}" style="display:inline-block;text-decoration:none;opacity:${placeholder ? 0.38 : 1};margin:${margin};${iconStyle === "outlined" ? `border:1px solid ${iconColor};border-radius:999px;padding:3px;` : ""}"><img src="${escapeAttribute(iconUrl)}" alt="${label}" width="28" height="28" style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;" /></a>`;
       }
 
       // Platforms with no hosted icon (twitter/X, threads) keep the lettered
