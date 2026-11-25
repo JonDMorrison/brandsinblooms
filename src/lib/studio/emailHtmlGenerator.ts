@@ -30,6 +30,7 @@ import type {
 // supabase/functions/_shared/* and must resolve under the Deno bundler,
 // which does not apply the app's "@/" path alias.
 import { formatDraftRichText } from "../crm/htmlContent.ts";
+import { renderEditorEmptyBlock } from "./newsletter/editorEmptyBlocks.ts";
 import {
   EDITOR_PLACEHOLDER_FRAME_BG,
   editorImagePlaceholder,
@@ -2399,7 +2400,11 @@ export function renderNewsletterBlock(
         appearance: mergeAppearance(brandFonts, appearance),
       }
     : brandedPrepared;
+  // Editor only: a just-added block shows its real layout with neutral
+  // sample content. Never reaches Preview & Test or sent mail.
+  const editorSample = editing ? renderEditorEmptyBlock(brandedPrepared) : null;
   let html =
+    editorSample ??
     renderExtendedBlock(extendedBlock, resolved.width, editing) ??
     renderLegacyBlock(brandedPrepared, designSystem, editing);
   if (

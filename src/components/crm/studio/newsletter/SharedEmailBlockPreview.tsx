@@ -109,7 +109,9 @@ export default function SharedEmailBlockPreview({
   };
   const choose = (element: Element) => {
     if (!onUpdateBlockField || busy) return;
-    const image = element.closest("img");
+    // A new block's grey "Add a photo" frame opens the same picker.
+    const image = element.closest("img") ??
+      element.closest('[data-editor-placeholder="image"][data-newsletter-image]');
     if (
       !image ||
       image.hasAttribute("data-newsletter-readonly") ||
@@ -175,7 +177,7 @@ export default function SharedEmailBlockPreview({
           onKeyDown={(event) => {
             if (
               (event.key === "Enter" || event.key === " ") &&
-              (event.target as Element).matches("img")
+              (event.target as Element).matches('img, [data-editor-placeholder="image"][data-newsletter-image]')
             ) {
               event.preventDefault();
               choose(event.target as Element);
@@ -184,8 +186,8 @@ export default function SharedEmailBlockPreview({
           ref={(node) => {
             if (node && onUpdateBlockField)
               node
-                .querySelectorAll<HTMLImageElement>(
-                  "img:not([data-newsletter-readonly])",
+                .querySelectorAll<HTMLElement>(
+                  'img:not([data-newsletter-readonly]), [data-editor-placeholder="image"][data-newsletter-image]',
                 )
                 .forEach((image) => {
                   if (block.type === "social-follow") return;
@@ -193,7 +195,9 @@ export default function SharedEmailBlockPreview({
                   image.setAttribute("role", "button");
                   image.setAttribute(
                     "aria-label",
-                    `Change ${image.alt || "block image"}`,
+                    image instanceof HTMLImageElement
+                      ? `Change ${image.alt || "block image"}`
+                      : "Add a photo",
                   );
                 });
           }}
