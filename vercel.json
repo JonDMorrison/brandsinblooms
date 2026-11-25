@@ -32,6 +32,10 @@
   ],
   "rewrites": [
     {
+      "source": "/social-icon/:platform/:style/:file",
+      "destination": "/api/social-icon?platform=:platform&style=:style&color=:file"
+    },
+    {
       "source": "/crm/features",
       "destination": "/product-guide-pages/crm/crm--features.html"
     },
@@ -2519,6 +2523,10 @@
     {"source": "/plant-intelligence/", "destination": "/plant-intelligence.html"},
     {"source": "/care-guides", "destination": "/care-guides-marketing.html"},
     {"source": "/care-guides/", "destination": "/care-guides-marketing.html"},
+    {
+      "source": "/images/:path*",
+      "destination": "/api/static-asset-not-found"
+    },
     {
       "source": "/(.*)",
       "destination": "/index.html"

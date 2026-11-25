@@ -2,11 +2,11 @@ import Box from "@mui/joy/Box";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
 import {
-  SocialIcon,
-  SOCIAL_PLATFORM_BRAND_COLORS,
+  normalizeSocialLinks,
+  resolveSocialFollowIcon,
   SOCIAL_PLATFORM_LABELS,
   SOCIAL_PLATFORM_ORDER,
-} from "@/components/crm/studio/icons/SocialIcons";
+} from "@/lib/studio/socialIcons";
 import { useOptionalDesignSystem } from "@/contexts/DesignSystemContext";
 import type { SocialLink, StudioBlock } from "@/types/studioBlocks";
 
@@ -27,23 +27,32 @@ function getIconSize(
   }
 }
 
-function resolveIconColor(
-  block: StudioBlock,
-  link: SocialLink,
-  designSystem?: { colors: { text?: string } } | null,
-) {
-  const colorMode =
-    block.iconColorMode ??
-    (block.socialColorMode === "monochrome" ? "mono" : block.socialColorMode);
-
-  switch (colorMode) {
-    case "custom":
-      return block.customIconColor || "#111827";
-    case "mono":
-      return designSystem?.colors.text || block.textColor || "#111827";
-    default:
-      return SOCIAL_PLATFORM_BRAND_COLORS[link.platform];
-  }
+function SocialIconImage({
+  block,
+  link,
+  size,
+  designSystem,
+}: {
+  block: StudioBlock;
+  link: SocialLink;
+  size: number;
+  designSystem?: { colors: { text?: string } } | null;
+}) {
+  // The exact image the email uses (src/lib/studio/socialIcons).
+  const { src } = resolveSocialFollowIcon(
+    block,
+    link.platform,
+    designSystem?.colors.text || block.textColor,
+  );
+  return (
+    <img
+      src={src}
+      alt=""
+      width={size}
+      height={size}
+      style={{ display: "block", width: size, height: size }}
+    />
+  );
 }
 
 function getVisibleLinks(
@@ -51,8 +60,12 @@ function getVisibleLinks(
   designSystem?: { social: { links: SocialLink[] } } | null,
 ) {
   const designSystemLinks = designSystem?.social.links ?? [];
-  const links = block.socialLinks?.length
-    ? block.socialLinks
+  const blockLinks = normalizeSocialLinks(
+    block.socialLinks,
+    block.socialLinkOrder,
+  );
+  const links = blockLinks.length
+    ? blockLinks
     : designSystemLinks.length
       ? designSystemLinks
       : SOCIAL_PLATFORM_ORDER.map((platform) => ({
@@ -109,11 +122,11 @@ function IconAnchor({
         opacity: placeholder ? 0.34 : 1,
       }}
     >
-      <SocialIcon
-        platform={link.platform}
+      <SocialIconImage
+        block={block}
+        link={link}
         size={iconSize}
-        color={resolveIconColor(block, link, designSystem)}
-        variant={block.iconStyle ?? block.socialIconStyle ?? "filled"}
+        designSystem={designSystem}
       />
     </Box>
   );
@@ -177,13 +190,11 @@ export default function SocialFollowRenderer({
                   opacity: placeholder ? 0.34 : 0.88,
                 }}
               >
-                <SocialIcon
-                  platform={link.platform}
+                <SocialIconImage
+                  block={block}
+                  link={link}
                   size={getIconSize(block.iconSize ?? block.socialIconSize)}
-                  color={resolveIconColor(block, link, designSystem)}
-                  variant={
-                    block.iconStyle ?? block.socialIconStyle ?? "minimal"
-                  }
+                  designSystem={designSystem}
                 />
                 <span>{SOCIAL_PLATFORM_LABELS[link.platform]}</span>
               </Box>

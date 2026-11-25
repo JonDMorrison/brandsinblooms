@@ -135,8 +135,9 @@ describe("newsletter block controls", () => {
         const hero = block(type, preset.fields);
         const preview = renderNewsletterBlock(hero, null, undefined, { editing: true });
         const sent = renderNewsletterBlock(hero);
-        expect(preview).toMatch(/Your headline|newsletter-fallback\.jpg/);
-        expect(sent).not.toMatch(/Your headline|Your subheading|newsletter-fallback\.jpg/);
+        expect(preview).toMatch(/Your headline|Add a photo/);
+        expect(preview).not.toContain("newsletter-fallback");
+        expect(sent).not.toMatch(/Your headline|Your subheading|newsletter-fallback|data-editor-placeholder/);
         return preview;
       });
       expect(new Set(previews).size).toBe(presets.length);

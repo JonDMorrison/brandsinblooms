@@ -380,6 +380,8 @@ describe("coupon presets and products", () => {
         buttonUrl: "https://example.com/offer",
         couponConditions: "In store only",
         couponExpiry: "October 31",
+        couponOffer: "price",
+        couponPrice: "$29.99",
         originalPrice: "$39.99",
         couponSizing: "#2 pot only",
       }),
@@ -388,7 +390,8 @@ describe("coupon presets and products", () => {
       output.indexOf("In store only"),
     );
     expect(output).toContain("Expires: October 31");
-    expect(output).toContain("<s>$39.99</s>");
+    // The old price follows the sale price (Nov 25 QA).
+    expect(output).toMatch(/\$29\.99 <s[^>]*>\$39\.99<\/s>/);
     expect(output).toContain("Skimmia japonica");
   });
   it("supports product subtitles, three badges and image on top", () => {
@@ -768,15 +771,15 @@ describe("Arts Nursery November 15 Design Studio regressions", () => {
       socialLinks: links, iconColorMode: "custom", iconStyle: "square",
       customIconColor: "#123456", iconSpacing: 28,
     }));
-    expect(mono).toContain("background-color:#123456");
+    // Square, custom colour: a #123456 rounded square with a white glyph PNG.
+    expect(mono).toContain("https://bloomsuite.app/social-icon/instagram/square/123456.png");
     expect(mono).toContain("padding:0 14px");
-    expect(mono).toContain("border-radius:5px");
-    expect(mono).toContain("IG");
+    expect(mono).not.toContain(">IG<");
     const outline = renderNewsletterBlock(block("social-follow", {
       socialLinks: links, iconColorMode: "mono", iconStyle: "outlined",
       textColor: "#987654",
     }));
-    expect(outline).toContain("border:1px solid #987654");
+    expect(outline).toContain("https://bloomsuite.app/social-icon/instagram/outlined/987654.png");
     expect(outline).toContain("href=\"https://instagram.com/example\"");
   });
 });

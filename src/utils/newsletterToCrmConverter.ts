@@ -475,8 +475,9 @@ const createHeaderBlock = async (
           prompt: headerImagePrompt,
         });
       } catch (imageError) {
+        // No stock photo: the header simply has no image until one is chosen.
         headerImage = {
-          url: "/images/newsletter-fallback.jpg",
+          url: "",
           alt: "Newsletter header",
         };
       }

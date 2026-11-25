@@ -2,6 +2,8 @@ import {
   STUDIO_BLOCK_LOOKUP,
   type StudioBlockType,
 } from "@/components/crm/studio/blockLibraryData";
+import { getStudioLayoutPresets } from "@/lib/studio/layoutPresets";
+import { socialLinksForNewBlock } from "@/lib/studio/socialIcons";
 import {
   readableColorPair,
   type StudioDesignSystem,
@@ -105,8 +107,11 @@ export function createStudioBlock(
   const complianceText =
     designSystem?.company.footerLegalText ||
     DEFAULT_COMPLIANCE_TEMPLATE.replace("{name}", businessName);
+  // New Footer / Social Media Links blocks start with only real page
+  // addresses from brand settings; anything else starts empty for the person
+  // to fill in (never a bare https://facebook.com).
   const defaultSocialLinks = designSystem?.social.links.length
-    ? designSystem.social.links
+    ? socialLinksForNewBlock(designSystem.social.links)
     : createDefaultSocialLinks();
   const base = {
     id: crypto.randomUUID(),
@@ -245,7 +250,12 @@ export function createStudioBlock(
         buttonTextColor: (primaryColor && primaryContrastText) || "#1a1a2e",
         buttonSize: "md",
         buttonRounded: true,
-        layoutPreset: "hero-light-center",
+        // New Headline Banners start on the "Brand Green" look (brand colour
+        // background, readable text), shown as selected in the look picker.
+        ...getStudioLayoutPresets(designSystem).heroPresets.find(
+          (preset) => preset.key === "hero-brand-green",
+        )?.fields,
+        layoutPreset: "hero-brand-green",
       };
     case "graphic-hero":
       return {
@@ -453,14 +463,17 @@ export function createStudioBlock(
         layout: "row-3",
         layoutPreset: "product-gallery-row-3",
         gridColumns: 3,
-        imageHeight: 160,
+        // Square photos that fill their box: no white bands around square
+        // product shots, and every card in a row lines up.
+        imageRatio: "1:1",
+        imageFit: "cover",
         cardGap: 16,
         backgroundColor: "#ffffff",
         cardBackgroundColor: "#ffffff",
         textColor: brandTextColor || "#111827",
         showBadges: true,
         showPrices: true,
-        showOriginalPrice: false,
+        showOriginalPrice: true,
         showCtaButtons: true,
         showDescription: true,
         showCardBorder: true,

@@ -221,6 +221,8 @@ export interface ContentBlock {
       url: string;
     };
   };
+  /** Panel order of socialLinks; jsonb does not keep object key order. */
+  socialLinkOrder?: string[];
   iconColor?: string;
   iconSize?: string;
 

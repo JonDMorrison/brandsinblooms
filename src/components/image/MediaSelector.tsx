@@ -21,6 +21,13 @@ import {
   formatFallbackImages,
 } from "@/services/gardenCenterFallbacks";
 
+/** Light grey frame with an image outline and "Image unavailable". */
+const BROKEN_IMAGE_PLACEHOLDER =
+  "data:image/svg+xml;charset=utf-8," +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="200" viewBox="0 0 300 200"><rect width="300" height="200" fill="#eef1f3"/><g fill="none" stroke="#8a96a3" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="132" y="66" width="36" height="36" rx="4"/><circle cx="144" cy="78" r="4"/><path d="m168 94-6.5-6.5a4 4 0 0 0-5.6 0L136 102"/></g><text x="150" y="130" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" fill="#6b7785">Image unavailable</text></svg>',
+  );
+
 interface MediaSelectorProps {
   onImageSelect: (imageUrl: string, metadata?: any) => void;
   selectedImageUrl?: string;
@@ -216,14 +223,9 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
                     "[MediaSelector] Compact image failed to load:",
                     selectedImageUrl,
                   );
-                  const currentSrc = e.currentTarget.src;
-                  const fallbackPath = "/images/newsletter-fallback.jpg";
-
-                  if (!currentSrc.includes("newsletter-fallback.jpg")) {
-                    e.currentTarget.src = fallbackPath;
-                  } else {
-                    e.currentTarget.src =
-                      "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2Y1Zjd1YSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzY2NzM4NSI+SW1hZ2UgVW5hdmFpbGFibGU8L3RleHQ+PC9zdmc+";
+                  // Neutral broken-image state; never a stock photo.
+                  if (e.currentTarget.src !== BROKEN_IMAGE_PLACEHOLDER) {
+                    e.currentTarget.src = BROKEN_IMAGE_PLACEHOLDER;
                   }
                 }}
               />
@@ -430,14 +432,9 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
                     "[MediaSelector] Featured image failed to load:",
                     selectedImageUrl,
                   );
-                  const currentSrc = e.currentTarget.src;
-                  const fallbackPath = "/images/newsletter-fallback.jpg";
-
-                  if (!currentSrc.includes("newsletter-fallback.jpg")) {
-                    e.currentTarget.src = fallbackPath;
-                  } else {
-                    e.currentTarget.src =
-                      "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2Y1Zjd1YSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzY2NzM4NSI+SW1hZ2UgVW5hdmFpbGFibGU8L3RleHQ+PC9zdmc+";
+                  // Neutral broken-image state; never a stock photo.
+                  if (e.currentTarget.src !== BROKEN_IMAGE_PLACEHOLDER) {
+                    e.currentTarget.src = BROKEN_IMAGE_PLACEHOLDER;
                   }
                 }}
               />

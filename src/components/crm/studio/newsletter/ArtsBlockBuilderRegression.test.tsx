@@ -23,7 +23,9 @@ describe("Arts November block-builder regressions", () => {
     expect(screen.getByLabelText("Photo URL")).toHaveValue("https://example.com/photo.png");
     fireEvent.click(screen.getByRole("button", { name: "Square placeholder" }));
     expect(screen.getByLabelText("Photo URL")).toHaveValue("https://placehold.co/1200x1200/png");
-    expect(onApply).toHaveBeenCalledTimes(1);
+    // Placeholder shortcuts apply in one click.
+    expect(onApply).toHaveBeenLastCalledWith("https://placehold.co/1200x1200/png");
+    expect(onApply).toHaveBeenCalledTimes(2);
   });
 
   it("resolves a relative filename against the selected asset location", () => {
@@ -46,7 +48,9 @@ describe("Arts November block-builder regressions", () => {
   it("renders gallery fit, image height and per-image spacing from stored values", () => {
     const block = createStudioBlock("product-gallery");
     const html = renderExtendedBlock({
-      ...block, imageFit: "cover", imageHeight: 280,
+      // A saved gallery with a fixed height and no ratio keeps that height
+      // (a chosen ratio would win over it).
+      ...block, imageRatio: undefined, imageFit: "cover", imageHeight: 280,
       galleryProducts: [{ id: "product", name: "Fern", price: "$20", imageUrl: "https://example.com/fern.png" }],
     }, 640);
     expect(html).toContain("object-fit:cover");

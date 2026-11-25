@@ -188,7 +188,7 @@ test("a new newsletter opens Design Studio and previews Photo Banner, button and
         new URL(response.url()).pathname.startsWith("/storage/v1/object/campaign-images/"),
         { timeout: 20_000 },
       ),
-      chooser.setFiles("public/images/newsletter-fallback.jpg"),
+      chooser.setFiles("e2e/fixtures/test-upload.jpg"),
     ]);
     expect(upload.ok(), "Graphic Hero image upload").toBeTruthy();
     const path = new URL(upload.url()).pathname;

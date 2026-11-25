@@ -19,7 +19,8 @@ import { safeEmailUrl } from "@/lib/studio/newsletter/settings";
 import { navigationLinkColor } from "@/lib/studio/newsletter/settings";
 import { useNewsletterDesign } from "./NewsletterDesignContext";
 import { upcAImage } from "@/lib/studio/newsletter/barcode";
-import { validUpcA } from "@/lib/studio/newsletter/renderExtensions";
+import { couponUsesOldPrice, couponUsesPrice, validUpcA } from "@/lib/studio/newsletter/renderExtensions";
+import { chartDataTextFor, parseChartDataText } from "@/lib/studio/newsletter/chartData";
 
 type Update = (
   field: keyof StudioBlock,
@@ -361,16 +362,18 @@ function CouponFields({
           />
         </>
       )}
-      <Field
-        label={
-          block.couponOffer === "tiered"
-            ? "Price per item at minimum quantity"
-            : "Price (optional)"
-        }
-        value={block.couponPrice}
-        onChange={(value) => update("couponPrice", value)}
-        placeholder="Example: $19.99"
-      />
+      {couponUsesPrice(block.couponOffer) && (
+        <Field
+          label={
+            block.couponOffer === "tiered"
+              ? "Price per item at minimum quantity"
+              : "Sale price"
+          }
+          value={block.couponPrice}
+          onChange={(value) => update("couponPrice", value)}
+          placeholder="Example: $19.99"
+        />
+      )}
       {block.couponOffer === "tiered" && (
         <>
           <NumericField
@@ -388,11 +391,13 @@ function CouponFields({
           />
         </>
       )}
-      <Field
-        label="Old price (shown crossed out)"
-        value={block.originalPrice}
-        onChange={(value) => update("originalPrice", value)}
-      />
+      {couponUsesOldPrice(block.couponOffer) && (
+        <Field
+          label="Old price (shown crossed out after the sale price)"
+          value={block.originalPrice}
+          onChange={(value) => update("originalPrice", value)}
+        />
+      )}
       <Field
         label="Size or type this applies to"
         value={block.couponSizing}
@@ -504,6 +509,12 @@ function CouponFields({
     </>
   );
 }
+/** The ratio the gallery renders with (see productGalleryImageSizing). */
+function galleryImageRatio(block: StudioBlock): string {
+  if (block.imageRatio) return block.imageRatio;
+  return block.imageHeight == null ? "1:1" : "";
+}
+
 function GalleryFields({
   block,
   update,
@@ -539,6 +550,10 @@ function GalleryFields({
     );
     next[index] = { ...next[index], ...patch };
     update("galleryProducts", next);
+    // Entering an original price is a clear sign the user wants it shown.
+    if (patch.originalPrice?.trim() && block.showOriginalPrice === false) {
+      update("showOriginalPrice", true);
+    }
   };
   return (
     <>
@@ -606,11 +621,20 @@ function GalleryFields({
       {product && (
         <details className="nl-controls">
           <summary>Product display options</summary>
-          <Choice label="How the photos fit" value={block.imageFit || "contain"}
+          <Choice label="Image ratio" value={galleryImageRatio(block)}
+            options={[
+              ...(galleryImageRatio(block) === "" ? [{ value: "", label: "Fixed height" }] : []),
+              { value: "1:1", label: "Square" }, { value: "4:3", label: "4:3" }, { value: "3:4", label: "3:4" }, { value: "auto", label: "Original" },
+            ]}
+            onChange={(value) => update("imageRatio", (value || undefined) as StudioBlock["imageRatio"])} />
+          <Choice label="How the photos fit" value={block.imageFit || "cover"}
             options={[{ value: "contain", label: "Show whole photo" }, { value: "cover", label: "Fill the space" }, { value: "fill", label: "Stretch to fit" }]}
             onChange={(value) => update("imageFit", value as StudioBlock["imageFit"])} />
-          <NumericField label="Image height (px)" value={block.imageHeight ?? 220} min={120} max={480}
-            onChange={(value) => update("imageHeight", value)} />
+          {/* Older galleries set a fixed height; a chosen ratio replaces it. */}
+          {block.imageRatio == null && block.imageHeight != null && (
+            <NumericField label="Image height (px)" value={block.imageHeight} min={120} max={480}
+              onChange={(value) => update("imageHeight", value)} />
+          )}
           <StudioSwitchField
             label="Show prices"
             checked={block.showPrices !== false}
@@ -1099,29 +1123,18 @@ export default function ExtendedBlockProperties({
           <Field
             label="Chart data: label, value (one per line)"
             multiline
-            value={(block.chartData || [])
-              .map((point) => `${point.label}, ${point.value}`)
-              .join("\n")}
-            onChange={(value) =>
-              update(
-                "chartData",
-                value
-                  .split("\n")
-                  .filter(Boolean)
-                  .slice(0, 20)
-                  .map((line) => {
-                    const index = line.lastIndexOf(",");
-                    return {
-                      label: index < 0 ? line : line.slice(0, index).trim(),
-                      value:
-                        index < 0
-                          ? 0
-                          : Math.max(0, Number(line.slice(index + 1)) || 0),
-                    };
-                  }),
-              )
-            }
+            // Keep the text exactly as typed; only the chart reads the
+            // parsed points. Re-formatting here mangled input mid-typing.
+            value={chartDataTextFor(block)}
+            onChange={(value) => {
+              update("chartDataText", value);
+              update("chartData", parseChartDataText(value));
+            }}
           />
+          <p className="nl-note">
+            For example "Pruning, 24". You can paste two columns from a
+            spreadsheet. Up to 20 rows.
+          </p>
           <ColorField
             label="Bar colour"
             value={block.accentColor}

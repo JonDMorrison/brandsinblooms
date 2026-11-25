@@ -109,7 +109,7 @@ export function buildSeed(customerCount = 1200): ShowroomSeed {
   const body = (headline: string, text: string, cta: string) => `<h1>${headline}</h1><p>${text}</p><p><a href="https://example.com">${cta}</a></p>`;
   // A complete sample newsletter, built from the real Campaign Studio block types.
   // Email renderers need absolute https image URLs.
-  const sampleImage = `${typeof window !== "undefined" ? window.location.origin : "https://demo.bloomsuite.app"}/crm/images/newsletter-fallback.jpg`;
+  const sampleImage = "https://placehold.co/1200x600/png?text=Patio+containers";
   const prayerPlant = "https://images.pexels.com/photos/4590439/pexels-photo-4590439.jpeg?auto=compress&cs=tinysrgb&w=900";
   const patioBlocks = [
     { id: "patio-1", type: "full-width-image", order: 0, visible: true, imageUrl: sampleImage, imageAlt: "Spring containers on a sunny patio" },

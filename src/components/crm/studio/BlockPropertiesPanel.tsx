@@ -51,6 +51,7 @@ import StudioSwitchField from "@/components/crm/studio/fields/StudioSwitchField"
 import StudioTextField from "@/components/crm/studio/fields/StudioTextField";
 import StudioToggleField from "@/components/crm/studio/fields/StudioToggleField";
 import { useDesignSystem } from "@/contexts/DesignSystemContext";
+import { isFooterSocialVisible } from "@/lib/studio/socialIcons";
 import type { EditorCampaignType } from "@/lib/crm/campaignEditor";
 import {
   getStudioLayoutPresets,
@@ -221,6 +222,8 @@ function CollapsibleSection({
   warningText,
   description,
 }: CollapsibleSectionProps) {
+  // The switch is named by the visible label (e.g. "Show Badge").
+  const labelId = React.useId();
   return (
     <Stack
       spacing={enabled ? 1.5 : 0.25}
@@ -235,6 +238,7 @@ function CollapsibleSection({
       >
         <Stack spacing={0.35} sx={{ minWidth: 0, flex: 1 }}>
           <Typography
+            id={labelId}
             level="body-xs"
             sx={{
               fontSize: "12.5px",
@@ -259,6 +263,7 @@ function CollapsibleSection({
           color="primary"
           checked={enabled}
           onChange={(event) => onToggle(event.target.checked)}
+          slotProps={{ input: { "aria-labelledby": labelId } }}
           sx={inlineSwitchSx}
         />
       </Stack>
@@ -1866,7 +1871,8 @@ function SocialLinksManager({
                 <Input
                   size="sm"
                   variant="outlined"
-                  placeholder="https://..."
+                  placeholder={`Paste your ${SOCIAL_PLATFORM_LABELS[link.platform]} page address`}
+                  slotProps={{ input: { "aria-label": `${SOCIAL_PLATFORM_LABELS[link.platform]} page address` } }}
                   value={link.url}
                   disabled={!link.enabled}
                   onChange={(event) =>
@@ -4270,7 +4276,10 @@ function PanelContent({
                 content: (
                   <CollapsibleSection
                     label="Show Social Icons"
-                    enabled={block.showSocialInFooter ?? false}
+                    enabled={isFooterSocialVisible(
+                      block,
+                      Boolean(designSystem?.social.hasConfiguredLinks),
+                    )}
                     onToggle={(value) =>
                       updateField("showSocialInFooter", value)
                     }
@@ -4298,9 +4307,10 @@ function PanelContent({
                     <StudioColorPicker
                       label="Icon Colour"
                       value={block.footerIconColor ?? "#cbd5e1"}
-                      onChange={(value) =>
-                        updateField("footerIconColor", value)
-                      }
+                      onChange={(value) => {
+                        updateField("footerIconColor", value);
+                        updateField("footerIconColorPicked", true);
+                      }}
                     />
                   </CollapsibleSection>
                 ),
@@ -4974,6 +4984,21 @@ function PanelContent({
                       onChange={(value) => updateField("buttonUrl", value)}
                     />
                     <StudioToggleField
+                      label="Button alignment"
+                      options={[
+                        { label: "Left", value: "left" },
+                        { label: "Centre", value: "center" },
+                        { label: "Right", value: "right" },
+                      ]}
+                      value={block.buttonAlign ?? (block.layout === "centered" ? "center" : "left")}
+                      onChange={(value) =>
+                        updateField(
+                          "buttonAlign",
+                          value as StudioBlock["buttonAlign"],
+                        )
+                      }
+                    />
+                    <StudioToggleField
                       label="Button Style"
                       options={[
                         { label: "Filled", value: "filled" },
@@ -5214,7 +5239,11 @@ export default function BlockPropertiesPanel({
 
   // A button with words but no usable web address is left out of the sent
   // email. Say so, calmly, before the person finds out from a customer.
-  const buttonLink = (block?.buttonUrl || "").trim();
+  // A YouTube block's button always opens its video, so the video address is
+  // the button's web address.
+  const buttonLink = (
+    (block?.type === "youtube" ? block?.videoUrl : block?.buttonUrl) || ""
+  ).trim();
   const buttonIsOn =
     Boolean((block?.buttonText || "").trim()) &&
     (block?.type !== "graphic-hero" || block?.showButton === true);
@@ -5223,6 +5252,14 @@ export default function BlockPropertiesPanel({
     block?.type !== "footer" &&
     buttonIsOn &&
     (!buttonLink || buttonLink.startsWith("#"));
+  // The reverse: a web address but no words, so no button can show.
+  const buttonNeedsText =
+    Boolean(block) &&
+    block?.type !== "footer" &&
+    block?.type !== "youtube" &&
+    Boolean((block?.buttonUrl || "").trim()) &&
+    !(block?.buttonText || "").trim() &&
+    (block?.type !== "graphic-hero" || block?.showButton === true);
 
   return (
     <Sheet
@@ -5389,6 +5426,26 @@ export default function BlockPropertiesPanel({
             This block has a button, but the button has no web address yet.
             Customers will not see the button until you add one, like
             www.yourstore.com.
+          </Box>
+        ) : null}
+        {buttonNeedsText ? (
+          <Box
+            role="note"
+            sx={{
+              mx: 2.5,
+              mt: 1.5,
+              p: 1.25,
+              borderRadius: "10px",
+              bgcolor: "primary.50",
+              border: "1px solid",
+              borderColor: "primary.100",
+              color: "neutral.800",
+              fontSize: "13px",
+              lineHeight: 1.45,
+            }}
+          >
+            This block has a button link, but the button needs text. Customers
+            will not see the button until you add words, like Shop now.
           </Box>
         ) : null}
         {block?.connectedContent?.type === "event" && onUpdateBlockFields ? <ConnectedEventRefresh key={block.id} block={block} onUpdate={onUpdateBlockFields} /> : null}

@@ -30,6 +30,17 @@ import type {
 // supabase/functions/_shared/* and must resolve under the Deno bundler,
 // which does not apply the app's "@/" path alias.
 import { formatDraftRichText } from "../crm/htmlContent.ts";
+import { renderEditorEmptyBlock } from "./newsletter/editorEmptyBlocks.ts";
+import {
+  EDITOR_PLACEHOLDER_FRAME_BG,
+  editorImagePlaceholder,
+} from "./newsletter/editorPlaceholders.ts";
+import {
+  isFooterSocialVisible,
+  normalizeSocialLinks,
+  resolveFooterSocialIcon,
+  resolveSocialFollowIcon,
+} from "./socialIcons.ts";
 import { getImageObjectPosition } from "./imageFocalPoint.ts";
 import {
   resolveCroppedEmailImage,
@@ -95,7 +106,6 @@ const DEFAULT_EMAIL_FONT_STACK = "Arial, Helvetica, sans-serif";
 const EMAIL_WIDTH = 640;
 const DEFAULT_COMPLIANCE_TEXT =
   "You are receiving this email because you opted in to receive updates from our business.";
-const SOCIAL_ICON_BASE_URL = "https://bloomsuite.app/social-icons";
 const DEFAULT_SOCIAL_PLATFORMS: Array<SocialLink["platform"]> = [
   "facebook",
   "instagram",
@@ -106,14 +116,6 @@ const DEFAULT_SOCIAL_PLATFORMS: Array<SocialLink["platform"]> = [
   "pinterest",
   "threads",
 ];
-const SOCIAL_ICON_URLS: Partial<Record<SocialLink["platform"], string>> = {
-  facebook: `${SOCIAL_ICON_BASE_URL}/facebook.png`,
-  instagram: `${SOCIAL_ICON_BASE_URL}/instagram.png`,
-  linkedin: `${SOCIAL_ICON_BASE_URL}/linkedin.png`,
-  youtube: `${SOCIAL_ICON_BASE_URL}/youtube.png`,
-  tiktok: `${SOCIAL_ICON_BASE_URL}/tiktok.png`,
-  pinterest: `${SOCIAL_ICON_BASE_URL}/pinterest.png`,
-};
 const SOCIAL_LABELS: Record<SocialLink["platform"], string> = {
   facebook: "Facebook",
   instagram: "Instagram",
@@ -124,17 +126,6 @@ const SOCIAL_LABELS: Record<SocialLink["platform"], string> = {
   pinterest: "Pinterest",
   threads: "Threads",
 };
-const SOCIAL_COLORS: Record<SocialLink["platform"], string> = {
-  facebook: "#1877F2",
-  instagram: "#C13584",
-  twitter: "#111111",
-  linkedin: "#0A66C2",
-  youtube: "#FF0000",
-  tiktok: "#111111",
-  pinterest: "#E60023",
-  threads: "#111111",
-};
-
 function getDesignSystemFontFamily(
   designSystem: StudioDesignSystem | null | undefined,
   role: EmailFontRole,
@@ -746,6 +737,8 @@ function getImageHeightForRatio(
       return Math.round(width);
     case "4:3":
       return Math.round((width * 3) / 4);
+    case "3:4":
+      return Math.round((width * 4) / 3);
     case "16:9":
       return Math.round((width * 9) / 16);
     case "9:16":
@@ -1006,11 +999,9 @@ function renderHeroBlock(
   const textColor = safeColor(block.textColor, "#1a1a2e");
   const align = getAlignment(block.textAlign, "center");
   const heroStyle = block.heroStyle || "solid";
-  // An editorial panel with no photo must not invent a huge fake pink
-  // background. The regular hero presets retain their preview fallback.
-  const imageUrl = safeUrl(block.imageUrl, { image: true }) ||
-    (editing && !(heroStyle === "image-overlay" && block.layout === "editorial-panel")
-      ? "/images/newsletter-fallback.jpg" : "");
+  // No stock photo ever stands in for a missing one. In the editor an empty
+  // photo shows a neutral "Add a photo" frame; sent mail shows no image.
+  const imageUrl = safeUrl(block.imageUrl, { image: true });
   const padding = block.appearance?.padding ? "0" : "48px 32px";
   const background =
     heroStyle === "gradient"
@@ -1029,6 +1020,16 @@ function renderHeroBlock(
     const photo = imageUrl ? ` background="${escapeAttribute(imageUrl)}"` : "";
     const photoStyle = imageUrl ? `background-image:url('${escapeAttribute(imageUrl.replace(/'/g, "%27"))}');background-size:cover;background-position:${getImageObjectPosition(block.imageFocalX, block.imageFocalY)};` : "";
     return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td${photo} bgcolor="${escapeAttribute(backgroundColor)}" style="background-color:${backgroundColor};${photoStyle}padding:${imageUrl ? 180 : 24}px 24px 24px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="padding:24px;background-color:${backgroundColor};">${content}</td></tr></table></td></tr></table>`;
+  }
+
+  if (editing && !imageUrl && (heroStyle === "image-overlay" || heroStyle === "image-bottom")) {
+    const frame = editorImagePlaceholder({ height: heroStyle === "image-overlay" ? 160 : 220, radius: 0 });
+    return renderSection(
+      backgroundColor,
+      heroStyle === "image-overlay"
+        ? `${frame}<div class="mobile-padding" style="${background}padding:${padding};">${content}</div>`
+        : `<div class="mobile-padding" style="${background}padding:${padding};">${content}</div>${frame}`,
+    );
   }
 
   if (heroStyle === "image-overlay" && imageUrl) {
@@ -1059,9 +1060,11 @@ function renderGraphicImageBlock(
   designSystem: StudioDesignSystem | null | undefined,
   editing: boolean,
 ) {
-  const imageUrl = safeUrl(block.imageUrl, { image: true }) ||
-    (editing && block.type === "graphic-hero" ? "/images/newsletter-fallback.jpg" : "");
-  if (!imageUrl) return "";
+  const imageUrl = safeUrl(block.imageUrl, { image: true });
+  // Editor only: a graphic hero without a photo keeps its real layout with a
+  // neutral grey frame where the photo goes. Sent mail renders nothing.
+  const placeholder = !imageUrl && editing && block.type === "graphic-hero";
+  if (!imageUrl && !placeholder) return "";
 
   if (block.type !== "graphic-hero") {
     const backgroundColor = safeColor(block.backgroundColor, "#ffffff");
@@ -1121,7 +1124,9 @@ function renderGraphicImageBlock(
     block.imageFocalX,
     block.imageFocalY,
   );
-  const imageCellBackground = `background-color:${backgroundColor};background-image:url('${escapeAttribute(imageUrl.replace(/'/g, "%27"))}');background-position:${objectPosition};background-size:${getGraphicHeroBackgroundSize(block.imageFit)};background-repeat:no-repeat;`;
+  const imageCellBackground = placeholder
+    ? `background-color:${EDITOR_PLACEHOLDER_FRAME_BG};`
+    : `background-color:${backgroundColor};background-image:url('${escapeAttribute(imageUrl.replace(/'/g, "%27"))}');background-position:${objectPosition};background-size:${getGraphicHeroBackgroundSize(block.imageFit)};background-repeat:no-repeat;`;
   const overlayStyle = block.showOverlay
     ? getGraphicHeroOverlayStyle(block)
     : "";
@@ -1133,8 +1138,10 @@ function renderGraphicImageBlock(
     : showFloatingButton
       ? renderButton(block, designSystem, { align, marginTop: 0 })
       : "";
-  const overlayLayer = `<div style="height:${maxHeight}px;${overlayStyle}"><table role="presentation" width="100%" height="${maxHeight}" cellpadding="0" cellspacing="0" border="0" style="width:100%;height:${maxHeight}px;border-collapse:collapse;"><tr><td valign="${getGraphicHeroVerticalAlign(block.textPosition)}" style="padding:${showTextOverlay ? "32px 24px" : "24px"};">${overlayContent || "&nbsp;"}</td></tr></table></div>`;
-  const imageTable = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:separate;border-spacing:0;"><tr><td background="${escapeAttribute(imageUrl)}" bgcolor="${escapeAttribute(backgroundColor)}" height="${maxHeight}" style="height:${maxHeight}px;${imageCellBackground}border-radius:${imageRadius};overflow:hidden;">${overlayLayer}</td></tr></table>`;
+  const overlayLayer = placeholder && !overlayContent
+    ? editorImagePlaceholder({ height: maxHeight, radius: 0 })
+    : `<div style="height:${maxHeight}px;${overlayStyle}"><table role="presentation" width="100%" height="${maxHeight}" cellpadding="0" cellspacing="0" border="0" style="width:100%;height:${maxHeight}px;border-collapse:collapse;"><tr><td valign="${getGraphicHeroVerticalAlign(block.textPosition)}" style="padding:${showTextOverlay ? "32px 24px" : "24px"};">${overlayContent || "&nbsp;"}</td></tr></table></div>`;
+  const imageTable = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:separate;border-spacing:0;"><tr><td${placeholder ? ' data-editor-placeholder="image"' : ` background="${escapeAttribute(imageUrl)}"`} bgcolor="${escapeAttribute(backgroundColor)}" height="${maxHeight}" style="height:${maxHeight}px;${imageCellBackground}border-radius:${imageRadius};overflow:hidden;">${overlayLayer}</td></tr></table>`;
   const linkedImage = safeUrl(block.linkUrl)
     ? `<a href="${escapeAttribute(safeUrl(block.linkUrl))}" target="_blank" style="text-decoration:none;display:block;">${imageTable}</a>`
     : imageTable;
@@ -1725,10 +1732,13 @@ function getResolvedSocialFollowLinks(
   block: StudioBlock,
   designSystem: StudioDesignSystem | null | undefined,
 ) {
+  // Saved campaigns can hold the legacy platform-keyed object; normalise it
+  // back to the panel's order so preview and sent mail match the canvas.
+  const blockLinks = normalizeSocialLinks(block.socialLinks, block.socialLinkOrder);
   const sourceLinks =
-    block.socialLinks?.length || getDesignSystemSocialLinks(designSystem).length
-      ? block.socialLinks?.length
-        ? block.socialLinks
+    blockLinks.length || getDesignSystemSocialLinks(designSystem).length
+      ? blockLinks.length
+        ? blockLinks
         : getDesignSystemSocialLinks(designSystem)
       : DEFAULT_SOCIAL_PLATFORMS.map((platform) => ({
           platform,
@@ -1804,33 +1814,15 @@ function renderSocialLink(
   wrapInCell = true,
   spacing = 12,
 ) {
-  // The outgoing email must reflect the same icon settings as the editor.
-  // Remote brand PNGs cannot be safely recoloured in email clients, so use
-  // email-safe lettermarks when the customer chooses monochrome/custom.
+  // Same icon image as the Studio canvas: a PNG for this platform, style and
+  // colour (src/lib/studio/socialIcons.ts). Never SVG or lettermarks.
   const href = safeUrl(link.url);
-  const mode = block.iconColorMode ??
-    (block.socialColorMode === "monochrome" ? "mono" : block.socialColorMode) ?? "brand";
-  const shape = block.iconStyle ?? block.socialIconStyle ?? "filled";
-  const colour = mode === "custom"
-    ? safeColor(block.customIconColor, "#111827")
-    : mode === "mono"
-      ? safeColor(designSystem?.colors.text || block.textColor, "#111827")
-      : SOCIAL_COLORS[link.platform];
-  const iconUrl = SOCIAL_ICON_URLS[link.platform] ?? "";
-  const mark: Record<SocialLink["platform"], string> = {
-    facebook: "f", instagram: "IG", twitter: "X", linkedin: "in",
-    youtube: "YT", tiktok: "TT", pinterest: "P", threads: "@",
-  };
-  const hasBrandImage = mode === "brand" && Boolean(iconUrl);
-  const isMinimal = shape === "minimal";
-  const isOutline = shape === "outlined";
-  const bg = hasBrandImage || isOutline || isMinimal ? "transparent" : colour;
-  const radius = shape === "square" ? "5px" : shape === "minimal" ? "0" : "999px";
-  const border = isOutline ? `1px solid ${colour}` : "0";
-  const markColour = isOutline || isMinimal ? colour : "#ffffff";
-  const icon = hasBrandImage
-    ? `<span style="display:inline-block;vertical-align:middle;border:${border};border-radius:${radius};padding:${isOutline ? "2px" : "0"};"><img src="${escapeAttribute(iconUrl)}" alt="${escapeAttribute(SOCIAL_LABELS[link.platform])}" width="${size}" height="${size}" style="display:block;width:${size}px;height:${size}px;border:0;border-radius:${radius};"/></span>`
-    : `<span style="display:inline-block;box-sizing:border-box;min-width:${size}px;height:${size}px;line-height:${size - (isOutline ? 2 : 0)}px;text-align:center;border:${border};border-radius:${radius};background-color:${bg};color:${markColour};font-family:Arial,sans-serif;font-size:${Math.max(10, Math.round(size * 0.4))}px;font-weight:700;">${escapeHtml(mark[link.platform])}</span>`;
+  const { src } = resolveSocialFollowIcon(
+    block,
+    link.platform,
+    designSystem?.colors.text || block.textColor,
+  );
+  const icon = `<img src="${escapeAttribute(src)}" alt="${escapeAttribute(SOCIAL_LABELS[link.platform])}" width="${size}" height="${size}" style="display:inline-block;vertical-align:middle;width:${size}px;height:${size}px;border:0;outline:none;text-decoration:none;" />`;
   const labelText = withLabel
     ? `<span style="display:inline-block;vertical-align:middle;padding-left:8px;font-family:${getFontStack(designSystem, "body")};font-size:14px;line-height:1.3;font-weight:700;color:${safeColor(block.textColor, "#111827")};">${escapeHtml(SOCIAL_LABELS[link.platform])}</span>`
     : "";
@@ -1927,8 +1919,7 @@ function getFooterSocialLinks(
   block: StudioBlock,
   designSystem: StudioDesignSystem | null | undefined,
 ) {
-  const links = block.footerSocialLinks ?? [];
-  const enabledLinks = links.filter((link) => link.enabled);
+  const links = normalizeSocialLinks(block.footerSocialLinks);
 
   const configuredBlockLinks = links.filter(
     (link) => link.enabled && Boolean(safeUrl(link.url)),
@@ -1945,25 +1936,13 @@ function getFooterSocialLinks(
   return { links: designSystemLinks, placeholder: false };
 }
 
-function getFooterSocialGlyph(platform: SocialLink["platform"]) {
-  switch (platform) {
-    case "twitter":
-      return "X";
-    case "threads":
-      return "Th";
-    case "linkedin":
-      return "in";
-    default:
-      return SOCIAL_LABELS[platform].slice(0, 1).toUpperCase();
-  }
-}
-
 function renderFooterSocialIcons(
   block: StudioBlock,
   designSystem: StudioDesignSystem | null | undefined,
   centered = false,
+  footerBackground = "#1e293b",
 ) {
-  if (!block.showSocialInFooter && !designSystem?.social.hasConfiguredLinks) {
+  if (!isFooterSocialVisible(block, Boolean(designSystem?.social.hasConfiguredLinks))) {
     return "";
   }
 
@@ -1972,38 +1951,15 @@ function renderFooterSocialIcons(
     return "";
   }
 
-  const iconColor = safeColor(
-    block.footerIconColor,
-    centered ? "#64748b" : "#cbd5e1",
-  );
-  const iconStyle = block.footerIconStyle || "filled";
-  const borderRadius = iconStyle === "square" ? "8px" : "999px";
-
-  return `<div style="text-align:${centered ? "center" : "left"};margin:${centered ? "0" : "0"};">${links
+  return `<div style="text-align:${centered ? "center" : "left"};">${links
     .map((link, index) => {
       const href = safeUrl(link.url) || "#";
-      const backgroundColor =
-        iconStyle === "filled"
-          ? colorWithOpacity(iconColor, centered ? 0.18 : 0.14)
-          : "transparent";
-      const borderColor = iconStyle === "outlined" ? iconColor : "transparent";
       const margin = index === 0 ? "0" : "0 0 0 8px";
       const label = escapeAttribute(SOCIAL_LABELS[link.platform]);
-
-      // Hosted PNGs, not inline SVG data URIs. The send pipeline strips every
-      // <img> whose src uses a blocked scheme (data: among them), which
-      // deleted the icon and left a bare styled circle in the footer — and
-      // even unstripped, Gmail and Outlook do not render SVG in email. This
-      // mirrors how the social-follow block renders its icons.
-      const iconUrl = SOCIAL_ICON_URLS[link.platform];
-      if (iconUrl && iconStyle !== "minimal") {
-        return `<a href="${escapeAttribute(href)}" target="_blank" aria-label="${label}" style="display:inline-block;text-decoration:none;opacity:${placeholder ? 0.38 : 1};margin:${margin};${iconStyle === "outlined" ? `border:1px solid ${iconColor};border-radius:999px;padding:3px;` : ""}"><img src="${escapeAttribute(iconUrl)}" alt="${label}" width="28" height="28" style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;" /></a>`;
-      }
-
-      // Platforms with no hosted icon (twitter/X, threads) keep the lettered
-      // chip so the row never renders an empty circle.
-      const glyph = `<span style="font-family:${getFontStack(designSystem, "button")};font-size:11px;font-weight:700;line-height:28px;color:${iconColor};">${escapeHtml(getFooterSocialGlyph(link.platform))}</span>`;
-      return `<a href="${escapeAttribute(href)}" target="_blank" aria-label="${label}" style="display:inline-block;width:28px;height:28px;line-height:28px;text-align:center;border-radius:${borderRadius};border:1px solid ${borderColor};background-color:${backgroundColor};text-decoration:none;opacity:${placeholder ? 0.38 : 1};margin:${margin};">${glyph}</a>`;
+      // Hosted PNGs only: the send pipeline strips data: images, and Gmail and
+      // Outlook do not render SVG. Same image as the Studio canvas.
+      const { src } = resolveFooterSocialIcon(block, link.platform, footerBackground);
+      return `<a href="${escapeAttribute(href)}" target="_blank" aria-label="${label}" style="display:inline-block;text-decoration:none;opacity:${placeholder ? 0.38 : 1};margin:${margin};"><img src="${escapeAttribute(src)}" alt="${label}" width="28" height="28" style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;" /></a>`;
     })
     .join("")}</div>`;
 }
@@ -2134,6 +2090,7 @@ export function renderFooterBlockToEmailHtml(
     block,
     designSystem,
     centered,
+    backgroundColor,
   );
   const linksHtml = renderFooterLinks(block, links, designSystem, centered);
   const contactInline = renderFooterContactContent(block, designSystem, true);
@@ -2443,7 +2400,11 @@ export function renderNewsletterBlock(
         appearance: mergeAppearance(brandFonts, appearance),
       }
     : brandedPrepared;
+  // Editor only: a just-added block shows its real layout with neutral
+  // sample content. Never reaches Preview & Test or sent mail.
+  const editorSample = editing ? renderEditorEmptyBlock(brandedPrepared) : null;
   let html =
+    editorSample ??
     renderExtendedBlock(extendedBlock, resolved.width, editing) ??
     renderLegacyBlock(brandedPrepared, designSystem, editing);
   if (
@@ -2582,6 +2543,38 @@ export function renderStudioBlocksToEmailHtml(
     .join("");
 }
 
+// Product Gallery photos on phones. The generic .responsive-image rule sets
+// height:auto, which dropped the gallery's ratio and fit and made stacked
+// cards 191–509px tall. These keep one box per ratio. The fixed heights suit
+// a ~343px wide phone column for clients without aspect-ratio (Gmail);
+// clients with aspect-ratio (Apple Mail, iOS, Preview & Test) get the exact
+// ratio at any width. object-fit stays inline on each image.
+const PRODUCT_GALLERY_MOBILE_RATIOS: Array<[string, number, number]> = [
+  ["1x1", 1, 1],
+  ["4x3", 4, 3],
+  ["3x4", 3, 4],
+  ["16x9", 16, 9],
+  ["9x16", 9, 16],
+];
+const PRODUCT_GALLERY_MOBILE_CSS = PRODUCT_GALLERY_MOBILE_RATIOS.map(
+  ([key, w, h]) =>
+    `      img.responsive-image.nl-product-image.nl-r-${key} { height:${Math.round((343 * h) / w)}px !important; }\n`,
+).join("");
+const PRODUCT_GALLERY_ASPECT_CSS = PRODUCT_GALLERY_MOBILE_RATIOS.map(
+  ([key, w, h]) =>
+    `        img.responsive-image.nl-product-image.nl-r-${key} { height:auto !important; aspect-ratio:${w} / ${h} !important; }`,
+).join("\n");
+
+/** Galleries that kept a fixed "Image height (px)" keep it on phones too. */
+function productGalleryHeightCss(html: string) {
+  const heights = new Set(
+    [...html.matchAll(/\bnl-h-(\d{2,3})\b/g)].map((match) => Number(match[1])),
+  );
+  return [...heights]
+    .map((height) => `      img.responsive-image.nl-product-image.nl-h-${height} { height:${height}px !important; }\n`)
+    .join("");
+}
+
 export function generateEmailHtml({
   blocks,
   subject,
@@ -2697,6 +2690,14 @@ ${buildFontLinks(designSystem)}  <!--[if !mso]><!-->
       .image-text-image img.responsive-crop-image { height:${mobileCropHeight} !important; }
       .gallery-grid-placeholder,
       .product-grid-placeholder { display:none !important; padding:0 !important; height:0 !important; }
+      .product-card-row .event-card-cell { padding-left:18px !important; padding-right:18px !important; }
+      .product-card-row .event-card-cell:first-child { padding-top:18px !important; }
+${PRODUCT_GALLERY_MOBILE_CSS}${productGalleryHeightCss(renderedBlocks)}
+    }
+    @supports (aspect-ratio: 1 / 1) {
+      @media only screen and (max-width: 599px) {
+${PRODUCT_GALLERY_ASPECT_CSS}
+      }
     }
   </style>
   <!--<![endif]-->
