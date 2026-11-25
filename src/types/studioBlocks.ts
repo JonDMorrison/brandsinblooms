@@ -48,7 +48,7 @@ export type StudioHeroStyle =
   "solid" | "gradient" | "image-overlay" | "image-bottom";
 export type StudioImageFit = "cover" | "contain" | "fill";
 export type StudioImagePosition = "left" | "right" | "top" | "overlay";
-export type StudioImageRatio = "auto" | "1:1" | "4:3" | "16:9" | "9:16";
+export type StudioImageRatio = "auto" | "1:1" | "4:3" | "3:4" | "16:9" | "9:16";
 export type StudioColumnSplit = "30/70" | "40/60" | "50/50" | "60/40" | "70/30";
 export type StudioOverlayGradientDirection =
   | "uniform"

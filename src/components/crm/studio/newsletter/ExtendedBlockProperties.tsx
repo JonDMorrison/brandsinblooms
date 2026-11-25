@@ -504,6 +504,12 @@ function CouponFields({
     </>
   );
 }
+/** The ratio the gallery renders with (see productGalleryImageSizing). */
+function galleryImageRatio(block: StudioBlock): string {
+  if (block.imageRatio) return block.imageRatio;
+  return block.imageHeight == null ? "1:1" : "";
+}
+
 function GalleryFields({
   block,
   update,
@@ -539,6 +545,10 @@ function GalleryFields({
     );
     next[index] = { ...next[index], ...patch };
     update("galleryProducts", next);
+    // Entering an original price is a clear sign the user wants it shown.
+    if (patch.originalPrice?.trim() && block.showOriginalPrice === false) {
+      update("showOriginalPrice", true);
+    }
   };
   return (
     <>
@@ -606,11 +616,20 @@ function GalleryFields({
       {product && (
         <details className="nl-controls">
           <summary>Product display options</summary>
-          <Choice label="How the photos fit" value={block.imageFit || "contain"}
+          <Choice label="Image ratio" value={galleryImageRatio(block)}
+            options={[
+              ...(galleryImageRatio(block) === "" ? [{ value: "", label: "Fixed height" }] : []),
+              { value: "1:1", label: "Square" }, { value: "4:3", label: "4:3" }, { value: "3:4", label: "3:4" }, { value: "auto", label: "Original" },
+            ]}
+            onChange={(value) => update("imageRatio", (value || undefined) as StudioBlock["imageRatio"])} />
+          <Choice label="How the photos fit" value={block.imageFit || "cover"}
             options={[{ value: "contain", label: "Show whole photo" }, { value: "cover", label: "Fill the space" }, { value: "fill", label: "Stretch to fit" }]}
             onChange={(value) => update("imageFit", value as StudioBlock["imageFit"])} />
-          <NumericField label="Image height (px)" value={block.imageHeight ?? 220} min={120} max={480}
-            onChange={(value) => update("imageHeight", value)} />
+          {/* Older galleries set a fixed height; a chosen ratio replaces it. */}
+          {block.imageRatio == null && block.imageHeight != null && (
+            <NumericField label="Image height (px)" value={block.imageHeight} min={120} max={480}
+              onChange={(value) => update("imageHeight", value)} />
+          )}
           <StudioSwitchField
             label="Show prices"
             checked={block.showPrices !== false}

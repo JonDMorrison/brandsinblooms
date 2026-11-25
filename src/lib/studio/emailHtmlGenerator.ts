@@ -732,6 +732,8 @@ function getImageHeightForRatio(
       return Math.round(width);
     case "4:3":
       return Math.round((width * 3) / 4);
+    case "3:4":
+      return Math.round((width * 4) / 3);
     case "16:9":
       return Math.round((width * 9) / 16);
     case "9:16":
@@ -2518,6 +2520,38 @@ export function renderStudioBlocksToEmailHtml(
     .join("");
 }
 
+// Product Gallery photos on phones. The generic .responsive-image rule sets
+// height:auto, which dropped the gallery's ratio and fit and made stacked
+// cards 191–509px tall. These keep one box per ratio. The fixed heights suit
+// a ~343px wide phone column for clients without aspect-ratio (Gmail);
+// clients with aspect-ratio (Apple Mail, iOS, Preview & Test) get the exact
+// ratio at any width. object-fit stays inline on each image.
+const PRODUCT_GALLERY_MOBILE_RATIOS: Array<[string, number, number]> = [
+  ["1x1", 1, 1],
+  ["4x3", 4, 3],
+  ["3x4", 3, 4],
+  ["16x9", 16, 9],
+  ["9x16", 9, 16],
+];
+const PRODUCT_GALLERY_MOBILE_CSS = PRODUCT_GALLERY_MOBILE_RATIOS.map(
+  ([key, w, h]) =>
+    `      img.responsive-image.nl-product-image.nl-r-${key} { height:${Math.round((343 * h) / w)}px !important; }\n`,
+).join("");
+const PRODUCT_GALLERY_ASPECT_CSS = PRODUCT_GALLERY_MOBILE_RATIOS.map(
+  ([key, w, h]) =>
+    `        img.responsive-image.nl-product-image.nl-r-${key} { height:auto !important; aspect-ratio:${w} / ${h} !important; }`,
+).join("\n");
+
+/** Galleries that kept a fixed "Image height (px)" keep it on phones too. */
+function productGalleryHeightCss(html: string) {
+  const heights = new Set(
+    [...html.matchAll(/\bnl-h-(\d{2,3})\b/g)].map((match) => Number(match[1])),
+  );
+  return [...heights]
+    .map((height) => `      img.responsive-image.nl-product-image.nl-h-${height} { height:${height}px !important; }\n`)
+    .join("");
+}
+
 export function generateEmailHtml({
   blocks,
   subject,
@@ -2633,6 +2667,12 @@ ${buildFontLinks(designSystem)}  <!--[if !mso]><!-->
       .image-text-image img.responsive-crop-image { height:${mobileCropHeight} !important; }
       .gallery-grid-placeholder,
       .product-grid-placeholder { display:none !important; padding:0 !important; height:0 !important; }
+${PRODUCT_GALLERY_MOBILE_CSS}${productGalleryHeightCss(renderedBlocks)}
+    }
+    @supports (aspect-ratio: 1 / 1) {
+      @media only screen and (max-width: 599px) {
+${PRODUCT_GALLERY_ASPECT_CSS}
+      }
     }
   </style>
   <!--<![endif]-->

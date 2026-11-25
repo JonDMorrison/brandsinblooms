@@ -79,10 +79,16 @@ export function renderNewsletterButton(
   const destination = href ? ` href="${attr(href)}" target="_blank" rel="noopener noreferrer"` : "";
   return `<${tag} data-newsletter-role="button"${destination} style="display:${block.fullWidthButton ? "block" : "inline-block"};box-sizing:border-box;${block.fullWidthButton ? "width:100%;" : ""}text-align:center;text-decoration:${link ? (block.appearance?.linkDecoration === "none" ? "none" : "underline") : "none"};padding:${padding};border:${outlined ? `1px solid ${fill}` : "0"};background-color:${link || outlined ? "transparent" : fill};border-radius:${block.layoutPreset === "nav-pills" ? "999" : block.buttonRounded === false ? "4" : "8"}px;${role(block, "button", 14, 700)}color:${color};">${text(label)}</${tag}>`;
 }
-function picture(block: StudioBlock, width = 220): string {
+type PictureSizing = { height: number | null; fit: string; className: string };
+
+function picture(block: StudioBlock, width = 220, sizing?: PictureSizing): string {
   const url = safeEmailUrl(block.imageUrl, true);
   if (!url) return "";
-  const image = `<img data-newsletter-image="imageUrl" class="responsive-image" src="${attr(url)}" alt="${attr(block.imageAlt || block.headline || block.productName || "")}" width="${width}" style="display:block;width:100%;max-width:${width}px;height:${block.type === "product-card" ? `${clampNumber(block.imageHeight, 220, 120, 480)}px` : "auto"};object-fit:${block.imageFit ?? "contain"};border:0;border-radius:${clampNumber(block.borderRadius, 6, 0, 48)}px;" />`;
+  const height = sizing
+    ? sizing.height === null ? "auto" : `${sizing.height}px`
+    : block.type === "product-card" ? `${clampNumber(block.imageHeight, 220, 120, 480)}px` : "auto";
+  const fit = sizing?.fit ?? block.imageFit ?? "contain";
+  const image = `<img data-newsletter-image="imageUrl" class="responsive-image${sizing?.className ? ` ${sizing.className}` : ""}" src="${attr(url)}" alt="${attr(block.imageAlt || block.headline || block.productName || "")}" width="${width}"${sizing?.height ? ` height="${sizing.height}"` : ""} style="display:block;width:100%;max-width:${width}px;height:${height};object-fit:${fit};border:0;border-radius:${clampNumber(block.borderRadius, 6, 0, 48)}px;" />`;
   const linked = safeEmailUrl(block.linkUrl)
     ? `<a href="${attr(safeEmailUrl(block.linkUrl))}" target="_blank" rel="noopener noreferrer">${image}</a>`
     : image;
@@ -268,6 +274,44 @@ export function youtubeVideoId(value: string): string | null {
   }
 }
 /** Email-compatible content only. No scripts, forms, iframes or recipient tracking pixels. */
+// Width / height for each gallery image ratio ("auto" is the photo's own).
+const GALLERY_RATIOS: Record<string, [number, number]> = {
+  "1:1": [1, 1],
+  "4:3": [4, 3],
+  "3:4": [3, 4],
+  "16:9": [16, 9],
+  "9:16": [9, 16],
+};
+
+/**
+ * Product Gallery image box. A chosen ratio always wins over the older
+ * "Image height (px)"; galleries that set only a height keep that height; a
+ * gallery that set neither gets the current default (Square). Photos fill
+ * the box unless the gallery chose another fit. The classes carry the same
+ * ratio / height and fit to phones (see the generator's mobile CSS).
+ */
+export function productGalleryImageSizing(
+  block: StudioBlock,
+  cellWidth: number,
+): PictureSizing {
+  const fit = block.imageFit ?? "cover";
+  const ratio =
+    block.imageRatio ?? (block.imageHeight == null ? "1:1" : undefined);
+  if (ratio === "auto") {
+    return { height: null, fit, className: "nl-product-image nl-r-auto" };
+  }
+  const dims = ratio ? GALLERY_RATIOS[ratio] : undefined;
+  if (dims) {
+    return {
+      height: Math.round((cellWidth * dims[1]) / dims[0]),
+      fit,
+      className: `nl-product-image nl-r-${dims[0]}x${dims[1]}`,
+    };
+  }
+  const height = Math.round(clampNumber(block.imageHeight, 220, 120, 480));
+  return { height, fit, className: `nl-product-image nl-h-${height}` };
+}
+
 export function renderExtendedBlock(
   block: StudioBlock,
   width = 640,
@@ -342,9 +386,13 @@ export function renderExtendedBlock(
             imageMargin: product.imageMargin ?? block.appearance?.imageMargin },
           badges: undefined,
         };
+        const cellWidth = Math.floor(
+          (width - gap * (columns + 1)) / columns * (feature ? 0.42 : 1),
+        );
         const image = picture(
           productBlock,
-          Math.floor((width - gap * (columns + 1)) / columns * (feature ? 0.42 : 1)),
+          cellWidth,
+          productGalleryImageSizing(block, cellWidth),
         ).replace(
           'data-newsletter-image="imageUrl"',
           `data-newsletter-image="galleryProducts" data-newsletter-index="${index}"`,
@@ -364,8 +412,10 @@ export function renderExtendedBlock(
             : "");
         const cardRows = feature && image
           ? `<tr><td class="responsive-column" width="42%" valign="top" style="width:42%;">${image}</td><td class="responsive-column" width="58%" valign="middle" style="width:58%;padding:14px;">${body}</td></tr>`
-          : `<tr><td>${image}</td></tr><tr><td style="padding:14px;">${body}</td></tr>`;
-        return `<td class="responsive-column" width="${100 / columns}%" valign="top" style="width:${100 / columns}%;padding:${gap / 2}px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:separate;border:${block.showBorder === false || block.showCardBorder === false ? "0" : "1px solid #cbd5e1"};background:${emailColor(block.cardBackgroundColor, "#ffffff")};">${cardRows}</table></td>`;
+          : `<tr><td>${image}</td></tr><tr><td valign="top" style="padding:14px;height:100%;vertical-align:top;">${body}</td></tr>`;
+        // Cards in a row share the row's height (the table cell stretches and
+        // the card table fills it), so borders and backgrounds line up.
+        return `<td class="responsive-column nl-product-cell" width="${100 / columns}%" valign="top" style="width:${100 / columns}%;height:100%;padding:${gap / 2}px;"><table role="presentation" width="100%" height="100%" cellpadding="0" cellspacing="0" style="width:100%;height:100%;border-collapse:separate;border:${block.showBorder === false || block.showCardBorder === false ? "0" : "1px solid #cbd5e1"};background:${emailColor(block.cardBackgroundColor, "#ffffff")};">${cardRows}</table></td>`;
       });
       const rows: string[] = [];
       for (let i = 0; i < cells.length; i += columns)
