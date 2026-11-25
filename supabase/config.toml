@@ -663,3 +663,8 @@ verify_jwt = true
 
 [functions.billing-invoices]
 verify_jwt = true
+
+[functions.tenant-team-invitations]
+# preview and create_login run before the invitee has a login; every other
+# action checks the caller's token in the function.
+verify_jwt = false
