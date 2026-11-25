@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import Button from "@mui/joy/Button";
 import Chip from "@mui/joy/Chip";
 import Divider from "@mui/joy/Divider";
@@ -12,33 +13,21 @@ import { toast } from "sonner";
 import { useSubscription } from "@/contexts/SubscriptionContext";
 import { supabase } from "@/integrations/supabase/client";
 
-// Mock data for billing history - in a real app, this would come from Stripe
-const mockBillingHistory = [
-  {
-    id: "1",
-    date: "2024-01-15",
-    amount: "$29.00",
-    status: "paid",
-    description: "Sprout Plan - Monthly",
-    invoiceUrl: "#",
-  },
-  {
-    id: "2",
-    date: "2023-12-15",
-    amount: "$29.00",
-    status: "paid",
-    description: "Sprout Plan - Monthly",
-    invoiceUrl: "#",
-  },
-  {
-    id: "3",
-    date: "2023-11-15",
-    amount: "$29.00",
-    status: "paid",
-    description: "Sprout Plan - Monthly",
-    invoiceUrl: "#",
-  },
-];
+type InvoiceSummary = {
+  id: string;
+  created: string;
+  amount: number;
+  currency: string;
+  status: string;
+  description: string;
+  url: string | null;
+};
+
+const formatAmount = (amount: number, currency: string) =>
+  new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: (currency || "usd").toUpperCase(),
+  }).format(amount);
 
 const surfaceStyles = {
   borderRadius: "24px",
@@ -65,6 +54,19 @@ export const BillingHistory = () => {
     !subscription ||
     effectivePlan === "free_trial" ||
     effectivePlan === "expired";
+  // Real Stripe invoices only. This list used to show three hard-coded
+  // "Sprout Plan" invoices from 2023 to every paying account.
+  const invoicesQuery = useQuery({
+    queryKey: ["billing-invoices", subscription?.id ?? null],
+    enabled: !loading && !isTrialOrExpired,
+    staleTime: 60_000,
+    queryFn: async (): Promise<InvoiceSummary[]> => {
+      const { data, error } = await supabase.functions.invoke("billing-invoices");
+      if (error) throw error;
+      return Array.isArray(data?.invoices) ? (data.invoices as InvoiceSummary[]) : [];
+    },
+  });
+  const invoices = invoicesQuery.data ?? [];
 
   const handleViewAll = async () => {
     setPortalLoading(true);
@@ -121,14 +123,14 @@ export const BillingHistory = () => {
 
         <Divider />
 
-        {loading ? (
+        {loading || invoicesQuery.isLoading ? (
           <Stack spacing={1.25}>
             <Skeleton variant="text" width={160} />
             <Skeleton variant="rectangular" height={48} />
             <Skeleton variant="rectangular" height={48} />
             <Skeleton variant="rectangular" height={48} />
           </Stack>
-        ) : isTrialOrExpired ? (
+        ) : isTrialOrExpired || invoicesQuery.isError || invoices.length === 0 ? (
           <Stack
             spacing={1.5}
             alignItems="center"
@@ -136,16 +138,21 @@ export const BillingHistory = () => {
             sx={{ py: 3 }}
           >
             <Receipt size={32} color="var(--joy-palette-neutral-400)" />
-            <Typography level="title-sm">No billing history yet.</Typography>
+            <Typography level="title-sm">
+              {invoicesQuery.isError ? "Billing history couldn't load." : "No billing history yet."}
+            </Typography>
             <Typography level="body-sm" textColor="text.secondary">
-              Invoices will appear here once you move to a paid subscription.
+              {invoicesQuery.isError
+                ? "Use View All to open your invoices in Stripe."
+                : isTrialOrExpired
+                  ? "Invoices will appear here once you move to a paid subscription."
+                  : "Your first invoice will appear here after it is issued."}
             </Typography>
           </Stack>
         ) : (
           <Stack spacing={1.25}>
-            {mockBillingHistory.map((invoice) => {
-              const downloadDisabled =
-                !invoice.invoiceUrl || invoice.invoiceUrl === "#";
+            {invoices.map((invoice) => {
+              const downloadDisabled = !invoice.url;
 
               return (
                 <Sheet
@@ -172,18 +179,18 @@ export const BillingHistory = () => {
                           color="var(--joy-palette-neutral-500)"
                         />
                         <Typography level="body-xs" textColor="text.secondary">
-                          {formatDate(invoice.date)}
+                          {formatDate(invoice.created)}
                         </Typography>
                       </Stack>
                     </Stack>
 
                     <Stack direction="row" spacing={1.25} alignItems="center">
-                      <Chip color="success" size="sm" variant="soft">
+                      <Chip color={invoice.status === "paid" ? "success" : "warning"} size="sm" variant="soft">
                         {invoice.status.charAt(0).toUpperCase() +
                           invoice.status.slice(1)}
                       </Chip>
                       <Typography level="body-md" fontWeight={700}>
-                        {invoice.amount}
+                        {formatAmount(invoice.amount, invoice.currency)}
                       </Typography>
                       <IconButton
                         color="neutral"
@@ -191,7 +198,7 @@ export const BillingHistory = () => {
                         onClick={() => {
                           if (!downloadDisabled) {
                             window.open(
-                              invoice.invoiceUrl,
+                              invoice.url ?? undefined,
                               "_blank",
                               "noopener,noreferrer",
                             );
