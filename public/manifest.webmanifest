@@ -1,24 +1,24 @@
 {
-    "name": "BloomSuite",
-    "short_name": "BloomSuite",
-    "description": "AI-powered CRM for garden centres, florists and green businesses.",
-    "start_url": "/",
-    "scope": "/",
-    "display": "standalone",
-    "background_color": "#FFFFFF",
-    "theme_color": "#22C55E",
-    "icons": [
-        {
-            "src": "/favicon.png",
-            "sizes": "192x192",
-            "type": "image/png",
-            "purpose": "any maskable"
-        },
-        {
-            "src": "/favicon.png",
-            "sizes": "512x512",
-            "type": "image/png",
-            "purpose": "any maskable"
-        }
-    ]
+  "name": "BloomSuite",
+  "short_name": "BloomSuite",
+  "description": "Websites, online selling, point of sale and customer marketing for independent garden centres.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#FFFFFF",
+  "theme_color": "#26584A",
+  "icons": [
+    {
+      "src": "/bloomsuite-icon.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/bloomsuite-app-icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
 }

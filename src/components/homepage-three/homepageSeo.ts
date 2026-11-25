@@ -15,7 +15,7 @@ export const HOMEPAGE_STRUCTURED_DATA = [
     "@type": "Organization",
     name: "BloomSuite",
     url: HOMEPAGE_SEO.url,
-    logo: "https://bloomsuite.app/favicon.png",
+    logo: "https://bloomsuite.app/bloomsuite-app-icon.png",
   },
   {
     "@context": "https://schema.org",
