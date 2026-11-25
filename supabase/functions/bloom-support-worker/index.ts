@@ -150,7 +150,7 @@ async function holdForApproval(opts: {
     try {
       await postSlackInternalMessage("tickets",
         `Reply held on ticket #${opts.ticket.number} — needs approval before sending (${opts.holdReason}). Review in Bloom Support → Approvals.`,
-        `approval-hold-slack:${opts.job.id}`,
+        `approval-hold-slack-${opts.job.id}`,
         undefined,
         [
           {
@@ -811,7 +811,7 @@ async function digest(job: Job): Promise<string> {
     const slack = renderSlackDigestBlocks(report, { appUrl: appUrl(), date });
     if (slack) {
       try {
-        await postSlackInternalMessage("digest", slack.text, `${job.id}:slack`, undefined, slack.blocks);
+        await postSlackInternalMessage("digest", slack.text, `${job.id}-slack`, undefined, slack.blocks);
         outcomes.push("Slack digest posted");
       } catch (e) {
         console.log("bloom-support-worker: Slack morning digest skipped:", e instanceof Error ? e.message : String(e));
@@ -895,7 +895,7 @@ async function maintain(job: Job): Promise<string> {
       `<${appUrl()}/admin/bloom-support|Review in Bloom Support>`,
     ].filter(Boolean).join("\n");
     try {
-      await postSlackInternalText("alerts", summary, `${job.id}:maintain`);
+      await postSlackInternalText("alerts", summary, `${job.id}-maintain`);
     } catch (e) {
       console.log("bloom-support-worker: maintenance Slack alert skipped:", e instanceof Error ? e.message : String(e));
     }
