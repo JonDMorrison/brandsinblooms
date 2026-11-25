@@ -54,7 +54,7 @@ createRoot(document.getElementById("root")!).render(
   <JoyThemeProvider>
     <QueryClientProvider client={queryClient}>
       <BrowserRouter basename="/crm" future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-        <ShowroomBar current="crm" products={products} logoSrc="/crm/favicon.png" tips={tips} onReset={() => { void resetShowroomOrigin(); }} />
+        <ShowroomBar current="crm" products={products} logoSrc="/crm/bloomsuite-icon.png" tips={tips} onReset={() => { void resetShowroomOrigin(); }} />
         <ShowroomEntry />
         <TooltipProvider delayDuration={300} skipDelayDuration={100}>
           <LoadingProvider>
