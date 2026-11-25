@@ -26,12 +26,15 @@ import {
 import type {
   CanvasReorderInstruction,
   DummyBlock,
+  StudioDeviceMode,
 } from "@/components/crm/studio/studioCanvasTypes";
 
 type StudioCanvasProps = {
   blocks: DummyBlock[];
   selectedBlockId: string | null;
   canvasWidth: number;
+  /** Phone rules apply only in the tablet and phone views. */
+  deviceMode?: StudioDeviceMode;
   activeDropIndex: number | null;
   isSidebarDragActive: boolean;
   isDraggingOverCanvas: boolean;
@@ -217,6 +220,7 @@ export default function StudioCanvas({
   blocks,
   selectedBlockId,
   canvasWidth,
+  deviceMode = "desktop",
   activeDropIndex,
   isSidebarDragActive,
   isDraggingOverCanvas,
@@ -301,10 +305,13 @@ export default function StudioCanvas({
           maxWidth: canvasWidth,
           mx: "auto",
           my: 4,
-          // Lets blocks apply the sent email's mobile rules (<600px) when the
-          // canvas is in tablet or phone width. See STUDIO_MOBILE_QUERY.
+          // Lets blocks apply the sent email's mobile rules (<600px) in the
+          // tablet and phone views. See STUDIO_MOBILE_QUERY. The container is
+          // named only in those views: in the desktop view a narrow column
+          // (properties panel open) must not flip blocks to their phone
+          // layout, so the desktop preview stays the same open or closed.
           containerType: "inline-size",
-          containerName: "studio-email",
+          containerName: deviceMode === "desktop" ? "none" : "studio-email",
           px: { xs: 2, md: 0 },
           transition: "max-width 300ms ease",
         }}
