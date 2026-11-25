@@ -2512,6 +2512,10 @@
       "source": "/suite",
       "destination": "/suite-portal.html"
     },
+    {"source": "/plant-intelligence", "destination": "/plant-intelligence.html"},
+    {"source": "/plant-intelligence/", "destination": "/plant-intelligence.html"},
+    {"source": "/care-guides", "destination": "/care-guides-marketing.html"},
+    {"source": "/care-guides/", "destination": "/care-guides-marketing.html"},
     {
       "source": "/(.*)",
       "destination": "/index.html"

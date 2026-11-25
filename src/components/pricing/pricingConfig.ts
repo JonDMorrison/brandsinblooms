@@ -51,7 +51,7 @@ export const pricingTiers: PricingTier[] = [
     name: "Sprout",
     price: 349,
     annualPrice: 3490,
-    description: "Website + Ecommerce + BloomSuite",
+    description: "BloomSites website + e-commerce + BloomSuite CRM",
     includes: {
       emails: "20,000 emails/month",
       sms: "2,000 SMS/month",
@@ -69,7 +69,7 @@ export const pricingTiers: PricingTier[] = [
     name: "Bloom",
     price: 699,
     annualPrice: 6990,
-    description: "Website + Ecommerce + BloomSuite",
+    description: "BloomSites website + e-commerce + BloomSuite CRM",
     includes: {
       emails: "100,000 emails/month",
       sms: "5,000 SMS/month",
@@ -88,7 +88,7 @@ export const pricingTiers: PricingTier[] = [
     name: "Thrive",
     price: 1199,
     annualPrice: 11990,
-    description: "Website + Ecommerce + BloomSuite",
+    description: "BloomSites website + e-commerce + BloomSuite CRM",
     includes: {
       emails: "Unlimited emails",
       sms: "50,000 SMS/month (Fair Use)",

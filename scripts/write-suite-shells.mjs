@@ -30,6 +30,16 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     url: "https://bloomsuite.app/build-your-suite",
     robots: "noindex, follow",
   }));
+  writeFileSync("dist/plant-intelligence.html", suitePageShell(html, {
+    title: "Plant Intelligence for Garden Centres | BloomSuite",
+    description: "Turn reliable plant information into confident purchases, useful staff guidance and stronger customer relationships.",
+    url: "https://bloomsuite.app/plant-intelligence",
+  }));
+  writeFileSync("dist/care-guides-marketing.html", suitePageShell(html, {
+    title: "Plant Care Guides for Garden Centres | BloomSuite",
+    description: "Beautiful, store-branded plant care emails can turn a purchase into a helpful relationship. Explore the controlled rollout.",
+    url: "https://bloomsuite.app/care-guides",
+  }));
   writeFileSync("dist/suite-portal.html", suitePageShell(html, {
     title: "Your BloomSuite products",
     description: "Open BloomSuite CRM, BloomSuite POS, or BloomSites and access your existing business workspace.",

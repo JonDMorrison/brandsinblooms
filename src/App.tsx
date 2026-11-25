@@ -150,6 +150,8 @@ const OnboardingPage = lazyRetry(() => import("@/pages/OnboardingPage"));
 const PricingPage = lazyRetry(() => import("@/pages/PricingPage"));
 const FAQPage = lazyRetry(() => import("@/pages/FAQPage"));
 const ContactPage = lazyRetry(() => import("@/pages/ContactPage"));
+const PlantIntelligencePage = lazyNamed(() => import("@/pages/PlatformMarketingPages"), "PlantIntelligencePage");
+const CareGuidesMarketingPage = lazyNamed(() => import("@/pages/PlatformMarketingPages"), "CareGuidesMarketingPage");
 const SuiteBuilderPage = lazyNamed(() => import("@/pages/SuiteBuilderPage"), "SuiteBuilderPage");
 const SuitePage = lazyNamed(() => import("@/pages/SuitePage"), "SuitePage");
 const PosMarketingPage = lazyNamed(() => import("@/pages/PosMarketingPage"), "PosMarketingPage");
@@ -603,6 +605,8 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+              <Route path="/plant-intelligence" element={<PlantIntelligencePage />} />
+              <Route path="/care-guides" element={<CareGuidesMarketingPage />} />
               <Route path="/build-your-suite" element={<SuiteBuilderPage />} />
               <Route path="/pricing" element={<PricingPage />} />
               <Route path="/faq" element={<FAQPage />} />
