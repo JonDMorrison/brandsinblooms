@@ -179,6 +179,14 @@ serve(async (req: Request) => {
           return {siteId:link.cms_site_id,error:"invalid_catalog",items:[]};
         }
         const allowedOrigin = new URL(payload.siteOrigin).origin;
+        // The public address can change after linking (a custom domain gets
+        // verified). BloomSites is the source of truth; keep the stored copy
+        // current so Settings and Integrations show the address customers use.
+        if (/^https:\/\/[a-z0-9][a-z0-9.-]+$/i.test(allowedOrigin) && allowedOrigin!==link.site_origin) {
+          await admin.from("crm_connected_websites").update({site_origin:allowedOrigin})
+            .eq("tenant_id",tenantId).eq("cms_site_id",link.cms_site_id).eq("status","active");
+          link.site_origin=allowedOrigin;
+        }
         const items:ContentItem[]=payload.items.filter((item:ContentItem)=>{
           if (typeof item?.id!=="string" || !uuid.test(item.id) ||
               typeof item?.publicUrl!=="string" ||
