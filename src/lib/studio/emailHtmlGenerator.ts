@@ -31,6 +31,10 @@ import type {
 // which does not apply the app's "@/" path alias.
 import { formatDraftRichText } from "../crm/htmlContent.ts";
 import {
+  EDITOR_PLACEHOLDER_FRAME_BG,
+  editorImagePlaceholder,
+} from "./newsletter/editorPlaceholders.ts";
+import {
   isFooterSocialVisible,
   normalizeSocialLinks,
   resolveFooterSocialIcon,
@@ -994,11 +998,9 @@ function renderHeroBlock(
   const textColor = safeColor(block.textColor, "#1a1a2e");
   const align = getAlignment(block.textAlign, "center");
   const heroStyle = block.heroStyle || "solid";
-  // An editorial panel with no photo must not invent a huge fake pink
-  // background. The regular hero presets retain their preview fallback.
-  const imageUrl = safeUrl(block.imageUrl, { image: true }) ||
-    (editing && !(heroStyle === "image-overlay" && block.layout === "editorial-panel")
-      ? "/images/newsletter-fallback.jpg" : "");
+  // No stock photo ever stands in for a missing one. In the editor an empty
+  // photo shows a neutral "Add a photo" frame; sent mail shows no image.
+  const imageUrl = safeUrl(block.imageUrl, { image: true });
   const padding = block.appearance?.padding ? "0" : "48px 32px";
   const background =
     heroStyle === "gradient"
@@ -1017,6 +1019,16 @@ function renderHeroBlock(
     const photo = imageUrl ? ` background="${escapeAttribute(imageUrl)}"` : "";
     const photoStyle = imageUrl ? `background-image:url('${escapeAttribute(imageUrl.replace(/'/g, "%27"))}');background-size:cover;background-position:${getImageObjectPosition(block.imageFocalX, block.imageFocalY)};` : "";
     return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td${photo} bgcolor="${escapeAttribute(backgroundColor)}" style="background-color:${backgroundColor};${photoStyle}padding:${imageUrl ? 180 : 24}px 24px 24px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="padding:24px;background-color:${backgroundColor};">${content}</td></tr></table></td></tr></table>`;
+  }
+
+  if (editing && !imageUrl && (heroStyle === "image-overlay" || heroStyle === "image-bottom")) {
+    const frame = editorImagePlaceholder({ height: heroStyle === "image-overlay" ? 160 : 220, radius: 0 });
+    return renderSection(
+      backgroundColor,
+      heroStyle === "image-overlay"
+        ? `${frame}<div class="mobile-padding" style="${background}padding:${padding};">${content}</div>`
+        : `<div class="mobile-padding" style="${background}padding:${padding};">${content}</div>${frame}`,
+    );
   }
 
   if (heroStyle === "image-overlay" && imageUrl) {
@@ -1047,9 +1059,11 @@ function renderGraphicImageBlock(
   designSystem: StudioDesignSystem | null | undefined,
   editing: boolean,
 ) {
-  const imageUrl = safeUrl(block.imageUrl, { image: true }) ||
-    (editing && block.type === "graphic-hero" ? "/images/newsletter-fallback.jpg" : "");
-  if (!imageUrl) return "";
+  const imageUrl = safeUrl(block.imageUrl, { image: true });
+  // Editor only: a graphic hero without a photo keeps its real layout with a
+  // neutral grey frame where the photo goes. Sent mail renders nothing.
+  const placeholder = !imageUrl && editing && block.type === "graphic-hero";
+  if (!imageUrl && !placeholder) return "";
 
   if (block.type !== "graphic-hero") {
     const backgroundColor = safeColor(block.backgroundColor, "#ffffff");
@@ -1109,7 +1123,9 @@ function renderGraphicImageBlock(
     block.imageFocalX,
     block.imageFocalY,
   );
-  const imageCellBackground = `background-color:${backgroundColor};background-image:url('${escapeAttribute(imageUrl.replace(/'/g, "%27"))}');background-position:${objectPosition};background-size:${getGraphicHeroBackgroundSize(block.imageFit)};background-repeat:no-repeat;`;
+  const imageCellBackground = placeholder
+    ? `background-color:${EDITOR_PLACEHOLDER_FRAME_BG};`
+    : `background-color:${backgroundColor};background-image:url('${escapeAttribute(imageUrl.replace(/'/g, "%27"))}');background-position:${objectPosition};background-size:${getGraphicHeroBackgroundSize(block.imageFit)};background-repeat:no-repeat;`;
   const overlayStyle = block.showOverlay
     ? getGraphicHeroOverlayStyle(block)
     : "";
@@ -1121,8 +1137,10 @@ function renderGraphicImageBlock(
     : showFloatingButton
       ? renderButton(block, designSystem, { align, marginTop: 0 })
       : "";
-  const overlayLayer = `<div style="height:${maxHeight}px;${overlayStyle}"><table role="presentation" width="100%" height="${maxHeight}" cellpadding="0" cellspacing="0" border="0" style="width:100%;height:${maxHeight}px;border-collapse:collapse;"><tr><td valign="${getGraphicHeroVerticalAlign(block.textPosition)}" style="padding:${showTextOverlay ? "32px 24px" : "24px"};">${overlayContent || "&nbsp;"}</td></tr></table></div>`;
-  const imageTable = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:separate;border-spacing:0;"><tr><td background="${escapeAttribute(imageUrl)}" bgcolor="${escapeAttribute(backgroundColor)}" height="${maxHeight}" style="height:${maxHeight}px;${imageCellBackground}border-radius:${imageRadius};overflow:hidden;">${overlayLayer}</td></tr></table>`;
+  const overlayLayer = placeholder && !overlayContent
+    ? editorImagePlaceholder({ height: maxHeight, radius: 0 })
+    : `<div style="height:${maxHeight}px;${overlayStyle}"><table role="presentation" width="100%" height="${maxHeight}" cellpadding="0" cellspacing="0" border="0" style="width:100%;height:${maxHeight}px;border-collapse:collapse;"><tr><td valign="${getGraphicHeroVerticalAlign(block.textPosition)}" style="padding:${showTextOverlay ? "32px 24px" : "24px"};">${overlayContent || "&nbsp;"}</td></tr></table></div>`;
+  const imageTable = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:separate;border-spacing:0;"><tr><td${placeholder ? ' data-editor-placeholder="image"' : ` background="${escapeAttribute(imageUrl)}"`} bgcolor="${escapeAttribute(backgroundColor)}" height="${maxHeight}" style="height:${maxHeight}px;${imageCellBackground}border-radius:${imageRadius};overflow:hidden;">${overlayLayer}</td></tr></table>`;
   const linkedImage = safeUrl(block.linkUrl)
     ? `<a href="${escapeAttribute(safeUrl(block.linkUrl))}" target="_blank" style="text-decoration:none;display:block;">${imageTable}</a>`
     : imageTable;
