@@ -1,3 +1,4 @@
+import { formatEvidenceTime } from "@/lib/formatEvidenceTime";
 import {useState} from 'react';
 import {Stack,Typography,Skeleton} from '@mui/joy';
 import {JoyCard,JoyCardContent,JoyCardHeader} from '@/components/joy/JoyCard';
@@ -46,7 +47,7 @@ function EvidenceCard({tenantId,customerId}:{tenantId:string;customerId:string})
      {Object.entries(result.category_net_cents).map(([name,cents])=><Typography key={`category:${name}`} level="body-sm">Category {name}: {money(cents)}</Typography>)}
     </>}
     <Typography level="body-sm">Lifetime value, visits, frequency and receipt average remain unknown from this summary.</Typography>
-    <Typography level="body-xs">Evidence checked: {result.cutoff}. Amounts describe observed report records; complete customer history is not established.</Typography>
+    <Typography level="body-xs">Evidence checked: {formatEvidenceTime(result.cutoff)}. Amounts describe observed report records; complete customer history is not established.</Typography>
    </>:null}
    <Typography level="body-xs" sx={{overflowWrap:'anywhere'}}>Source import: {source.id} · SHA-256: {source.source_sha256}</Typography>
   </>}

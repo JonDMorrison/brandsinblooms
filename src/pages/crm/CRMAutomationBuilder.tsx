@@ -695,7 +695,7 @@ export const CRMAutomationBuilder = () => {
                     {statusChip.label}
                   </Chip>
                   <Chip size="sm" variant="soft" color="neutral">
-                    {workflowStepCount} steps
+                    {workflowStepCount} {workflowStepCount === 1 ? "step" : "steps"}
                   </Chip>
                   <Chip size="sm" variant="soft" color="neutral">
                     {runSummary.executionCount} executions

@@ -1,3 +1,4 @@
+import { formatEvidenceTime } from "@/lib/formatEvidenceTime";
 import {Stack,Typography,Skeleton,Divider} from '@mui/joy';
 import {JoyCard,JoyCardContent,JoyCardHeader} from '@/components/joy/JoyCard';
 import {useCustomerCoupons} from '@/hooks/useCustomerCoupons';
@@ -11,7 +12,7 @@ export function CustomerCouponsCard({tenantId,customerId}:{tenantId:string;custo
  {row.transaction_ids.length>0&&<Typography level="body-xs">Recorded receipt references: {row.transaction_ids.join(', ')}. Receipt amounts and items are not inferred.</Typography>}
  <Typography level="body-xs">Source imports: {row.import_ids.join(', ')}</Typography>
  </Stack>)}</Stack>}
- <Typography level="body-xs" sx={{mt:1}}>Evidence checked: {query.data?.cutoff??'Unavailable'}.</Typography>
+ <Typography level="body-xs" sx={{mt:1}}>Evidence checked: {formatEvidenceTime(query.data?.cutoff)}.</Typography>
  <Typography level="body-xs" sx={{mt:1}}>Reminder timing is configured on an automation email node. Missing issuance or expiry, ambiguous coupon reuse and known redemption suppress reminders. Manual imports cannot reveal later POS activity.</Typography>
  </JoyCardContent></JoyCard>;
 }
