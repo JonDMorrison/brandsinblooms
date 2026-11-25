@@ -14,6 +14,7 @@ import Stack from "@mui/joy/Stack";
 import Tooltip from "@mui/joy/Tooltip";
 import Typography from "@mui/joy/Typography";
 import {
+  ClipboardCheck,
   Loader2,
   MailCheck,
   Monitor,
@@ -25,6 +26,12 @@ import {
 import { useDesignSystem } from "@/contexts/DesignSystemContext";
 import { supabase } from "@/integrations/supabase/client";
 import { generateEmailHtml } from "@/lib/studio/emailHtmlGenerator";
+import {
+  checkMessage,
+  findBrokenImages,
+  messageImageAddresses,
+  type MessageCheckIssue,
+} from "@/lib/studio/newsletter/messageCheck";
 import type { StudioBlock } from "@/types/studioBlocks";
 
 type PreviewDevice = "desktop" | "tablet" | "mobile";
@@ -170,9 +177,30 @@ export default function StudioPreviewDialog({
   );
   const sanitizedHtml = React.useMemo(() => stripScriptTags(html), [html]);
 
+  // Pre-send check: alt text, links, images and buttons. The result is tied
+  // to the email it was run on and is marked out of date after any change.
+  const [check, setCheck] = React.useState<{
+    running: boolean;
+    issues: MessageCheckIssue[];
+    forHtml: string;
+  } | null>(null);
+  const runCheck = React.useCallback(async () => {
+    const forHtml = html;
+    const issues = checkMessage(blocks, designSystem, settings);
+    setCheck({ running: true, issues, forHtml });
+    const broken = await findBrokenImages(messageImageAddresses(blocks, designSystem, settings));
+    setCheck((current) =>
+      current && current.forHtml === forHtml
+        ? { running: false, issues: [...issues, ...broken], forHtml }
+        : current,
+    );
+  }, [blocks, designSystem, html, settings]);
+  const checkIsStale = Boolean(check && check.forHtml !== html);
+
   React.useEffect(() => {
     if (open) {
       setSendStatus(null);
+      setCheck(null);
     }
   }, [open]);
 
@@ -378,7 +406,19 @@ export default function StudioPreviewDialog({
                 {fillSampleMergeTags(previewText || "Preview text appears here", sampleMergeData)}
               </Typography>
             </Sheet>
+            <Button
+              size="sm"
+              variant="outlined"
+              color="neutral"
+              startDecorator={check?.running ? <Loader2 size={15} /> : <ClipboardCheck size={15} />}
+              disabled={check?.running}
+              onClick={() => void runCheck()}
+              sx={{ borderRadius: "8px", whiteSpace: "nowrap", flexShrink: 0 }}
+            >
+              {check && !checkIsStale ? "Check again" : "Check message"}
+            </Button>
           </Stack>
+          {check ? <MessageCheckReport check={check} stale={checkIsStale} /> : null}
 
           {activeTab === "test" ? (
             <Stack
@@ -480,5 +520,73 @@ export default function StudioPreviewDialog({
         </Box>
       </ModalDialog>
     </Modal>
+  );
+}
+
+const KIND_LABELS: Record<MessageCheckIssue["kind"], string> = {
+  "alt-text": "Image description",
+  link: "Link",
+  image: "Image",
+  button: "Button",
+};
+
+function MessageCheckReport({
+  check,
+  stale,
+}: {
+  check: { running: boolean; issues: MessageCheckIssue[] };
+  stale: boolean;
+}) {
+  const problems = check.issues.filter((issue) => issue.severity === "problem").length;
+  const warnings = check.issues.length - problems;
+  const byBlock = check.issues.reduce<Map<string, { label: string; issues: MessageCheckIssue[] }>>(
+    (groups, issue) => {
+      const group = groups.get(issue.blockId) ?? { label: issue.blockLabel, issues: [] };
+      group.issues.push(issue);
+      groups.set(issue.blockId, group);
+      return groups;
+    },
+    new Map(),
+  );
+  const summary = check.running
+    ? "Checking images, links, descriptions and buttons…"
+    : check.issues.length === 0
+      ? "All clear: every image has a description and loads, every link has an address and every button has words and a link."
+      : `${problems} ${problems === 1 ? "problem" : "problems"} and ${warnings} ${warnings === 1 ? "warning" : "warnings"} to review before sending.`;
+  return (
+    <Box data-testid="message-check-report" role="region" aria-label="Message check" sx={{ mt: 1.25 }}>
+      <Alert
+        size="sm"
+        color={stale ? "neutral" : check.running ? "neutral" : check.issues.length === 0 ? "success" : problems ? "danger" : "warning"}
+        sx={{ borderRadius: "8px", py: 0.75, alignItems: "flex-start" }}
+      >
+        <Stack spacing={0.75} sx={{ minWidth: 0, width: "100%" }}>
+          <Typography level="body-sm" fontWeight={700}>
+            {stale ? "The email changed since this check. Check again." : summary}
+          </Typography>
+          {!stale && byBlock.size > 0 ? (
+            <Box sx={{ maxHeight: 180, overflowY: "auto", pr: 0.5 }}>
+              {Array.from(byBlock.entries()).map(([blockId, group]) => (
+                <Box key={blockId} sx={{ mb: 0.75 }}>
+                  <Typography level="body-xs" fontWeight={700}>{group.label}</Typography>
+                  <Box component="ul" sx={{ m: 0, pl: 2.25 }}>
+                    {group.issues.map((issue, index) => (
+                      <Typography key={index} component="li" level="body-xs" sx={{ color: "text.secondary" }}>
+                        <strong>{issue.severity === "problem" ? "Problem" : "Check"} · {KIND_LABELS[issue.kind]}:</strong>{" "}
+                        {issue.message}
+                        {issue.detail ? <Box component="span" sx={{ display: "block", wordBreak: "break-all", color: "neutral.500" }}>{issue.detail}</Box> : null}
+                      </Typography>
+                    ))}
+                  </Box>
+                </Box>
+              ))}
+            </Box>
+          ) : null}
+          <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+            Links are checked by their address; the check does not open the pages. Spelling is not checked yet.
+          </Typography>
+        </Stack>
+      </Alert>
+    </Box>
   );
 }
