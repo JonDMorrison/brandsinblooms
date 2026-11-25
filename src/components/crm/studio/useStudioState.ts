@@ -245,8 +245,19 @@ export function placeThemeBlocks(
   themeBlocks: StudioBlock[],
 ): { blocks: StudioBlock[]; focusId: string | null } {
   const themeHeader = themeBlocks.find((block) => block.type === "newsletter-header") ?? null;
+  // Skip theme content the draft already has (a draft started from this
+  // week's theme already holds these blocks). Adding again used to append
+  // a second photo, paragraph and image + text.
+  const signature = (block: StudioBlock) =>
+    [block.type, block.headline ?? "", block.body ?? "", block.imageUrl ?? ""]
+      .map((part) => String(part).trim())
+      .join("\u0000");
+  const present = new Set(current.map(signature));
   const content = themeBlocks.filter(
-    (block) => block.type !== "newsletter-header" && block.type !== "footer",
+    (block) =>
+      block.type !== "newsletter-header" &&
+      block.type !== "footer" &&
+      !present.has(signature(block)),
   );
   let next = [...current];
 
