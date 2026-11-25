@@ -2494,6 +2494,7 @@ function CampaignStudioPageContent() {
                   blocks={studio.blocks}
                   selectedBlockId={studio.selectedBlockId}
                   canvasWidth={studio.canvasWidth}
+                  deviceMode={studio.deviceMode}
                   activeDropIndex={studio.activeDropIndex}
                   isSidebarDragActive={Boolean(studio.activeSidebarDragBlock)}
                   isDraggingOverCanvas={studio.isDraggingOverCanvas}

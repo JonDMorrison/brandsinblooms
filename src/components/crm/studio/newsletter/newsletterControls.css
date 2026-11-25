@@ -121,12 +121,13 @@
 }
 .nl-preview {
   overflow-wrap: anywhere;
-  container-type: inline-size;
 }
 .nl-preview img[data-newsletter-image] {
   cursor: pointer;
 }
-@container (max-width: 599px) {
+/* Phone rules: tablet and phone views only (StudioCanvas names the
+   studio-email container in those views). */
+@container studio-email (max-width: 599px) {
   .nl-preview .responsive-column {
     display: block !important;
     width: 100% !important;

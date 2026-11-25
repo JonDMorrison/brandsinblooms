@@ -36,6 +36,7 @@ import {
   editorImagePlaceholder,
 } from "./newsletter/editorPlaceholders.ts";
 import {
+  isFooterIconColorPicked,
   isFooterSocialVisible,
   normalizeSocialLinks,
   resolveFooterSocialIcon,
@@ -827,9 +828,14 @@ function applyFooterContrastGuard(block: StudioBlock): StudioBlock {
     linkColor: block.linkColor
       ? readableTextOn(safeColor(block.linkColor, textColor), background)
       : block.linkColor,
-    footerIconColor: block.footerIconColor
+    // An Icon Colour the person picked is kept as chosen: icons are not
+    // text, and replacing it with white made a picked colour read as "not
+    // picked", so Filled icons fell back to brand colours. Only an inherited
+    // default colour is still made readable.
+    footerIconColor: block.footerIconColor && !isFooterIconColorPicked(block)
       ? readableTextOn(safeColor(block.footerIconColor, textColor), background)
       : block.footerIconColor,
+    ...(isFooterIconColorPicked(block) ? { footerIconColorPicked: true } : {}),
   };
 }
 
@@ -1141,7 +1147,16 @@ function renderGraphicImageBlock(
   const overlayLayer = placeholder && !overlayContent
     ? editorImagePlaceholder({ height: maxHeight, radius: 0 })
     : `<div style="height:${maxHeight}px;${overlayStyle}"><table role="presentation" width="100%" height="${maxHeight}" cellpadding="0" cellspacing="0" border="0" style="width:100%;height:${maxHeight}px;border-collapse:collapse;"><tr><td valign="${getGraphicHeroVerticalAlign(block.textPosition)}" style="padding:${showTextOverlay ? "32px 24px" : "24px"};">${overlayContent || "&nbsp;"}</td></tr></table></div>`;
-  const imageTable = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:separate;border-spacing:0;"><tr><td${placeholder ? ' data-editor-placeholder="image"' : ` background="${escapeAttribute(imageUrl)}"`} bgcolor="${escapeAttribute(backgroundColor)}" height="${maxHeight}" style="height:${maxHeight}px;${imageCellBackground}border-radius:${imageRadius};overflow:hidden;">${overlayLayer}</td></tr></table>`;
+  // "Show whole photo" with nothing drawn over it: a real <img> at the
+  // photo's own proportions, capped at Max Height. The fixed-height
+  // background box letterboxed wide photos, so raising Max Height only added
+  // empty bands above and below the picture.
+  const naturalPhoto =
+    !placeholder && block.imageFit === "contain" && !overlayContent && !block.showOverlay;
+  const frameWidth = EMAIL_WIDTH - padding * 2;
+  const imageTable = naturalPhoto
+    ? `<img data-newsletter-image="imageUrl" class="responsive-image" src="${escapeAttribute(imageUrl)}" alt="${escapeAttribute(block.imageAlt || block.headline || "Campaign image")}" width="${frameWidth}" style="display:block;margin:0 auto;width:auto;max-width:100%;height:auto;max-height:${maxHeight}px;object-fit:contain;border:0;outline:none;text-decoration:none;border-radius:${imageRadius};" />`
+    : `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:separate;border-spacing:0;"><tr><td${placeholder ? ' data-editor-placeholder="image"' : ` background="${escapeAttribute(imageUrl)}"`} bgcolor="${escapeAttribute(backgroundColor)}" height="${maxHeight}" style="height:${maxHeight}px;${imageCellBackground}border-radius:${imageRadius};overflow:hidden;">${overlayLayer}</td></tr></table>`;
   const linkedImage = safeUrl(block.linkUrl)
     ? `<a href="${escapeAttribute(safeUrl(block.linkUrl))}" target="_blank" style="text-decoration:none;display:block;">${imageTable}</a>`
     : imageTable;
@@ -1964,6 +1979,19 @@ function renderFooterSocialIcons(
     .join("")}</div>`;
 }
 
+/** "https://www.artsnursery.com/" → "www.artsnursery.com"; no address → "Website". */
+export function footerWebsiteLabel(url: string | null | undefined): string {
+  const value = (url ?? "").trim();
+  if (!value) return "Website";
+  try {
+    const parsed = new URL(/^https?:\/\//i.test(value) ? value : `https://${value}`);
+    const path = parsed.pathname.replace(/\/+$/, "");
+    return `${parsed.hostname}${path}`;
+  } catch {
+    return "Website";
+  }
+}
+
 function renderFooterLinks(
   block: StudioBlock,
   links: EmailFooterLinks,
@@ -1986,7 +2014,10 @@ function renderFooterLinks(
       visible: block.showManagePreferences !== false,
     },
     {
-      label: "Website",
+      // Show the address itself (www.artsnursery.com), not the word "Website".
+      label: footerWebsiteLabel(
+        links.websiteUrl || block.websiteUrl || designSystem?.company.websiteUrl,
+      ),
       href:
         links.websiteUrl ||
         block.websiteUrl ||

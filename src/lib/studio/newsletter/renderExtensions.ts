@@ -86,7 +86,12 @@ function picture(block: StudioBlock, width = 220, sizing?: PictureSizing): strin
   if (!url) return "";
   const height = sizing
     ? sizing.height === null ? "auto" : `${sizing.height}px`
-    : block.type === "product-card" ? `${clampNumber(block.imageHeight, 220, 120, 480)}px` : "auto";
+    // Product Card: "Fill the space" crops into a fixed box; "Show whole
+    // photo" keeps the photo's own proportions (a tall 540x960 photo was
+    // squeezed into a 220px-high box).
+    : block.type === "product-card" && block.imageFit === "cover"
+      ? `${clampNumber(block.imageHeight, 220, 120, 480)}px`
+      : "auto";
   const fit = sizing?.fit ?? block.imageFit ?? "contain";
   const image = `<img data-newsletter-image="imageUrl" class="responsive-image${sizing?.className ? ` ${sizing.className}` : ""}" src="${attr(url)}" alt="${attr(block.imageAlt || block.headline || block.productName || "")}" width="${width}"${sizing?.height ? ` height="${sizing.height}"` : ""} style="display:block;width:100%;max-width:${width}px;height:${height};object-fit:${fit};border:0;border-radius:${clampNumber(block.borderRadius, 6, 0, 48)}px;" />`;
   const linked = safeEmailUrl(block.linkUrl)
