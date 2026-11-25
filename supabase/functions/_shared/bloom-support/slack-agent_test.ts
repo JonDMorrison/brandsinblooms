@@ -1,5 +1,5 @@
 import { assertEquals, assert, assertStringIncludes } from "@std/assert";
-import { answerWithSlackAgent, checkStaffChannel, isSlackModelEndpoint, type SlackAgentContext } from "./slack-agent.ts";
+import { answerWithSlackAgent, checkStaffChannel, isoDate, isSlackModelEndpoint, type SlackAgentContext } from "./slack-agent.ts";
 const channel = "C0CFNEQBS2X";
 const principal = "10000000-0000-4000-8000-000000000001";
 const context: SlackAgentContext = { allowed: true, principal_id: principal, role: "platform_admin", channel, route: "tickets", root_ts: "1794936205.974579", user_id: "U06VD9ZGA4U", ticket_id: null, history: [] };
@@ -19,6 +19,7 @@ async function fixture(run: (calls: Array<{ url: string; body: Record<string, un
     const url = String(input); const body = JSON.parse(String(init?.body ?? "{}"));
     calls.push({ url, body });
     const data = respond(url, body);
+    if (data instanceof Response) return Promise.resolve(data);
     return Promise.resolve(new Response(JSON.stringify(data), { headers: { "content-type": "application/json" } }));
   };
   try { await run(calls); }
@@ -44,9 +45,9 @@ const channelSetting = (allowAny: boolean) => (url: string, body: Record<string,
   throw Error("Unexpected request in test: " + url);
 };
 Deno.test("staff channel check: private allowed, public only with the setting, shared and failed lookups always refused", async () => {
-  const cases: Array<[unknown, boolean, { allowed: boolean; reason: string }]> = [
-    [privateMeta, false, { allowed: true, reason: "ok" }],
-    [privateMeta, true, { allowed: true, reason: "ok" }],
+  const cases: Array<[unknown, boolean, { allowed: boolean; reason: string; isPrivate?: boolean }]> = [
+    [privateMeta, false, { allowed: true, reason: "ok", isPrivate: true }],
+    [privateMeta, true, { allowed: true, reason: "ok", isPrivate: true }],
     [publicMeta, false, { allowed: false, reason: "public" }],
     [publicMeta, true, { allowed: true, reason: "ok" }],
     [{ ok: true, channel: { id: channel, is_private: false, is_shared: true } }, true, { allowed: false, reason: "shared" }],
@@ -67,7 +68,7 @@ Deno.test("staff channel check needs the Slack token and reads the setting only 
     assertEquals(calls.length, 0);
   }, () => { throw Error("no request expected"); });
   await fixture(async calls => {
-    assertEquals(await checkStaffChannel(channel), { allowed: true, reason: "ok" });
+    assertEquals(await checkStaffChannel(channel), { allowed: true, reason: "ok", isPrivate: true });
     assert(!calls.some(c => c.url.endsWith("bloom_support_rpc")));
   }, (url, body) => channelSetting(false)(url, body, privateMeta));
   await fixture(async () => assertEquals(await checkStaffChannel(channel), { allowed: false, reason: "public" }), (url) => {
@@ -90,6 +91,7 @@ Deno.test("a public internal channel gets tools, history and no private-channel 
       modelCalls++;
       const names = (body.tools as Array<{ function: { name: string } }>).map(t => t.function.name);
       assert(names.includes("support_overview") && names.includes("find_tickets"), names.join(","));
+      assert(!names.includes("revenue_by_client"), "revenue needs a channel Slack reports as private");
       const user = JSON.parse(String((body.messages as Array<{ content: string }>)[1].content));
       assertEquals(user.private_channel, true);
       assertStringIncludes(JSON.stringify(user.history), "EARLIER_QUESTION_SENTINEL");
@@ -208,4 +210,59 @@ Deno.test("the native agent's final answer stays inside the database receipt lim
       :{role:"assistant",content:"Recorded support context. ".repeat(95)}}]};
     return standard(url,body);
   });
+});
+Deno.test("revenue dates are YYYY-MM-DD or absent", () => {
+  assertEquals(isoDate(null), null);
+  assertEquals(isoDate(undefined), null);
+  assertEquals(isoDate("2025-11-25"), "2025-11-25");
+  for (const bad of ["2025-13-45", "25-11-2025", "last year", 20251125]) {
+    let threw = false;
+    try { isoDate(bad); } catch { threw = true; }
+    assert(threw, String(bad));
+  }
+});
+const revenueCall = (args: Record<string, unknown>) => ({ role: "assistant", content: null, tool_calls: [{ id: "r1", type: "function", function: { name: "revenue_by_client", arguments: JSON.stringify(args) } }] });
+Deno.test("revenue_by_client reads the aggregate RPC in a private channel and passes the recorded result to the model", async () => {
+  let modelCalls = 0;
+  await fixture(async calls => {
+    const result = await answerWithSlackAgent(context, "How much revenue have we generated from events, fundraising and plant sales by garden center?", "job");
+    assertStringIncludes(result ?? "", "West Coast Gardens");
+    const rpcCall = calls.find(c => c.url.endsWith("bloom_support_slack_revenue_by_client"));
+    assert(rpcCall, "revenue RPC was called");
+    assertEquals(rpcCall.body, { p_job: "job", p_from: null, p_to: null, p_category: "event" });
+  }, (url, body) => {
+    if (url.endsWith("bloom_support_slack_revenue_by_client")) return { clients: [{ garden_centre: "West Coast Gardens", source_system: "IDEAL POS", currency: "CAD", total: 10, category_filter_total: 2 }] };
+    if (url.endsWith("chat/completions")) {
+      modelCalls++;
+      assert((body.tools as Array<{ function: { name: string } }>).some(t => t.function.name === "revenue_by_client"));
+      if (modelCalls === 1) return { choices: [{ message: revenueCall({ from: null, to: null, category: "event" }) }] };
+      const tool = (body.messages as Array<{ role: string; content: string }>).find(m => m.role === "tool");
+      assertStringIncludes(tool?.content ?? "", "West Coast Gardens");
+      return { choices: [{ message: { role: "assistant", content: "West Coast Gardens recorded 2 CAD in events." } }] };
+    }
+    return standard(url, body);
+  });
+});
+Deno.test("only a real 42501 refusal reaches the model as permission_denied; other failures are unavailable", async () => {
+  for (const [response, expected, absent] of [
+    [() => new Response(JSON.stringify({ code: "42501", message: "refused" }), { status: 403, headers: { "content-type": "application/json" } }), "permission_denied", "unavailable"],
+    [() => new Response(JSON.stringify({ code: "57014", message: "timeout" }), { status: 500, headers: { "content-type": "application/json" } }), "unavailable", "permission_denied"],
+  ] as Array<[() => Response, string, string]>) {
+    let modelCalls = 0;
+    await fixture(async () => {
+      await answerWithSlackAgent(context, "Revenue by garden centre?", "job");
+      assertEquals(modelCalls, 2);
+    }, (url, body) => {
+      if (url.endsWith("bloom_support_slack_revenue_by_client")) return response();
+      if (url.endsWith("chat/completions")) {
+        modelCalls++;
+        if (modelCalls === 1) return { choices: [{ message: revenueCall({ from: null, to: null, category: null }) }] };
+        const tool = (body.messages as Array<{ role: string; content: string }>).find(m => m.role === "tool")?.content ?? "";
+        assertStringIncludes(tool, `"error":"${expected}"`);
+        assertEquals(tool.includes(`"error":"${absent}"`), false);
+        return { choices: [{ message: { role: "assistant", content: "Revenue lookup outcome reported." } }] };
+      }
+      return standard(url, body);
+    });
+  }
 });

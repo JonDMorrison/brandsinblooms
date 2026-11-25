@@ -6,7 +6,7 @@ import { aiConfig } from "./ai.ts";
 import { actions } from "./service.ts";
 import { callProduct, runRead } from "./operations.ts";
 import { safeTicketText } from "./ticket-slack.ts";
-import { type AgentContext, type ChatMessage, type ToolResult, composeSlackAgentReply, openAiTools, runAgent } from "./slack-agent-core.ts";
+import { type AgentContext, type ChatMessage, type ToolResult, ToolPermissionError, composeSlackAgentReply, openAiTools, runAgent } from "./slack-agent-core.ts";
 
 export interface SlackAgentContext {
   allowed: boolean; principal_id: string; role: string; channel: string; route: string;
@@ -18,6 +18,12 @@ const row = (v: unknown): Row => v && typeof v === "object" && !Array.isArray(v)
 const rows = (v: unknown): Row[] => Array.isArray(v) ? v.map(row) : [];
 const id = (v: unknown): string => {
   if (typeof v !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v)) throw Error("valid scoped ID required");
+  return v;
+};
+/** Optional YYYY-MM-DD argument; a malformed date is refused rather than silently widened. */
+export const isoDate = (v: unknown): string | null => {
+  if (v === null || v === undefined || v === "") return null;
+  if (typeof v !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(v) || Number.isNaN(Date.parse(`${v}T00:00:00Z`))) throw Error("use YYYY-MM-DD dates");
   return v;
 };
 const pick = (r: Row, fields: string[]): Row => Object.fromEntries(fields.filter(k => k in r).map(k => [k, r[k]]));
@@ -41,7 +47,7 @@ export function privacyDiagnostic(channel: string, data: unknown): Record<string
     id_matches: ch.id === channel, is_private: ch.is_private === true, is_shared: ch.is_shared === true, is_ext_shared: ch.is_ext_shared === true };
 }
 export type StaffChannelReason = "ok" | "public" | "shared" | "lookup_failed" | "not_configured";
-export interface StaffChannelCheck { allowed: boolean; reason: StaffChannelReason }
+export interface StaffChannelCheck { allowed: boolean; reason: StaffChannelReason; isPrivate?: boolean }
 
 /** slack_agent.allow_any_staff_channel; anything but an explicit true is off. */
 async function allowAnyStaffChannel(): Promise<boolean> {
@@ -73,7 +79,7 @@ export async function checkStaffChannel(channel: string): Promise<StaffChannelCh
     if (ch.is_private === true) console.warn(JSON.stringify(privacyDiagnostic(channel, data)));
     return { allowed: false, reason: "shared" };
   }
-  if (ch.is_private === true) return { allowed: true, reason: "ok" };
+  if (ch.is_private === true) return { allowed: true, reason: "ok", isPrivate: true };
   return await allowAnyStaffChannel() ? { allowed: true, reason: "ok" } : { allowed: false, reason: "public" };
 }
 
@@ -83,10 +89,12 @@ export async function answerWithSlackAgent(c: SlackAgentContext, question: strin
   const cfg = await aiConfig();
   if (cfg.provider !== "openai" || !env("OPENAI_API_KEY")) return null;
   if (!isSlackModelEndpoint(cfg.baseUrl)) return null;
-  const privateChannel = (await checkStaffChannel(c.channel)).allowed;
+  const channelCheck = await checkStaffChannel(c.channel);
+  const privateChannel = channelCheck.allowed;
+  const confirmedPrivate = channelCheck.allowed && channelCheck.isPrivate === true;
   const ctx: AgentContext = {
     jobId, principalId: c.principal_id, role: c.role, channel: c.channel, route: c.route,
-    rootTs: c.root_ts, ticketId: c.ticket_id, question, history: c.history, privateChannel,
+    rootTs: c.root_ts, ticketId: c.ticket_id, question, history: c.history, privateChannel, confirmedPrivate,
   };
   const caller: Caller = { principalId: c.principal_id, role: c.role, via: "service", scopes: [], name: null };
   const tickets = new Set<string>(c.ticket_id ? [c.ticket_id] : []);
@@ -122,7 +130,7 @@ export async function answerWithSlackAgent(c: SlackAgentContext, question: strin
   });
   if (c.ticket_id && privateChannel) await getTicket(c.ticket_id);
   const execute = async (name: string, a: Row): Promise<ToolResult> => {
-    if (name !== "product_knowledge" && !privateChannel) throw Error("private staff channel required");
+    if (name !== "product_knowledge" && !privateChannel) throw new ToolPermissionError("private staff channel required");
     switch (name) {
       case "product_knowledge": {
         const result = rows(await rpc("search_knowledge", { product: a.product === "all" ? null : a.product, q: a.query, limit: 5 }));
@@ -136,6 +144,16 @@ export async function answerWithSlackAgent(c: SlackAgentContext, question: strin
         const { data, error } = await db().rpc("bloom_support_slack_feature_summary", {});
         if (error) throw Error("feature lookup unavailable");
         return { source: source("Recorded feature requests", `${DESK}?view=features`), data: { results: rows(data).slice(0, 10).map(r => pick(r, ["title", "status", "product", "updated_at"])), limited_to: 10 } };
+      }
+      case "revenue_by_client": {
+        if (!confirmedPrivate) throw new ToolPermissionError("revenue requires a private Slack channel");
+        const { data, error } = await db().rpc("bloom_support_slack_revenue_by_client", {
+          p_job: jobId, p_from: isoDate(a.from), p_to: isoDate(a.to),
+          p_category: typeof a.category === "string" && a.category.trim() ? a.category.trim().slice(0, 60) : null,
+        });
+        if (error?.code === "42501") throw new ToolPermissionError("revenue refused for this conversation");
+        if (error) throw Error("revenue lookup unavailable");
+        return { source: source("Recorded POS sales by garden centre"), data };
       }
       case "client_customer_overview":
       case "find_client_customer":

@@ -1,5 +1,5 @@
 import { assertEquals, assert, assertThrows, assertStringIncludes } from "@std/assert";
-import { availableTools, composeSlackAgentReply, explicitIntent, openAiTools, runAgent, safeAgentAnswer, scrub, TOOL_SPECS, validateArguments, type AgentContext, type AgentDependencies, type ChatMessage } from "./slack-agent-core.ts";
+import { AGENT_SYSTEM, ToolPermissionError, toolFailure, availableTools, composeSlackAgentReply, explicitIntent, openAiTools, runAgent, safeAgentAnswer, scrub, TOOL_SPECS, validateArguments, type AgentContext, type AgentDependencies, type ChatMessage } from "./slack-agent-core.ts";
 const context = (patch: Partial<AgentContext> = {}): AgentContext => ({
   jobId: "job", principalId: "staff", role: "platform_admin", channel: "private", route: "tickets", rootTs: "1.000001",
   ticketId: null, question: "What needs attention?", history: [], privateChannel: true, ...patch,
@@ -155,4 +155,34 @@ Deno.test("safe draft-only instructions are accepted while negative repair instr
   assert(!explicitIntent("Investigate this issue", "repair"));
   assert(explicitIntent("Resume this release", "release"));
   assert(!availableTools(context({ role: "support", ticketId: "bound", question: "Deploy this" })).some(t => t.name === "resume_release"));
+});
+Deno.test("revenue_by_client is owner-only and needs a channel Slack reports as private", () => {
+  const has = (patch: Partial<AgentContext>) => availableTools(context(patch)).some(t => t.name === "revenue_by_client");
+  assert(has({ confirmedPrivate: true }));
+  assert(has({ role: "platform_operator", confirmedPrivate: true }));
+  assertEquals(has({ role: "support", confirmedPrivate: true }), false);
+  assertEquals(has({ confirmedPrivate: false }), false);
+  assertEquals(has({}), false);
+  assertEquals(has({ privateChannel: false, confirmedPrivate: true }), false);
+  const spec = TOOL_SPECS.find(t => t.name === "revenue_by_client")!;
+  assertEquals(validateArguments(spec, JSON.stringify({ from: null, to: null, category: "event" })).category, "event");
+  assertThrows(() => validateArguments(spec, JSON.stringify({ from: null, to: null, category: "x".repeat(61) })));
+  assertThrows(() => validateArguments(spec, JSON.stringify({ from: null, to: null, category: null, tenant_id: "other" })));
+});
+Deno.test("prompt reports recorded revenue and forbids a false restriction claim", () => {
+  assertEquals(AGENT_SYSTEM.includes("financial outcomes"), false);
+  assertStringIncludes(AGENT_SYSTEM, "Report recorded revenue from revenue_by_client. Never state a figure that tool did not return. If a category is not recorded, say so and give the totals that are.");
+  assertStringIncludes(AGENT_SYSTEM, "unless a tool actually returned a permission_denied error");
+});
+Deno.test("tool failures name a permission refusal only when the server refused", async () => {
+  assertEquals(toolFailure(new ToolPermissionError("no")).error, "permission_denied");
+  const other = toolFailure(Error("timeout"));
+  assertEquals(other.error, "unavailable");
+  assertStringIncludes(other.guidance, "not a permission refusal");
+  const h = harness([call("support_overview"), answer()], { execute: () => Promise.reject(Error("network")) });
+  await runAgent(context(), h.deps);
+  const tool = h.requests[1].find(m => m.role === "tool")?.content ?? "";
+  assertStringIncludes(tool, '"error":"unavailable"');
+  assertEquals(/outside your permissions/.test(tool), false);
+  assertEquals(h.audited, ["support_overview:not_confirmed"]);
 });
