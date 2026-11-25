@@ -104,7 +104,7 @@ const PricingVisualization = () => {
       {/* Platform fee callout */}
       <div className="mt-6 pt-6 border-t border-border flex items-center justify-center gap-3">
         <div className="text-sm text-muted-foreground">
-          Platform fee: <span className="font-semibold text-foreground">5% of $15 = $0.75</span>
+          Supplier programme illustration: <span className="font-semibold text-foreground">confirm fees in your agreement</span>
         </div>
         <div className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">Infrastructure, not ownership</div>
       </div>
@@ -147,7 +147,7 @@ export const EcommPage = () => {
     },
     {
       question: 'How much does BloomSuite cost?',
-      answer: 'BloomSuite charges a 5% platform fee on the product subtotal only. Combined with standard payment processing fees, most orders have a total transaction cost under 10%.',
+      answer: 'BloomSites is proposed at $99 USD/month for website and online selling software. Ordinary commerce and supplier programme fees are distinct; confirm applicable platform, vendor and processing fees in your agreement.',
     },
     {
       question: 'Who handles sales tax?',
@@ -379,15 +379,15 @@ export const EcommPage = () => {
               </h2>
               <div className="space-y-6 text-muted-foreground">
                 <p className="leading-relaxed">
-                  Nurseries set one wholesale price per product. You set your own retail price, 
+                  For eligible supplier programmes, nurseries set wholesale prices. You set your own retail price, 
                   add shipping as needed, and control your margins fully.
                 </p>
                 <div className="bg-background p-6 rounded-xl border border-border">
-                  <h3 className="text-foreground font-semibold mb-3">Platform Fee Structure</h3>
+                  <h3 className="text-foreground font-semibold mb-3">BloomSites · $99/month USD proposed</h3>
                   <ul className="space-y-2">
                     <li className="flex items-start gap-2">
                       <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
-                      <span>5% platform fee on product subtotal only</span>
+                      <span>Applicable supplier programme fees confirmed in your agreement</span>
                     </li>
                     <li className="flex items-start gap-2">
                       <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
@@ -395,18 +395,19 @@ export const EcommPage = () => {
                     </li>
                     <li className="flex items-start gap-2">
                       <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
-                      <span>Most orders under 10% total transaction cost</span>
+                      <span>Ordinary online commerce estimates are separate</span>
                     </li>
                   </ul>
                 </div>
+                <a href="/build-your-suite?product=site" className="inline-flex items-center gap-2 rounded-lg bg-primary text-primary-foreground px-5 py-3 font-semibold">Estimate your BloomSuite costs <ArrowRight size={18} aria-hidden="true"/></a>
                 <div className="flex flex-wrap gap-4 text-sm">
                   <span className="flex items-center gap-2">
                     <CheckCircle className="h-4 w-4 text-primary" />
-                    No marketplace referral fees
+                    Fees reviewed before activation
                   </span>
                   <span className="flex items-center gap-2">
                     <CheckCircle className="h-4 w-4 text-primary" />
-                    No forced pricing
+                    You control retail pricing
                   </span>
                   <span className="flex items-center gap-2">
                     <CheckCircle className="h-4 w-4 text-primary" />
