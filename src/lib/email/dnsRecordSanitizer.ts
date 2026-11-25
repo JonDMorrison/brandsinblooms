@@ -230,7 +230,9 @@ export function validateCanonicalRecords(
     }
   }
 
-  // Find DMARC - but note it should NOT be in auto-setup records
+  // Provider records must not carry DMARC. A default DMARC record is added
+  // separately, after this validation, and only when the domain has none
+  // (see dmarcAutoSetup.ts).
   const dmarcRecords = records.filter(
     (r) =>
       r.host.toLowerCase() === "_dmarc" ||
@@ -245,7 +247,7 @@ export function validateCanonicalRecords(
     );
   } else {
     warnings.push(
-      "No DMARC record found. Configure DMARC manually for email policy enforcement.",
+      "No DMARC record in the provider records. It is added only if the domain has none.",
     );
   }
 

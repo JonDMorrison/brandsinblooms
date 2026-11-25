@@ -80,7 +80,7 @@ is_entri_managed BOOLEAN     -- Whether DNS was set up via Entri
 2. User clicks "Automatic Setup (Recommended)"
 3. Entri modal opens and detects their DNS provider
 4. User authorizes Entri to configure DNS records
-5. Entri applies SPF, DKIM, and DMARC records automatically
+5. Entri applies the DKIM, SPF and bounce (MX) records. It also adds a DMARC record, but only when the domain has none. An existing DMARC record is never changed.
 6. BloomSuite receives success callback with provider info
 7. Domain is created in database with `is_entri_managed = true`
 8. Resend domain is provisioned for email sending
@@ -99,13 +99,20 @@ If Entri cannot detect the DNS provider or user prefers manual setup:
 
 ## DNS Records
 
-The default email authentication records configured by Entri:
+Entri receives the records Resend issues for the domain, unchanged:
 
 | Type | Host | Value |
 |------|------|-------|
-| TXT | @ | `v=spf1 include:_spf.resend.com ~all` |
-| CNAME | resend._domainkey | `resend._domainkey.resend.com` |
-| TXT | _dmarc | `v=DMARC1; p=quarantine; rua=mailto:dmarc@bloomsuite.app` |
+| TXT | resend._domainkey | DKIM key from Resend |
+| TXT | send | `v=spf1 include:amazonses.com ~all` |
+| MX | send | `feedback-smtp.<region>.amazonses.com` (priority 10) |
+
+Root-domain records are never changed automatically.
+
+DMARC (`src/lib/email/dmarcAutoSetup.ts`): before Entri opens, BloomSuite looks
+up `_dmarc.<domain>`. If nothing exists there, it adds `TXT _dmarc v=DMARC1; p=none;`.
+If any record exists, or the lookup fails, it adds nothing. Campaign sending
+requires DMARC, so a domain without it stays blocked for campaigns until it is added.
 
 ## Sending Priority
 
