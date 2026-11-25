@@ -21,7 +21,7 @@ export const SPEND_CAP_MESSAGE =
 
 /**
  * Provider list prices in USD per 1M tokens (OpenAI public pricing, standard
- * tier, checked 2026-11-04). Used only to estimate spend against the cap.
+ * tier, checked 2026-11-24). Used only to estimate spend against the cap.
  * Model ids are matched by the longest prefix, so dated snapshots such as
  * "gpt-4.1-2025-04-14" use the "gpt-4.1" price. An unknown model is charged at
  * the most expensive price in this table so it can never slip under the cap.
@@ -35,6 +35,9 @@ export const MODEL_PRICES_USD_PER_MILLION: Record<string, { input: number; outpu
   "gpt-5-nano": { input: 0.05, output: 0.4 },
   "gpt-5-mini": { input: 0.25, output: 2 },
   "gpt-5": { input: 1.25, output: 10 },
+  "gpt-6-luna": { input: 0.10, output: 0.50 },
+  "gpt-6.1-terra": { input: 1, output: 5 },
+  "gpt-6.1-sol": { input: 2, output: 10 },
 };
 
 const FALLBACK_PRICE = Object.values(MODEL_PRICES_USD_PER_MILLION).reduce((worst, p) => ({
@@ -109,8 +112,6 @@ export type SpendMeter = {
   reserve(feature: string, model: string, estimateMicros: number): Promise<SpendTicket>;
 };
 
-const NOOP_TICKET: SpendTicket = { settle: () => Promise.resolve(), release: () => Promise.resolve() };
-
 export function createSpendMeter(args: { client: SpendRpcClient; tenantId: string; userId: string | null }): SpendMeter {
   const { client, tenantId, userId } = args;
   return {
@@ -134,8 +135,8 @@ export function createSpendMeter(args: { client: SpendRpcClient; tenantId: strin
         p_estimate_micros: Math.max(0, Math.ceil(estimateMicros)),
       });
       if (error || !isRecord(data)) {
-        console.error("[bloom-assist] Spend reservation unavailable; call not metered", error?.message ?? "no data");
-        return NOOP_TICKET;
+        console.error("[bloom-assist] Spend reservation unavailable");
+        throw new SpendCapReachedError();
       }
       if (data.allowed !== true) throw new SpendCapReachedError();
       const reservationId = String(data.reservation_id);

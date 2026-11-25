@@ -174,6 +174,20 @@ describe("Bloom chat spending cap", () => {
     expect(db.committed.get("t1")).toBe(0);
   });
 
+  it("blocks provider calls when the reservation RPC fails", async () => {
+    const client: SpendRpcClient = { rpc: async () => ({ data: null, error: { message: "unavailable" } }) };
+    const meter = createSpendMeter({ client, tenantId: "t1", userId: "u1" });
+    const fetchImpl = vi.fn(async () => jsonReply());
+    await expect(meteredModelFetch(meter, "chat", URL_, { method: "POST", body: body({ model: "gpt-6-luna" }) }, fetchImpl as unknown as typeof fetch)).rejects.toBeInstanceOf(SpendCapReachedError);
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+  it("uses November 24 standard prices for migration candidates", () => {
+    expect(priceForModel("gpt-6-luna")).toEqual({ input: 0.10, output: 0.50 });
+    expect(priceForModel("gpt-6.1-terra")).toEqual({ input: 1, output: 5 });
+    expect(priceForModel("gpt-6.1-sol")).toEqual({ input: 2, output: 10 });
+    expect(costMicros("gpt-6-luna", 1000, 200)).toBe(200);
+    expect(costMicros("gpt-6.1-terra", 1000, 200)).toBe(2000);
+  });
   it("prices dated snapshots by family and unknown models at the highest known price", () => {
     expect(priceForModel("gpt-4.1-2025-04-14")).toEqual({ input: 2, output: 8 });
     expect(priceForModel("gpt-4o-mini")).toEqual({ input: 0.15, output: 0.6 });

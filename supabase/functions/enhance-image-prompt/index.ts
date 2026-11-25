@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { getMasterGardenerSystemRole } from "../_shared/masterGardenerPrompt.ts";
 
 const openAIApiKey = Deno.env.get("OPENAI_API_KEY");
@@ -104,15 +105,22 @@ serve(async (req) => {
       });
     }
 
+    const token = /^Bearer\s+(\S+)$/i.exec(authHeader)?.[1];
+    if (!token) return new Response(JSON.stringify({ error: "Authorization required" }), { status: 401, headers: corsHeaders });
+    const supabase = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_ANON_KEY") ?? "", {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) return new Response(JSON.stringify({ error: "Invalid authorization" }), { status: 401, headers: corsHeaders });
     const { campaignContext: rawCampaignContext, prompt } = await req.json();
 
-    if (!prompt) {
-      throw new Error("Prompt is required");
+    if (typeof prompt !== "string" || !prompt.trim() || prompt.length > 4000) {
+      return new Response(JSON.stringify({ error: "Prompt must contain 1–4000 characters" }), { status: 400, headers: corsHeaders });
     }
 
     const campaignContext = sanitizeCampaignContext(rawCampaignContext);
 
-    console.log("Enhancing prompt:", prompt);
+    // Do not log user campaign content.
 
     const baseSystemPrompt = `${getMasterGardenerSystemRole()}
 
@@ -149,12 +157,15 @@ Output only the enhanced prompt, nothing else.`;
 
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
+      signal: AbortSignal.timeout(15000),
       headers: {
         Authorization: `Bearer ${openAIApiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gpt-5-mini-2025-08-07",
+        model: "gpt-6-luna",
+        reasoning_effort: "none",
+        store: false,
         messages: [
           {
             role: "system",
@@ -170,24 +181,25 @@ Output only the enhanced prompt, nothing else.`;
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error("OpenAI API error:", response.status, errorText);
+      console.error("OpenAI API error:", response.status);
       throw new Error(`OpenAI API error: ${response.status}`);
     }
 
     const data = await response.json();
-    const enhancedPrompt = data.choices[0].message.content.trim();
-
-    console.log("Enhanced prompt:", enhancedPrompt);
+    const choice = data.choices?.[0];
+    if (choice?.finish_reason !== "stop" || choice.message?.refusal || typeof choice.message?.content !== "string" || !choice.message.content.trim()) {
+      throw new Error("Image prompt enhancement unavailable");
+    }
+    const enhancedPrompt = choice.message.content.trim();
 
     return new Response(JSON.stringify({ enhancedPrompt }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
-    console.error("Error in enhance-image-prompt:", error);
+    console.error("Image prompt enhancement failed");
     return new Response(
       JSON.stringify({
-        error: error instanceof Error ? error.message : "Unknown error",
+        error: "Image prompt enhancement unavailable",
       }),
       {
         status: 500,
