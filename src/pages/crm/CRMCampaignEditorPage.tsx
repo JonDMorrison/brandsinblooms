@@ -1434,6 +1434,28 @@ function CampaignEditorScreen() {
     void openStudio(pendingThemeStudio);
   }, [openStudio, pendingThemeStudio]);
 
+  // "Start this week's email" on the campaigns page lands here with
+  // ?start=theme. Run the same start-from-theme flow once, on a new draft.
+  React.useEffect(() => {
+    if (processParams.get("start") !== "theme") return;
+    if (isLoading) return;
+    const themeReady = Boolean(weeklyThemeTemplate);
+    if (!themeReady && !weeklyThemeQuery.isFetched) return;
+    const nextParams = new URLSearchParams(processParams);
+    nextParams.delete("start");
+    setProcessParams(nextParams, { replace: true });
+    if (themeReady && !campaignId && !weeklyThemeApplied) handleStartFromTheme();
+  }, [
+    campaignId,
+    handleStartFromTheme,
+    isLoading,
+    processParams,
+    setProcessParams,
+    weeklyThemeApplied,
+    weeklyThemeQuery.isFetched,
+    weeklyThemeTemplate,
+  ]);
+
   const weeklyThemeOption = React.useMemo(() => {
     const theme = weeklyThemeQuery.data;
     if (!theme) return null;
