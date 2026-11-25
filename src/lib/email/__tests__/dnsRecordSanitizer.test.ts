@@ -118,7 +118,7 @@ describe("dnsRecordSanitizer", () => {
         mxHasPriority: true,
       });
       expect(result.warnings).toContain(
-        "No DMARC record found. Configure DMARC manually for email policy enforcement.",
+        "No DMARC record in the provider records. It is added only if the domain has none.",
       );
     });
 

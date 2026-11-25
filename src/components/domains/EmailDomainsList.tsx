@@ -27,6 +27,7 @@ import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { assessDomainAuthentication } from "@/lib/email/domainAuthentication";
+import { withDmarcIfMissing } from "@/lib/email/dmarcAutoSetup";
 
 // =========================================================
 // Readiness Status Types (matches edge function)
@@ -476,10 +477,17 @@ export const EmailDomainsList = ({
         return;
       }
 
+      // Campaigns need DMARC. Add it through Entri only when the domain has
+      // none; an existing record is never changed.
+      const { records: entriRecordsWithDmarc } = await withDmarcIfMissing(
+        domain.domain,
+        entriRecords,
+      );
+
       const entriResult = await openEntriSetup(
         domain.domain,
         tenant.id,
-        entriRecords,
+        entriRecordsWithDmarc,
         async () => {
           toast.success("DNS records applied! Running verification...");
           setTimeout(async () => {

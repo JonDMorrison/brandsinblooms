@@ -29,6 +29,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useEmailDomainManagement } from "@/hooks/useEmailDomainManagement";
 import { useEntriConnect } from "@/hooks/useEntriConnect";
 import { useTenant } from "@/hooks/useTenant";
+import { withDmarcIfMissing } from "@/lib/email/dmarcAutoSetup";
 
 interface DomainConnectWizardProps {
   open: boolean;
@@ -316,10 +317,17 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({
 
       const cleanupProviderCapture = captureEntriProvider();
 
+      // Campaigns need DMARC. Add it through Entri only when the domain has
+      // none; an existing record is never changed.
+      const { records: entriRecordsWithDmarc } = await withDmarcIfMissing(
+        cleanDomain,
+        entriRecords,
+      );
+
       const entriResult = await openEntriSetup(
         cleanDomain,
         tenant.id,
-        entriRecords,
+        entriRecordsWithDmarc,
         () => {
           cleanupProviderCapture();
           setIsEntriModalOpen(false);
