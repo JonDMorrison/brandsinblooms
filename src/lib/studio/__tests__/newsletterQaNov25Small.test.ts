@@ -109,3 +109,19 @@ describe("New social blocks", () => {
     }
   });
 });
+
+describe("Product Card photo proportions (Block Builder feedback)", () => {
+  const card = (fields: Partial<StudioBlock>) =>
+    ({ ...createStudioBlock("product-card"), productName: "Fern", imageUrl: "https://example.com/tall-540x960.jpg", imagePosition: "left", ...fields }) as StudioBlock;
+
+  it("'Show whole photo' keeps a tall photo's proportions beside the text", () => {
+    const img = (renderExtendedBlock(card({ imageFit: "contain" }), 640) ?? "").match(/<img[^>]*>/)?.[0] ?? "";
+    expect(img).toContain("height:auto");
+    expect(img).not.toContain("height:220px");
+  });
+
+  it("'Fill the space' still crops into the fixed box", () => {
+    const img = (renderExtendedBlock(card({ imageFit: "cover" }), 640) ?? "").match(/<img[^>]*>/)?.[0] ?? "";
+    expect(img).toContain("height:220px");
+  });
+});
