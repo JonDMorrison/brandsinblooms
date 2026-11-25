@@ -34,6 +34,10 @@ export const useSegmentResolution = (refreshKey?: number): UseSegmentResolutionR
         .from('crm_segments')
         .select('*')
         .eq('tenant_id', tenant.id)
+        // Archived segments keep their rows for history but must not appear as
+        // live audiences (contact chips, counts, assignment pickers).
+        .is('deleted_at', null)
+        .or('status.is.null,status.neq.archived')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
