@@ -1336,7 +1336,9 @@ function renderPlainTextBlock(
  * real cropped copy of non-Unsplash images (see emailImageCrop.ts).
  */
 export function getEmailImageCropFrame(block: StudioBlock): ImageCropFrame | null {
-  if (block.type === "full-width-image" || block.type === "image") {
+  // "image" is a legacy saved block type no longer in BlockType; compare as a string.
+  const legacyType: string = block.type;
+  if (legacyType === "full-width-image" || legacyType === "image") {
     if (block.imageFit === "contain") return null;
     const padding = (block.insetPadding ?? block.imagePadding) ? 16 : 0;
     const width = EMAIL_WIDTH - padding * 2;
@@ -2505,7 +2507,9 @@ export const SENT_MOBILE_CROP_HEIGHT = 240;
 export function isEmptyContentBlock(block: StudioBlock): boolean {
   const record = block as StudioBlock & Record<string, unknown>;
   const hasButton = hasText(block.buttonText) && hasText(block.buttonUrl);
-  switch (block.type) {
+  // Saved drafts can still carry legacy "text"/"image" types that BlockType no longer lists.
+  const legacyType: string = block.type;
+  switch (legacyType) {
     case "plain-text":
     case "text":
       return !hasText(block.body) && !hasText(block.headline) &&
