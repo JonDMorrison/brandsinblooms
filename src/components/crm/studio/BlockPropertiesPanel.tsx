@@ -5081,25 +5081,9 @@ function PanelContent({
                       value={block.textColor ?? "#111827"}
                       onChange={(value) => updateField("textColor", value)}
                     />
-                    <StudioSwitchField
-                      label="Show Card Border"
-                      checked={block.showCardBorder ?? block.showBorder ?? true}
-                      onChange={(value) => {
-                        updateField("showCardBorder", value);
-                        updateField("showBorder", value);
-                      }}
-                    />
-                    <StudioSliderField
-                      label="Card corner roundness"
-                      min={0}
-                      max={16}
-                      step={2}
-                      defaultValue={12}
-                      value={block.cardBorderRadius ?? 12}
-                      onChange={(value) =>
-                        updateField("cardBorderRadius", value)
-                      }
-                    />
+                    <Typography level="body-xs" sx={{ color: "neutral.500", fontSize: "11px", lineHeight: 1.45 }}>
+                      Card border and corners are under More options, Border &amp; label.
+                    </Typography>
                   </>
                 ),
               },
@@ -5546,6 +5530,27 @@ export default function BlockPropertiesPanel({
                 <AppearanceControls
                   key={block.id}
                   block={block}
+                  borderLead={block.type === "product-card" ? (
+                    <>
+                      <StudioSwitchField
+                        label="Show card border"
+                        checked={block.showCardBorder ?? block.showBorder ?? true}
+                        onChange={(value) => {
+                          onUpdateBlockField(block.id, "showCardBorder", value);
+                          onUpdateBlockField(block.id, "showBorder", value);
+                        }}
+                      />
+                      <StudioSliderField
+                        label="Card corner roundness"
+                        min={0}
+                        max={16}
+                        step={2}
+                        defaultValue={12}
+                        value={block.cardBorderRadius ?? 12}
+                        onChange={(value) => onUpdateBlockField(block.id, "cardBorderRadius", value)}
+                      />
+                    </>
+                  ) : undefined}
                   value={block.appearance}
                   onChange={(value) => {
                     onUpdateBlockField(block.id, "appearance", value);

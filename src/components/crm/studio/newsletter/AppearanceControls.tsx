@@ -423,10 +423,13 @@ export default function AppearanceControls({
   block,
   master = false,
   allowedFonts,
+  borderLead,
 }: AppearanceFieldsProps & {
   block?: StudioBlock;
   master?: boolean;
   allowedFonts?: string[];
+  /** Block-specific border controls shown first under "Border & label". */
+  borderLead?: React.ReactNode;
 }) {
   const { settings } = useNewsletterDesign();
   const [selectedRole, setRole] = React.useState<TextRole>("body");
@@ -605,6 +608,7 @@ export default function AppearanceControls({
       {block?.type !== "divider" && block?.type !== "spacer" && (
         <details>
           <summary>Border & label</summary>
+          {borderLead}
           <Choice
             label="Border style"
             value={value.border?.style || "none"}

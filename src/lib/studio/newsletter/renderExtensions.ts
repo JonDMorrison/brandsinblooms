@@ -380,8 +380,11 @@ export function renderExtendedBlock(
             : block.layout === "image-right"
               ? "right"
               : "left";
+      // A drawn block border (style other than None) replaces the card
+      // border; merely touching the border settings no longer hides it.
+      const drawnBorder = ["solid", "dashed", "dotted", "double"].includes(block.appearance?.border?.style || "");
       const border =
-        block.appearance?.border ||
+        drawnBorder ||
         block.showBorder === false ||
         block.showCardBorder === false
           ? "none"
