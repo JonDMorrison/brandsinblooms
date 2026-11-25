@@ -6,6 +6,7 @@ import { aiConfig } from "./ai.ts";
 import { actions } from "./service.ts";
 import { callProduct, runRead } from "./operations.ts";
 import { safeTicketText } from "./ticket-slack.ts";
+import { revenueFacts, statesAmount } from "./slack-revenue.ts";
 import { type AgentContext, type ChatMessage, type ToolResult, ToolPermissionError, composeSlackAgentReply, openAiTools, runAgent } from "./slack-agent-core.ts";
 
 export interface SlackAgentContext {
@@ -102,6 +103,7 @@ export async function answerWithSlackAgent(c: SlackAgentContext, question: strin
   const customers = new Map<string, Set<string>>();
   const evidenceVersions = new Map<string, number>();
   const sources = new Map<string, string>();
+  const revenueResults: unknown[] = [];
   const authorize = async (): Promise<boolean> => {
     const { data: current, error } = await db().rpc("bloom_support_slack_conversation_context", { p_job: jobId });
     return !error && current?.allowed === true && current.principal_id === c.principal_id && current.role === c.role
@@ -153,6 +155,7 @@ export async function answerWithSlackAgent(c: SlackAgentContext, question: strin
         });
         if (error?.code === "42501") throw new ToolPermissionError("revenue refused for this conversation");
         if (error) throw Error("revenue lookup unavailable");
+        revenueResults.push(data);
         return { source: source("Recorded POS sales by garden centre"), data };
       }
       case "client_customer_overview":
@@ -279,5 +282,11 @@ export async function answerWithSlackAgent(c: SlackAgentContext, question: strin
   const receipts = result.receipts.map(r => `Recorded: ${r}`).join("\n");
   const links = result.sources.slice(0, 4).filter(s => sources.has(s)).map(s => `<${sources.get(s)}|${safeTicketText(s, 80)}>`).join(" · ");
   const scope = !privateChannel ? "Client records and operational actions belong in the private Bloom support channel or the signed-in support desk." : "";
-  return composeSlackAgentReply(result.text, [receipts, links ? `Checked sources: ${links}` : "", scope]);
+  // Revenue amounts come from the tool result, composed in code. Model prose that
+  // restates an amount is replaced, so a figure the tool did not return never ships.
+  const facts = revenueFacts(revenueResults);
+  const text = facts && statesAmount(result.text)
+    ? "Here is the recorded revenue by garden centre. Where a store's system keeps no category, it says not recorded."
+    : result.text;
+  return composeSlackAgentReply(text, [facts ?? "", receipts, links ? `Checked sources: ${links}` : "", scope]);
 }

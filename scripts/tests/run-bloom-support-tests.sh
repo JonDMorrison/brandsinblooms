@@ -33,6 +33,7 @@ psql -q -v ON_ERROR_STOP=1 -d bloom_support_test -f scripts/tests/bloom-support-
 (cd supabase/functions && deno test -A \
   _shared/bloom-support/slack-agent-core_test.ts \
   _shared/bloom-support/slack-agent_test.ts \
+  _shared/bloom-support/slack-revenue_test.ts \
   _shared/bloom-support/slack-privacy-diagnostics_test.ts \
   _shared/bloom-support/approval-delivery_test.ts \
   _shared/bloom-support/gmail-drafts_test.ts \
