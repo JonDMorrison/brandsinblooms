@@ -266,3 +266,22 @@ Deno.test("only a real 42501 refusal reaches the model as permission_denied; oth
     });
   }
 });
+Deno.test("revenue amounts in the reply come from the tool result, never from model prose", async () => {
+  let modelCalls = 0;
+  await fixture(async () => {
+    const result = await answerWithSlackAgent(context, "Events revenue by garden centre?", "job") ?? "";
+    assertEquals(result.includes("9,999.99"), false, "invented model figure must not ship");
+    assertStringIncludes(result, '• "event": 188.80 CAD (Workshops / Events 188.80)');
+    assertStringIncludes(result, "Here is the recorded revenue by garden centre.");
+  }, (url, body) => {
+    if (url.endsWith("bloom_support_slack_revenue_by_client")) return { requested_range: { from: "2025-11-25", to: "2026-11-25" }, clients: [{
+      garden_centre: "West Coast Gardens", source_system: "IDEAL POS", currency: "CAD", period_with_sales: { first: "2025-11-25", last: "2026-11-02" },
+      all_sales_total: 10, requested_categories: [{ requested: "event", total: 188.8, matched_label_count: 1, matched_labels: [{ label: "Workshops / Events", total: 188.8 }] }] }] };
+    if (url.endsWith("chat/completions")) {
+      modelCalls++;
+      if (modelCalls === 1) return { choices: [{ message: revenueCall({ from: null, to: null, category: "event" }) }] };
+      return { choices: [{ message: { role: "assistant", content: "West Coast Gardens made CAD 9,999.99 from events." } }] };
+    }
+    return standard(url, body);
+  });
+});
