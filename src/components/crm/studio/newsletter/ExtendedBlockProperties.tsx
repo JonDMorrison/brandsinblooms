@@ -224,9 +224,14 @@ export function BadgeFields({
 function ButtonFields({
   block,
   update,
+  linkEditable = true,
+  defaultText,
 }: {
   block: StudioBlock;
   update: Update;
+  /** YouTube: the button always opens the video, so there is no link box. */
+  linkEditable?: boolean;
+  defaultText?: string;
 }) {
   return (
     <fieldset className="nl-fieldset">
@@ -234,14 +239,27 @@ function ButtonFields({
       <Field
         label="Words on the button"
         value={block.buttonText}
+        placeholder={defaultText}
         onChange={(value) => update("buttonText", value)}
       />
-      <Field
-        label="Link (web address)"
-        value={block.buttonUrl}
-        onChange={(value) => update("buttonUrl", value)}
+      {linkEditable && (
+        <Field
+          label="Link (web address)"
+          value={block.buttonUrl}
+          onChange={(value) => update("buttonUrl", value)}
+        />
+      )}
+      <Choice
+        label="Button alignment"
+        value={block.buttonAlign || "left"}
+        options={[
+          { value: "left", label: "Left" },
+          { value: "center", label: "Centre" },
+          { value: "right", label: "Right" },
+        ]}
+        onChange={(value) => update("buttonAlign", value as StudioBlock["buttonAlign"])}
       />
-      {block.buttonUrl?.trim() && (
+      {linkEditable && block.buttonUrl?.trim() && (
         <div className="nl-note">
           {safeEmailUrl(block.buttonUrl) ? (
             <a href={safeEmailUrl(block.buttonUrl)} target="_blank" rel="noopener noreferrer">Open destination to check link</a>
@@ -986,9 +1004,10 @@ export default function ExtendedBlockProperties({
             onChange={(value) => update("imageUrl", value)}
           />
           {textField("Description", "body", true)}
-          {textField("Button text", "buttonText")}
+          <ButtonFields block={block} update={update} linkEditable={false} defaultText="Watch video" />
           <p className="nl-note">
-            Email shows a linked thumbnail. Playback opens on YouTube.
+            Email shows a linked thumbnail. Playback opens on YouTube; the
+            button opens the same video.
           </p>
         </>
       );

@@ -214,6 +214,32 @@ function PanelSection({ title, children }: PanelSectionProps) {
   );
 }
 
+/** Left / Centre / Right for a block's button. `fallback` is the alignment used while unset. */
+function ButtonAlignmentField({
+  block,
+  updateField,
+  fallback = "left",
+}: {
+  block: StudioBlock;
+  updateField: (field: keyof StudioBlock, value: StudioBlock[keyof StudioBlock]) => void;
+  fallback?: "left" | "center" | "right";
+}) {
+  // Shows what the renderer does today when nothing is picked.
+  const current = block.buttonAlign ?? fallback;
+  return (
+    <StudioToggleField
+      label="Button alignment"
+      options={[
+        { label: "Left", value: "left" },
+        { label: "Centre", value: "center" },
+        { label: "Right", value: "right" },
+      ]}
+      value={current}
+      onChange={(value) => updateField("buttonAlign", value as StudioBlock["buttonAlign"])}
+    />
+  );
+}
+
 function CollapsibleSection({
   label,
   enabled,
@@ -2482,6 +2508,7 @@ function PanelContent({
                           onToggle={() => {}}
                           description="Refine the CTA once the button has copy"
                         >
+                          <ButtonAlignmentField block={block} updateField={updateField} fallback={block.textAlign === "center" || block.textAlign === "right" ? block.textAlign : "left"} />
                           <StudioToggleField
                             label="Button Style"
                             options={[
@@ -3203,6 +3230,7 @@ function PanelContent({
                       value={block.buttonUrl ?? ""}
                       onChange={(value) => updateField("buttonUrl", value)}
                     />
+                    <ButtonAlignmentField block={block} updateField={updateField} fallback={block.textAlign === "left" || block.textAlign === "right" ? block.textAlign : "center"} />
                     <StudioToggleField
                       label="Button Style"
                       options={[

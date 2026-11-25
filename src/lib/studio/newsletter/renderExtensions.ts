@@ -79,6 +79,12 @@ export function renderNewsletterButton(
   const destination = href ? ` href="${attr(href)}" target="_blank" rel="noopener noreferrer"` : "";
   return `<${tag} data-newsletter-role="button"${destination} style="display:${block.fullWidthButton ? "block" : "inline-block"};box-sizing:border-box;${block.fullWidthButton ? "width:100%;" : ""}text-align:center;text-decoration:${link ? (block.appearance?.linkDecoration === "none" ? "none" : "underline") : "none"};padding:${padding};border:${outlined ? `1px solid ${fill}` : "0"};background-color:${link || outlined ? "transparent" : fill};border-radius:${block.layoutPreset === "nav-pills" ? "999" : block.buttonRounded === false ? "4" : "8"}px;${role(block, "button", 14, 700)}color:${color};">${text(label)}</${tag}>`;
 }
+/** Wraps a button in its picked Button alignment; unset keeps today's layout. */
+function alignedButton(block: StudioBlock, button: string): string {
+  if (!button || !block.buttonAlign) return button;
+  const align = block.buttonAlign === "center" || block.buttonAlign === "right" ? block.buttonAlign : "left";
+  return `<div style="text-align:${align};">${button}</div>`;
+}
 type PictureSizing = { height: number | null; fit: string; className: string };
 
 function picture(block: StudioBlock, width = 220, sizing?: PictureSizing): string {
@@ -181,7 +187,7 @@ function renderEventCard(block: StudioBlock, width: number, editing = false): st
     location +
     paragraph(block, fee, "label", 13) +
     paragraph(block, block.body) +
-    renderNewsletterButton(block, undefined, undefined, editing);
+    alignedButton(block, renderNewsletterButton(block, undefined, undefined, editing));
 
   if (!image) {
     return `<div class="mobile-padding" style="padding:28px 30px;border:1px solid #e4e7e2;border-radius:14px;background-color:${emailColor(block.backgroundColor, "#ffffff")};">${content}</div>`;
@@ -274,7 +280,7 @@ export function renderCoupon(block: StudioBlock, width: number, editing = false)
       ? `<div data-newsletter-role="price" style="margin:12px 0;${role(block, "price", 28, 800)}">${text(price)}${couponUsesOldPrice(block.couponOffer) && present(block.originalPrice) ? ` <s data-newsletter-role="smallPrint" style="font-size:0.6em;font-weight:400;opacity:0.75;">${text(block.originalPrice)}</s>` : ""}</div>`
       : "") +
     paragraph(block, block.couponSizing, "label", 13) +
-    (block.showButton === false ? "" : renderNewsletterButton(block, undefined, undefined, editing)) +
+    (block.showButton === false ? "" : alignedButton(block, renderNewsletterButton(block, undefined, undefined, editing))) +
     `<div style="padding-top:12px;">${finePrint}</div>` +
     barcode;
   const border =
@@ -536,11 +542,11 @@ export function renderExtendedBlock(
         heading(block) +
         `<a href="https://www.youtube.com/watch?v=${id}" target="_blank" rel="noopener noreferrer"><img data-newsletter-image="imageUrl" class="responsive-image" src="${attr(thumbnail)}" alt="${attr(block.imageAlt || block.headline || "Watch video on YouTube")}" width="${width}" style="display:block;width:100%;max-width:${width}px;height:auto;" /></a>` +
         paragraph(block, block.body) +
-        renderNewsletterButton({
+        alignedButton(block, renderNewsletterButton({
           ...block,
           buttonUrl: `https://www.youtube.com/watch?v=${id}`,
           buttonText: block.buttonText || "Watch video",
-        })
+        }))
       );
     }
     case "navigation":
@@ -637,7 +643,7 @@ export function renderExtendedBlock(
           paragraph(block, block.eventDate, "label", 13) +
           paragraph(block, block.eventLocation, "label", 13) +
           paragraph(block, block.body) +
-          renderNewsletterButton(block, undefined, undefined, editing),
+          alignedButton(block, renderNewsletterButton(block, undefined, undefined, editing)),
         block.imagePosition === "right"
           ? "right"
           : block.imagePosition === "left"
