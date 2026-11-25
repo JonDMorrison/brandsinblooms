@@ -8,6 +8,7 @@ import { fetchCampaignCatalog, type CampaignCatalogItem } from "@/lib/crm/campai
 
 vi.mock("@/hooks/useUserRole", () => ({useUserRole: () => ({hasPermission: () => true})}));
 vi.mock("@/lib/crm/campaignOrganization", () => ({campaignOrganizationClient:{rpc:vi.fn()},useCampaignOrganization: () => ({data:{groups:[{id:"december",name:"December",colour:"#795548"},{id:"january",name:"January",colour:"#496A51"}],memberships:[{campaign_id:"campaign-test",group_id:"december"}],colours:[]},mutation:{mutate:vi.fn(),isPending:false}})}));
+vi.mock("@/hooks/useThisWeeksTheme", () => ({ useThisWeeksTheme: () => ({ data: null }) }));
 vi.mock("@/hooks/useTenant", () => ({ useTenant: () => ({ tenant: { id: "arts-test" }, loading: false }) }));
 vi.mock("@/hooks/useCampaignCloning", () => ({ useCampaignCloning: () => ({ cloneCampaign: vi.fn(), isCloning: false }) }));
 vi.mock("@/integrations/supabase/client", () => ({ supabase: {
@@ -28,7 +29,7 @@ function openList(record: CampaignCatalogItem, cached?: CampaignCatalogItem) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: 300_000 } } });
   if (cached) client.setQueryData(["crm-campaign-catalog", "arts-test"], [cached]);
   vi.mocked(fetchCampaignCatalog).mockResolvedValue([record]);
-  return render(<QueryClientProvider client={client}><MemoryRouter initialEntries={["/crm/campaigns?status=all"]}><Routes>
+  return render(<QueryClientProvider client={client}><MemoryRouter initialEntries={["/crm/campaigns?status=all&view=table"]}><Routes>
     <Route path="/crm/campaigns" element={<CRMCampaignsPage />} />
     <Route path="/crm/campaigns/:id/studio" element={<p>Designer destination</p>} />
     <Route path="/crm/campaigns/:id" element={<p>Settings destination</p>} />

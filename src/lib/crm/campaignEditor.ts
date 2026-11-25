@@ -50,6 +50,10 @@ export interface CampaignCatalogItem {
   name: string;
   /** firstContentHeadline of the design, for deriveCampaignDisplayName. */
   firstHeadline?: string;
+  /** First visible image in the design, for the campaign card. */
+  thumbnailUrl?: string | null;
+  /** An audience is chosen: all customers, a segment, or added people. */
+  hasAudience?: boolean;
   subjectLine: string;
   preheaderText: string;
   status: CampaignStatus;
@@ -210,12 +214,40 @@ function isEmptyDraftRow(row: CampaignRow) {
   return !hasContentBlocks(blocks);
 }
 
+function firstBlockImage(blocks: unknown): string | null {
+  if (!Array.isArray(blocks)) return null;
+  for (const raw of blocks) {
+    const block = toRecord(raw);
+    if (block.visible === false) continue;
+    for (const key of ["croppedImageUrl", "imageUrl"]) {
+      const value = block[key];
+      if (typeof value === "string" && /^(https?:)?\/\//i.test(value.trim())) {
+        return value.trim();
+      }
+    }
+  }
+  return null;
+}
+
+function rowHasAudience(row: CampaignRow): boolean {
+  const metadata = toRecord(row.metadata);
+  if (row.include_all_customers || metadata.includeAllCustomers === true) return true;
+  if (row.segment_id) return true;
+  const extra = Array.isArray(metadata.additionalCustomerIds)
+    ? metadata.additionalCustomerIds
+    : row.additional_customer_ids;
+  if (Array.isArray(extra) && extra.length > 0) return true;
+  return (row.projected_recipient_count ?? 0) > 0;
+}
+
 export function mapCampaignCatalogItem(row: CampaignRow): CampaignCatalogItem {
   const metrics = toRecord(row.metrics);
   const metadataBlocks = toRecord(row.metadata).contentBlocks;
   return {
     id: row.id,
     name: row.name,
+    thumbnailUrl: firstBlockImage(metadataBlocks),
+    hasAudience: rowHasAudience(row),
     firstHeadline: firstContentHeadline(
       Array.isArray(metadataBlocks) ? (metadataBlocks as StudioBlock[]) : [],
     ),
@@ -407,7 +439,23 @@ export async function fetchCampaignCatalog(tenantId: string) {
     throw error;
   }
 
-  return (data ?? []).map(mapCampaignCatalogItem);
+  const items = (data ?? []).map(mapCampaignCatalogItem);
+  // Segment links live in a join table. One query marks drafts whose
+  // audience is a segment, so the card checklist is right.
+  const openIds = items
+    .filter((item) => !item.hasAudience && item.status === CAMPAIGN_STATUS.DRAFT)
+    .map((item) => item.id);
+  if (openIds.length > 0) {
+    const { data: links } = await supabase
+      .from("campaign_segments")
+      .select("campaign_id")
+      .in("campaign_id", openIds);
+    const linked = new Set((links ?? []).map((link) => link.campaign_id));
+    for (const item of items) {
+      if (linked.has(item.id)) item.hasAudience = true;
+    }
+  }
+  return items;
 }
 
 export async function fetchCampaignEditorRecord(campaignId: string) {

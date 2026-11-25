@@ -1,6 +1,9 @@
 import { useUserRole } from "@/hooks/useUserRole";
 import { deriveCampaignDisplayName, isUnsetCampaignName } from "@/lib/crm/campaignDisplayName";
 import { CampaignOrganization } from "@/components/crm/campaigns/CampaignOrganization";
+import { CampaignCardGrid } from "@/components/crm/campaigns/CampaignCardGrid";
+import { ThisWeekThemeStrip } from "@/components/crm/campaigns/ThisWeekThemeStrip";
+import { partitionEmptyDrafts, visibleColumnsForFilter } from "@/lib/crm/campaignCardModel";
 import { useCampaignOrganization, campaignOrganizationClient } from "@/lib/crm/campaignOrganization";
 import * as React from "react";
 import Box from "@mui/joy/Box";
@@ -24,6 +27,8 @@ import {
   Download,
   Edit3,
   FileText,
+  LayoutGrid,
+  List,
   MoreHorizontal,
   Palette,
   Pause,
@@ -701,6 +706,11 @@ export function CRMCampaignsPage() {
 
   const query = searchParams.get("q") ?? "";
   const statusFilter = normalizeFilter(searchParams.get("status"));
+  const viewMode: "cards" | "table" = searchParams.get("view") === "table" ? "table" : "cards";
+  const tableColumns = visibleColumnsForFilter(statusFilter);
+  const [showEmptyDrafts, setShowEmptyDrafts] = React.useState(false);
+  const [confirmClearEmpty, setConfirmClearEmpty] = React.useState(false);
+  const [clearingEmpty, setClearingEmpty] = React.useState(false);
   const channelFilter = normalizeChannelFilter(searchParams.get("type"));
   const sortColumn = normalizeSortColumn(searchParams.get("sort"));
   const sortDirection = normalizeSortDirection(searchParams.get("dir"));
@@ -878,11 +888,19 @@ export function CRMCampaignsPage() {
     return filtered;
   }, [catalog, query, sortColumn, sortDirection, statusFilter, channelFilter, groupFilter, organization.data]);
 
+  // Empty drafts (no content, no subject) carry no work. They stay out of the
+  // list unless someone asks to see them.
+  const { visible: nonEmptyCampaigns, empty: emptyDrafts } = React.useMemo(
+    () => partitionEmptyDrafts(filteredCampaigns),
+    [filteredCampaigns],
+  );
+  const listCampaigns = showEmptyDrafts ? filteredCampaigns : nonEmptyCampaigns;
+
   const paginatedCampaigns = React.useMemo(() => {
-    if (filteredCampaigns.length <= PAGE_SIZE) return filteredCampaigns;
+    if (listCampaigns.length <= PAGE_SIZE) return listCampaigns;
     const start = (page - 1) * PAGE_SIZE;
-    return filteredCampaigns.slice(start, start + PAGE_SIZE);
-  }, [filteredCampaigns, page]);
+    return listCampaigns.slice(start, start + PAGE_SIZE);
+  }, [listCampaigns, page]);
 
   const hasFilters = groupFilter !== "all" || statusFilter !== "draft" || channelFilter !== "all" || query.trim().length > 0;
   const isLoading = tenantLoading || campaignsQuery.isLoading;
@@ -892,7 +910,7 @@ export function CRMCampaignsPage() {
     !isLoading &&
     !campaignsQuery.isError &&
     totalCount > 0 &&
-    filteredCampaigns.length === 0;
+    listCampaigns.length === 0;
 
   const invalidateCampaigns = React.useCallback(async () => {
     await queryClient.invalidateQueries({ queryKey: ["crm-campaign-catalog"] });
@@ -1001,6 +1019,29 @@ export function CRMCampaignsPage() {
       setActionLoading(false);
     }
   }, [confirmAction, invalidateCampaigns]);
+
+  const clearEmptyDrafts = React.useCallback(async () => {
+    setClearingEmpty(true);
+    try {
+      // Only drafts with no content and no subject; anything else is skipped.
+      const targets = emptyDrafts.filter(
+        (campaign) => campaign.isEmptyDraft && campaign.status === CAMPAIGN_STATUS.DRAFT,
+      );
+      for (const campaign of targets) {
+        await deleteCampaignById(campaign.id);
+      }
+      toast.success(
+        `${targets.length} empty ${targets.length === 1 ? "draft" : "drafts"} deleted`,
+      );
+      setConfirmClearEmpty(false);
+      setShowEmptyDrafts(false);
+      await invalidateCampaigns();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not delete the empty drafts");
+    } finally {
+      setClearingEmpty(false);
+    }
+  }, [emptyDrafts, invalidateCampaigns]);
 
   const clearFilters = React.useCallback(() => {
     setSearchDraft("");
@@ -1238,6 +1279,8 @@ export function CRMCampaignsPage() {
             </Stack>
           </Sheet>
 
+          <ThisWeekThemeStrip />
+
           <Sheet variant="outlined" sx={{ borderRadius: "md", p: 1.25 }}>
             <Stack
               direction={{ xs: "column", lg: "row" }}
@@ -1323,9 +1366,119 @@ export function CRMCampaignsPage() {
                   {filter.label}
                 </Chip>
               ))}
+              <Stack direction="row" spacing={0.5} sx={{ ml: "auto" }} role="group" aria-label="View">
+                <Chip
+                  size="sm"
+                  color="neutral"
+                  variant={viewMode === "cards" ? "solid" : "outlined"}
+                  startDecorator={<LayoutGrid size={13} aria-hidden="true" />}
+                  onClick={() => updateParams({ view: "cards" })}
+                  sx={{ borderRadius: "md" }}
+                >
+                  Cards
+                </Chip>
+                <Chip
+                  size="sm"
+                  color="neutral"
+                  variant={viewMode === "table" ? "solid" : "outlined"}
+                  startDecorator={<List size={13} aria-hidden="true" />}
+                  onClick={() => updateParams({ view: "table" })}
+                  sx={{ borderRadius: "md" }}
+                >
+                  Table
+                </Chip>
+              </Stack>
             </Stack>
           </Sheet>
 
+          {emptyDrafts.length > 0 && !isLoading ? (
+            <Sheet
+              variant="soft"
+              color="neutral"
+              sx={{ borderRadius: "md", px: 1.5, py: 1 }}
+            >
+              <Stack direction="row" spacing={1} alignItems="center" useFlexGap flexWrap="wrap">
+                <Typography level="body-sm" sx={{ color: "neutral.700" }}>
+                  {emptyDrafts.length} empty {emptyDrafts.length === 1 ? "draft" : "drafts"}{" "}
+                  {showEmptyDrafts ? "shown" : "hidden"}. They have no content and no subject.
+                </Typography>
+                <Button size="sm" variant="plain" color="neutral" onClick={() => setShowEmptyDrafts((value) => !value)}>
+                  {showEmptyDrafts ? "Hide them" : "Show them"}
+                </Button>
+                {hasPermission("campaigns.write") ? (
+                  <Button size="sm" variant="outlined" color="danger" onClick={() => setConfirmClearEmpty(true)}>
+                    Delete them
+                  </Button>
+                ) : null}
+              </Stack>
+            </Sheet>
+          ) : null}
+
+          {viewMode === "cards" ? (
+            <Stack spacing={2}>
+              {isLoading ? (
+                <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", lg: "repeat(3, 1fr)", xl: "repeat(4, 1fr)" } }}>
+                  {Array.from({ length: 8 }).map((_, index) => (
+                    <Sheet key={index} variant="outlined" sx={{ borderRadius: "md", p: 1.25 }}>
+                      <Skeleton variant="rectangular" sx={{ aspectRatio: "16 / 9", borderRadius: "md" }} animation="wave" />
+                      <Skeleton variant="text" width="70%" sx={{ mt: 1 }} animation="wave" />
+                      <Skeleton variant="text" width="45%" animation="wave" />
+                    </Sheet>
+                  ))}
+                </Box>
+              ) : null}
+              {campaignsQuery.isError ? (
+                <Sheet variant="soft" color="neutral" sx={{ borderRadius: "md", p: 4, textAlign: "center" }}>
+                  <Typography level="title-md">Couldn't load campaigns.</Typography>
+                  <Button variant="plain" color="neutral" size="sm" onClick={() => void campaignsQuery.refetch()} sx={{ mt: 1 }}>
+                    Retry
+                  </Button>
+                </Sheet>
+              ) : null}
+              {isEmptyCatalog || isEmptyFiltered ? (
+                <Sheet variant="soft" color="neutral" sx={{ borderRadius: "md", p: 4, textAlign: "center" }}>
+                  <Typography level="title-md">
+                    {isEmptyCatalog ? "No campaigns yet." : "Nothing here yet."}
+                  </Typography>
+                  <Typography level="body-sm" sx={{ color: "neutral.600", mt: 0.5 }}>
+                    {isEmptyCatalog
+                      ? "Start with this week's theme or create a new campaign."
+                      : "Try another tab, or clear the filters."}
+                  </Typography>
+                  {hasFilters && !isEmptyCatalog ? (
+                    <Button variant="plain" color="neutral" size="sm" onClick={clearFilters} sx={{ mt: 1 }}>
+                      Clear filters
+                    </Button>
+                  ) : null}
+                </Sheet>
+              ) : null}
+              {!isLoading && !campaignsQuery.isError && paginatedCampaigns.length > 0 ? (
+                <CampaignCardGrid
+                  campaigns={paginatedCampaigns}
+                  getName={getCampaignListName}
+                  getRecipients={getRecipientCountForList}
+                  getProgress={getSendProgress}
+                  getColour={(campaign) =>
+                    organization.data?.colours.find((c) => c.campaign_id === campaign.id)?.colour
+                  }
+                  statsPending={(campaign) => campaignStats.pending.has(campaign.id)}
+                  onOpen={handleNavigate}
+                  renderActions={renderActions}
+                  renderStatus={(campaign) => <StatusChip campaign={campaign} />}
+                />
+              ) : null}
+              {listCampaigns.length > PAGE_SIZE ? (
+                <JoyTablePagination
+                  page={page}
+                  pageSize={PAGE_SIZE}
+                  totalCount={listCampaigns.length}
+                  onPageChange={setPage}
+                  pageSizeOptions={[100]}
+                  showPageSizeSelector={false}
+                />
+              ) : null}
+            </Stack>
+          ) : (
           <Sheet
             variant="outlined"
             sx={{ borderRadius: "md", overflow: "hidden" }}
@@ -1378,7 +1531,7 @@ export function CRMCampaignsPage() {
                       sortable
                       sortDirection={getSortDirection(sortColumn, sortDirection, "scheduled-date")}
                       onSort={() => setSort("scheduled-date")}
-                      sx={{ width: 134 }}
+                      sx={{ width: 134, display: tableColumns.showSchedule ? undefined : "none" }}
                     >
                       Scheduled date
                     </JoyTableHeaderCell>
@@ -1418,7 +1571,7 @@ export function CRMCampaignsPage() {
                       onSort={() => setSort("open-rate")}
                       sx={{
                         width: 104,
-                        display: { xs: "none", xl: "table-cell" },
+                        display: tableColumns.showRates ? { xs: "none", xl: "table-cell" } : "none",
                       }}
                     >
                       Open rate
@@ -1434,7 +1587,7 @@ export function CRMCampaignsPage() {
                       onSort={() => setSort("click-rate")}
                       sx={{
                         width: 104,
-                        display: { xs: "none", xl: "table-cell" },
+                        display: tableColumns.showRates ? { xs: "none", xl: "table-cell" } : "none",
                       }}
                     >
                       Click rate
@@ -1587,7 +1740,7 @@ export function CRMCampaignsPage() {
                               <Button variant="plain" color="neutral" size="sm" onClick={event=>{event.stopPropagation();navigate(`/crm/campaigns/${campaign.id}?section=actions`);}}><StatusChip campaign={campaign} /></Button>
                               <ProgressMeter campaign={campaign} />
                             </JoyTableCell>
-                            <JoyTableCell>
+                            <JoyTableCell sx={{ display: tableColumns.showSchedule ? undefined : "none" }}>
                               <Typography component="button" onClick={event=>{event.stopPropagation();openSchedule(campaign);}} level="body-sm" sx={{ background:"none",border:0,padding:0,cursor:"pointer",textAlign:"left", color: campaign.scheduledAt ? "neutral.800" : "neutral.400" }}>
                                 {parseDate(campaign.scheduledAt) ? format(parseDate(campaign.scheduledAt)!, "MMM d, yyyy h:mm a") : "Not scheduled"}
                               </Typography>
@@ -1666,7 +1819,7 @@ export function CRMCampaignsPage() {
                             <JoyTableCell
                               sx={{
                                 textAlign: "right",
-                                display: { xs: "none", xl: "table-cell" },
+                                display: tableColumns.showRates ? { xs: "none", xl: "table-cell" } : "none",
                               }}
                             >
                               <RateCell
@@ -1679,7 +1832,7 @@ export function CRMCampaignsPage() {
                             <JoyTableCell
                               sx={{
                                 textAlign: "right",
-                                display: { xs: "none", xl: "table-cell" },
+                                display: tableColumns.showRates ? { xs: "none", xl: "table-cell" } : "none",
                               }}
                             >
                               <RateCell
@@ -1842,13 +1995,13 @@ export function CRMCampaignsPage() {
               ) : null}
             </Box>
 
-            {filteredCampaigns.length > PAGE_SIZE ? (
+            {listCampaigns.length > PAGE_SIZE ? (
               <>
                 <Divider />
                 <JoyTablePagination
                   page={page}
                   pageSize={PAGE_SIZE}
-                  totalCount={filteredCampaigns.length}
+                  totalCount={listCampaigns.length}
                   onPageChange={setPage}
                   pageSizeOptions={[100]}
                   showPageSizeSelector={false}
@@ -1857,8 +2010,20 @@ export function CRMCampaignsPage() {
               </>
             ) : null}
           </Sheet>
+          )}
         </Stack>
       </Sheet>
+
+      <JoyAlertDialog
+        open={confirmClearEmpty}
+        onClose={() => setConfirmClearEmpty(false)}
+        onConfirm={() => void clearEmptyDrafts()}
+        title={`Delete ${emptyDrafts.length} empty ${emptyDrafts.length === 1 ? "draft" : "drafts"}?`}
+        description="These drafts have no content and no subject line. This cannot be undone."
+        confirmLabel="Delete"
+        variant="danger"
+        loading={clearingEmpty}
+      />
 
       {confirmDialogConfig ? (
         <JoyAlertDialog
