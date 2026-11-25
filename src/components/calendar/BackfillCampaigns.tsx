@@ -23,7 +23,7 @@ import { useTenant } from "@/hooks/useTenant";
 
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { handleError } from "@/utils/errorHandling";
-import { getDateForWeek } from "@/utils/dateUtils";
+import { getDateForWeek, toLocalDateString } from "@/utils/dateUtils";
 
 interface BackfillCampaignsProps {
   currentCampaignCount: number;
@@ -151,7 +151,9 @@ export const BackfillCampaigns = ({
         title: theme.title,
         theme: theme.title,
         description: theme.description,
-        start_date: weekStartDate.toISOString().split("T")[0],
+        // Local date: toISOString() would give the UTC date, which east of
+        // UTC is the Sunday before and breaks campaigns_week_date_consistency.
+        start_date: toLocalDateString(weekStartDate),
         prompt: theme.content_ideas.join(" • "),
         user_id: user.id,
         source: "backfill_52_weeks",

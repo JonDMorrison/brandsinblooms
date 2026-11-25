@@ -43,8 +43,7 @@ describe("crm_customers order count column", () => {
 
   it("filters the Frequent Buyers SMS fallback on pos_order_count", () => {
     for (const file of [
-      "src/components/sms/SegmentSMSDialog.tsx",
-      "src/components/sms/SendToSegmentCard.tsx",
+      "src/lib/sms/smsAudienceEstimate.ts",
       "supabase/functions/sms-campaign-enqueue-worker/index.ts",
     ]) {
       const source = readFileSync(file, "utf8");
@@ -52,5 +51,18 @@ describe("crm_customers order count column", () => {
         /case ["']frequent-buyers["']:\s*query = query\.gte\(["']pos_order_count["'], 3\);/,
       );
     }
+  });
+
+  it("pages Perks Members in the enqueue worker through a tenant-scoped join", () => {
+    const worker = readFileSync(
+      "supabase/functions/sms-campaign-enqueue-worker/index.ts",
+      "utf8",
+    );
+    // No unscoped, unpaged read of every tenant's loyalty rows.
+    expect(worker).not.toMatch(/\.from\(["']customer_loyalty_metrics["']\)/);
+    expect(worker).toContain("customer_loyalty_metrics!inner(is_perks_member)");
+    expect(worker).toMatch(
+      /case ["']perks-members["']:[\s\S]{0,200}query = query\.eq\(["']customer_loyalty_metrics\.is_perks_member["'], true\);/,
+    );
   });
 });

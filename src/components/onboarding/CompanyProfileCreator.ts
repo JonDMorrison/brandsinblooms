@@ -1,5 +1,8 @@
 import { supabase } from "@/integrations/supabase/client";
-import { getCurrentWeekNumber } from "@/utils/dateUtils";
+import {
+  getCurrentWeekNumber,
+  getNextISOWeekStartDate,
+} from "@/utils/dateUtils";
 
 export const createCompanyProfileFromOnboarding = async (
   onboardingData: any,
@@ -251,7 +254,6 @@ export const createCompanyProfileFromOnboarding = async (
       if (existingCampaign) {
         immediateCampaign = existingCampaign;
       } else {
-        const immediateStartDate = new Date();
         // Use this week's curated master theme so the first theme a new
         // tenant sees has real copy, not a "Week N" placeholder.
         const { data: masterTheme } = await supabase
@@ -269,7 +271,10 @@ export const createCompanyProfileFromOnboarding = async (
           description:
             masterTheme?.content_ideas ||
             "AI-generated weekly theme for your garden center marketing",
-          start_date: immediateStartDate.toISOString().split("T")[0],
+          // Monday of this ISO week as a local date, so the row satisfies
+          // campaigns_week_date_consistency (week_number = ISO week of
+          // start_date) in every time zone.
+          start_date: getNextISOWeekStartDate(currentWeek),
           prompt:
             masterTheme?.content_ideas ||
             "Create engaging content focused on current seasonal gardening needs and trends",
@@ -312,23 +317,25 @@ export const createCompanyProfileFromOnboarding = async (
         console.error("⚠️ Error generating 52-week themes:", themesError);
       } else if (themesData?.themes && Array.isArray(themesData.themes)) {
         const currentWeek = getCurrentWeekNumber();
+        // Weeks 1-52 exist in every ISO year, so each row's start_date (the
+        // Monday of its ISO week, rolling forward from the current week) has
+        // ISO week = week_number, as campaigns_week_date_consistency requires.
         const remainingThemes = themesData.themes.filter(
-          (theme) => theme.week !== currentWeek,
+          (theme) =>
+            Number.isInteger(theme.week) &&
+            theme.week >= 1 &&
+            theme.week <= 52 &&
+            theme.week !== currentWeek,
         );
 
         if (remainingThemes.length > 0) {
           const futureCampaigns = remainingThemes.map((theme: any) => {
-            const startDate = new Date();
-            startDate.setDate(
-              startDate.getDate() + (theme.week - currentWeek) * 7,
-            );
-
             return {
               week_number: theme.week,
               title: theme.title,
               theme: theme.title,
               description: theme.description,
-              start_date: startDate.toISOString().split("T")[0],
+              start_date: getNextISOWeekStartDate(theme.week),
               prompt: theme.content_ideas.join(" • "),
               user_id: userId,
               tenant_id: tenant.id,
