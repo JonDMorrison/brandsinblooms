@@ -4940,6 +4940,9 @@ function PanelContent({
                       updateField={updateField}
                     />
                     <ImageSpacingFields {...appearanceFields} />
+                    {(block.imagePosition ?? (block.layout === "centered" || block.layout === "image-top" ? "top" : "left")) !== "top" && (
+                      <VerticalAlignmentField {...appearanceFields} />
+                    )}
                     <StudioSliderField
                       label="Photo corner roundness"
                       min={0}
