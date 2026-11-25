@@ -16670,6 +16670,18 @@ export type Database = {
         Args: Record<PropertyKey, never>;
         Returns: Json;
       };
+      current_profile_user_id: {
+        Args: Record<PropertyKey, never>;
+        Returns: string;
+      };
+      current_user_can_edit_business_profile: {
+        Args: Record<PropertyKey, never>;
+        Returns: boolean;
+      };
+      profile_user_id_for: {
+        Args: { p_user_id: string };
+        Returns: string;
+      };
       get_customer_purchase_timeline: {
         Args: { p_customer_id: string; p_months?: number };
         Returns: {
