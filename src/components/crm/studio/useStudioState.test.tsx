@@ -223,6 +223,13 @@ describe("Add all theme blocks (qa2 #6)", () => {
     expect(twice.filter((block) => block.type === "newsletter-header")).toHaveLength(1);
   });
 
+  it("does not add theme content the draft already has", () => {
+    const once = placeThemeBlocks(blankDraft(), themeBlocks).blocks;
+    const twice = placeThemeBlocks(once, themeBlocks).blocks;
+    expect(twice.map((block) => block.type)).toEqual(once.map((block) => block.type));
+    expect(twice).toHaveLength(once.length);
+  });
+
   it("labels sidebar items with a title, never photo alt text", () => {
     const labels = themeBlocks.map(themeBlockLabel);
     expect(labels).toEqual([
