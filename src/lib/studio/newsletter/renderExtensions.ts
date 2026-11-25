@@ -125,12 +125,14 @@ function imageAndContent(
   content: string,
   side: "left" | "right" | "top",
   width: number,
+  imagePercent = 38,
 ): string {
+  const textPercent = 100 - imagePercent;
   // A Product Card with its photo on top fills the card width at the photo's
   // own proportions; the fixed 220px box left it small with wide margins.
   const photo = picture(
     block,
-    side === "top" ? width : Math.floor(width * 0.38),
+    side === "top" ? width : Math.floor((width * imagePercent) / 100),
     block.type === "product-card" && side === "top"
       ? { height: null, fit: block.imageFit ?? "contain", className: "" }
       : undefined,
@@ -145,8 +147,8 @@ function imageAndContent(
     : "middle";
   // Keep image-first source order for reliable mobile stacking. Direction only
   // changes the desktop presentation when the image is configured on the right.
-  const imageCell = `<td dir="ltr" class="responsive-column" width="38%" valign="top" style="width:38%;padding:${side === "right" ? "0 0 0 12px" : "0 12px 0 0"};">${photo}</td>`;
-  const contentCell = `<td dir="ltr" class="responsive-column" width="62%" valign="${vertical}" style="width:62%;vertical-align:${vertical};padding:${side === "right" ? "0 12px 0 0" : "0 0 0 12px"};">${content}</td>`;
+  const imageCell = `<td dir="ltr" class="responsive-column" width="${imagePercent}%" valign="top" style="width:${imagePercent}%;padding:${side === "right" ? "0 0 0 12px" : "0 12px 0 0"};">${photo}</td>`;
+  const contentCell = `<td dir="ltr" class="responsive-column" width="${textPercent}%" valign="${vertical}" style="width:${textPercent}%;vertical-align:${vertical};padding:${side === "right" ? "0 12px 0 0" : "0 0 0 12px"};">${content}</td>`;
   return table(
     `<tr>${side === "right" ? contentCell + imageCell : imageCell + contentCell}</tr>`,
   );
@@ -247,6 +249,19 @@ export function validUpcA(code: string): boolean {
     .reduce((n, d, i) => n + Number(d) * (i % 2 === 0 ? 3 : 1), 0);
   return (10 - (sum % 10)) % 10 === Number(code[11]);
 }
+/** Coupon photo share beside the offer; unset keeps the original 38%. */
+export function couponImagePercent(split: StudioBlock["couponColumnSplit"]): number {
+  switch (split) {
+    case "25/75":
+      return 25;
+    case "33/67":
+      return 33;
+    case "50/50":
+      return 50;
+    default:
+      return 38;
+  }
+}
 export function renderCoupon(block: StudioBlock, width: number, editing = false): string {
   const price = couponOfferLabel(block);
   const finePrint =
@@ -285,7 +300,7 @@ export function renderCoupon(block: StudioBlock, width: number, editing = false)
     block.couponScissors === false
       ? ""
       : '<div style="padding:6px 12px;border-bottom:1px dashed #71817d;font-size:12px;color:#46595a;">&#9986;&#xfe0e; &nbsp; Cut or save this coupon</div>';
-  return `<div style="border:${border};">${cut}<div style="padding:${block.appearance?.padding ? "0" : "22px"};">${imageAndContent(block, content, block.couponImageSide || "left", width - 44)}</div></div>`;
+  return `<div style="border:${border};">${cut}<div style="padding:${block.appearance?.padding ? "0" : "22px"};">${imageAndContent(block, content, block.couponImageSide || "left", width - 44, couponImagePercent(block.couponColumnSplit))}</div></div>`;
 }
 export function youtubeVideoId(value: string): string | null {
   try {
