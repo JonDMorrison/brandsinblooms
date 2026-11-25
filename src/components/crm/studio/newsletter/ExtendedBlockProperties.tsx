@@ -555,6 +555,23 @@ function GalleryFields({
       update("showOriginalPrice", true);
     }
   };
+  // "Copy details to the next slot": everything except the slot's own id
+  // and photo, so the next product/image only needs its picture and any
+  // differences filled in.
+  const copyToNext = (index: number) => {
+    if (product) {
+      const source = products[index];
+      if (!source) return;
+      const { id: _id, imageUrl: _imageUrl, ...details } = source;
+      patchProduct(index + 1, details);
+    } else {
+      const source = images[index];
+      if (!source) return;
+      const { id: _id, url: _url, ...details } = source;
+      patchImage(index + 1, details);
+    }
+  };
+  const slotCount = Math.max(count, product ? products.length : images.length);
   return (
     <>
       <p className="nl-note">
@@ -820,6 +837,17 @@ function GalleryFields({
             >
               Clear this slot
             </button>
+            {index < slotCount - 1 && (
+              <button
+                type="button"
+                className="nl-quiet"
+                style={{ marginLeft: 8 }}
+                disabled={!(product ? products[index] : images[index])}
+                onClick={() => copyToNext(index)}
+              >
+                Copy details to {product ? "Product" : "Image"} {index + 2}
+              </button>
+            )}
           </details>
         ),
       )}
