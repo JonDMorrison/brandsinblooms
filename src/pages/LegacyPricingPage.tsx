@@ -6,17 +6,12 @@ import { supabase } from "@/integrations/supabase/client";
 
 import { LandingPageHeader } from "@/components/landing/LandingPageHeader";
 import { PricingHeroNew } from "@/components/pricing/PricingHeroNew";
-import { SuiteBuilderEntry } from "@/components/pricing/SuiteBuilderEntry";
-import { CostComparison } from "@/components/pricing/CostComparison";
 import { EveryPlanBanner } from "@/components/pricing/EveryPlanBanner";
 import { PricingCardsGrid } from "@/components/pricing/PricingCardsGrid";
 import type {
   BillingInterval,
   Currency,
 } from "@/components/pricing/PricingControls";
-import { CustomerProof } from "@/components/pricing/CustomerProof";
-import { RoiPayback } from "@/components/pricing/RoiPayback";
-import { FuturePricingSection } from "@/components/pricing/FuturePricingSection";
 import { PricingFAQ } from "@/components/pricing/PricingFAQ";
 import { FinalCTANew } from "@/components/pricing/FinalCTANew";
 // Token scope import — without this the .hp-token-scope wrapper

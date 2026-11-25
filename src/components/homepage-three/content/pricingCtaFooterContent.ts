@@ -39,104 +39,36 @@ export interface FooterSocialLinkConfig extends FooterLinkConfig {
 }
 
 export const PRICING_SECTION_HEADER = {
-  eyebrow: "Pricing",
-  headline: "Plans that match your store.",
-  subtext:
-    "Explore the CRM trial and current plan options. Need CRM only without a website? See our Seed plan at $199/month on the pricing page.",
+ eyebrow: "Pricing preview · USD",
+ headline: "Three products. One simple starting price.",
+ subtext: "Choose BloomSites, BloomSuite POS or BloomSuite CRM for $99/month each, or all three for $250/month. Explore proposed pricing and confirm your quote with our team.",
 };
-
 export const PRICING_CARDS_LABEL = "Pricing plan cards";
 export const PRICING_MOBILE_INITIAL_PLAN_ID: PricingPlanId = "growth";
-
-// Card prices and feature lists mirror the canonical intro pricing in
-// src/components/pricing/pricingConfig.ts (Sprout $349 / Bloom $699 /
-// Thrive $1,199). All three cards route to /pricing for the full plan
-// detail page rather than triggering an in-page section anchor.
 export const PRICING_PLANS: PricingPlanConfig[] = [
-  {
-    id: "starter",
-    name: "Sprout",
-    price: "$349",
-    priceDetail: "/month",
-    featureListLabel: "Sprout plan features",
-    features: [
-      "BloomSites + e-commerce + BloomSuite CRM",
-      "Up to 10,000 contacts",
-      "20,000 emails per month",
-      "2,000 SMS per month",
-      "Email support",
-    ],
-    ctaLabel: "See plan details",
-    ctaHref: "/pricing",
-    ctaVariant: "secondary",
-    delayMs: 150,
-    entryDirection: "left",
-  },
-  {
-    id: "growth",
-    name: "Bloom",
-    price: "$699",
-    priceDetail: "/month",
-    featureListLabel: "Bloom plan features",
-    features: [
-      "BloomSites + e-commerce + BloomSuite CRM",
-      "Up to 25,000 contacts",
-      "100,000 emails per month",
-      "5,000 SMS per month",
-      "Priority support",
-    ],
-    ctaLabel: "See plan details",
-    ctaHref: "/pricing",
-    ctaVariant: "primary",
-    featured: true,
-    featuredChip: "Most Popular",
-    delayMs: 0,
-    entryDirection: "center",
-  },
-  {
-    id: "enterprise",
-    name: "Thrive",
-    price: "$1,199",
-    priceDetail: "/month",
-    featureListLabel: "Thrive plan features",
-    features: [
-      "Multi-location ready",
-      "Unlimited emails",
-      "50,000 SMS per month",
-      "Dedicated success manager",
-      "SLA guarantee",
-    ],
-    ctaLabel: "See plan details",
-    ctaHref: "/pricing",
-    ctaVariant: "secondary",
-    delayMs: 150,
-    entryDirection: "right",
-  },
+ {id:"starter",name:"BloomSites",price:"$99",priceDetail:"/month USD",featureListLabel:"BloomSites features",features:["Website and visual editor","Plant catalogue and discovery","Online selling capability"],ctaLabel:"Calculate my setup",ctaHref:"/build-your-suite?product=site",ctaVariant:"secondary",delayMs:150,entryDirection:"left"},
+ {id:"growth",name:"BloomSuite POS",price:"$99",priceDetail:"/month USD",featureListLabel:"BloomSuite POS features",features:["Garden centre checkout","Stock and receiving","One location and one register"],ctaLabel:"Calculate my setup",ctaHref:"/build-your-suite?product=pos",ctaVariant:"primary",featured:true,featuredChip:"Built for garden retail",delayMs:0,entryDirection:"center"},
+ {id:"enterprise",name:"BloomSuite CRM",price:"$99",priceDetail:"/month USD",featureListLabel:"BloomSuite CRM features",features:["Customer database and insights","Email campaigns and automations","20,000 monthly emails"],ctaLabel:"Calculate my setup",ctaHref:"/build-your-suite?product=crm",ctaVariant:"secondary",delayMs:150,entryDirection:"right"}
 ];
-
-// Small line below the three pricing cards pointing users at the
-// pricing page when they want the website-less "Seed" tier ($199/month
-// CRM-only) — it doesn't appear on the homepage cards.
 export const SEED_FOOTNOTE = {
-  text: "Have a website already? Start with Seed at $199/month for CRM, messaging, automations, and insights without a new site.",
-  linkLabel: "See all plans",
-  linkHref: "/pricing",
+ text: "Complete BloomSuite: all three for $250/month USD. Save $47/month. Proposed pricing; usage, processing and setup costs vary. Existing subscriptions stay unchanged.",
+ linkLabel: "Build your BloomSuite",
+ linkHref: "/pricing",
 };
-
 export const FINAL_CTA_CONTENT = {
   ariaLabel: "Final homepage call to action",
   headline: "Ready to grow your garden centre?",
   subhead:
-    "Start your trial today. No credit card required.",
-  primaryCta: "Start free trial",
+    "Choose the products that fit your garden centre.",
+  primaryCta: "Explore pricing",
   // /auth matches the trial sign-up handler used by the top-nav
   // "Start Free Trial" button (NavigationShell.navigateToAuth).
-  primaryHref: "/auth",
+  primaryHref: "/pricing",
   secondaryCta: "Talk to our team",
   // /contact matches the top-nav "Book a Demo" handler
   // (NavigationShell.navigateToDemo).
   secondaryHref: "/contact",
-  caption: "No credit card required · Free trial · Cancel anytime",
+  caption: "Transparent estimate · Confirm your setup with our team",
 };
 
 export const FOOTER_CONTENT = {

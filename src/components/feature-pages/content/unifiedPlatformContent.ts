@@ -66,7 +66,7 @@ export const unifiedPlatformContent: FeaturePageContent = {
       {
         title: "One bill instead of five",
         description:
-          "Your CRM, email and SMS, ecommerce platform, analytics, and storefront in one monthly subscription. Most garden centres save $200-$500/month consolidating onto BloomSuite vs paying for the equivalent stack of separate tools.",
+          "Choose one product or connect all three. Compare your current tools with the transparent BloomSuite pricing calculator, including messaging and setup costs.",
       },
       {
         title: "Connected workflows out of the box",
@@ -76,7 +76,7 @@ export const unifiedPlatformContent: FeaturePageContent = {
       {
         title: "All features included, not unlocked",
         description:
-          "Sprout, Bloom, and Thrive plans all include every feature: CRM, campaigns, inventory, storefront, analytics. Plans differ in capacity (contacts, monthly emails, locations), not in functionality. You're never blocked from a feature because you're on the wrong tier.",
+          "Choose the products that fit your work. Features and connections depend on the product, store setup and supported integrations.",
       },
     ],
   },
@@ -134,7 +134,7 @@ export const unifiedPlatformContent: FeaturePageContent = {
       {
         question: "How does pricing compare to the sum of those tools?",
         answer:
-          "Almost always less. A typical garden centre running Mailchimp ($85/mo) + HubSpot CRM ($45/mo) + Shopify ($79/mo) + a basic analytics tool ($30/mo) is paying $239/month for a partial stack. The equivalent BloomSuite Bloom plan is $199/month all-in, with deeper integration than any of those tools provide individually.",
+          "The proposed starting price is $99 USD per product per month, or $250 for the complete suite. Compare your actual software, messaging, payment and setup costs before deciding.",
       },
       {
         question: "What's the migration path from my existing tools?",
@@ -156,7 +156,7 @@ export const unifiedPlatformContent: FeaturePageContent = {
         question:
           "Can I add my whole team without per-seat charges?",
         answer:
-          "Plans include unlimited team members within reasonable use. Sprout supports up to 5 team members, Bloom up to 15, Thrive unlimited. Most garden centres never hit the limit on Bloom.",
+          "Confirm the staff roles, locations, registers and permissions your store needs during setup.",
       },
       {
         question: "What happens to my data if I cancel?",

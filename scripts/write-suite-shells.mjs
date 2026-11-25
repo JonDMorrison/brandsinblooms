@@ -24,9 +24,14 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     url: "https://bloomsuite.app/pos",
     image: "https://bloomsuite.app/pos/manager-workspace.webp",
   }));
+  writeFileSync("dist/pricing-marketing.html", suitePageShell(html, {
+    title: "Garden Centre Software Pricing | BloomSuite",
+    description: "Explore proposed $99 per product or $250 complete suite pricing in USD. Calculate messaging and expansion costs.",
+    url: "https://bloomsuite.app/pricing",
+  }));
   writeFileSync("dist/suite-builder.html", suitePageShell(html, {
-    title: "Build your BloomSuite — Explore your setup",
-    description: "Choose your website, marketing and checkout goals and explore a transparent draft estimate for your garden centre.",
+    title: "BloomSuite Pricing Calculator | Build Your BloomSuite",
+    description: "Estimate website, point of sale and CRM subscriptions, email and SMS volume, and additional locations.",
     url: "https://bloomsuite.app/build-your-suite",
     robots: "noindex, follow",
   }));

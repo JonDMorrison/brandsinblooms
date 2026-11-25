@@ -92,7 +92,7 @@ export const storefrontContent: FeaturePageContent = {
       {
         title: "Cancel your separate ecommerce platform",
         description:
-          "If you're paying $79-$299/month for Shopify, BigCommerce, or a custom site, that's gone. Your storefront is included in your BloomSuite plan.",
+          "BloomSites combines your website and online selling capability. Compare your current storefront costs and confirm migration, payments and integration requirements before switching.",
       },
       {
         title: "Sell while you sleep",

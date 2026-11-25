@@ -5,6 +5,10 @@ on:
       - 'src/components/tour/**'
       - 'src/components/suite/**'
       - 'src/components/pricing/SuiteConfigurator*'
+      - 'src/components/pricing/suiteEstimate*'
+      - 'src/components/pricing/suiteConfigurator.css'
+      - 'src/pages/PricingPage.tsx'
+      - 'src/components/homepage-three/content/pricingCtaFooterContent.ts'
       - 'src/pages/PosMarketingPage.tsx'
       - 'src/pages/SuitePage.tsx'
       - 'src/pages/SuiteBuilderPage.tsx'
@@ -40,5 +44,7 @@ jobs:
       - run: npm ci
       - name: Tour behaviour
         run: npx vitest run src/components/tour/TourSteps.test.tsx
+      - name: Pricing calculator and homepage regression
+        run: npx vitest run src/components/pricing/suiteEstimate.test.ts src/components/pricing/SuiteConfigurator.test.tsx src/components/homepage-three/HomepagePricingCtaFooterSection.test.tsx
       - name: Build production application
         run: npm run build
