@@ -36,6 +36,7 @@ import {
   editorImagePlaceholder,
 } from "./newsletter/editorPlaceholders.ts";
 import {
+  isFooterIconColorPicked,
   isFooterSocialVisible,
   normalizeSocialLinks,
   resolveFooterSocialIcon,
@@ -827,9 +828,14 @@ function applyFooterContrastGuard(block: StudioBlock): StudioBlock {
     linkColor: block.linkColor
       ? readableTextOn(safeColor(block.linkColor, textColor), background)
       : block.linkColor,
-    footerIconColor: block.footerIconColor
+    // An Icon Colour the person picked is kept as chosen: icons are not
+    // text, and replacing it with white made a picked colour read as "not
+    // picked", so Filled icons fell back to brand colours. Only an inherited
+    // default colour is still made readable.
+    footerIconColor: block.footerIconColor && !isFooterIconColorPicked(block)
       ? readableTextOn(safeColor(block.footerIconColor, textColor), background)
       : block.footerIconColor,
+    ...(isFooterIconColorPicked(block) ? { footerIconColorPicked: true } : {}),
   };
 }
 

@@ -215,3 +215,44 @@ describe("social icon PNG route", () => {
     expect(socialIconSrc("twitter", "filled", null)).toBe("https://bloomsuite.app/social-icon/twitter/filled/111111.png");
   });
 });
+
+describe("social icons: footer contrast guard keeps a picked Icon Colour", () => {
+  // Nov 25 production QA campaign: coral icons on a teal footer, contrast
+  // guard on (every new draft). The guard turned the coral into white, which
+  // then matched the link colour and read as "not picked" (brand icons).
+  const qaFooter = {
+    id: "footer",
+    type: "footer",
+    label: "Footer",
+    order: 9,
+    visible: true,
+    layout: "standard-dark",
+    backgroundColor: "#1d6877",
+    textColor: "#ffffff",
+    linkColor: "#ffffff",
+    footerIconColor: "#E76F51",
+    footerIconStyle: "filled",
+    showSocialInFooter: true,
+    footerSocialLinks: [
+      { platform: "facebook", url: "https://facebook.com/northfield", enabled: true },
+      { platform: "pinterest", url: "https://pinterest.com/northfieldgarden", enabled: true },
+    ],
+    newsletterSettings: { version: 1, contrastGuard: true },
+  } as StudioBlock;
+
+  it.each(["filled", "outlined", "minimal"] as const)("%s icons use the picked coral", (footerIconStyle) => {
+    const html = renderFooterBlockToEmailHtml({ ...qaFooter, footerIconStyle }, {}, null);
+    expect(html).toContain(`/social-icon/facebook/${footerIconStyle}/e76f51.png`);
+    expect(html).toContain(`/social-icon/pinterest/${footerIconStyle}/e76f51.png`);
+    expect(html).not.toContain("/social-icons/facebook.png");
+  });
+
+  it("an inherited default icon colour is still made readable", () => {
+    const html = renderFooterBlockToEmailHtml(
+      { ...qaFooter, backgroundColor: "#ffffff", textColor: "#111827", linkColor: "#cbd5e1", footerIconColor: "#cbd5e1", footerIconStyle: "minimal", layout: "light-minimal" },
+      {},
+      null,
+    );
+    expect(html).not.toContain("/minimal/cbd5e1.png");
+  });
+});
