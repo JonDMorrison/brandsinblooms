@@ -183,13 +183,8 @@ const FeaturesPage = lazyNamed(
 );
 const FeatureDetailPage = lazyRetry(() => import("@/pages/FeatureDetailPage"));
 const KnowledgeBasePage = lazyRetry(() => import("@/pages/KnowledgeBasePage"));
-const Home1Page = lazyNamed(() => import("@/pages/Home1Page"), "Home1Page");
 const EmailPreferences = lazyRetry(() => import("@/pages/EmailPreferences"));
 const PublicFormPage = lazyRetry(() => import("@/pages/PublicFormPage"));
-const WebsiteWaitlistPage = lazyNamed(
-  () => import("@/pages/WebsiteWaitlistPage"),
-  "WebsiteWaitlistPage",
-);
 const OAuthCallbackHandler = lazyNamed(
   () => import("@/components/migrations/OAuthCallbackHandler"),
   "OAuthCallbackHandler",
@@ -634,17 +629,17 @@ function App() {
                 path="/docs/integrations/:slug"
                 element={<IntegrationDocumentationPage />}
               />
-              <Route path="/home1" element={<Home1Page />} />
+              <Route path="/home1" element={<Navigate to="/" replace />} />
               <Route path="/email-preferences" element={<EmailPreferences />} />
 
               {/* Public form page - no auth required */}
               <Route path="/f/:embedKey" element={<PublicFormPage />} />
 
               {/* Public website landing page */}
-              <Route path="/website" element={<WebsiteWaitlistPage />} />
+              <Route path="/website" element={<Navigate to="/website/features" replace />} />
               <Route
                 path="/website/waitlist"
-                element={<WebsiteWaitlistPage />}
+                element={<Navigate to="/website/features" replace />}
               />
 
               {/* Public confirmation page */}

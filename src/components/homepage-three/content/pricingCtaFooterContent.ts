@@ -42,7 +42,7 @@ export const PRICING_SECTION_HEADER = {
   eyebrow: "Pricing",
   headline: "Plans that match your store.",
   subtext:
-    "All plans include a 14-day free trial. Need CRM only without a website? See our Seed plan at $199/month on the pricing page.",
+    "Explore the CRM trial and current plan options. Need CRM only without a website? See our Seed plan at $199/month on the pricing page.",
 };
 
 export const PRICING_CARDS_LABEL = "Pricing plan cards";
@@ -60,7 +60,7 @@ export const PRICING_PLANS: PricingPlanConfig[] = [
     priceDetail: "/month",
     featureListLabel: "Sprout plan features",
     features: [
-      "Website + Ecommerce + BloomSuite",
+      "BloomSites + e-commerce + BloomSuite CRM",
       "Up to 10,000 contacts",
       "20,000 emails per month",
       "2,000 SMS per month",
@@ -79,7 +79,7 @@ export const PRICING_PLANS: PricingPlanConfig[] = [
     priceDetail: "/month",
     featureListLabel: "Bloom plan features",
     features: [
-      "Website + Ecommerce + BloomSuite",
+      "BloomSites + e-commerce + BloomSuite CRM",
       "Up to 25,000 contacts",
       "100,000 emails per month",
       "5,000 SMS per month",
@@ -127,7 +127,7 @@ export const FINAL_CTA_CONTENT = {
   ariaLabel: "Final homepage call to action",
   headline: "Ready to grow your garden centre?",
   subhead:
-    "Start your trial today. No credit card. Ready to use in under an hour.",
+    "Start your trial today. No credit card required.",
   primaryCta: "Start free trial",
   // /auth matches the trial sign-up handler used by the top-nav
   // "Start Free Trial" button (NavigationShell.navigateToAuth).
@@ -136,7 +136,7 @@ export const FINAL_CTA_CONTENT = {
   // /contact matches the top-nav "Book a Demo" handler
   // (NavigationShell.navigateToDemo).
   secondaryHref: "/contact",
-  caption: "No credit card required · 14-day free trial · Cancel anytime",
+  caption: "No credit card required · Free trial · Cancel anytime",
 };
 
 export const FOOTER_CONTENT = {

@@ -10,6 +10,9 @@
     }
   ],
   "redirects": [
+    {"source": "/home1", "destination": "/", "permanent": true},
+    {"source": "/website", "destination": "/website/features", "permanent": true},
+    {"source": "/website/waitlist", "destination": "/website/features", "permanent": true},
     {
       "source": "/(.*)",
       "has": [

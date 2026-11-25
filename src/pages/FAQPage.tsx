@@ -272,7 +272,7 @@ const FAQPage = () => {
               <div className="flex flex-wrap justify-center gap-6 mt-8 text-sm text-muted-foreground">
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 bg-primary rounded-full"></span>
-                  <span>7-day free trial</span>
+                  <span>Free trial</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 bg-primary rounded-full"></span>

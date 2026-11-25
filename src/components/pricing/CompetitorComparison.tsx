@@ -94,7 +94,7 @@ export const CompetitorComparison = () => {
               How We Compare to Separate Tools
             </h2>
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-              See how BloomSuite saves you thousands while providing features you can't get anywhere else
+              Compare an illustrative bundle of separate tools with BloomSuite. Actual costs depend on providers, setup and usage.
             </p>
           </div>
 
@@ -372,7 +372,7 @@ export const CompetitorComparison = () => {
             <div className="flex flex-wrap justify-center gap-4 text-sm text-muted-foreground">
               <div className="flex items-center gap-2">
                 <CheckCircle className="h-4 w-4 text-primary" />
-                <span>7-day free trial</span>
+                <span>Free trial</span>
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle className="h-4 w-4 text-primary" />

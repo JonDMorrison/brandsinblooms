@@ -59,10 +59,10 @@ export const AboutPage = () => {
       <section className="py-20 px-6 bg-gradient-to-br from-blue-50 to-blue-50">
         <div className="max-w-4xl mx-auto text-center">
           <h1 className="text-5xl font-bold text-foreground mb-6">
-            Growing Garden Centers Through Smart Marketing
+            Helping Garden Centers Grow
           </h1>
           <p className="text-xl text-muted-foreground mb-8 max-w-3xl mx-auto">
-            BloomSuite was born from a simple belief: garden centers deserve marketing tools as specialized and nurturing as the plants they sell.
+            BloomSuite was born from a simple belief: garden centers deserve software built around the plants, people and seasons that make their business unique.
           </p>
         </div>
       </section>
@@ -145,10 +145,9 @@ export const AboutPage = () => {
             <Card className="p-6 text-center">
               <CardContent className="p-0">
                 <TrendingUp className="h-12 w-12 text-primary mx-auto mb-4" />
-                <h3 className="text-xl font-bold text-foreground mb-3">Proven Results</h3>
+                <h3 className="text-xl font-bold text-foreground mb-3">Focused on real business outcomes</h3>
                 <p className="text-muted-foreground">
-                  Garden centers using BloomSuite see an average 40% increase in customer 
-                  engagement and sales.
+                  BloomSuite is designed to help garden centers sell more plants, simplify operations and strengthen customer relationships.
                 </p>
               </CardContent>
             </Card>
