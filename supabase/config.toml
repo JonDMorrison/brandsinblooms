@@ -660,3 +660,6 @@ verify_jwt = true
 
 [functions.native-reward-balances]
 verify_jwt = true
+
+[functions.billing-invoices]
+verify_jwt = true
