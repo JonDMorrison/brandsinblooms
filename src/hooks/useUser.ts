@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { getBusinessProfileUserId } from "@/lib/profile/businessProfileUserId";
 
 export const useUser = () => {
   const { user } = useAuth();
@@ -26,7 +27,7 @@ export const useUser = () => {
       const { data: profile } = await supabase
         .from('company_profiles')
         .select('id, first_content_generated')
-        .eq('user_id', user.id)
+        .eq('user_id', await getBusinessProfileUserId(user.id))
         .maybeSingle(); // Use maybeSingle to avoid errors
 
       const hasNoCampaigns = !campaigns || campaigns.length === 0;

@@ -16,6 +16,7 @@ import {
   formatDraftRichText,
   formatDraftText,
 } from "@/lib/crm/htmlContent";
+import { getBusinessProfileUserId } from "@/lib/profile/businessProfileUserId";
 
 type CampaignRow = Database["public"]["Tables"]["crm_campaigns"]["Row"];
 type CampaignStatus = CampaignRow["status"];
@@ -683,7 +684,7 @@ async function loadWriterCompanyProfile(userId: string) {
       feature_flags
       `,
     )
-    .eq("user_id", userId)
+    .eq("user_id", await getBusinessProfileUserId(userId))
     .maybeSingle();
 
   if (error) {

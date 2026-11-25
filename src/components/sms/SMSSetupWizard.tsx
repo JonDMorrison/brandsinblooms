@@ -11,6 +11,7 @@ import { twilioClient } from '@/lib/sms/twilioClient';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQueryClient } from '@tanstack/react-query';
+import { getBusinessProfileUserId } from "@/lib/profile/businessProfileUserId";
 
 interface SMSSetupWizardProps {
   trigger: React.ReactNode;
@@ -74,7 +75,7 @@ export const SMSSetupWizard: React.FC<SMSSetupWizardProps> = ({ trigger, onCompl
       const { data: currentProfile } = await supabase
         .from('company_profiles')
         .select('feature_flags')
-        .eq('user_id', user.id)
+        .eq('user_id', await getBusinessProfileUserId(user.id))
         .single();
 
       const currentFlags = (currentProfile?.feature_flags as any) || {};
@@ -90,7 +91,7 @@ export const SMSSetupWizard: React.FC<SMSSetupWizardProps> = ({ trigger, onCompl
             sms_compliance_configured: true
           }
         })
-        .eq('user_id', user.id);
+        .eq('user_id', await getBusinessProfileUserId(user.id));
 
       if (error) {
         console.error('Failed to update setup status:', error);

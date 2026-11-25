@@ -11,6 +11,7 @@ import {
   type SenderConfig,
 } from "../_shared/senderResolver.ts";
 import { sanitizeEmailHtmlImageSources } from "../_shared/emailImageUrl.ts";
+import { resolveBusinessProfileUserId } from "../_shared/businessProfileUserId.ts";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -152,6 +153,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
     console.log("✅ Authenticated user:", user.id, user.email);
     // Fetch FULL company profile including social URLs for footer regeneration
+    const profileUserId = await resolveBusinessProfileUserId(supabaseAdmin, user.id);
     const { data: companyProfile, error: profileError } = await supabaseAdmin
       .from("company_profiles")
       .select(
@@ -163,7 +165,7 @@ const handler = async (req: Request): Promise<Response> => {
         footer_legal_text, brand_primary_color, brand_text_color, feature_flags
       `,
       )
-      .eq("user_id", user.id)
+      .eq("user_id", profileUserId)
       .single();
 
     if (profileError) {

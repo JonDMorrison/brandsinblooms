@@ -20,6 +20,7 @@ import {
 } from "../_shared/emailRenderer.ts";
 import { resolveSender, buildFromAddress } from "../_shared/senderResolver.ts";
 import { COMPANY_PROFILE_WITH_DESIGN_SYSTEM_SELECT } from "../_shared/resolveDesignSystem.ts";
+import { resolveBusinessProfileUserId } from "../_shared/businessProfileUserId.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -201,10 +202,11 @@ const handler = async (req: Request): Promise<Response> => {
 
     let companyProfile: CompanyProfileShape | null = null;
     if (tenantUser?.id) {
+      const profileUserId = await resolveBusinessProfileUserId(supabase, tenantUser.id);
       const { data: profile } = await supabase
         .from("company_profiles")
         .select(COMPANY_PROFILE_WITH_DESIGN_SYSTEM_SELECT)
-        .eq("user_id", tenantUser.id)
+        .eq("user_id", profileUserId)
         .single();
       companyProfile = (profile as CompanyProfileShape | null) || null;
     }

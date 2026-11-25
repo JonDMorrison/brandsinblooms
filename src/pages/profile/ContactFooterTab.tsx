@@ -23,6 +23,7 @@ import {
   ExternalLink,
   Shield
 } from 'lucide-react';
+import { getBusinessProfileUserId } from "@/lib/profile/businessProfileUserId";
 
 interface ContactFormData {
   company_phone: string;
@@ -79,7 +80,7 @@ export const ContactFooterTab = () => {
       const { data, error } = await supabase
         .from('company_profiles')
         .select('id, company_phone, company_email, website_url, street_address, city, state_province, postal_code, country, facebook_url, instagram_url, tiktok_url, pinterest_url, youtube_url, linkedin_url, footer_legal_text')
-        .eq('user_id', user.id)
+        .eq('user_id', await getBusinessProfileUserId(user.id))
         .maybeSingle();
 
       if (error) {
@@ -128,7 +129,7 @@ export const ContactFooterTab = () => {
     setIsSaving(true);
     try {
       const payload = {
-        user_id: user.id,
+        user_id: await getBusinessProfileUserId(user.id),
         company_phone: formData.company_phone || null,
         company_email: formData.company_email || null,
         website_url: formData.website_url || null,

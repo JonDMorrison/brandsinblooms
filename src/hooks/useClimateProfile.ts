@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { getBusinessProfileUserId } from "@/lib/profile/businessProfileUserId";
 
 export interface ClimateProfile {
   latitude: number | null;
@@ -50,7 +51,7 @@ export const useClimateProfile = () => {
           climate_confidence, climate_source, climate_last_updated_at,
           usda_zone, first_frost_date, last_frost_date
         `)
-        .eq('user_id', user.id)
+        .eq('user_id', await getBusinessProfileUserId(user.id))
         .maybeSingle();
 
       if (error) {
@@ -111,7 +112,7 @@ export const useClimateProfile = () => {
         const { data: profile } = await supabase
           .from('company_profiles')
           .select('postal_code, country')
-          .eq('user_id', user.id)
+          .eq('user_id', await getBusinessProfileUserId(user.id))
           .maybeSingle();
 
         if (!profile?.postal_code) {

@@ -8,6 +8,7 @@ import React, {
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { getBusinessProfileUserId } from "@/lib/profile/businessProfileUserId";
 
 export type TourStep =
   | "dashboard"
@@ -93,7 +94,7 @@ export function QuickTourProvider({ children }: { children: React.ReactNode }) {
         const { data: profile } = await supabase
           .from("company_profiles")
           .select("beta_tour_enabled, onboarding_completed_at")
-          .eq("user_id", user.id)
+          .eq("user_id", await getBusinessProfileUserId(user.id))
           .single();
 
         const betaEnabled = profile?.beta_tour_enabled ?? true;
@@ -103,7 +104,7 @@ export function QuickTourProvider({ children }: { children: React.ReactNode }) {
         const { data: progress } = await supabase
           .from("tutorial_progress")
           .select("*")
-          .eq("user_id", user.id)
+          .eq("user_id", await getBusinessProfileUserId(user.id))
           .eq("step", "completed")
           .maybeSingle();
 

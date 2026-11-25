@@ -28,6 +28,7 @@ import { requireInternalApiKey } from "../_shared/requireInternalApiKey.ts";
 import { resolveSmsEnqueueOutcome } from "../_shared/smsCampaignOutcome.ts";
 
 import { checkSmsCampaignContent } from "../_shared/smsCampaignContentGate.ts";
+import { resolveBusinessProfileUserId } from "../_shared/businessProfileUserId.ts";
 
 // Configuration constants
 const ENQUEUE_PAGE_SIZE = Number(
@@ -274,10 +275,11 @@ Deno.serve(async (req) => {
     }
 
     // Step 5: Get company profile for merge tags
+    const profileUserId = await resolveBusinessProfileUserId(supabase, campaign.user_id);
     const { data: companyProfile } = await supabase
       .from("company_profiles")
       .select("company_name, company_phone, company_email, compliance_settings")
-      .eq("user_id", campaign.user_id)
+      .eq("user_id", profileUserId)
       .maybeSingle();
 
     const companyInfo = companyProfile || {};

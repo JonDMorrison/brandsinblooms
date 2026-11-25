@@ -16,6 +16,7 @@ import {
   isRecord,
   type BloomQueryClient,
 } from "./shared.ts";
+import { resolveBusinessProfileUserId } from "../../../_shared/businessProfileUserId.ts";
 
 type TenantRow = Pick<
   Database["public"]["Tables"]["tenants"]["Row"],
@@ -192,6 +193,10 @@ async function loadTenantGenerationContext(
   client: BloomQueryClient,
   context: ToolExecutionContext,
 ): Promise<TenantGenerationContext> {
+  const profileUserId = await resolveBusinessProfileUserId(
+    client,
+    context.userId,
+  );
   const [tenantResponse, profileResponse] = await Promise.all([
     client
       .from("tenants")
@@ -203,7 +208,7 @@ async function loadTenantGenerationContext(
       .select(
         "company_name, company_overview, brand_voice, target_audience, tone_of_writing, ideal_customer, specializations, seasonal_focus, unique_selling_points, location_info",
       )
-      .eq("user_id", context.userId)
+      .eq("user_id", profileUserId)
       .is("deleted_at", null)
       .order("updated_at", { ascending: false })
       .limit(1)

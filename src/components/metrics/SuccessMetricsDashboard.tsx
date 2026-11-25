@@ -15,6 +15,7 @@ import {
   Users,
   Calendar
 } from 'lucide-react';
+import { getBusinessProfileUserId } from "@/lib/profile/businessProfileUserId";
 // Removed sonner import - using global toast replacement
 
 interface UserMetrics {
@@ -74,7 +75,7 @@ export const SuccessMetricsDashboard = () => {
       const { data: profile } = await supabase
         .from('company_profiles')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', await getBusinessProfileUserId(user.id))
         .single();
 
       // Calculate metrics

@@ -24,6 +24,7 @@ import {
   type CampaignEmailSource,
 } from "../_shared/campaignEmailContent.ts";
 import { COMPANY_PROFILE_WITH_DESIGN_SYSTEM_SELECT } from "../_shared/resolveDesignSystem.ts";
+import { resolveBusinessProfileUserId } from "../_shared/businessProfileUserId.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -1245,6 +1246,7 @@ serve((req: Request) => {
         const campaignCache = new Map<string, any>();
         const campaignSourceCache = new Map<string, CampaignEmailSource>();
         const companyProfileCache = new Map<string, any>();
+        const profileUserIdCache = new Map<string, string>();
         const trackedLinkMapCache = new Map<string, Map<string, string>>();
         const replyToCache = new Map<string, string | undefined>();
         const domainInvestigationCache = new Map<string, boolean>();
@@ -1835,7 +1837,12 @@ serve((req: Request) => {
                 campaign = campaignCache.get(campaignId) || null;
 
                 if (campaign?.user_id) {
-                  const userId = String(campaign.user_id);
+                  const campaignUserId = String(campaign.user_id);
+                  let userId = profileUserIdCache.get(campaignUserId);
+                  if (!userId) {
+                    userId = await resolveBusinessProfileUserId(supabase, campaignUserId);
+                    profileUserIdCache.set(campaignUserId, userId);
+                  }
                   if (!companyProfileCache.has(userId)) {
                     const { data: pRow, error: pErr } = await supabase
                       .from("company_profiles")

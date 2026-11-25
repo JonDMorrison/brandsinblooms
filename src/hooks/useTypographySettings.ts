@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { getBusinessProfileUserId } from "@/lib/profile/businessProfileUserId";
 
 interface Font {
   id: string;
@@ -63,7 +64,7 @@ export const useTypographySettings = () => {
             body_font:available_fonts!body_font_id(id, name, display_name, google_fonts_url, font_family_css, sort_order),
             button_font:available_fonts!button_font_id(id, name, display_name, google_fonts_url, font_family_css, sort_order)
           `)
-          .eq('user_id', user.id)
+          .eq('user_id', await getBusinessProfileUserId(user.id))
           .maybeSingle();
 
         if (profileError) throw profileError;
@@ -82,7 +83,7 @@ export const useTypographySettings = () => {
               body_font_id: profile.selected_font_id,
               button_font_id: profile.selected_font_id
             })
-            .eq('user_id', user.id);
+            .eq('user_id', await getBusinessProfileUserId(user.id));
           
           toast.info('Typography settings upgraded to granular controls');
         }
@@ -132,7 +133,7 @@ export const useTypographySettings = () => {
           body_font_id: settings.bodyFontId,
           button_font_id: settings.buttonFontId,
         })
-        .eq('user_id', user.id);
+        .eq('user_id', await getBusinessProfileUserId(user.id));
 
       if (error) throw error;
 

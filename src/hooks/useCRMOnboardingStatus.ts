@@ -3,6 +3,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useTenant } from '@/hooks/useTenant';
 import { supabase } from '@/integrations/supabase/client';
+import { getBusinessProfileUserId } from "@/lib/profile/businessProfileUserId";
 
 interface CRMOnboardingStatus {
   shouldShowOnboarding: boolean;
@@ -34,7 +35,7 @@ export const useCRMOnboardingStatus = (): CRMOnboardingStatus => {
       const { data: profile } = await supabase
         .from('company_profiles')
         .select('crm_onboarding_completed_at')
-        .eq('user_id', user.id)
+        .eq('user_id', await getBusinessProfileUserId(user.id))
         .single();
 
       setHasCompletedOnboarding(!!profile?.crm_onboarding_completed_at);
@@ -71,7 +72,7 @@ export const useCRMOnboardingStatus = (): CRMOnboardingStatus => {
       const { error } = await supabase
         .from('company_profiles')
         .update({ crm_onboarding_completed_at: new Date().toISOString() })
-        .eq('user_id', user.id);
+        .eq('user_id', await getBusinessProfileUserId(user.id));
 
       if (error) throw error;
       

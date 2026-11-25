@@ -4,6 +4,7 @@ import { readStoredCustomerPreferences } from "../_shared/customerPreferenceCent
 import { buildCustomerLoyaltyWallet } from "./customerLoyaltyWallet.ts";
 
 import {readNativeRewardBalances, type NativeRewardBalance} from "../_shared/nativeRewardBalances.ts";
+import { resolveBusinessProfileUserId } from "../_shared/businessProfileUserId.ts";
 
 const corsHeaders = {
   "Cache-Control": "no-store",
@@ -109,20 +110,21 @@ serve(async (req) => {
       .single();
 
     // Try to get more detailed company info
+    const tenantUserId = (
+      await supabase
+        .from("users")
+        .select("id")
+        .eq("tenant_id", tokenData.tenant_id)
+        .limit(1)
+        .single()
+    ).data?.id;
+    const profileUserId = tenantUserId
+      ? await resolveBusinessProfileUserId(supabase, tenantUserId)
+      : tenantUserId;
     const { data: companyProfile } = await supabase
       .from("company_profiles")
       .select("company_name, location_info")
-      .eq(
-        "user_id",
-        (
-          await supabase
-            .from("users")
-            .select("id")
-            .eq("tenant_id", tokenData.tenant_id)
-            .limit(1)
-            .single()
-        ).data?.id,
-      )
+      .eq("user_id", profileUserId)
       .single();
 
     return new Response(

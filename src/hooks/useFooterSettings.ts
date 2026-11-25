@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { NewsletterFooterProps } from "@/types/newsletterFooter";
 import { FooterStyling } from "@/types/footerStyling";
+import { getBusinessProfileUserId } from "@/lib/profile/businessProfileUserId";
 
 export interface FooterSettings {
   // Display toggles
@@ -157,7 +158,7 @@ export const useFooterSettings = (campaignId?: string) => {
       const { data: currentProfile } = await supabase
         .from("company_profiles")
         .select("feature_flags")
-        .eq("user_id", user.user.id)
+        .eq("user_id", await getBusinessProfileUserId(user.user.id))
         .single();
 
       const currentFlags = (currentProfile?.feature_flags as any) || {};
@@ -170,7 +171,7 @@ export const useFooterSettings = (campaignId?: string) => {
             footer_settings: settings,
           },
         })
-        .eq("user_id", user.user.id);
+        .eq("user_id", await getBusinessProfileUserId(user.user.id));
 
       if (error) {
         console.error("Error saving footer settings:", error);

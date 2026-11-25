@@ -8,6 +8,7 @@ import { processNewsletterContent } from '@/utils/newsletterContentProcessor';
 import { parseNewsletterYAML } from '@/utils/newsletterUtils';
 import { supabase } from '@/integrations/supabase/client';
 import { RichTextEditor } from '@/components/ui-legacy/rich-text-editor';
+import { getBusinessProfileUserId } from "@/lib/profile/businessProfileUserId";
 
 interface NewsletterBlock {
   title: string;
@@ -44,7 +45,7 @@ export const NewsletterEditor: React.FC<NewsletterEditorProps> = ({
           const { data: profile } = await supabase
             .from('company_profiles')
             .select('location_info')
-            .eq('user_id', user.id)
+            .eq('user_id', await getBusinessProfileUserId(user.id))
             .single();
           
           if (profile?.location_info) {

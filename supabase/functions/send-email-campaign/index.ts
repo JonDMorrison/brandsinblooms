@@ -28,6 +28,7 @@ import { resolveCampaignEmailSource } from "../_shared/campaignEmailContent.ts";
 import { COMPANY_PROFILE_WITH_DESIGN_SYSTEM_SELECT } from "../_shared/resolveDesignSystem.ts";
 import { resolveCampaignSenderDisplayName } from "../_shared/campaignFromHeader.ts";
 import { canQueueCampaignForTenant } from "../../../src/lib/auth/crmAccess.ts";
+import { resolveBusinessProfileUserId } from "../_shared/businessProfileUserId.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -990,10 +991,11 @@ serve(async (req: Request) => {
     const spamScoreThreshold = governanceConfig.compliance.spam_score_threshold;
 
     // Get company profile
+    const profileUserId = await resolveBusinessProfileUserId(supabase, campaign.user_id);
     const { data: companyProfile } = await supabase
       .from("company_profiles")
       .select(COMPANY_PROFILE_WITH_DESIGN_SYSTEM_SELECT)
-      .eq("user_id", campaign.user_id)
+      .eq("user_id", profileUserId)
       .single();
 
     // Get customers based on targeting (segments + personas)

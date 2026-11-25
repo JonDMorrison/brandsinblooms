@@ -4,6 +4,7 @@ import { RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { getBusinessProfileUserId } from "@/lib/profile/businessProfileUserId";
 
 interface NewsletterRegeneratorProps {
   contentTaskId?: string;
@@ -42,7 +43,7 @@ export const NewsletterRegenerator: React.FC<NewsletterRegeneratorProps> = ({
       const { data: profile, error: profileError } = await supabase
         .from("company_profiles")
         .select("company_name")
-        .eq("user_id", user.id)
+        .eq("user_id", await getBusinessProfileUserId(user.id))
         .single();
 
       if (profileError) {

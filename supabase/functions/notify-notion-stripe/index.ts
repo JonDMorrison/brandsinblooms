@@ -6,6 +6,7 @@ import {
   updateNotionRecord,
   createNotionRecord,
 } from "../_shared/notion-client.ts";
+import { resolveBusinessProfileUserId } from "../_shared/businessProfileUserId.ts";
 
 /**
  * notify-notion-stripe
@@ -114,6 +115,8 @@ async function sendPaidConversionEmail(
       return;
     }
 
+    const profileUserId = await resolveBusinessProfileUserId(supabase, userId);
+
     // Run setup-status queries in parallel.
     const [
       profileResult,
@@ -126,7 +129,7 @@ async function sendPaidConversionEmail(
       supabase
         .from("company_profiles")
         .select("company_name, brand_primary_color, company_overview")
-        .eq("user_id", userId)
+        .eq("user_id", profileUserId)
         .single(),
       supabase
         .from("crm_customers")

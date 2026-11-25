@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
+import { getBusinessProfileUserId } from "@/lib/profile/businessProfileUserId";
 
 type EmailDomainRow = Database["public"]["Tables"]["email_domains"]["Row"];
 
@@ -139,7 +140,7 @@ export async function loadDraftSenderDefaults(params: {
     supabase
       .from("company_profiles")
       .select("company_name, company_email")
-      .eq("user_id", params.userId)
+      .eq("user_id", await getBusinessProfileUserId(params.userId))
       .maybeSingle(),
   ]);
 

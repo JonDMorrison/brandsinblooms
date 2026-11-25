@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenant } from "@/hooks/useTenant";
+import { getBusinessProfileUserId } from "@/lib/profile/businessProfileUserId";
 
 export interface SenderConfig {
   isVerified: boolean;
@@ -35,7 +36,7 @@ export const useSenderConfiguration = () => {
         .select(
           "company_name, custom_sender_email, email_auth_status, email_domain, dns_records_verified",
         )
-        .eq("user_id", user.id)
+        .eq("user_id", await getBusinessProfileUserId(user.id))
         .maybeSingle();
 
       if (companyError) {

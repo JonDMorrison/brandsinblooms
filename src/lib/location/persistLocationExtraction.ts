@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { getBusinessProfileUserId } from "@/lib/profile/businessProfileUserId";
 
 interface LocationExtraction {
   postal_code: string | null;
@@ -59,7 +60,7 @@ export async function persistLocationExtraction(
         location_detection_source, location_confidence, location_needs_confirmation
       `,
       )
-      .eq("user_id", userId)
+      .eq("user_id", await getBusinessProfileUserId(userId))
       .maybeSingle();
 
     if (fetchError && fetchError.code !== "PGRST116") {
@@ -95,7 +96,7 @@ export async function persistLocationExtraction(
       const { data: updatedProfile, error: updateError } = await supabase
         .from("company_profiles")
         .update(metadataPayload)
-        .eq("user_id", userId)
+        .eq("user_id", await getBusinessProfileUserId(userId))
         .select("id")
         .single();
 
@@ -186,7 +187,7 @@ export async function persistLocationExtraction(
       const { data: updatedProfile, error: updateError } = await supabase
         .from("company_profiles")
         .update(updatePayload)
-        .eq("user_id", userId)
+        .eq("user_id", await getBusinessProfileUserId(userId))
         .select("id")
         .single();
 
@@ -277,7 +278,7 @@ export async function confirmLocationSelection(
     const { error } = await supabase
       .from("company_profiles")
       .update(updatePayload)
-      .eq("user_id", userId);
+      .eq("user_id", await getBusinessProfileUserId(userId));
 
     if (error) {
       console.error("❌ Error confirming location:", error);
@@ -304,7 +305,7 @@ export async function checkLocationConfirmationNeeded(userId: string): Promise<{
       .select(
         "location_needs_confirmation, location_detection_candidates, postal_code",
       )
-      .eq("user_id", userId)
+      .eq("user_id", await getBusinessProfileUserId(userId))
       .maybeSingle();
 
     if (error || !profile) {

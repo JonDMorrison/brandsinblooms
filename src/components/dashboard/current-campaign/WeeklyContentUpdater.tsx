@@ -14,6 +14,7 @@ import {
 import { cleanupDuplicateContent } from "@/utils/contentCleanup";
 import "@/utils/globalToastReplace";
 import { TASK_STATUS } from "@/constants/taskStatus";
+import { getBusinessProfileUserId } from "@/lib/profile/businessProfileUserId";
 
 export const WeeklyContentUpdater = () => {
   const { user } = useAuth();
@@ -74,7 +75,7 @@ export const WeeklyContentUpdater = () => {
         const { data: companyProfile } = await supabase
           .from("company_profiles")
           .select("company_name")
-          .eq("user_id", user.id)
+          .eq("user_id", await getBusinessProfileUserId(user.id))
           .single();
 
         const themeData = await generateMeaningfulTheme(
@@ -86,7 +87,7 @@ export const WeeklyContentUpdater = () => {
         let existingCampaignQuery = supabase
           .from("campaigns")
           .select("id, title, theme, week_number, description")
-          .eq("user_id", user.id)
+          .eq("user_id", await getBusinessProfileUserId(user.id))
           .eq("title", themeData.title);
 
         if (tenant?.id) {

@@ -34,6 +34,7 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { getBusinessProfileUserId } from "@/lib/profile/businessProfileUserId";
 
 type AccountTabValue = "general" | "business" | "billing" | "usage" | "danger";
 type LoadStatus = "idle" | "loading" | "ready";
@@ -304,7 +305,7 @@ const AccountPage = () => {
         const { data: profile, error } = await supabase
           .from("company_profiles")
           .select("feature_flags, compliance_settings")
-          .eq("user_id", user.id)
+          .eq("user_id", await getBusinessProfileUserId(user.id))
           .maybeSingle();
 
         if (error) {
@@ -377,7 +378,7 @@ const AccountPage = () => {
       const { data: profile, error } = await supabase
         .from("company_profiles")
         .select("company_name, company_phone, company_email")
-        .eq("user_id", user.id)
+        .eq("user_id", await getBusinessProfileUserId(user.id))
         .maybeSingle();
 
       if (error) {
@@ -475,7 +476,7 @@ const AccountPage = () => {
         await supabase
           .from("company_profiles")
           .select("feature_flags, compliance_settings")
-          .eq("user_id", user.id)
+          .eq("user_id", await getBusinessProfileUserId(user.id))
           .maybeSingle();
 
       if (existingProfileError) {
@@ -506,7 +507,7 @@ const AccountPage = () => {
             feature_flags: updatedFeatureFlags,
             compliance_settings: updatedComplianceSettings,
           })
-          .eq("user_id", user.id);
+          .eq("user_id", await getBusinessProfileUserId(user.id));
 
         if (error) {
           throw error;
@@ -545,11 +546,12 @@ const AccountPage = () => {
     setIsSavingBusiness(true);
 
     try {
+      const profileUserId = await getBusinessProfileUserId(user.id);
       const { data: existingProfile, error: existingProfileError } =
         await supabase
           .from("company_profiles")
           .select("id")
-          .eq("user_id", user.id)
+          .eq("user_id", profileUserId)
           .maybeSingle();
 
       if (existingProfileError) {
@@ -557,7 +559,7 @@ const AccountPage = () => {
       }
 
       const profilePayload = {
-        user_id: user.id,
+        user_id: profileUserId,
         company_name: businessData.companyName || null,
         company_phone: businessData.companyPhone || null,
         company_email: businessData.companyEmail || null,

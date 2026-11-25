@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { getBusinessProfileUserId } from "@/lib/profile/businessProfileUserId";
 
 export interface CouponConfig {
   prefix?: string;
@@ -41,7 +42,7 @@ export class CouponManager {
       const { data: companyProfile } = await supabase
         .from('company_profiles')
         .select('company_name')
-        .eq('user_id', user.id)
+        .eq('user_id', await getBusinessProfileUserId(user.id))
         .single();
 
       const prefix = config.prefix || 

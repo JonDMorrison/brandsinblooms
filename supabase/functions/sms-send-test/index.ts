@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { renderMergeTags, convertLegacyTags, createMergeTagDataFromCustomer, MergeTagData } from "../_shared/mergeTagEngine.ts";
 import { keepSmsEncoding } from "../_shared/smsSegmentCounter.ts";
+import { resolveBusinessProfileUserId } from "../_shared/businessProfileUserId.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -135,10 +136,11 @@ async function handler(req: Request): Promise<Response> {
     }
 
     // Get company info
+    const profileUserId = await resolveBusinessProfileUserId(supabase, user.id);
     const { data: companyProfile } = await supabase
       .from('company_profiles')
       .select('company_name, company_phone, company_email, website_url, test_numbers')
-      .eq('user_id', user.id)
+      .eq('user_id', profileUserId)
       .maybeSingle();
 
     const companyInfo = companyProfile || {};

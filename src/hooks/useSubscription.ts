@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { getBusinessProfileUserId } from "@/lib/profile/businessProfileUserId";
 
 interface Subscription {
   plan: string;
@@ -37,7 +38,7 @@ export const useSubscription = () => {
           .select(
             "plan, max_posts_per_month, max_connections, end_date, created_at, crm_enabled, sms_enabled, contacts_limit, email_quota, sms_quota, email_usage, sms_usage, email_overage_price, sms_overage_price, stripe_subscription_item_id",
           )
-          .eq("user_id", user.id)
+          .eq("user_id", await getBusinessProfileUserId(user.id))
           .order("created_at", { ascending: false });
 
         if (error) throw error;

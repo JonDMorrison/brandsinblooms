@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { DisplayMedium, BodyLarge } from "@/components/ui-legacy/typography";
 import { extractCompanyName } from "@/utils/companyNameUtils";
 import { isSuperAdmin } from "@/utils/adminUtils";
+import { getBusinessProfileUserId } from "@/lib/profile/businessProfileUserId";
 
 interface WelcomeSectionProps {
   onboardingData: any;
@@ -36,7 +37,7 @@ export const WelcomeSection = ({
         const { data: profile, error } = await supabase
           .from("company_profiles")
           .select("company_name")
-          .eq("user_id", user.id)
+          .eq("user_id", await getBusinessProfileUserId(user.id))
           .maybeSingle();
 
         if (error) {

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { resolveBusinessProfileUserId } from "../_shared/businessProfileUserId.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -288,12 +289,14 @@ serve(async (req) => {
 
     console.log(`🌍 Deriving climate profile for postal_code=${postal_code}, country=${country_code}, user=${user_id}`);
 
+    const profileUserId = await resolveBusinessProfileUserId(supabase, user_id);
+
     // Check if we already have a recent climate profile (skip if force_refresh)
     if (!force_refresh) {
       const { data: existingProfile } = await supabase
         .from('company_profiles')
         .select('climate_archetype, climate_last_updated_at, postal_code')
-        .eq('user_id', user_id)
+        .eq('user_id', profileUserId)
         .maybeSingle();
 
       if (existingProfile?.climate_archetype && 
@@ -362,7 +365,7 @@ serve(async (req) => {
     const { error: updateError } = await supabase
       .from('company_profiles')
       .update(updateData)
-      .eq('user_id', user_id);
+      .eq('user_id', profileUserId);
 
     if (updateError) {
       console.error(`❌ Failed to update company profile:`, updateError);
