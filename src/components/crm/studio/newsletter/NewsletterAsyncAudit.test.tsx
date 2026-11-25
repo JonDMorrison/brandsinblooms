@@ -47,9 +47,12 @@ describe("graphic hero image upload", () => {
       expect(update).toHaveBeenCalledWith(block.id, "imageUrl", "https://example.com/hero-upload.png"),
     );
     view.rerender(<SharedEmailBlockPreview block={{ ...block, imageUrl: "https://example.com/hero-upload.png" }} onUpdateBlockField={update} />);
-    const background = view.container.querySelector('.nl-preview td[background="https://example.com/hero-upload.png"]');
-    expect(background).toBeVisible();
-    expect((background as HTMLElement).style.backgroundSize).toBe("contain");
+    // "Show whole photo" with nothing over it renders the photo itself at its
+    // own proportions, capped at Max Height (no letterboxed background box).
+    const photo = view.container.querySelector<HTMLImageElement>('.nl-preview img[src="https://example.com/hero-upload.png"]');
+    expect(photo).toBeVisible();
+    expect(photo!.style.objectFit).toBe("contain");
+    expect(photo!.style.maxHeight).toBe(`${block.maxHeight ?? 400}px`);
     click.mockRestore();
     view.unmount();
   });
