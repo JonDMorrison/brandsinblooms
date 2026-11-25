@@ -32,6 +32,39 @@ export const getWeekDateRange = (weekNumber: number, year: number) => {
   return { startDate: weekStartDate, endDate: weekEndDate };
 };
 
+/**
+ * yyyy-mm-dd of `date` as a local calendar date. Use this for date columns
+ * instead of `toISOString().split("T")[0]`, which gives the UTC date (on a
+ * Sunday evening in North America that is already Monday).
+ */
+export const toLocalDateString = (date: Date) => {
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${date.getFullYear()}-${month}-${day}`;
+};
+
+/** ISO week-numbering year of the local calendar date (the year of its Thursday). */
+export const getISOWeekYear = (date: Date) => {
+  const thursday = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  thursday.setDate(thursday.getDate() + 3 - ((thursday.getDay() + 6) % 7));
+  return thursday.getFullYear();
+};
+
+/**
+ * Monday (local yyyy-mm-dd) of ISO week `weekNumber` in its next occurrence:
+ * this ISO year when the week is the current week or later, otherwise next ISO
+ * year. Gives a rolling calendar starting at the current week, as
+ * public.copy_master_templates_to_campaigns does. The ISO week of the returned
+ * date is `weekNumber` (campaigns_week_date_consistency) for weeks 1-52, and
+ * for week 53 when that ISO year has one.
+ */
+export const getNextISOWeekStartDate = (weekNumber: number, today: Date = new Date()) => {
+  const currentIsoYear = getISOWeekYear(today);
+  const isoYear =
+    weekNumber < getISOWeekNumber(today) ? currentIsoYear + 1 : currentIsoYear;
+  return toLocalDateString(getWeekDateRange(weekNumber, isoYear).startDate);
+};
+
 // Get the date for a specific week number in the current year
 export const getDateForWeek = (weekNumber: number, year = new Date().getFullYear()) => {
   const { startDate } = getWeekDateRange(weekNumber, year);

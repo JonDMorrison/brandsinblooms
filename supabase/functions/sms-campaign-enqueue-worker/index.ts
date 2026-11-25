@@ -339,11 +339,19 @@ Deno.serve(async (req) => {
       let customersError: any = null;
 
       if (isSystemSegment) {
-        // Build system segment query
+        // Build system segment query. Perks members are defined as in
+        // count_sms_campaign_recipients: this tenant's customers with a
+        // customer_loyalty_metrics row where is_perks_member. The loyalty row
+        // is joined (one-to-one on customer_id) so the filter is tenant-scoped
+        // and pages by id with the rest of the query, rather than loading
+        // every tenant's perks ids up front (capped at 1,000 rows by PostgREST).
+        const isPerksSegment = systemSegmentType === "perks-members";
         let query = supabase
           .from("crm_customers")
           .select(
-            "id, first_name, last_name, phone, email, custom_fields, lifetime_value, total_spent, tags, is_vip",
+            isPerksSegment
+              ? "id, first_name, last_name, phone, email, custom_fields, lifetime_value, total_spent, tags, is_vip, customer_loyalty_metrics!inner(is_perks_member)"
+              : "id, first_name, last_name, phone, email, custom_fields, lifetime_value, total_spent, tags, is_vip",
           )
           .eq("tenant_id", campaign.tenant_id)
           .is("deleted_at", null)
@@ -369,19 +377,9 @@ Deno.serve(async (req) => {
             query = query.gte("pos_order_count", 3);
             break;
           case "perks-members":
-            // Special handling for perks members - need to get IDs first
-            const { data: perksCustomerIds } = await supabase
-              .from("customer_loyalty_metrics")
-              .select("customer_id")
-              .eq("is_perks_member", true);
-
-            if (perksCustomerIds && perksCustomerIds.length > 0) {
-              const ids = perksCustomerIds.map((p) => p.customer_id);
-              query = query.in("id", ids);
-            } else {
-              customers = [];
-              break;
-            }
+            // Joined above. With no perks members the page is simply empty;
+            // it never falls through to every subscriber.
+            query = query.eq("customer_loyalty_metrics.is_perks_member", true);
             break;
           // Default: all SMS-enabled customers
         }

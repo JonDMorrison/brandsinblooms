@@ -53,4 +53,17 @@ describe("crm_customers order count column", () => {
       );
     }
   });
+
+  it("pages Perks Members in the enqueue worker through a tenant-scoped join", () => {
+    const worker = readFileSync(
+      "supabase/functions/sms-campaign-enqueue-worker/index.ts",
+      "utf8",
+    );
+    // No unscoped, unpaged read of every tenant's loyalty rows.
+    expect(worker).not.toMatch(/\.from\(["']customer_loyalty_metrics["']\)/);
+    expect(worker).toContain("customer_loyalty_metrics!inner(is_perks_member)");
+    expect(worker).toMatch(
+      /case ["']perks-members["']:[\s\S]{0,200}query = query\.eq\(["']customer_loyalty_metrics\.is_perks_member["'], true\);/,
+    );
+  });
 });
