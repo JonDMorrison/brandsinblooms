@@ -138,6 +138,12 @@ export function createStudioBlock(
         headingLevel: "h2",
         appearance: { padding: { top: 16, right: 24, bottom: 16, left: 24 } },
       };
+    case "html":
+      return {
+        ...base,
+        customHtml: "",
+        appearance: { padding: { top: 16, right: 24, bottom: 16, left: 24 } },
+      };
     case "youtube":
       return {
         ...base,

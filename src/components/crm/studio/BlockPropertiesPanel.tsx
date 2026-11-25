@@ -2083,6 +2083,7 @@ function PanelContent({
       "preheader",
       "headline",
       "youtube",
+      "html",
       "navigation",
       "button-group",
       "text-columns",

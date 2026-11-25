@@ -21,6 +21,8 @@ import { useNewsletterDesign } from "./NewsletterDesignContext";
 import { upcAImage } from "@/lib/studio/newsletter/barcode";
 import { couponUsesOldPrice, couponUsesPrice, validUpcA } from "@/lib/studio/newsletter/renderExtensions";
 import { chartDataTextFor, parseChartDataText } from "@/lib/studio/newsletter/chartData";
+import { sanitizeEmailHtmlWithReport } from "@/lib/studio/newsletter/emailHtmlSanitizer";
+
 
 type Update = (
   field: keyof StudioBlock,
@@ -1039,6 +1041,44 @@ export default function ExtendedBlockProperties({
         </>
       );
       break;
+    case "html": {
+      const raw = block.customHtml ?? "";
+      const { removed } = sanitizeEmailHtmlWithReport(raw);
+      content = (
+        <>
+          <label className="nl-field">
+            <span>HTML code</span>
+            <textarea
+              value={raw}
+              rows={12}
+              spellCheck={false}
+              aria-label="HTML code"
+              placeholder={'<table role="presentation" width="100%">\n  <tr><td style="padding:16px">Your content</td></tr>\n</table>'}
+              style={{ fontFamily: "Menlo, Consolas, monospace", fontSize: 12, lineHeight: 1.5 }}
+              onChange={(event) => update("customHtml", event.target.value)}
+            />
+          </label>
+          {removed.length > 0 && (
+            <div role="note" className="nl-note" style={{ color: "#8a4b00" }}>
+              Left out of the preview and the email (not safe or not supported
+              in email):
+              <ul style={{ margin: "4px 0 0", paddingLeft: 18 }}>
+                {removed.slice(0, 8).map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+                {removed.length > 8 && <li>and {removed.length - 8} more</li>}
+              </ul>
+            </div>
+          )}
+          <p className="nl-note">
+            Tables, images, links, headings, lists and inline styles work in
+            email. Use full https:// addresses for links and images. Email
+            apps ignore &lt;style&gt; blocks and scripts, so put styles inline.
+          </p>
+        </>
+      );
+      break;
+    }
     case "youtube":
       content = (
         <>

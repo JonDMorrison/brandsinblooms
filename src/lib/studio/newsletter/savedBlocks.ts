@@ -35,6 +35,7 @@ export function readSavedBlock(value: unknown): StudioBlock | null {
         "tableCaption",
         "chartUnit",
         "videoUrl",
+        "customHtml",
         "eventDate",
         "eventLocation",
         "headerBannerUrl",
