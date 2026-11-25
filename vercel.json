@@ -2524,6 +2524,10 @@
     {"source": "/care-guides", "destination": "/care-guides-marketing.html"},
     {"source": "/care-guides/", "destination": "/care-guides-marketing.html"},
     {
+      "source": "/images/:path*",
+      "destination": "/api/static-asset-not-found"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
