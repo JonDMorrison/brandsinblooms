@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { getBusinessProfileUserId } from "@/lib/profile/businessProfileUserId";
 
 export interface LocationValidationResult {
   isValid: boolean;
@@ -18,7 +19,7 @@ export const validateLocationConfirmation = async (userId: string): Promise<Loca
     const { data: profile, error: fetchError } = await supabase
       .from('company_profiles')
       .select('postal_code, location_needs_confirmation')
-      .eq('user_id', userId)
+      .eq('user_id', await getBusinessProfileUserId(userId))
       .maybeSingle();
 
     if (fetchError) {

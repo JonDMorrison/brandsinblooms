@@ -14,6 +14,7 @@ import {
   isTestAccount,
   ensureTestAccountHasProAccess,
 } from "@/utils/testAccountUtils";
+import { getBusinessProfileUserId } from "@/lib/profile/businessProfileUserId";
 
 type SubscriptionPlan =
   | "free_trial"
@@ -255,7 +256,8 @@ export const SubscriptionProvider = ({
         .select(
           "id, plan, tier, start_date, end_date, billing_interval, created_at, updated_at",
         )
-        .eq("user_id", user.id)
+        // Teammates use their business's subscription (the owner's).
+        .eq("user_id", await getBusinessProfileUserId(user.id))
         .order("created_at", { ascending: false })
         .limit(5); // Limit results
 

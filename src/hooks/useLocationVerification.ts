@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { confirmLocationSelection, persistLocationExtraction } from '@/lib/location';
 import { LOCATION_BLOCKING_QUERY_KEY } from './useLocationBlockingGuard';
+import { getBusinessProfileUserId } from "@/lib/profile/businessProfileUserId";
 
 interface LocationData {
   postalCode?: string | null;
@@ -100,7 +101,7 @@ export const useLocationVerification = (): UseLocationVerificationReturn => {
           location_needs_confirmation,
           website_url
         `)
-        .eq('user_id', user.id)
+        .eq('user_id', await getBusinessProfileUserId(user.id))
         .maybeSingle();
 
       if (error) {

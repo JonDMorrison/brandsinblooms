@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { MediaSelector } from "@/components/image/MediaSelector";
 import { toast } from "sonner";
+import { getBusinessProfileUserId } from "@/lib/profile/businessProfileUserId";
 
 interface SocialMediaPostPreviewProps {
   content: string;
@@ -227,7 +228,7 @@ export const SocialMediaPostPreview = ({
       const { data, error } = await supabase
         .from("company_profiles")
         .select("company_name")
-        .eq("user_id", user.id)
+        .eq("user_id", await getBusinessProfileUserId(user.id))
         .maybeSingle();
 
       if (error) {

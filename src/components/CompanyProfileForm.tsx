@@ -220,8 +220,10 @@ export const CompanyProfileForm = ({
     setIsSaving(true);
     try {
       // Only send columns that exist in company_profiles (exclude mission_statement)
+      // On update, keep the row's owner: a teammate edits their business's
+      // profile, which belongs to the tenant owner.
       const payload = {
-        user_id: user.id,
+        user_id: profile?.user_id ?? user.id,
         company_name: formData.company_name || null,
         company_phone: formData.company_phone || null,
         company_overview: formData.company_overview || null,

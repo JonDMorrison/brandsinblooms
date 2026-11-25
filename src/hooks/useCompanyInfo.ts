@@ -5,6 +5,7 @@ import type {
   BrandFooterColors,
   CompanyInfo,
 } from "@/types/company";
+import { getBusinessProfileUserId } from "@/lib/profile/businessProfileUserId";
 
 // Re-exported so existing consumers can keep importing these from the hook.
 export type { BrandFooterColors, CompanyInfo };
@@ -104,7 +105,7 @@ export const useCompanyInfo = () => {
           )
         `,
           )
-          .eq("user_id", targetUserId)
+          .eq("user_id", await getBusinessProfileUserId(targetUserId))
           .maybeSingle();
 
         if (!isMountedRef.current || requestId !== loadRequestIdRef.current) {
@@ -292,25 +293,31 @@ export const useCompanyInfo = () => {
         return;
       }
 
-      const channel = supabase
-        .channel(`company-profile-changes-${userId}`)
-        .on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table: "company_profiles",
-            filter: `user_id=eq.${userId}`,
-          },
-          () => {
-            // Reload company info to get updated font data
-            void loadCompanyInfo(userId);
-          },
-        )
-        .subscribe();
-
-      channelRef.current = channel;
       connectTimerId = null;
+      // Teammates follow their business's profile, which belongs to the
+      // tenant owner.
+      void getBusinessProfileUserId(userId).then((profileUserId) => {
+        if (isDisposed || channelRef.current) {
+          return;
+        }
+
+        channelRef.current = supabase
+          .channel(`company-profile-changes-${userId}`)
+          .on(
+            "postgres_changes",
+            {
+              event: "*",
+              schema: "public",
+              table: "company_profiles",
+              filter: `user_id=eq.${profileUserId}`,
+            },
+            () => {
+              // Reload company info to get updated font data
+              void loadCompanyInfo(userId);
+            },
+          )
+          .subscribe();
+      });
     };
 
     connectTimerId = window.setTimeout(

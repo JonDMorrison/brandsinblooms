@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { getCompanyInitials } from "@/types/newsletterFooter";
 import { cn } from "@/lib/utils";
+import { getBusinessProfileUserId } from "@/lib/profile/businessProfileUserId";
 
 const COLOR_PRESETS = [
   {
@@ -127,7 +128,7 @@ export const BrandColorsSettings: React.FC = () => {
         .select(
           "brand_primary_color, brand_secondary_color, brand_accent_color, brand_text_color, feature_flags, company_name",
         )
-        .eq("user_id", user.id)
+        .eq("user_id", await getBusinessProfileUserId(user.id))
         .maybeSingle();
 
       if (error) {
@@ -173,7 +174,7 @@ export const BrandColorsSettings: React.FC = () => {
       const { data: profile } = await supabase
         .from("company_profiles")
         .select("feature_flags")
-        .eq("user_id", user.id)
+        .eq("user_id", await getBusinessProfileUserId(user.id))
         .single();
 
       const currentFlags = (profile?.feature_flags as any) || {};
@@ -190,7 +191,7 @@ export const BrandColorsSettings: React.FC = () => {
             footer_colors: footerColors,
           },
         })
-        .eq("user_id", user.id);
+        .eq("user_id", await getBusinessProfileUserId(user.id));
 
       if (error) throw error;
 
@@ -290,7 +291,7 @@ export const BrandColorsSettings: React.FC = () => {
       const { data: profile } = await supabase
         .from("company_profiles")
         .select("feature_flags")
-        .eq("user_id", user.id)
+        .eq("user_id", await getBusinessProfileUserId(user.id))
         .single();
 
       const currentFlags = (profile?.feature_flags as any) || {};
@@ -304,7 +305,7 @@ export const BrandColorsSettings: React.FC = () => {
             company_logo_url: publicUrl,
           },
         })
-        .eq("user_id", user.id);
+        .eq("user_id", await getBusinessProfileUserId(user.id));
 
       if (updateError) throw updateError;
 
@@ -337,7 +338,7 @@ export const BrandColorsSettings: React.FC = () => {
       const { data: profile } = await supabase
         .from("company_profiles")
         .select("feature_flags")
-        .eq("user_id", user.id)
+        .eq("user_id", await getBusinessProfileUserId(user.id))
         .single();
 
       const currentFlags = (profile?.feature_flags as any) || {};
@@ -349,7 +350,7 @@ export const BrandColorsSettings: React.FC = () => {
         .update({
           feature_flags: currentFlags,
         })
-        .eq("user_id", user.id);
+        .eq("user_id", await getBusinessProfileUserId(user.id));
 
       if (error) throw error;
 

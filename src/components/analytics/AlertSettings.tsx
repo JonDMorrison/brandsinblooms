@@ -9,6 +9,7 @@ import { Checkbox } from '@/components/ui-legacy/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Bell, Mail, MessageSquare } from 'lucide-react';
+import { getBusinessProfileUserId } from "@/lib/profile/businessProfileUserId";
 
 interface AlertRule {
   rule_type: 'high_roi' | 'low_roi' | 'high_redemption' | 'low_ctr';
@@ -80,7 +81,7 @@ export const AlertSettings = () => {
       const { data: companyProfile } = await supabase
         .from('company_profiles')
         .select('compliance_settings')
-        .eq('user_id', user.id)
+        .eq('user_id', await getBusinessProfileUserId(user.id))
         .single();
 
       const currentSettings = (companyProfile?.compliance_settings as any) || {};
@@ -93,7 +94,7 @@ export const AlertSettings = () => {
             alert_rules: alertRules
           }
         })
-        .eq('user_id', user.id);
+        .eq('user_id', await getBusinessProfileUserId(user.id));
 
       if (error) throw error;
 

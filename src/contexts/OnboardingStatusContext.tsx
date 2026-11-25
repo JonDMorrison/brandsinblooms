@@ -10,6 +10,7 @@ import type { ReactNode } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
+import { getBusinessProfileUserId } from "@/lib/profile/businessProfileUserId";
 
 const CACHE_KEY_PREFIX = "onboarding-completed:";
 
@@ -104,7 +105,7 @@ export const OnboardingStatusProvider = ({
           .select(
             "onboarding_completed_at, company_name, first_content_generated",
           )
-          .eq("user_id", user.id)
+          .eq("user_id", await getBusinessProfileUserId(user.id))
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle();

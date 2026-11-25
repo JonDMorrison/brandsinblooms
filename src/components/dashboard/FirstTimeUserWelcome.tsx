@@ -5,6 +5,7 @@ import { Sparkles, CheckCircle, ArrowRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenant } from "@/hooks/useTenant";
+import { getBusinessProfileUserId } from "@/lib/profile/businessProfileUserId";
 
 interface FirstTimeUserWelcomeProps {
   onGetStarted: () => void;
@@ -35,10 +36,10 @@ export const FirstTimeUserWelcome = ({
         if (tenant?.id) {
           // In tenant model, we might need to look for tenant-level settings
           // For now, we'll still check the user who created the tenant
-          profileQuery = profileQuery.eq("user_id", user.id);
+          profileQuery = profileQuery.eq("user_id", await getBusinessProfileUserId(user.id));
         } else {
           // User-based query
-          profileQuery = profileQuery.eq("user_id", user.id);
+          profileQuery = profileQuery.eq("user_id", await getBusinessProfileUserId(user.id));
         }
 
         const { data: profile, error } = await profileQuery.maybeSingle();
@@ -87,7 +88,7 @@ export const FirstTimeUserWelcome = ({
       const { error } = await supabase
         .from("company_profiles")
         .update({ first_welcome_dismissed: true })
-        .eq("user_id", user.id);
+        .eq("user_id", await getBusinessProfileUserId(user.id));
 
       if (error) {
         console.error("Error updating welcome dismissed status:", error);

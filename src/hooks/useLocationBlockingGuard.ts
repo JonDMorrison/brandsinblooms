@@ -1,6 +1,7 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
+import { getBusinessProfileUserId } from "@/lib/profile/businessProfileUserId";
 
 interface LocationBlockingStatus {
   isBlocked: boolean;
@@ -35,7 +36,7 @@ export const useLocationBlockingGuard = () => {
       const { data: profile, error } = await supabase
         .from('company_profiles')
         .select('postal_code, location_needs_confirmation, onboarding_completed_at')
-        .eq('user_id', user.id)
+        .eq('user_id', await getBusinessProfileUserId(user.id))
         .maybeSingle();
 
       if (error || !profile) {

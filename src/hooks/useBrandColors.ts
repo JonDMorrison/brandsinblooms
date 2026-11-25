@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { getBusinessProfileUserId } from "@/lib/profile/businessProfileUserId";
 
 export interface BrandColors {
   primary: string;
@@ -30,7 +31,7 @@ export function useBrandColors() {
       const { data, error } = await supabase
         .from('company_profiles')
         .select('brand_primary_color, brand_secondary_color, brand_accent_color, brand_text_color')
-        .eq('user_id', user.id)
+        .eq('user_id', await getBusinessProfileUserId(user.id))
         .maybeSingle();
 
       if (error || !data) {
@@ -58,7 +59,7 @@ export async function fetchBrandColors(userId: string): Promise<BrandColors> {
   const { data, error } = await supabase
     .from('company_profiles')
     .select('brand_primary_color, brand_secondary_color, brand_accent_color, brand_text_color')
-    .eq('user_id', userId)
+    .eq('user_id', await getBusinessProfileUserId(userId))
     .maybeSingle();
 
   if (error || !data) {

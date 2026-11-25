@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTenant } from '@/hooks/useTenant';
 import { supabase } from '@/integrations/supabase/client';
+import { getBusinessProfileUserId } from "@/lib/profile/businessProfileUserId";
 
 export interface SetupStep {
   id: string;
@@ -71,7 +72,7 @@ export const useAccountSetupProgress = () => {
       const { data: profile } = await supabase
         .from('company_profiles')
         .select('brand_primary_color, brand_secondary_color, company_name, company_overview, brand_voice, feature_flags')
-        .eq('user_id', user.id)
+        .eq('user_id', await getBusinessProfileUserId(user.id))
         .maybeSingle();
 
       // Check POS connections

@@ -16,6 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
 import { isSuperAdmin } from "@/utils/adminUtils";
+import { getBusinessProfileUserId } from "@/lib/profile/businessProfileUserId";
 
 interface EditableBusinessNameProps {
   businessName: string;
@@ -41,14 +42,22 @@ export const EditableBusinessName = ({
     
     try {
       // Update company profile with new business name
-      const { error: profileError } = await supabase
-        .from('company_profiles')
-        .upsert({
-          user_id: user.id,
-          company_name: newName.trim()
-        }, {
-          onConflict: 'user_id'
-        });
+      // A teammate edits their business's profile, which belongs to the
+      // tenant owner; only a user's own row may be created here.
+      const profileUserId = await getBusinessProfileUserId(user.id);
+      const { error: profileError } = profileUserId === user.id
+        ? await supabase
+            .from('company_profiles')
+            .upsert({
+              user_id: user.id,
+              company_name: newName.trim()
+            }, {
+              onConflict: 'user_id'
+            })
+        : await supabase
+            .from('company_profiles')
+            .update({ company_name: newName.trim() })
+            .eq('user_id', profileUserId);
 
       if (profileError) {
         console.error('Error updating company profile:', profileError);

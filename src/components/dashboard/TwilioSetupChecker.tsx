@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { getBusinessProfileUserId } from "@/lib/profile/businessProfileUserId";
 
 export const useTwilioSetup = () => {
   const { user } = useAuth();
@@ -14,7 +15,7 @@ export const useTwilioSetup = () => {
       const { data: profileData } = await supabase
         .from('company_profiles')
         .select('feature_flags')
-        .eq('user_id', user.id)
+        .eq('user_id', await getBusinessProfileUserId(user.id))
         .single();
 
       const isSetupCompleted = (profileData?.feature_flags as any)?.sms_setup_completed === true;

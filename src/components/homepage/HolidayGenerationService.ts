@@ -5,6 +5,7 @@ import {
   validateHolidayContent,
 } from "./HolidayPromptBuilder";
 import { attachImagesToTask } from "@/services/contentGenerationHelpers";
+import { getBusinessProfileUserId } from "@/lib/profile/businessProfileUserId";
 
 const contentTypes = ["instagram", "facebook", "blog", "video", "newsletter"];
 
@@ -22,7 +23,7 @@ export async function generateHolidayContent(
     const { data: profileData } = await supabase
       .from("company_profiles")
       .select("*")
-      .eq("user_id", user.id)
+      .eq("user_id", await getBusinessProfileUserId(user.id))
       .single();
     companyProfile = profileData;
   }

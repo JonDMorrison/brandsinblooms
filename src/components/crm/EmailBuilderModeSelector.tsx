@@ -17,6 +17,7 @@ import {
   Settings,
   X
 } from 'lucide-react';
+import { getBusinessProfileUserId } from "@/lib/profile/businessProfileUserId";
 
 interface EmailBuilderModeSelectorProps {
   onModeSelect: (mode: 'simple' | 'advanced') => void;
@@ -45,7 +46,7 @@ export const EmailBuilderModeSelector: React.FC<EmailBuilderModeSelectorProps> =
         const { data: profile } = await supabase
           .from('company_profiles')
           .select('feature_flags')
-          .eq('user_id', user.id)
+          .eq('user_id', await getBusinessProfileUserId(user.id))
           .single();
         
         const featureFlags = profile?.feature_flags as any;
@@ -89,7 +90,7 @@ export const EmailBuilderModeSelector: React.FC<EmailBuilderModeSelectorProps> =
               email_builder_mode: mode
             }
           })
-          .eq('user_id', user.id);
+          .eq('user_id', await getBusinessProfileUserId(user.id));
         
         if (error) throw error;
         toast.success('Email builder preference saved!');
@@ -127,7 +128,7 @@ export const EmailBuilderModeSelector: React.FC<EmailBuilderModeSelectorProps> =
               email_builder_mode: null
             }
           })
-          .eq('user_id', user.id);
+          .eq('user_id', await getBusinessProfileUserId(user.id));
         
         if (error) throw error;
       }

@@ -8,6 +8,7 @@ import { LocationVerificationCard } from '@/components/location';
 import { useLocationVerification } from '@/hooks/useLocationVerification';
 import { ClimateProfileCard } from '@/components/location/ClimateProfileCard';
 import { useClimateProfile } from '@/hooks/useClimateProfile';
+import { getBusinessProfileUserId } from "@/lib/profile/businessProfileUserId";
 
 export const BusinessProfileSettings = () => {
   const { user } = useAuth();
@@ -43,7 +44,7 @@ export const BusinessProfileSettings = () => {
       const { data, error } = await supabase
         .from('company_profiles')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', await getBusinessProfileUserId(user.id))
         .maybeSingle();
 
       if (error) {

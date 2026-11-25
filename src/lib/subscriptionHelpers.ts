@@ -1,11 +1,12 @@
 import { supabase } from "@/integrations/supabase/client";
+import { getBusinessProfileUserId } from "@/lib/profile/businessProfileUserId";
 
 export async function isBloomEligible(userId: string): Promise<boolean> {
   try {
     const { data, error } = await supabase
       .from("subscriptions")
       .select("plan, tier, end_date")
-      .eq("user_id", userId)
+      .eq("user_id", await getBusinessProfileUserId(userId))
       .order("created_at", { ascending: false });
 
     if (error) {
