@@ -21,7 +21,7 @@ These are **historical observations**, not an instruction to activate credential
 
 ## Security and authorization
 
-- The Slack event receiver verifies `X-Slack-Signature` against the raw request body using a five-minute timestamp window. Only matching workspace, known channel and exact allowlisted Slack user IDs may enqueue a question. A signed `app_mention` can start a conversation; a normal `message` can only continue a durable known thread. Ordinary channel conversation must not be ingested.
+- The Slack event receiver verifies `X-Slack-Signature` against the raw request body using a five-minute timestamp window. Only matching workspace, known channel and exact allowlisted Slack user IDs may enqueue a question. A signed `app_mention` can start a conversation. In `#ask-bloom` only, a top-level allowlisted staff post (no thread, no subtype, not a bot) also starts one, with no mention needed. Everywhere else a normal `message` can only continue a durable known thread, and ordinary channel conversation must not be ingested. A post that arrives as both `app_mention` and `message` creates one job: the enqueue is keyed on channel and message `ts`.
 - The bot never authorizes changes to funds, accounts, roles, access, mailings, customer records or deployments from a Slack message.
 - Github and CMS webhooks use separate signed receivers. Only three company GitHub repositories are accepted. Never include raw PR bodies, email addresses, private customer records, payment information, or proposals in Slack.
 - Feature answers use the service-role-only bounded SQL summary function; acceptance or planning does not mean the feature shipped. Project answers use a signed, read-only CMS operations bridge and a narrow field allowlist.

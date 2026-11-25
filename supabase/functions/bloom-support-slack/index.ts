@@ -1,12 +1,12 @@
-// Event-driven Ask Bloom channel: signed Slack mentions -> existing leased worker.
+// Event-driven Ask Bloom channel: signed Slack mentions (and top-level staff posts in
+// #ask-bloom) -> existing leased worker.
 // Known-thread continuation, read-only evidence and visible progress.
 import { db, env } from "../_shared/bloom-support/runtime.ts";
 import { verifySlackWebhook } from "../_shared/bloom-support/webhook-auth.ts";
 import { wakeSlackWorker } from "../_shared/bloom-support/slack-worker-wake.ts";
-import { slackQuestionText } from "../_shared/bloom-support/slack-question.ts";
 import { parseSlackDecision, slackDecisionReceipt } from "../_shared/bloom-support/slack-decisions.ts";
 import { postDecisionReceipt } from "../_shared/bloom-support/slack-decision-delivery.ts";
-import { slackQuestionRoute } from "../_shared/bloom-support/slack-questions.ts";
+import { slackIntake } from "../_shared/bloom-support/slack-intake.ts";
 
 declare const EdgeRuntime: { waitUntil(promise: Promise<unknown>): void } | undefined;
 
@@ -58,33 +58,14 @@ Deno.serve(async (req) => {
   if (data.type !== "event_callback") return json({ok:true,ignored:true});
   if (typeof data.team_id !== "string" || !env("BLOOM_SUPPORT_SLACK_TEAM_ID") ||
       data.team_id !== env("BLOOM_SUPPORT_SLACK_TEAM_ID")) return json({ok:true,ignored:true});
-  const event = data.event as Record<string, unknown> | undefined;
-  const route = slackQuestionRoute(event?.channel);
-  if (!event || !["app_mention","message"].includes(String(event.type)) || !route ||
-      event.bot_id || event.subtype) return json({ok:true,ignored:true});
-  if (typeof event.user !== "string" || !/^[UW][A-Z0-9]{8,24}$/.test(event.user))
-    return json({ok:true,ignored:true});
-  // Slack user ID, not email or display name, is the identity boundary.
+  // Route, staff allowlist, #ask-bloom top-level posts and thread continuation rules
+  // live in slackIntake (unit-tested). Duplicate mention+message events for one post
+  // collapse to one job on the SQL idempotency key (channel + message ts).
   const staff = (env("BLOOM_SUPPORT_SLACK_STAFF_IDS") ?? "").split(",").map(x=>x.trim());
-  if (!staff.includes(event.user)) return json({ok:true,ignored:true});
-  const eventId = typeof data.event_id === "string" ? data.event_id : "";
-  const ts = typeof event.ts === "string" ? event.ts : "";
-  if (!/^[A-Za-z0-9_-]{8,100}$/.test(eventId) ||
-      !/^\d{10}\.\d{6}$/.test(ts)) return json({error:"invalid"},400);
-  // Messages are untrusted user input. Never let a Slack message authorize an operation.
-  const question = slackQuestionText(event.text);
-  if (!question.length) return json({ok:true,ignored:true});
-  const parentTs = typeof event.thread_ts === "string" ? event.thread_ts : "";
-  const isMention = event.type === "app_mention";
-  // Ordinary channel chatter is never ingested. Unmentioned replies require a
-  // durable conversation or ticket binding, checked transactionally by SQL.
-  if (!isMention && !/^\d{10}\.\d{6}$/.test(parentTs)) return json({ok:true,ignored:true});
-  const rootTs = parentTs || ts;
-  if (!/^\d{10}\.\d{6}$/.test(rootTs)) return json({error:"invalid"},400);
-  const {data:result,error} = await db().rpc("bloom_support_enqueue_slack_conversation", {
-    p_event_id:eventId, p_channel:event.channel, p_user_id:event.user,
-    p_question:question, p_root_ts:rootTs, p_message_ts:ts, p_is_mention:isMention,
-  });
+  const intake = slackIntake(data, staff);
+  if (intake.kind === "ignore") return json({ok:true,ignored:true});
+  if (intake.kind === "invalid") return json({error:"invalid"},400);
+  const {data:result,error} = await db().rpc("bloom_support_enqueue_slack_conversation", intake.args);
   if (error) {
     console.error("Slack Ask intake failed",error.code);
     return json({error:"service temporarily unavailable"},503);
