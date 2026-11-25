@@ -3,10 +3,10 @@ import { Link } from "react-router-dom";
 import "./customerJourney.css";
 
 const stages = [
-  { title: "Discover", product: "BloomSites", description: "Find your garden centre online.", href: "https://bloomsites.app/", Icon: Globe2 },
-  { title: "Research", product: "BloomSites", description: "Explore your products and plan a visit.", href: "https://bloomsites.app/", Icon: Search },
-  { title: "Purchase", product: "BloomSuite POS", description: "Make checkout a smooth part of the visit.", href: "/pos", Icon: ScanLine },
-  { title: "Follow up", product: "BloomSuite CRM", description: "Stay connected with helpful email and SMS.", href: "/features", Icon: Mail },
+  { title: "Discover", product: "BloomSites", description: "Find your garden centre and discover what’s in season.", href: "https://bloomsites.app/", Icon: Globe2 },
+  { title: "Research", product: "BloomSites", description: "Explore plants, growing guidance and products before buying.", href: "https://bloomsites.app/", Icon: Search },
+  { title: "Purchase", product: "BloomSites + BloomSuite POS", description: "Buy online or enjoy a smooth checkout in store.", href: "/#suite-products", Icon: ScanLine },
+  { title: "Follow up", product: "BloomSuite CRM", description: "Share helpful advice and relevant offers with customers who opt in.", href: "/features", Icon: Mail },
 ];
 
 export function CustomerJourneySection() {
@@ -16,7 +16,7 @@ export function CustomerJourneySection() {
         <header className="hp-journey__heading">
           <p className="hp-journey__eyebrow">Three products. One customer journey.</p>
           <h2 id="customer-journey-title">Turn first visits into<br className="hp-journey__break" /> lasting customers.</h2>
-          <p>Be there when customers find you, choose you, shop with you, and come back for more.</p>
+          <p>Quality plants bring customers in. Strong relationships bring them back. Connect discovery, shopping and follow-up with tools built for garden retail.</p>
         </header>
         <div className="hp-journey__cycle">
           <svg className="hp-journey__arrows" viewBox="0 0 1000 600" fill="none" aria-hidden="true" focusable="false">
