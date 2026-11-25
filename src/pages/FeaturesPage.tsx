@@ -179,7 +179,7 @@ export const FeaturesPage = () => {
         
         <div className="relative max-w-4xl mx-auto text-center">
           <h1 className="text-5xl font-bold text-white mb-6">
-            Everything Your Garden Center Needs to Thrive
+            Customer marketing built for garden centers
           </h1>
           <p className="text-xl text-white/90 mb-8 max-w-3xl mx-auto">
             From marketing automation to customer management, BloomSuite provides all the tools you need to grow your business and nurture customer relationships.
@@ -333,25 +333,25 @@ export const FeaturesPage = () => {
           <div className="grid md:grid-cols-3 gap-8">
             <Card className="p-8 text-center bg-gradient-to-br from-blue-50 to-blue-50 border-blue-200">
               <CardContent className="p-0">
-                <div className="text-4xl font-bold text-primary mb-2">40%</div>
-                <div className="text-lg font-semibold text-foreground mb-2">Increase in Sales</div>
-                <p className="text-muted-foreground">Average sales growth within the first year</p>
+                <div className="text-4xl font-bold text-primary mb-2">Sell</div>
+                <div className="text-lg font-semibold text-foreground mb-2">More sales opportunities</div>
+                <p className="text-muted-foreground">Create timely campaigns that encourage customers to visit and buy.</p>
               </CardContent>
             </Card>
 
             <Card className="p-8 text-center bg-gradient-to-br from-blue-50 to-cyan-50 border-blue-200">
               <CardContent className="p-0">
-                <div className="text-4xl font-bold text-primary mb-2">75%</div>
-                <div className="text-lg font-semibold text-foreground mb-2">Time Saved</div>
-                <p className="text-muted-foreground">Less time spent on marketing tasks</p>
+                <div className="text-4xl font-bold text-primary mb-2">Save</div>
+                <div className="text-lg font-semibold text-foreground mb-2">Less repetitive marketing work</div>
+                <p className="text-muted-foreground">Prepare reusable campaigns and schedule your messages.</p>
               </CardContent>
             </Card>
 
             <Card className="p-8 text-center bg-gradient-to-br from-purple-50 to-indigo-50 border-purple-200">
               <CardContent className="p-0">
-                <div className="text-4xl font-bold text-primary mb-2">3x</div>
-                <div className="text-lg font-semibold text-foreground mb-2">Better Engagement</div>
-                <p className="text-muted-foreground">Higher customer engagement rates</p>
+                <div className="text-4xl font-bold text-primary mb-2">Connect</div>
+                <div className="text-lg font-semibold text-foreground mb-2">Stronger customer relationships</div>
+                <p className="text-muted-foreground">Use available customer insights to make marketing more relevant.</p>
               </CardContent>
             </Card>
           </div>

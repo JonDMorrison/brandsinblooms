@@ -5,7 +5,7 @@ export const FAQSection = () => {
   const faqs = [
     {
       question: "Is there a free trial?",
-      answer: "Yes! We offer a 7-day free trial with no credit card required. You'll have full access to all features during your trial period."
+      answer: "You can start a CRM trial without a credit card. Check the current trial terms at signup; feature access depends on the plan and setup."
     },
     {
       question: "Can I cancel anytime?",

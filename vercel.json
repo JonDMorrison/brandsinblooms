@@ -10,6 +10,9 @@
     }
   ],
   "redirects": [
+    {"source": "/home1", "destination": "/", "permanent": true},
+    {"source": "/website", "destination": "/website/features", "permanent": true},
+    {"source": "/website/waitlist", "destination": "/website/features", "permanent": true},
     {
       "source": "/(.*)",
       "has": [
@@ -2512,6 +2515,10 @@
       "source": "/suite",
       "destination": "/suite-portal.html"
     },
+    {"source": "/plant-intelligence", "destination": "/plant-intelligence.html"},
+    {"source": "/plant-intelligence/", "destination": "/plant-intelligence.html"},
+    {"source": "/care-guides", "destination": "/care-guides-marketing.html"},
+    {"source": "/care-guides/", "destination": "/care-guides-marketing.html"},
     {
       "source": "/(.*)",
       "destination": "/index.html"
