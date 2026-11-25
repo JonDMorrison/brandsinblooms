@@ -183,8 +183,11 @@ serve(async (req: Request) => {
         // verified). BloomSites is the source of truth; keep the stored copy
         // current so Settings and Integrations show the address customers use.
         if (/^https:\/\/[a-z0-9][a-z0-9.-]+$/i.test(allowedOrigin) && allowedOrigin!==link.site_origin) {
-          await admin.from("crm_connected_websites").update({site_origin:allowedOrigin})
-            .eq("tenant_id",tenantId).eq("cms_site_id",link.cms_site_id).eq("status","active");
+          // Best effort: a failed refresh must never block the catalogue.
+          try {
+            await admin.from("crm_connected_websites").update({site_origin:allowedOrigin})
+              .eq("tenant_id",tenantId).eq("cms_site_id",link.cms_site_id).eq("status","active");
+          } catch { /* keep the stored copy; the next fetch retries */ }
           link.site_origin=allowedOrigin;
         }
         const items:ContentItem[]=payload.items.filter((item:ContentItem)=>{

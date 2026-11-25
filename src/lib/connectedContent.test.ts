@@ -313,11 +313,13 @@ describe("authenticated exact content bridge", () => {
     let handler: (request: Request) => Promise<Response> = async () => new Response(null, {status: 500});
     const tenantId = "00000000-0000-4000-8000-000000000003";
     const links = [{cms_site_id: item.siteId, site_name: "Garden", tenant_id: tenantId}];
+    const originUpdates: unknown[] = [];
     const client = {
       auth: {getUser: async () => ({data: {user: {id: "owner"}}, error: null})},
       rpc: async () => ({data: {tenantId, permissions: ["campaigns.write"]}, error: null}),
       from: () => {
         const chain = {select: () => chain, eq: () => chain, order: () => chain,
+          update: (value: unknown) => {originUpdates.push(value); return chain;},
           limit: async () => ({data: links, error: null})};
         return chain;
       },
@@ -342,6 +344,8 @@ describe("authenticated exact content bridge", () => {
     }));
     expect(result.status).toBe(404);
     expect(fetcher).toHaveBeenCalledTimes(5);
+    // The link had no stored origin, so BloomSites' current one is saved.
+    expect(originUpdates).toContainEqual({site_origin: "https://example.org"});
   });
 });
 
