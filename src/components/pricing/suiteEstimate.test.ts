@@ -1,65 +1,25 @@
-import { describe, expect, it } from "vitest";
-import { calculateSuiteEstimate as estimate, DEFAULT_SUITE_CONFIGURATION as defaults, normalizeConfiguration, suiteEstimateSummary } from "./suiteEstimate";
-
-describe("draft suite price book", () => {
-  it("prices the three entry paths consistently", () => {
-    expect(estimate({...defaults, crm: false}).bloom).toBe(7900);
-    expect(estimate(defaults).bloom).toBe(24900);
-    expect(estimate({...defaults, pos: "replace"}).bloom).toBe(39900);
-    expect(estimate({...defaults, pos: "replace", commerce: true}).bloom).toBe(44900);
-  });
-  it("charges extra locations/registers without duplicating contacts or discount", () => {
-    expect(estimate({...defaults, commerce: true, pos: "replace", locations: 2, registers: 3}).bloom).toBe(70600);
-    expect(estimate({...defaults, websites: 2}).bloom).toBe(32800);
-  });
-  it("uses exact contact boundaries and an explicit quote floor", () => {
-    expect(estimate({...defaults, contacts: 5000}).bloom).toBe(24900);
-    expect(estimate({...defaults, contacts: 5001}).bloom).toBe(34900);
-    expect(estimate({...defaults, contacts: 15000}).bloom).toBe(34900);
-    expect(estimate({...defaults, contacts: 15001}).bloom).toBe(54900);
-    expect(estimate({...defaults, contacts: 25000}).quoteRequired).toBe(false);
-    expect(estimate({...defaults, contacts: 25001}).quoteRequired).toBe(true);
-  });
-  it("counts SMS segments and email overages only for CRM", () => {
-    expect(estimate({...defaults, sms: 2000, segments: 2, emails: 40000}).bloom).toBe(38900);
-    expect(estimate({...defaults, crm: false, sms: 50000, emails: 500000}).bloom).toBe(7900);
-    expect(estimate({...defaults, sms: 50000}).sms).toBe(150000);
-  });
-  it("discounts annual software but not usage or retained tools", () => {
-    const e = estimate({...defaults, commerce: true, pos: "replace", annual: true, sms: 2000, retained: 100});
-    expect(e.software).toBe(38165); expect(e.sms).toBe(6000);
-    expect(e.annualPrepayment).toBe(457980); expect(e.total).toBe(54165);
-  });
-  it("includes retained tools in the proposal only, not twice in current spend", () => {
-    const e = estimate({...defaults, sms: 2000, retained: 100, current: 400});
-    expect(e.total).toBe(40900); expect(e.difference).toBe(900); expect(e.recurringOrders).toBe(1);
-  });
-  it("reconciles total and first-year costs with payments", () => {
-    const e = estimate({...defaults, commerce: true, pos: "replace", sms: 2000, cardVolume: 60000, transactions: 1200, setup: 1500});
-    expect(e.payments).toBe(162000); expect(e.total).toBe(212900); expect(e.firstYear).toBe(2704800);
-  });
-  it("handles empty selection, zero margin, nonfinite and maliciously large inputs", () => {
-    expect(estimate({...defaults, site: false, crm: false, pos: "none"}).hasProducts).toBe(false);
-    expect(estimate({...defaults, grossMargin: 0}).recurringOrders).toBeNull();
-    const e = estimate({...defaults, contacts: Infinity, emails: NaN, retained: -100, locations: 999999});
-    expect(Number.isFinite(e.firstYear)).toBe(true); expect(e.c.retained).toBe(0); expect(e.c.locations).toBe(100);
-    expect(normalizeConfiguration({...defaults, site: false, commerce: true}).site).toBe(true);
-  });
-  it("does not bill POS while its need is undecided", () => {
-    expect(estimate({...defaults, pos: "unsure"}).bloom).toBe(24900);
-  });
-  it("uses gross profit and shows savings without fabricated extra orders", () => {
-    expect(estimate({...defaults, current: 0}).recurringOrders).toBe(13);
-    expect(estimate({...defaults, current: 1000}).recurringOrders).toBe(0);
-  });
-  it("separates extra platform fees from payment processing", () => {
-    const e = estimate({...defaults, current: 249, platformVolume: 20000, oldPlatform: 5, newPlatform: 0});
-    expect(e.difference).toBe(-100000); expect(e.payments).toBe(0);
-    expect(estimate({...defaults, platformVolume: 20000, newPlatform: 5}).payments).toBe(100000);
-  });
-  it("exports an editable versioned inquiry below the contact form limit", () => {
-    const s = suiteEstimateSummary({...defaults, contacts: 50000, pos: "replace", locations: 100, registers: 20});
-    expect(s).toContain("suite-exploration-2026-10-09-v1"); expect(s).toContain("not a purchase");
-    expect(s).toContain("quote needed"); expect(s.length).toBeLessThan(900);
-  });
+import { describe,expect,it } from "vitest";
+import { calculateSuiteEstimate as estimate,DEFAULT_SUITE_CONFIGURATION as defaults,suiteEstimateSummary } from "./suiteEstimate";
+describe("proposed modular suite pricing",()=>{
+ it("charges $99 for any one, $198 for two, $250 for all three",()=>{
+  for(const key of ["site","pos","crm"] as const)expect(estimate({...defaults,site:false,pos:false,crm:false,[key]:true}).bloom).toBe(9900);
+  expect(estimate({...defaults,pos:false}).bloom).toBe(19800);expect(estimate(defaults).bloom).toBe(25000);expect(estimate(defaults).discount).toBe(4700);
+ });
+ it("meters email and SMS independently and counts actual segments",()=>{
+  const e=estimate({...defaults,emails:40000,sms:2000,segments:2});expect(e.email).toBe(6000);expect(e.sms).toBe(18000);expect(e.bloom).toBe(49000);
+  expect(estimate({...defaults,emails:20001}).email).toBe(0);expect(estimate({...defaults,emails:20010}).email).toBe(3);
+  expect(estimate({...defaults,crm:false,emails:500000,sms:500000}).bloom).toBe(19800);
+ });
+ it("prices extra locations, registers, websites and eligible commerce once",()=>{
+  const e=estimate({...defaults,locations:2,registers:2,websites:2,onlineSales:20000,advancedAi:true});
+  expect(e.software).toBe(51500);expect(e.commerce).toBe(10000);expect(e.bloom).toBe(61500);
+ });
+ it("does not charge disabled products and bounds invalid inputs",()=>{
+  expect(estimate({...defaults,site:false,pos:false,crm:false,websites:20,locations:100,registers:20,onlineSales:100000,sms:10000,advancedAi:true}).bloom).toBe(0);
+  const e=estimate({...defaults,emails:NaN,locations:Infinity,sms:-1});expect(Number.isFinite(e.bloom)).toBe(true);expect(e.c.locations).toBe(1);expect(e.c.sms).toBe(0);
+ });
+ it("flags high-volume quotes and exports an editable nonbinding inquiry",()=>{
+  expect(estimate({...defaults,emails:250001}).quoteRequired).toBe(true);
+  const s=suiteEstimateSummary({...defaults,locations:100,registers:20,sms:10000000,segments:10});expect(s).toContain("not a purchase");expect(s).toContain("suite-preview-2026-11-25-v2");expect(s.length).toBeLessThan(900);
+ });
 });
