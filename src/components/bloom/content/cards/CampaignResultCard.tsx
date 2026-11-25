@@ -3,6 +3,7 @@ import Divider from "@mui/joy/Divider";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
 import { Megaphone } from "lucide-react";
+import { campaignTiming } from "@/components/bloom/content/cards/campaignTiming";
 import { ResultCardShell } from "@/components/bloom/content/cards/ResultCardShell";
 import {
   formatDate,
@@ -102,9 +103,8 @@ export function CampaignResultCard({
               getValue(campaign, ["delivery_method", "channel", "type"]),
               "Campaign",
             );
-            const sentAt = formatDate(
-              getValue(campaign, ["sent_at", "scheduled_at", "created_at"]),
-            );
+            const timing = campaignTiming(campaign);
+            const delivered = timing.kind === "sent";
             const recipients = formatNumber(
               getValue(campaign, [
                 "total_recipients",
@@ -157,7 +157,7 @@ export function CampaignResultCard({
             ];
             const metaLine = [
               channel,
-              sentAt ? `Sent ${sentAt}` : null,
+              timing.label,
               recipients ? `${recipients} recipients` : null,
             ]
               .filter(Boolean)
@@ -180,7 +180,7 @@ export function CampaignResultCard({
                     {metaLine}
                   </Typography>
                 ) : null}
-                <MetricGrid metrics={metrics} />
+                {delivered ? <MetricGrid metrics={metrics} /> : null}
               </Box>
             );
           })
