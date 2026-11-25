@@ -503,8 +503,16 @@ export default function SegmentBuilderPage() {
   const pageTitle = isEditing
     ? `Edit ${segmentQuery.data?.name ?? "segment"}`
     : "New segment";
-  const memberCount = previewQuery.preview.count;
-  const metadataLabel = `${type === "dynamic" ? (includeAllCustomers ? "Dynamic · All customers" : "Dynamic") : "Static"} · ${formatSegmentStatusLabel(status)} · ${memberCount.toLocaleString()} members`;
+  // A static segment's membership list is authoritative. The rule preview
+  // loads every customer client-side and reads 0 until it finishes, which
+  // made a copied 7,600-member segment show "0 members".
+  const memberCount =
+    type === "static" ? memberIds.length : previewQuery.preview.count;
+  const memberCountLabel =
+    type !== "static" && previewQuery.isLoading
+      ? "Counting members…"
+      : `${memberCount.toLocaleString()} members`;
+  const metadataLabel = `${type === "dynamic" ? (includeAllCustomers ? "Dynamic · All customers" : "Dynamic") : "Static"} · ${formatSegmentStatusLabel(status)} · ${memberCountLabel}`;
   const headerStats = useMemo(
     () => [
       {
@@ -571,12 +579,15 @@ export default function SegmentBuilderPage() {
         description: segmentQuery.data.description,
         type: segmentQuery.data.type,
         status: segmentQuery.data.status,
-        memberCount: previewQuery.preview.count ?? segmentQuery.data.memberCount,
+        memberCount:
+          segmentQuery.data.type === "static"
+            ? memberIds.length
+            : (previewQuery.preview.count ?? segmentQuery.data.memberCount),
         includeAllCustomers: segmentQuery.data.includeAllCustomers,
         usage: segmentQuery.data.usage.map((usage) => usage.name),
       });
     },
-    [previewQuery.preview.count, segmentId, segmentQuery.data],
+    [memberIds.length, previewQuery.preview.count, segmentId, segmentQuery.data],
   );
 
   useEffect(() => {
