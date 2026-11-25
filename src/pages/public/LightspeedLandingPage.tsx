@@ -283,7 +283,7 @@ export const LightspeedLandingPage = () => {
                 </a>
               </div>
               <p className="ls-cta-note">
-                7-day free trial <span aria-hidden="true">•</span> No credit card
+                free trial <span aria-hidden="true">•</span> No credit card
                 required <span aria-hidden="true">•</span> No checkout changes
               </p>
             </div>
@@ -653,7 +653,7 @@ export const LightspeedLandingPage = () => {
               stronger relationship with every customer.
             </p>
             <FreeTrialLink />
-            <span className="ls-final-note">Start with a 7-day free trial. No credit card required.</span>
+            <span className="ls-final-note">Start with a free trial. No credit card required.</span>
           </div>
         </section>
       </main>

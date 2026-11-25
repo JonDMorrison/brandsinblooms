@@ -15,6 +15,7 @@ import { HomepagePricingCtaFooterSection } from "./HomepagePricingCtaFooterSecti
 import { HomepageProblemSection } from "./HomepageProblemSection";
 import { HOMEPAGE_SEO, HOMEPAGE_STRUCTURED_DATA } from "./homepageSeo";
 import { trackHomepageEvent } from "./homepageTelemetry";
+import "@/components/suite/suiteMarketing.css";
 import "./homepageThree.css";
 
 const HomepageHead = () => (
@@ -147,6 +148,15 @@ export const HomepagePresentation = () => {
 
         <CustomerJourneySection />
         <SuiteProductsSection />
+        <section className="suite-marketing pos-section" aria-labelledby="platform-capabilities-title">
+          <div className="suite-container">
+            <div className="suite-section-heading"><p className="suite-eyebrow">Designed for the way garden centres work</p><h2 id="platform-capabilities-title">Plant knowledge that keeps customers growing.</h2><p>Explore how plant information helps customers choose with confidence, and how reviewed care guides can support them after purchase.</p></div>
+            <div className="pos-feature-grid">
+              <article className="pos-feature"><h3>Plant Intelligence</h3><p>Help shoppers discover suitable plants with supported catalogue and growing information.</p><a className="suite-text-link" href="/plant-intelligence">Explore Plant Intelligence</a></article>
+              <article className="pos-feature"><h3>Care Guides</h3><p>Discover the controlled rollout of branded, requested guidance for eligible purchases.</p><a className="suite-text-link" href="/care-guides">Explore Care Guides</a></article>
+            </div>
+          </div>
+        </section>
         <section
           id="problem"
           className="hp-scroll-section"

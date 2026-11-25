@@ -16,5 +16,7 @@
         <priority>0.7</priority>
     </url>
   <url><loc>https://bloomsuite.app/pos</loc></url>
+  <url><loc>https://bloomsuite.app/plant-intelligence</loc></url>
+  <url><loc>https://bloomsuite.app/care-guides</loc></url>
 </urlset>
 

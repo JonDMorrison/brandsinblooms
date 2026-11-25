@@ -29,7 +29,7 @@ export const GuideSection = () => {
               </div>
               <div className="flex items-center gap-3">
                 <CheckCircle className="w-6 h-6 text-secondary" />
-                <span className="text-lg text-accent">Proven to increase garden center sales by 40%+</span>
+                <span className="text-lg text-accent">Designed to help garden centers create more sales opportunities</span>
               </div>
             </div>
           </div>

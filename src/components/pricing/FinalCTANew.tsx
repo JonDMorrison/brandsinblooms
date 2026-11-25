@@ -27,7 +27,7 @@ export const FinalCTANew = () => {
           </h2>
 
           <p className="pricing-final-cta__subhead">
-            Start your 14-day free trial. No credit card required. Lock in
+            Start your free trial. No credit card required. Lock in
             Early Adopter pricing for life.
           </p>
 

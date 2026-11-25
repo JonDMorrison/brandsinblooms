@@ -51,7 +51,7 @@ export const pricingTiers: PricingTier[] = [
     name: "Sprout",
     price: 349,
     annualPrice: 3490,
-    description: "Website + Ecommerce + BloomSuite",
+    description: "BloomSites website + e-commerce + BloomSuite CRM",
     includes: {
       emails: "20,000 emails/month",
       sms: "2,000 SMS/month",
@@ -69,7 +69,7 @@ export const pricingTiers: PricingTier[] = [
     name: "Bloom",
     price: 699,
     annualPrice: 6990,
-    description: "Website + Ecommerce + BloomSuite",
+    description: "BloomSites website + e-commerce + BloomSuite CRM",
     includes: {
       emails: "100,000 emails/month",
       sms: "5,000 SMS/month",
@@ -88,7 +88,7 @@ export const pricingTiers: PricingTier[] = [
     name: "Thrive",
     price: 1199,
     annualPrice: 11990,
-    description: "Website + Ecommerce + BloomSuite",
+    description: "BloomSites website + e-commerce + BloomSuite CRM",
     includes: {
       emails: "Unlimited emails",
       sms: "50,000 SMS/month (Fair Use)",
@@ -144,7 +144,7 @@ export const pricingFaqs = [
   },
   {
     question: "Is there a free trial?",
-    answer: "Yes! We offer a 14-day free trial with full access to all features. No credit card required to start.",
+    answer: "You can start a CRM trial without a credit card. Check the current trial terms at signup; feature access depends on the plan and setup.",
   },
   {
     question: "Can I import my existing customer list?",
@@ -154,6 +154,6 @@ export const pricingFaqs = [
   {
     question: "Do you offer a money-back guarantee?",
     answer:
-      "We offer a 14-day free trial with no credit card required. If BloomSuite isn't a fit during your first 30 paid days, we'll refund your money — no questions asked.",
+      "We offer a free CRM trial with no credit card required. If BloomSuite isn't a fit during your first 30 paid days, we'll refund your money — no questions asked.",
   },
 ];

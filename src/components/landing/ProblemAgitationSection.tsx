@@ -21,7 +21,7 @@ export const ProblemAgitationSection = () => {
     {
       icon: TrendingDown,
       title: "Missing Sales Opportunities",
-      description: "Without proper customer tracking and automated follow-ups, you're losing 30-40% of potential sales from interested customers.",
+      description: "When customer information and follow-up live in separate tools, interested shoppers may miss a good reason to return.",
       accentColor: "#3E5A6B",
       glowColor: "rgba(62, 90, 107, 0.15)",
       cardBg: "rgba(62, 90, 107, 0.08)"

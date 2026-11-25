@@ -26,7 +26,7 @@ export const FinalCTASection = ({ onGetStarted }: FinalCTASectionProps) => {
           </h2>
           
           <p className="text-xl md:text-2xl mb-12 max-w-3xl mx-auto leading-relaxed text-slate-300">
-            Stop losing customers to competitors. Start your free trial and see why BloomSuite is the #1 choice for growing garden centers.
+            Start a free trial and explore software designed around how garden centers work.
           </p>
         </div>
 
@@ -69,7 +69,7 @@ export const FinalCTASection = ({ onGetStarted }: FinalCTASectionProps) => {
           </Button>
           
           <p className="text-slate-400 text-sm mt-6">
-            No credit card required • 7-day free trial • Cancel anytime
+            No credit card required • Free trial • Cancel anytime
           </p>
         </div>
       </div>
