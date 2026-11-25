@@ -135,6 +135,8 @@ export interface StudioBlock {
   tableRows?: string[][];
   tableCaption?: string;
   chartData?: ChartPoint[];
+  /** The Chart data box exactly as typed; chartData is parsed from it. */
+  chartDataText?: string;
   chartUnit?: string;
   videoUrl?: string;
   eventDate?: string;

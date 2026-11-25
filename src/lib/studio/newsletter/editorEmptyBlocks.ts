@@ -53,7 +53,7 @@ export function isEditorEmptyBlock(block: StudioBlock): boolean {
         !(block.tableHeaders ?? []).some(present) &&
         !(block.tableRows ?? []).some((row) => row.some(present));
     case "chart":
-      return !present(block.headline) && !(block.chartData ?? []).length;
+      return !present(block.headline) && !(block.chartData ?? []).length && !present(block.chartDataText);
     case "survey":
       return linksEmpty && !anyPresent([block.headline, block.body]);
     case "event":

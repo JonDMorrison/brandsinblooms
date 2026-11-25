@@ -20,6 +20,7 @@ import { navigationLinkColor } from "@/lib/studio/newsletter/settings";
 import { useNewsletterDesign } from "./NewsletterDesignContext";
 import { upcAImage } from "@/lib/studio/newsletter/barcode";
 import { validUpcA } from "@/lib/studio/newsletter/renderExtensions";
+import { chartDataTextFor, parseChartDataText } from "@/lib/studio/newsletter/chartData";
 
 type Update = (
   field: keyof StudioBlock,
@@ -1118,29 +1119,18 @@ export default function ExtendedBlockProperties({
           <Field
             label="Chart data: label, value (one per line)"
             multiline
-            value={(block.chartData || [])
-              .map((point) => `${point.label}, ${point.value}`)
-              .join("\n")}
-            onChange={(value) =>
-              update(
-                "chartData",
-                value
-                  .split("\n")
-                  .filter(Boolean)
-                  .slice(0, 20)
-                  .map((line) => {
-                    const index = line.lastIndexOf(",");
-                    return {
-                      label: index < 0 ? line : line.slice(0, index).trim(),
-                      value:
-                        index < 0
-                          ? 0
-                          : Math.max(0, Number(line.slice(index + 1)) || 0),
-                    };
-                  }),
-              )
-            }
+            // Keep the text exactly as typed; only the chart reads the
+            // parsed points. Re-formatting here mangled input mid-typing.
+            value={chartDataTextFor(block)}
+            onChange={(value) => {
+              update("chartDataText", value);
+              update("chartData", parseChartDataText(value));
+            }}
           />
+          <p className="nl-note">
+            For example "Pruning, 24". You can paste two columns from a
+            spreadsheet. Up to 20 rows.
+          </p>
           <ColorField
             label="Bar colour"
             value={block.accentColor}
