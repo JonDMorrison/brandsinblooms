@@ -52,6 +52,7 @@ import StudioCanvas from "@/components/crm/studio/StudioCanvas";
 import StudioTopBar from "@/components/crm/studio/StudioTopBar";
 import { SaveAsTemplateModal } from "@/components/crm/campaign-editor/SaveAsTemplateModal";
 import { STUDIO_BLOCK_LOOKUP } from "@/components/crm/studio/blockLibraryData";
+import { normalizeSocialLinks } from "@/lib/studio/socialIcons";
 import {
   DesignSystemProvider,
   useDesignSystem,
@@ -126,17 +127,6 @@ const LEGACY_TO_STUDIO_BLOCK_TYPE: Record<string, StudioBlock["type"]> = {
   product: "product-card",
 };
 
-const STUDIO_SOCIAL_PLATFORMS = new Set([
-  "facebook",
-  "instagram",
-  "twitter",
-  "linkedin",
-  "youtube",
-  "tiktok",
-  "pinterest",
-  "threads",
-]);
-
 function toStudioCampaignStatus(
   status: string | null | undefined,
 ): StudioCampaignStatus {
@@ -164,24 +154,15 @@ function toStudioBlockType(rawType: string): StudioBlock["type"] {
 
 function toStudioSocialLinks(
   socialLinks: ContentBlock["socialLinks"] | undefined,
+  order: unknown,
 ): StudioBlock["socialLinks"] {
   if (!socialLinks) {
     return undefined;
   }
 
-  return Object.entries(socialLinks).flatMap(([platform, value]) => {
-    if (!STUDIO_SOCIAL_PLATFORMS.has(platform)) {
-      return [];
-    }
-
-    return [
-      {
-        platform: platform as StudioBlock["socialLinks"][number]["platform"],
-        enabled: Boolean(value?.enabled),
-        url: typeof value?.url === "string" ? value.url : "",
-      },
-    ];
-  });
+  // jsonb does not keep object key order; the saved order restores the
+  // panel order so canvas, preview and sent mail list icons the same way.
+  return normalizeSocialLinks(socialLinks, order);
 }
 
 function toLegacySocialLinks(
@@ -315,7 +296,7 @@ function toStudioBlock(block: ContentBlock, index: number): StudioBlock {
     galleryProducts,
     socialLinks: Array.isArray(record.socialLinks)
       ? (record.socialLinks as StudioBlock["socialLinks"])
-      : toStudioSocialLinks(block.socialLinks),
+      : toStudioSocialLinks(block.socialLinks, record.socialLinkOrder),
   };
 }
 
@@ -354,6 +335,9 @@ function toPersistedContentBlocks(blocks: StudioBlock[]): ContentBlock[] {
     issueNumber: block.tagLabel,
     publishDate: block.dateLabel,
     socialLinks: toLegacySocialLinks(block.socialLinks),
+    socialLinkOrder: Array.isArray(block.socialLinks)
+      ? block.socialLinks.map((link) => link.platform)
+      : block.socialLinkOrder,
     order: typeof block.order === "number" ? block.order : index,
     visible: block.visible !== false,
   }));

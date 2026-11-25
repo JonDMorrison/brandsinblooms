@@ -317,7 +317,11 @@ export interface StudioBlock {
   galleryImages?: GalleryImage[];
   galleryProducts?: GalleryProduct[];
   socialLinks?: SocialLink[];
+  /** Panel order of socialLinks; the saved legacy object form loses it. */
+  socialLinkOrder?: StudioSocialPlatform[];
   footerSocialLinks?: SocialLink[];
+  /** True once someone picks the footer Icon Colour in the panel. */
+  footerIconColorPicked?: boolean;
   socialLabel?: string;
   iconStyle?: StudioIconStyle;
   footerIconStyle?: StudioIconStyle | "filled" | "outlined" | "minimal";

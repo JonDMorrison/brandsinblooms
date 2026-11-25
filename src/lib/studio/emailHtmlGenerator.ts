@@ -30,6 +30,12 @@ import type {
 // supabase/functions/_shared/* and must resolve under the Deno bundler,
 // which does not apply the app's "@/" path alias.
 import { formatDraftRichText } from "../crm/htmlContent.ts";
+import {
+  isFooterSocialVisible,
+  normalizeSocialLinks,
+  resolveFooterSocialIcon,
+  resolveSocialFollowIcon,
+} from "./socialIcons.ts";
 import { getImageObjectPosition } from "./imageFocalPoint.ts";
 import {
   resolveCroppedEmailImage,
@@ -95,7 +101,6 @@ const DEFAULT_EMAIL_FONT_STACK = "Arial, Helvetica, sans-serif";
 const EMAIL_WIDTH = 640;
 const DEFAULT_COMPLIANCE_TEXT =
   "You are receiving this email because you opted in to receive updates from our business.";
-const SOCIAL_ICON_BASE_URL = "https://bloomsuite.app/social-icons";
 const DEFAULT_SOCIAL_PLATFORMS: Array<SocialLink["platform"]> = [
   "facebook",
   "instagram",
@@ -106,14 +111,6 @@ const DEFAULT_SOCIAL_PLATFORMS: Array<SocialLink["platform"]> = [
   "pinterest",
   "threads",
 ];
-const SOCIAL_ICON_URLS: Partial<Record<SocialLink["platform"], string>> = {
-  facebook: `${SOCIAL_ICON_BASE_URL}/facebook.png`,
-  instagram: `${SOCIAL_ICON_BASE_URL}/instagram.png`,
-  linkedin: `${SOCIAL_ICON_BASE_URL}/linkedin.png`,
-  youtube: `${SOCIAL_ICON_BASE_URL}/youtube.png`,
-  tiktok: `${SOCIAL_ICON_BASE_URL}/tiktok.png`,
-  pinterest: `${SOCIAL_ICON_BASE_URL}/pinterest.png`,
-};
 const SOCIAL_LABELS: Record<SocialLink["platform"], string> = {
   facebook: "Facebook",
   instagram: "Instagram",
@@ -124,17 +121,6 @@ const SOCIAL_LABELS: Record<SocialLink["platform"], string> = {
   pinterest: "Pinterest",
   threads: "Threads",
 };
-const SOCIAL_COLORS: Record<SocialLink["platform"], string> = {
-  facebook: "#1877F2",
-  instagram: "#C13584",
-  twitter: "#111111",
-  linkedin: "#0A66C2",
-  youtube: "#FF0000",
-  tiktok: "#111111",
-  pinterest: "#E60023",
-  threads: "#111111",
-};
-
 function getDesignSystemFontFamily(
   designSystem: StudioDesignSystem | null | undefined,
   role: EmailFontRole,
@@ -1725,10 +1711,13 @@ function getResolvedSocialFollowLinks(
   block: StudioBlock,
   designSystem: StudioDesignSystem | null | undefined,
 ) {
+  // Saved campaigns can hold the legacy platform-keyed object; normalise it
+  // back to the panel's order so preview and sent mail match the canvas.
+  const blockLinks = normalizeSocialLinks(block.socialLinks, block.socialLinkOrder);
   const sourceLinks =
-    block.socialLinks?.length || getDesignSystemSocialLinks(designSystem).length
-      ? block.socialLinks?.length
-        ? block.socialLinks
+    blockLinks.length || getDesignSystemSocialLinks(designSystem).length
+      ? blockLinks.length
+        ? blockLinks
         : getDesignSystemSocialLinks(designSystem)
       : DEFAULT_SOCIAL_PLATFORMS.map((platform) => ({
           platform,
@@ -1804,33 +1793,15 @@ function renderSocialLink(
   wrapInCell = true,
   spacing = 12,
 ) {
-  // The outgoing email must reflect the same icon settings as the editor.
-  // Remote brand PNGs cannot be safely recoloured in email clients, so use
-  // email-safe lettermarks when the customer chooses monochrome/custom.
+  // Same icon image as the Studio canvas: a PNG for this platform, style and
+  // colour (src/lib/studio/socialIcons.ts). Never SVG or lettermarks.
   const href = safeUrl(link.url);
-  const mode = block.iconColorMode ??
-    (block.socialColorMode === "monochrome" ? "mono" : block.socialColorMode) ?? "brand";
-  const shape = block.iconStyle ?? block.socialIconStyle ?? "filled";
-  const colour = mode === "custom"
-    ? safeColor(block.customIconColor, "#111827")
-    : mode === "mono"
-      ? safeColor(designSystem?.colors.text || block.textColor, "#111827")
-      : SOCIAL_COLORS[link.platform];
-  const iconUrl = SOCIAL_ICON_URLS[link.platform] ?? "";
-  const mark: Record<SocialLink["platform"], string> = {
-    facebook: "f", instagram: "IG", twitter: "X", linkedin: "in",
-    youtube: "YT", tiktok: "TT", pinterest: "P", threads: "@",
-  };
-  const hasBrandImage = mode === "brand" && Boolean(iconUrl);
-  const isMinimal = shape === "minimal";
-  const isOutline = shape === "outlined";
-  const bg = hasBrandImage || isOutline || isMinimal ? "transparent" : colour;
-  const radius = shape === "square" ? "5px" : shape === "minimal" ? "0" : "999px";
-  const border = isOutline ? `1px solid ${colour}` : "0";
-  const markColour = isOutline || isMinimal ? colour : "#ffffff";
-  const icon = hasBrandImage
-    ? `<span style="display:inline-block;vertical-align:middle;border:${border};border-radius:${radius};padding:${isOutline ? "2px" : "0"};"><img src="${escapeAttribute(iconUrl)}" alt="${escapeAttribute(SOCIAL_LABELS[link.platform])}" width="${size}" height="${size}" style="display:block;width:${size}px;height:${size}px;border:0;border-radius:${radius};"/></span>`
-    : `<span style="display:inline-block;box-sizing:border-box;min-width:${size}px;height:${size}px;line-height:${size - (isOutline ? 2 : 0)}px;text-align:center;border:${border};border-radius:${radius};background-color:${bg};color:${markColour};font-family:Arial,sans-serif;font-size:${Math.max(10, Math.round(size * 0.4))}px;font-weight:700;">${escapeHtml(mark[link.platform])}</span>`;
+  const { src } = resolveSocialFollowIcon(
+    block,
+    link.platform,
+    designSystem?.colors.text || block.textColor,
+  );
+  const icon = `<img src="${escapeAttribute(src)}" alt="${escapeAttribute(SOCIAL_LABELS[link.platform])}" width="${size}" height="${size}" style="display:inline-block;vertical-align:middle;width:${size}px;height:${size}px;border:0;outline:none;text-decoration:none;" />`;
   const labelText = withLabel
     ? `<span style="display:inline-block;vertical-align:middle;padding-left:8px;font-family:${getFontStack(designSystem, "body")};font-size:14px;line-height:1.3;font-weight:700;color:${safeColor(block.textColor, "#111827")};">${escapeHtml(SOCIAL_LABELS[link.platform])}</span>`
     : "";
@@ -1927,8 +1898,7 @@ function getFooterSocialLinks(
   block: StudioBlock,
   designSystem: StudioDesignSystem | null | undefined,
 ) {
-  const links = block.footerSocialLinks ?? [];
-  const enabledLinks = links.filter((link) => link.enabled);
+  const links = normalizeSocialLinks(block.footerSocialLinks);
 
   const configuredBlockLinks = links.filter(
     (link) => link.enabled && Boolean(safeUrl(link.url)),
@@ -1945,25 +1915,13 @@ function getFooterSocialLinks(
   return { links: designSystemLinks, placeholder: false };
 }
 
-function getFooterSocialGlyph(platform: SocialLink["platform"]) {
-  switch (platform) {
-    case "twitter":
-      return "X";
-    case "threads":
-      return "Th";
-    case "linkedin":
-      return "in";
-    default:
-      return SOCIAL_LABELS[platform].slice(0, 1).toUpperCase();
-  }
-}
-
 function renderFooterSocialIcons(
   block: StudioBlock,
   designSystem: StudioDesignSystem | null | undefined,
   centered = false,
+  footerBackground = "#1e293b",
 ) {
-  if (!block.showSocialInFooter && !designSystem?.social.hasConfiguredLinks) {
+  if (!isFooterSocialVisible(block, Boolean(designSystem?.social.hasConfiguredLinks))) {
     return "";
   }
 
@@ -1972,38 +1930,15 @@ function renderFooterSocialIcons(
     return "";
   }
 
-  const iconColor = safeColor(
-    block.footerIconColor,
-    centered ? "#64748b" : "#cbd5e1",
-  );
-  const iconStyle = block.footerIconStyle || "filled";
-  const borderRadius = iconStyle === "square" ? "8px" : "999px";
-
-  return `<div style="text-align:${centered ? "center" : "left"};margin:${centered ? "0" : "0"};">${links
+  return `<div style="text-align:${centered ? "center" : "left"};">${links
     .map((link, index) => {
       const href = safeUrl(link.url) || "#";
-      const backgroundColor =
-        iconStyle === "filled"
-          ? colorWithOpacity(iconColor, centered ? 0.18 : 0.14)
-          : "transparent";
-      const borderColor = iconStyle === "outlined" ? iconColor : "transparent";
       const margin = index === 0 ? "0" : "0 0 0 8px";
       const label = escapeAttribute(SOCIAL_LABELS[link.platform]);
-
-      // Hosted PNGs, not inline SVG data URIs. The send pipeline strips every
-      // <img> whose src uses a blocked scheme (data: among them), which
-      // deleted the icon and left a bare styled circle in the footer — and
-      // even unstripped, Gmail and Outlook do not render SVG in email. This
-      // mirrors how the social-follow block renders its icons.
-      const iconUrl = SOCIAL_ICON_URLS[link.platform];
-      if (iconUrl && iconStyle !== "minimal") {
-        return `<a href="${escapeAttribute(href)}" target="_blank" aria-label="${label}" style="display:inline-block;text-decoration:none;opacity:${placeholder ? 0.38 : 1};margin:${margin};${iconStyle === "outlined" ? `border:1px solid ${iconColor};border-radius:999px;padding:3px;` : ""}"><img src="${escapeAttribute(iconUrl)}" alt="${label}" width="28" height="28" style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;" /></a>`;
-      }
-
-      // Platforms with no hosted icon (twitter/X, threads) keep the lettered
-      // chip so the row never renders an empty circle.
-      const glyph = `<span style="font-family:${getFontStack(designSystem, "button")};font-size:11px;font-weight:700;line-height:28px;color:${iconColor};">${escapeHtml(getFooterSocialGlyph(link.platform))}</span>`;
-      return `<a href="${escapeAttribute(href)}" target="_blank" aria-label="${label}" style="display:inline-block;width:28px;height:28px;line-height:28px;text-align:center;border-radius:${borderRadius};border:1px solid ${borderColor};background-color:${backgroundColor};text-decoration:none;opacity:${placeholder ? 0.38 : 1};margin:${margin};">${glyph}</a>`;
+      // Hosted PNGs only: the send pipeline strips data: images, and Gmail and
+      // Outlook do not render SVG. Same image as the Studio canvas.
+      const { src } = resolveFooterSocialIcon(block, link.platform, footerBackground);
+      return `<a href="${escapeAttribute(href)}" target="_blank" aria-label="${label}" style="display:inline-block;text-decoration:none;opacity:${placeholder ? 0.38 : 1};margin:${margin};"><img src="${escapeAttribute(src)}" alt="${label}" width="28" height="28" style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;" /></a>`;
     })
     .join("")}</div>`;
 }
@@ -2134,6 +2069,7 @@ export function renderFooterBlockToEmailHtml(
     block,
     designSystem,
     centered,
+    backgroundColor,
   );
   const linksHtml = renderFooterLinks(block, links, designSystem, centered);
   const contactInline = renderFooterContactContent(block, designSystem, true);

@@ -3,10 +3,12 @@ import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
 import { formatDraftRichText } from "@/lib/crm/htmlContent";
 import {
-  SocialIcon,
+  isFooterSocialVisible,
+  normalizeSocialLinks,
+  resolveFooterSocialIcon,
   SOCIAL_PLATFORM_LABELS,
   SOCIAL_PLATFORM_ORDER,
-} from "@/components/crm/studio/icons/SocialIcons";
+} from "@/lib/studio/socialIcons";
 import { useOptionalDesignSystem } from "@/contexts/DesignSystemContext";
 import type { SocialLink, StudioBlock } from "@/types/studioBlocks";
 
@@ -39,7 +41,7 @@ function getFooterSocialLinks(
     social: { links: SocialLink[]; hasConfiguredLinks: boolean };
   } | null,
 ) {
-  const links = block.footerSocialLinks ?? [];
+  const links = normalizeSocialLinks(block.footerSocialLinks);
   const enabledLinks = links.filter((link) => link.enabled);
 
   if (enabledLinks.length > 0) {
@@ -229,19 +231,21 @@ function FooterSocialIcons({
   block,
   centered = false,
   designSystem,
+  backgroundColor,
 }: {
   block: StudioBlock;
   centered?: boolean;
   designSystem?: {
     social: { links: SocialLink[]; hasConfiguredLinks: boolean };
   } | null;
+  backgroundColor: string;
 }) {
-  if (!block.showSocialInFooter && !designSystem?.social.hasConfiguredLinks) {
+  // Same switch and same icon images as the email (src/lib/studio/socialIcons).
+  if (!isFooterSocialVisible(block, Boolean(designSystem?.social.hasConfiguredLinks))) {
     return null;
   }
 
   const { links, placeholder } = getFooterSocialLinks(block, designSystem);
-  const iconColor = block.footerIconColor || (centered ? "#64748b" : "#cbd5e1");
 
   return (
     <Stack
@@ -263,16 +267,16 @@ function FooterSocialIcons({
             display: "inline-flex",
             alignItems: "center",
             justifyContent: "center",
-            color: iconColor,
             textDecoration: "none",
             opacity: placeholder ? 0.38 : 1,
           }}
         >
-          <SocialIcon
-            platform={link.platform}
-            size={30}
-            color={iconColor}
-            variant={block.footerIconStyle ?? "filled"}
+          <img
+            src={resolveFooterSocialIcon(block, link.platform, backgroundColor).src}
+            alt=""
+            width={28}
+            height={28}
+            style={{ display: "block", width: 28, height: 28 }}
           />
         </Box>
       ))}
@@ -395,7 +399,7 @@ export default function FooterRenderer({ block }: FooterRendererProps) {
           >
             {contactInline}
           </Typography>
-          <FooterSocialIcons block={block} designSystem={designSystem} />
+          <FooterSocialIcons block={block} designSystem={designSystem} backgroundColor={backgroundColor} />
           <FooterLinks block={block} designSystem={designSystem} />
           <Typography
             sx={{
@@ -451,6 +455,7 @@ export default function FooterRenderer({ block }: FooterRendererProps) {
             block={block}
             centered
             designSystem={designSystem}
+            backgroundColor={backgroundColor}
           />
           <FooterLinks block={block} centered designSystem={designSystem} />
           <Box
@@ -531,7 +536,7 @@ export default function FooterRenderer({ block }: FooterRendererProps) {
         <Box sx={{ height: "1px", bgcolor: dividerColor }} />
         <Stack spacing={1.5}>
           <FooterComplianceText content={complianceText} color={mutedColor} />
-          <FooterSocialIcons block={block} designSystem={designSystem} />
+          <FooterSocialIcons block={block} designSystem={designSystem} backgroundColor={backgroundColor} />
           <FooterLinks block={block} designSystem={designSystem} />
           <Typography
             sx={{

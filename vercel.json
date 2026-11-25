@@ -32,6 +32,10 @@
   ],
   "rewrites": [
     {
+      "source": "/social-icon/:platform/:style/:file",
+      "destination": "/api/social-icon?platform=:platform&style=:style&color=:file"
+    },
+    {
       "source": "/crm/features",
       "destination": "/product-guide-pages/crm/crm--features.html"
     },

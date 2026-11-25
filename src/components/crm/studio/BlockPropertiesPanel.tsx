@@ -51,6 +51,7 @@ import StudioSwitchField from "@/components/crm/studio/fields/StudioSwitchField"
 import StudioTextField from "@/components/crm/studio/fields/StudioTextField";
 import StudioToggleField from "@/components/crm/studio/fields/StudioToggleField";
 import { useDesignSystem } from "@/contexts/DesignSystemContext";
+import { isFooterSocialVisible } from "@/lib/studio/socialIcons";
 import type { EditorCampaignType } from "@/lib/crm/campaignEditor";
 import {
   getStudioLayoutPresets,
@@ -4270,7 +4271,10 @@ function PanelContent({
                 content: (
                   <CollapsibleSection
                     label="Show Social Icons"
-                    enabled={block.showSocialInFooter ?? false}
+                    enabled={isFooterSocialVisible(
+                      block,
+                      Boolean(designSystem?.social.hasConfiguredLinks),
+                    )}
                     onToggle={(value) =>
                       updateField("showSocialInFooter", value)
                     }
@@ -4298,9 +4302,10 @@ function PanelContent({
                     <StudioColorPicker
                       label="Icon Colour"
                       value={block.footerIconColor ?? "#cbd5e1"}
-                      onChange={(value) =>
-                        updateField("footerIconColor", value)
-                      }
+                      onChange={(value) => {
+                        updateField("footerIconColor", value);
+                        updateField("footerIconColorPicked", true);
+                      }}
                     />
                   </CollapsibleSection>
                 ),

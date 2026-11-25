@@ -9,6 +9,7 @@ import { useNewsletterDesign } from "./NewsletterDesignContext";
 import { uploadStudioImageFile } from "../fields/StudioImageUpload";
 import { STUDIO_BLOCK_LOOKUP } from "../blockLibraryData";
 import "./newsletterControls.css";
+import { normalizeSocialLinks } from "@/lib/studio/socialIcons";
 type Update = (
   blockId: string,
   field: keyof StudioBlock,
@@ -87,7 +88,9 @@ export default function SharedEmailBlockPreview({
   // message until at least one network is turned on.
   const socialHasNothingOn =
     block.type === "social-follow" &&
-    !(block.socialLinks || []).some((link) => link.enabled);
+    !normalizeSocialLinks(block.socialLinks, block.socialLinkOrder).some(
+      (link) => link.enabled,
+    );
   const hasVisibleContent = !socialHasNothingOn && Boolean(
     html
       .replace(/<[^>]*>/g, "")
