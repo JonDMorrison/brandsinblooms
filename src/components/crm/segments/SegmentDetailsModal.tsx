@@ -741,7 +741,6 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
         onOpenChange={setShowSMSDialog}
         segmentId={segment?.id || ""}
         segmentName={segment?.name || ""}
-        customerCount={segmentTotalCount}
         isSystemSegment={!isCustomSegment}
       />
     </>

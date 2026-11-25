@@ -8,13 +8,15 @@ import Typography from "@mui/joy/Typography";
 import { ArrowRight, Target } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/useTenant";
+import { fetchSmsSegmentSendEstimate } from "@/lib/sms/smsAudienceEstimate";
 import { SegmentSMSDialog } from "./SegmentSMSDialog";
 
 interface SegmentOption {
   id: string;
   name: string;
   description?: string;
-  count: number;
+  /** null when the count could not be calculated. */
+  count: number | null;
   isSystem: boolean;
 }
 
@@ -54,56 +56,20 @@ export const SendToSegmentCard: React.FC = () => {
 
   const fetchSystemSegmentCount = React.useCallback(
     async (segmentId: string) => {
-      if (!tenant?.id) return 0;
+      if (!tenant?.id) return null;
 
+      // Same SMS eligibility rule as the wizard and the enqueue worker
+      // (sms_eligible_customers); email opt-out does not affect SMS.
       try {
-        let query = supabase
-          .from("crm_customers")
-          .select("id", { count: "exact", head: true })
-          .eq("tenant_id", tenant.id)
-          .eq("sms_opt_in", true)
-          .eq("opt_out", false)
-          .eq("suppressed", false)
-          .not("phone", "is", null);
-
-        switch (segmentId) {
-          case "perks-members": {
-            const { count } = await supabase
-              .from("crm_customers")
-              .select("id, customer_loyalty_metrics!inner(is_perks_member)", {
-                count: "exact",
-                head: true,
-              })
-              .eq("tenant_id", tenant.id)
-              .eq("sms_opt_in", true)
-              .eq("opt_out", false)
-              .eq("suppressed", false)
-              .not("phone", "is", null)
-              .eq("customer_loyalty_metrics.is_perks_member", true);
-
-            return count || 0;
-          }
-          case "high-value":
-            query = query.gte("total_spent", 500);
-            break;
-          case "new-customers": {
-            const thirtyDaysAgo = new Date();
-            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-            query = query.gte("created_at", thirtyDaysAgo.toISOString());
-            break;
-          }
-          case "frequent-buyers":
-            query = query.gte("pos_order_count", 3);
-            break;
-          default:
-            break;
-        }
-
-        const { count } = await query;
-        return count || 0;
+        const estimate = await fetchSmsSegmentSendEstimate({
+          tenantId: tenant.id,
+          segmentId,
+          isSystemSegment: true,
+        });
+        return estimate.eligible;
       } catch (error) {
         console.error("Error fetching system segment count:", error);
-        return 0;
+        return null;
       }
     },
     [tenant?.id],
@@ -301,7 +267,9 @@ export const SendToSegmentCard: React.FC = () => {
                     sx={{ flexShrink: 0 }}
                   >
                     <Typography level="body-sm" fontWeight="lg">
-                      {segment.count.toLocaleString()}
+                      {segment.count === null
+                        ? "—"
+                        : segment.count.toLocaleString()}
                     </Typography>
                     <Typography level="body-xs" color="neutral">
                       Subscribers
@@ -335,7 +303,6 @@ export const SendToSegmentCard: React.FC = () => {
           }}
           segmentId={selectedSegment.id}
           segmentName={selectedSegment.name}
-          customerCount={selectedSegment.count}
           isSystemSegment={selectedSegment.isSystem}
         />
       ) : null}

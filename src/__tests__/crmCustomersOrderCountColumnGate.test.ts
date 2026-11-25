@@ -43,8 +43,7 @@ describe("crm_customers order count column", () => {
 
   it("filters the Frequent Buyers SMS fallback on pos_order_count", () => {
     for (const file of [
-      "src/components/sms/SegmentSMSDialog.tsx",
-      "src/components/sms/SendToSegmentCard.tsx",
+      "src/lib/sms/smsAudienceEstimate.ts",
       "supabase/functions/sms-campaign-enqueue-worker/index.ts",
     ]) {
       const source = readFileSync(file, "utf8");
