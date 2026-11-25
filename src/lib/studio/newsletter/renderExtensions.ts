@@ -237,7 +237,7 @@ export function renderCoupon(block: StudioBlock, width: number, editing = false)
     paragraph(block, block.body) +
     `${price ? `<div data-newsletter-role="price" style="margin:12px 0;${role(block, "price", 28, 800)}">${text(price)}</div>` : ""}${block.originalPrice ? `<div style="margin-bottom:8px;"><s>${text(block.originalPrice)}</s></div>` : ""}${block.couponPrice && block.couponOffer !== "price" && block.couponOffer !== "tiered" ? paragraph(block, block.couponPrice, "price", 20) : ""}` +
     paragraph(block, block.couponSizing, "label", 13) +
-    renderNewsletterButton(block, undefined, undefined, editing) +
+    (block.showButton === false ? "" : renderNewsletterButton(block, undefined, undefined, editing)) +
     `<div style="padding-top:12px;">${finePrint}</div>` +
     barcode;
   const border =
