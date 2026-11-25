@@ -105,3 +105,13 @@ h2{letter-spacing:-.035em;line-height:1.17}
  .footer-grid{gap:24px}
 }
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.feature-card,.category-card,.comparison-card,.button{transition:none}.feature-card:hover,.category-card:hover,.comparison-card:hover,.button:hover{transform:none}}
+
+/* Preserve dark featured cards and readable interactive affordances. */
+.category-card-dark{background:var(--guide-green);color:white;border-color:var(--guide-green)}
+.category-card-dark p,.category-card-dark>span:last-child{color:#e1eee6}
+.category-card-dark .icon-tile{background:#ffffff20;color:white}
+.guide-preview{scroll-margin-top:100px}
+.contents nav a:hover{color:var(--accent)}
+.feature-article .scope-note h2,.feature-article .setup h2{font-size:1.65rem}
+@media(min-width:1001px){.detail-hero,.feature-hero{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr)}}
+@media(max-width:700px){.map-grid a>span:last-child{font-size:.75rem}.map-grid strong{font-size:.95rem}.guide-preview li{font-size:.92rem}.footer nav{font-size:.85rem}.comparison-card{padding:24px}.feature-article .workflow li>span{margin:0}}
