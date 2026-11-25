@@ -51,6 +51,16 @@ try{
   await page.goto(origin+feature.url);await page.screenshot({path:`${screenshotDir}/${product}-detail.png`,fullPage:true});
   const detailAxe=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();assert.equal(detailAxe.violations.length,0,JSON.stringify(detailAxe.violations));
  }
+ // Existing POS screenshot provenance is retained; sample the shared visual system on POS.
+ const posDetails=config.rewrites.filter(r=>/^\/pos\/features\/[^/]+$/.test(r.source)&&r.destination.endsWith('.html'));
+ for(const route of [posDetails[0],posDetails[Math.floor(posDetails.length/2)],posDetails.at(-1)]){
+  for(const width of [360,1440]){
+   await page.setViewportSize({width,height:1000});const response=await page.goto(origin+route.source);assert.equal(response.status(),200,route.source);
+   assert.equal(await page.locator('.guide-preview li').count(),3);
+   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth),route.source+' overflow '+width);
+   await page.screenshot({path:`${screenshotDir}/pos-${route.source.split('/').at(-1)}-${width}.png`,fullPage:true});checks++;
+  }
+ }
  assert.deepEqual(errors,[]);
  const noJS=await browser.newContext({javaScriptEnabled:false,viewport:{width:390,height:844}});const noPage=await noJS.newPage();
  await noPage.goto(origin+'/crm/features');assert.equal(await noPage.locator('[data-feature]').count(),categories.crm.flatMap(c=>c.features).length);await noJS.close();

@@ -115,3 +115,22 @@ test('every category link shows the actual guide count and no generated page exp
  }
  for(const page of manifest)assert(!/\$\{[^}]*\}/.test(read('dist/'+page.filename)),page.url);
 });
+
+test('all feature detail pages use the shared design, show a useful workflow and retain distinct search metadata',()=>{
+ const routes=config.rewrites.filter(r=>!r.source.endsWith('/')&&r.destination.endsWith('.html')&&/^\/(crm|website|ecomm|pos)\/features\/[^/]+$/.test(r.source));
+ assert.equal(routes.length,236);
+ const descriptions=new Set();
+ for(const route of routes){
+  const d=new JSDOM(read('dist'+route.destination)).window.document;
+  const description=d.querySelector('meta[name=description]').content;
+  assert(description.length>=80&&description.length<=160,route.source+' description length '+description.length);
+  assert(!descriptions.has(description),route.source+' duplicate description');descriptions.add(description);
+  assert.equal(d.querySelectorAll('h1').length,1,route.source);
+  assert.equal(d.querySelector('link[rel=canonical]').href,'https://bloomsuite.app'+route.source);
+  assert(d.querySelector('link[href="/product-guides/feature-design.css"]'),route.source);
+  assert.equal(d.querySelectorAll('.guide-preview li').length,3,route.source);
+  assert(d.querySelector('a[href="/plant-intelligence"]'),route.source);
+  assert(d.querySelector('a[href="/care-guides"]'),route.source);
+  assert(d.querySelector('nav[aria-label="Breadcrumb"] a[href="/"]'),route.source);
+ }
+});
