@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { resolveBusinessProfileUserId } from "../_shared/businessProfileUserId.ts";
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -138,10 +139,11 @@ const handler = async (req: Request): Promise<Response> => {
         console.log(`📨 Processing campaign: "${campaign.name}" (${campaign.id})`);
 
         // Check if user has auto-send enabled
+        const profileUserId = await resolveBusinessProfileUserId(supabase, campaign.user_id);
         const { data: userProfile } = await supabase
           .from('company_profiles')
           .select('feature_flags')
-          .eq('user_id', campaign.user_id)
+          .eq('user_id', profileUserId)
           .single();
 
         const autoSendEnabled = userProfile?.feature_flags?.auto_send_campaigns !== false;

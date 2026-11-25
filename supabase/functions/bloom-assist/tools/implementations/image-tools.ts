@@ -10,6 +10,7 @@ import type {
   ToolResult,
 } from "../types.ts";
 import { isRecord } from "./shared.ts";
+import { resolveBusinessProfileUserId } from "../../../_shared/businessProfileUserId.ts";
 
 type ImageStyle =
   | "photorealistic"
@@ -354,12 +355,16 @@ async function ensureLocationAllowed(
 async function loadClimateGuardrails(
   context: ToolExecutionContext,
 ): Promise<ClimateGuardrailResult> {
+  const profileUserId = await resolveBusinessProfileUserId(
+    context.serviceClient,
+    context.userId,
+  );
   const { data, error } = await context.serviceClient
     .from("company_profiles")
     .select(
       "postal_code, city, state_province, country, location_info, latitude, longitude, climate_archetype, climate_label, climate_confidence, usda_zone, first_frost_date, last_frost_date",
     )
-    .eq("user_id", context.userId)
+    .eq("user_id", profileUserId)
     .maybeSingle();
 
   if (error || !data) {

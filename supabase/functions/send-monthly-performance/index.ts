@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { resolveBusinessProfileUserId } from "../_shared/businessProfileUserId.ts";
 
 /**
  * send-monthly-performance
@@ -140,9 +141,10 @@ Deno.serve(async () => {
 
         let companyOverview = "", hardinessZone = "";
         try {
-          const { data: userRow } = await supabase.from("users").select("id").eq("tenant_id", tenantId).maybeSingle();
+          const { data: userRow } = await supabase.from("users").select("id").eq("tenant_id", tenantId).limit(1).maybeSingle();
           if (userRow?.id) {
-            const { data: profile } = await supabase.from("company_profiles").select("company_overview, usda_zone").eq("user_id", userRow.id).maybeSingle();
+            const profileUserId = await resolveBusinessProfileUserId(supabase, userRow.id);
+            const { data: profile } = await supabase.from("company_profiles").select("company_overview, usda_zone").eq("user_id", profileUserId).maybeSingle();
             companyOverview = (profile as any)?.company_overview || "";
             hardinessZone = (profile as any)?.usda_zone || "";
           }

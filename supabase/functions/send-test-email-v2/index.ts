@@ -13,6 +13,7 @@ import {
 import { resolveSender } from "../_shared/senderResolver.ts";
 import { COMPANY_PROFILE_WITH_DESIGN_SYSTEM_SELECT } from "../_shared/resolveDesignSystem.ts";
 import { resolveCampaignSenderDisplayName } from "../_shared/campaignFromHeader.ts";
+import { resolveBusinessProfileUserId } from "../_shared/businessProfileUserId.ts";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -227,10 +228,11 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Fetch company profile
+    const profileUserId = await resolveBusinessProfileUserId(supabaseClient, user.id);
     const { data: companyProfile } = await supabaseClient
       .from("company_profiles")
       .select(COMPANY_PROFILE_WITH_DESIGN_SYSTEM_SELECT)
-      .eq("user_id", user.id)
+      .eq("user_id", profileUserId)
       .single();
 
     // Resolve customer data

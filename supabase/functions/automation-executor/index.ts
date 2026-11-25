@@ -16,6 +16,7 @@ import {
   writeAutomationOutbox,
   type LoyaltyEventLease,
 } from "../_shared/automation/loyaltyEnrollment.ts";
+import { resolveBusinessProfileUserId } from "../_shared/businessProfileUserId.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -356,10 +357,11 @@ async function checkProviderReadiness(
   // NOTE: company_profiles is user-scoped (no tenant_id column).
   let companyProfile: any = null;
   if (automation.user_id) {
+    const profileUserId = await resolveBusinessProfileUserId(supabase, automation.user_id);
     const { data, error: profileError } = await supabase
       .from("company_profiles")
       .select("feature_flags")
-      .eq("user_id", automation.user_id)
+      .eq("user_id", profileUserId)
       .maybeSingle();
 
     if (profileError && profileError.code !== "PGRST116") {

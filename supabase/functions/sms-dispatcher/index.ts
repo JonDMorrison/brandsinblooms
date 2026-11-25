@@ -7,6 +7,7 @@ import {
   type CompanyProfileData,
 } from "../_shared/emailFooter.ts";
 import { resolveSender, buildFromAddress } from "../_shared/senderResolver.ts";
+import { resolveBusinessProfileUserId } from "../_shared/businessProfileUserId.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -238,6 +239,7 @@ async function sendEmail(
     let companyName = "Your Garden Center";
 
     if (tenantUser?.id) {
+      const profileUserId = await resolveBusinessProfileUserId(supabase, tenantUser.id);
       const { data: profile } = await supabase
         .from("company_profiles")
         .select(
@@ -249,7 +251,7 @@ async function sendEmail(
           custom_sender_email
         `,
         )
-        .eq("user_id", tenantUser.id)
+        .eq("user_id", profileUserId)
         .single();
 
       if (profile) {

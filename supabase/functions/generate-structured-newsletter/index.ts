@@ -2,6 +2,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { resolveBusinessProfileUserId } from "../_shared/businessProfileUserId.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -59,10 +60,11 @@ serve(async (req) => {
     // Get company profile for additional context
     let companyProfile = null;
     if (userId) {
+      const profileUserId = await resolveBusinessProfileUserId(supabase, userId);
       const { data: profile, error: profileError } = await supabase
         .from('company_profiles')
         .select('*')
-        .eq('user_id', userId)
+        .eq('user_id', profileUserId)
         .single();
       
       if (!profileError && profile) {

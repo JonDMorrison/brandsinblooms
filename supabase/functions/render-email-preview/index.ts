@@ -24,6 +24,7 @@ import {
 } from "../_shared/linkRewriter.ts";
 import type { RenderableContentBlock } from "../_shared/campaignEmailContent.ts";
 import { COMPANY_PROFILE_WITH_DESIGN_SYSTEM_SELECT } from "../_shared/resolveDesignSystem.ts";
+import { resolveBusinessProfileUserId } from "../_shared/businessProfileUserId.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -320,10 +321,11 @@ serve(async (req) => {
         .single();
 
       if (userData) {
+        const profileUserId = await resolveBusinessProfileUserId(supabase, userData.id);
         const { data: profileData } = await supabase
           .from("company_profiles")
           .select(COMPANY_PROFILE_WITH_DESIGN_SYSTEM_SELECT)
-          .eq("user_id", userData.id)
+          .eq("user_id", profileUserId)
           .single();
 
         if (profileData) {

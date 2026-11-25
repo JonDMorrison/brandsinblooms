@@ -8,6 +8,7 @@ import { buildContentPrompt } from './prompt-builder.ts';
 import { generateContentWithValidation } from './openai-client.ts';
 import { sanitizeWeekNumbers, logWeekNumberViolation } from './week-sanitizer.ts';
 import { validateLocationForGeneration, locationBlockedResponse } from '../_shared/locationGuard.ts';
+import { resolveBusinessProfileUserId } from '../_shared/businessProfileUserId.ts';
 
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 const supabaseUrl = Deno.env.get('SUPABASE_URL');
@@ -54,10 +55,11 @@ serve(async (req) => {
       // Fetch company profile for personalization with enhanced business name handling
       let companyProfile = null;
       if (userId) {
+        const profileUserId = await resolveBusinessProfileUserId(supabase, userId);
         const { data: profileData, error: profileError } = await supabase
           .from('company_profiles')
           .select('*')
-          .eq('user_id', userId)
+          .eq('user_id', profileUserId)
           .maybeSingle();
 
         if (!profileError && profileData) {
@@ -75,7 +77,7 @@ serve(async (req) => {
               await supabase
                 .from('company_profiles')
                 .update({ company_name: companyProfile.company_name })
-                .eq('user_id', userId);
+                .eq('user_id', profileUserId);
             }
           }
           

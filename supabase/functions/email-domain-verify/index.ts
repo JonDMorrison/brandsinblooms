@@ -6,6 +6,7 @@ import {
   handleCorsPrelight,
   corsJsonResponse,
 } from "../_shared/cors.ts";
+import { resolveBusinessProfileUserId } from "../_shared/businessProfileUserId.ts";
 
 interface VerifyDomainRequest {
   domainId?: string;
@@ -1393,6 +1394,7 @@ const handler = async (req: Request): Promise<Response> => {
         .single();
 
       if (tenantUser?.id) {
+        const profileUserId = await resolveBusinessProfileUserId(supabase, tenantUser.id);
         const { error: profileError } = await supabase
           .from("company_profiles")
           .update({
@@ -1403,7 +1405,7 @@ const handler = async (req: Request): Promise<Response> => {
             email_auth_setup_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           })
-          .eq("user_id", tenantUser.id);
+          .eq("user_id", profileUserId);
 
         if (profileError) {
           console.error("⚠️ Failed to sync to company_profiles:", profileError);

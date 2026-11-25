@@ -4,6 +4,7 @@
  */
 
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { resolveBusinessProfileUserId } from "./businessProfileUserId.ts";
 
 export interface LocationValidationResult {
   isValid: boolean;
@@ -29,10 +30,11 @@ export async function validateLocationForGeneration(
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
   try {
+    const profileUserId = await resolveBusinessProfileUserId(supabase, userId);
     const { data: profile, error } = await supabase
       .from('company_profiles')
       .select('postal_code, location_needs_confirmation, onboarding_completed_at')
-      .eq('user_id', userId)
+      .eq('user_id', profileUserId)
       .maybeSingle();
 
     if (error) {

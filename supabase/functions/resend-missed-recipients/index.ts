@@ -15,6 +15,7 @@ import { rewriteLinksSync } from "../_shared/linkRewriter.ts";
 import { canSendEmailBatch, logSkippedSends } from "../_shared/canSendEmail.ts";
 import { getEmailGovernanceRuntimeConfig } from "../_shared/emailGovernanceConfig.ts";
 import { systemPauseEmailCampaignSending } from "../_shared/systemPauseCampaign.ts";
+import { resolveBusinessProfileUserId } from "../_shared/businessProfileUserId.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -596,6 +597,7 @@ serve(async (req) => {
     }
 
     // Get company profile
+    const profileUserId = await resolveBusinessProfileUserId(supabase, campaign.user_id);
     const { data: companyProfile } = await supabase
       .from("company_profiles")
       .select(
@@ -607,7 +609,7 @@ serve(async (req) => {
         footer_legal_text, brand_primary_color, brand_text_color
       `,
       )
-      .eq("user_id", campaign.user_id)
+      .eq("user_id", profileUserId)
       .single();
 
     // Milestone 7: campaign resend must use explicit campaign domain.

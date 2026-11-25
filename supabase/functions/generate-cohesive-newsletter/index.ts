@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { resolveBusinessProfileUserId } from "../_shared/businessProfileUserId.ts";
 
 // Inline interfaces and functions to avoid cross-function imports
 interface CompanyProfile {
@@ -86,10 +87,11 @@ serve(async (req) => {
 
     // Get company profile for context
     let companyProfile = null;
+    const profileUserId = await resolveBusinessProfileUserId(supabase, userId);
     const { data: profile, error: profileError } = await supabase
       .from('company_profiles')
       .select('*')
-      .eq('user_id', userId)
+      .eq('user_id', profileUserId)
       .single();
     
     if (!profileError && profile) {

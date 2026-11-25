@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { Resend } from "npm:resend@2.1.0";
+import { resolveBusinessProfileUserId } from "../_shared/businessProfileUserId.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -111,6 +112,7 @@ const handler = async (req: Request): Promise<Response> => {
       }
 
       // Update the user's profile with provisioned status
+      const profileUserId = await resolveBusinessProfileUserId(supabase, user.id);
       const { error: updateError } = await supabase
         .from('company_profiles')
         .update({
@@ -120,7 +122,7 @@ const handler = async (req: Request): Promise<Response> => {
           dns_records_verified: true,
           email_auth_setup_at: new Date().toISOString()
         })
-        .eq('user_id', user.id);
+        .eq('user_id', profileUserId);
 
       if (updateError) {
         console.error('❌ Failed to update user profile:', updateError);

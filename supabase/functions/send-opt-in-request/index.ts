@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { resolveSender, buildFromAddress } from "../_shared/senderResolver.ts";
 import { renderBloomSystemEmail, bloomEmailEscape } from "../../../src/lib/email/premiumBotanical.ts";
+import { resolveBusinessProfileUserId } from "../_shared/businessProfileUserId.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -40,10 +41,12 @@ serve(async (req) => {
       .single();
 
     // Get company profile for branding
+    const tenantUserId = (await supabase.from("users").select("id").eq("tenant_id", tenantId).limit(1).single()).data?.id;
+    const profileUserId = tenantUserId ? await resolveBusinessProfileUserId(supabase, tenantUserId) : tenantUserId;
     const { data: companyProfile } = await supabase
       .from("company_profiles")
       .select("company_name, website_url, location_info")
-      .eq("user_id", (await supabase.from("users").select("id").eq("tenant_id", tenantId).limit(1).single()).data?.id)
+      .eq("user_id", profileUserId)
       .single();
 
     const companyName = companyProfile?.company_name || tenant?.name || "Our Company";

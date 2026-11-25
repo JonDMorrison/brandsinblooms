@@ -10,6 +10,7 @@ import {
   extractClimateProfile,
 } from "../_shared/climateConstraints.ts";
 import { getMasterGardenerPrompt } from "../_shared/masterGardenerPrompt.ts";
+import { resolveBusinessProfileUserId } from "../_shared/businessProfileUserId.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -323,6 +324,10 @@ serve(async (req) => {
     let climateConstraints = "";
     let tenantId: string | null = null;
     if (resolvedUserId) {
+      const profileUserId = await resolveBusinessProfileUserId(
+        supabaseAdmin,
+        resolvedUserId,
+      );
       const [{ data: userRecord }, { data: companyProfile }] =
         await Promise.all([
           supabaseAdmin
@@ -335,7 +340,7 @@ serve(async (req) => {
             .select(
               "climate_archetype, climate_label, postal_code, city, state_province, country, usda_zone",
             )
-            .eq("user_id", resolvedUserId)
+            .eq("user_id", profileUserId)
             .maybeSingle(),
         ]);
 
