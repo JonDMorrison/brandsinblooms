@@ -78,6 +78,32 @@
   padding: 8px 12px;
   margin: 12px 0;
 }
+/* Spacing row: short label, slider, number box on one line. */
+.nl-slider-row {
+  display: grid;
+  grid-template-columns: 74px minmax(0, 1fr) 64px;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+  color: #344b50;
+  font-size: 12px;
+  font-weight: 650;
+}
+.nl-slider-row input[type="range"] {
+  width: 100%;
+  min-width: 0;
+  accent-color: var(--joy-palette-primary-500, #1f5b63);
+}
+.nl-slider-row input[type="number"] {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  border: 1px solid #b8c5c8;
+  border-radius: 6px;
+  padding: 5px 6px;
+  font: inherit;
+  font-weight: 500;
+}
 .nl-fieldset legend {
   font-size: 12px;
   font-weight: 700;

@@ -176,6 +176,82 @@ export function ColorField({
     </div>
   );
 }
+/**
+ * One spacing row: a short visible label ("Top"), a slider and a number box
+ * on one line. The number box keeps the full accessible name
+ * ("Image padding top") so it still reads clearly to screen readers.
+ */
+export function SliderNumberRow({
+  label,
+  accessibleName,
+  value,
+  onChange,
+  min = 0,
+  max = 160,
+  placeholder = "Auto",
+}: {
+  label: string;
+  accessibleName: string;
+  value?: number;
+  onChange: (value: number | undefined) => void;
+  min?: number;
+  max?: number;
+  placeholder?: string;
+}) {
+  // Same typing rule as NumericField: keep partial input ("1" on the way to
+  // "12") on screen instead of clamping each keystroke.
+  const [draft, setDraft] = React.useState<string | null>(null);
+  const fallback = Number(placeholder);
+  const sliderValue = value ?? (Number.isFinite(fallback) ? fallback : min);
+  const commit = (raw: string) => {
+    const parsed = Number(raw);
+    onChange(raw.trim() === "" || !Number.isFinite(parsed)
+      ? undefined
+      : Math.max(min, Math.min(max, parsed)));
+    setDraft(null);
+  };
+  return (
+    <div className="nl-slider-row">
+      <span aria-hidden="true">{label}</span>
+      <input
+        type="range"
+        aria-label={`${accessibleName} slider`}
+        min={min}
+        max={max}
+        step={1}
+        value={Math.max(min, Math.min(max, sliderValue))}
+        onChange={(e) => {
+          setDraft(null);
+          onChange(e.target.valueAsNumber);
+        }}
+      />
+      <input
+        type="number"
+        aria-label={accessibleName}
+        min={min}
+        max={max}
+        step={1}
+        value={draft ?? value ?? ""}
+        placeholder={placeholder}
+        onChange={(e) => {
+          const next = e.target.value;
+          setDraft(next);
+          const number = e.target.valueAsNumber;
+          if (!next) onChange(undefined);
+          else if (Number.isFinite(number) && number >= min && number <= max) onChange(number);
+        }}
+        onBlur={() => { if (draft !== null) commit(draft); }}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            event.currentTarget.blur();
+          }
+        }}
+      />
+    </div>
+  );
+}
+const EDGE_LABELS = { top: "Top", right: "Right", bottom: "Bottom", left: "Left" } as const;
 function Edges({
   title,
   value,
@@ -192,17 +268,16 @@ function Edges({
   return (
     <fieldset className="nl-fieldset">
       <legend>{title} (px)</legend>
-      <div className="nl-grid-2">
-        {(["top", "right", "bottom", "left"] as const).map((edge) => (
-          <NumericField
-            key={edge}
-            label={`${title} ${edge}`}
-            value={value?.[edge]}
-            placeholder={String(fallback?.[edge] ?? "Auto")}
-            onChange={(next) => onChange({ ...initial, ...value, [edge]: next })}
-          />
-        ))}
-      </div>
+      {(["top", "right", "bottom", "left"] as const).map((edge) => (
+        <SliderNumberRow
+          key={edge}
+          label={EDGE_LABELS[edge]}
+          accessibleName={`${title} ${edge}`}
+          value={value?.[edge]}
+          placeholder={String(fallback?.[edge] ?? "Auto")}
+          onChange={(next) => onChange({ ...initial, ...value, [edge]: next })}
+        />
+      ))}
     </fieldset>
   );
 }
@@ -248,20 +323,25 @@ export function ButtonPaddingFields({
   collapsible = true,
 }: AppearanceFieldsProps & { collapsible?: boolean }) {
   const fields = (
-    <div className="nl-grid-2">
-      <NumericField
-        label="Button horizontal padding"
+    <fieldset className="nl-fieldset">
+      <legend>Button padding (px)</legend>
+      <SliderNumberRow
+        label="Sides"
+        accessibleName="Button horizontal padding"
         max={96}
+        placeholder="22"
         value={value.buttonPaddingX}
         onChange={(buttonPaddingX) => onChange({ ...value, buttonPaddingX })}
       />
-      <NumericField
-        label="Button vertical padding"
+      <SliderNumberRow
+        label="Top / bottom"
+        accessibleName="Button vertical padding"
         max={48}
+        placeholder="12"
         value={value.buttonPaddingY}
         onChange={(buttonPaddingY) => onChange({ ...value, buttonPaddingY })}
       />
-    </div>
+    </fieldset>
   );
   return collapsible ? (
     <details className="nl-controls">
