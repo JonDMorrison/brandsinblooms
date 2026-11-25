@@ -9,6 +9,11 @@ import {
   getOperationalSender
 } from '@/lib/email/domainService';
 import { upsertEmailDomainFromEntriCallback } from '@/lib/email/domainProvisioning';
+import {
+  feedbackFromVerifyError,
+  feedbackFromVerifyReply,
+  readFunctionErrorBody,
+} from '@/lib/email/verifyDomainFeedback';
 
 export interface DomainUsageStats {
   date: string;
@@ -91,21 +96,22 @@ export const useEmailDomainManagement = () => {
         body: { email_domain_id: domainId }
       });
 
-      if (error) throw error;
+      if (error) {
+        const { status, body } = await readFunctionErrorBody(error);
+        const feedback = feedbackFromVerifyError(status, body, 'Could not check this domain. Try again.');
+        toast[feedback.tone](feedback.message);
+        // The check may still have saved a new status before failing.
+        await fetchDomains();
+        return { success: false, verified: false };
+      }
 
-      const isVerified = data?.ok || data?.status === 'active';
-
-      toast[isVerified ? 'success' : 'info'](
-        isVerified
-          ? 'Domain verified! You can start sending.'
-          : 'DNS records still pending. Please check your DNS settings.'
-      );
-
+      const feedback = feedbackFromVerifyReply(data);
+      toast[feedback.tone](feedback.message);
       await fetchDomains();
-      return { success: true, verified: isVerified };
+      return { success: true, verified: feedback.verified };
     } catch (err: any) {
       console.error('Error verifying domain:', err);
-      toast.error(err.message || 'Failed to verify domain');
+      toast.error(err.message || 'Could not check this domain. Try again.');
       return { success: false };
     }
   };

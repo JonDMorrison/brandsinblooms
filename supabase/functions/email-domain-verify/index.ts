@@ -568,10 +568,18 @@ function computeReadinessStatus(params: {
 // Helper Functions
 // =========================================================
 
+// Fast checks cover the first ~90 minutes after setup. After that, DNS added
+// later (often by a customer's web person days later) is still picked up by a
+// slow check every 6 hours, for about two weeks.
+const FAST_VERIFY_ATTEMPTS = 10;
+const MAX_VERIFY_ATTEMPTS = 66;
+const SLOW_VERIFY_INTERVAL_MS = 6 * 60 * 60 * 1000;
+
 function getNextVerifyInterval(attempts: number): number {
   if (attempts <= 3) return 2 * 60 * 1000;
   if (attempts <= 6) return 5 * 60 * 1000;
-  return 15 * 60 * 1000;
+  if (attempts <= FAST_VERIFY_ATTEMPTS) return 15 * 60 * 1000;
+  return SLOW_VERIFY_INTERVAL_MS;
 }
 
 function calculateNextVerifyAt(
@@ -579,7 +587,7 @@ function calculateNextVerifyAt(
   allPassed: boolean,
 ): Date | null {
   if (allPassed) return null;
-  if (attempts >= 10) return null;
+  if (attempts >= MAX_VERIFY_ATTEMPTS) return null;
 
   const interval = getNextVerifyInterval(attempts + 1);
   return new Date(Date.now() + interval);
@@ -719,9 +727,10 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    // Rate limiting check (5 minutes minimum between attempts)
+    // Rate limit: the background schedule runs every 2 minutes at its fastest,
+    // so its floor must sit below that; a person clicking waits 30 seconds.
     const lastAttempt = emailDomain.last_verify_attempt_at;
-    const minIntervalMs = 5 * 60 * 1000; // 5 minutes
+    const minIntervalMs = isServiceRole ? 60 * 1000 : 30 * 1000;
 
     if (!reset_attempts && lastAttempt) {
       const timeSinceLastAttempt = Date.now() - new Date(lastAttempt).getTime();
@@ -749,13 +758,15 @@ const handler = async (req: Request): Promise<Response> => {
       console.log("🔄 Resetting verification attempts to 0");
     }
 
-    if (currentAttempts >= 10 && !reset_attempts) {
+    // A person clicking Check now always gets a real check. Only the
+    // background schedule stops after MAX_VERIFY_ATTEMPTS.
+    if (isServiceRole && currentAttempts >= MAX_VERIFY_ATTEMPTS && !reset_attempts) {
       console.log("⚠️ Max verification attempts reached");
       return corsJsonResponse({
         ok: false,
-        status: "failed",
+        status: emailDomain.status,
         message:
-          'Maximum verification attempts (10) reached. Click "Retry" to reset and try again.',
+          "Automatic checks have stopped for this domain. Click Check now to try again.",
         domain: emailDomain.domain,
         verify_attempts: currentAttempts,
       });
@@ -788,6 +799,8 @@ const handler = async (req: Request): Promise<Response> => {
     let allPassed = true;
     let resendDomainStatus: any = null;
     let resendRecords: ResendRecord[] = [];
+    // Read after the try block (readiness + response), so it lives out here.
+    let dmarcOk = false;
 
     // Track conflicts with enhanced detail
     let dnsConflictDetected = false;
@@ -1164,7 +1177,7 @@ const handler = async (req: Request): Promise<Response> => {
       const dmarcFqdn = toFqdn("_dmarc", emailDomain.domain);
       const dmarcLookup = await dnsLookup(dmarcFqdn, 16, "verify_dmarc");
       const dmarcParsed = parseDmarcTxtRecord(dmarcLookup.values || []);
-      const dmarcOk = dmarcParsed.hasRecord && dmarcParsed.meetsMinimumPolicy;
+      dmarcOk = dmarcParsed.hasRecord && dmarcParsed.meetsMinimumPolicy;
 
       const dmarcCheck: DNSCheck = {
         check_name: "dmarc",
@@ -1291,8 +1304,12 @@ const handler = async (req: Request): Promise<Response> => {
       : allPassed
         ? null
         : buildVerificationError(checks, resendRecords, dnsConflictDetected);
+    // An active domain without DMARC can send transactional mail but stays
+    // blocked for campaigns, so keep checking until DMARC shows up.
     const nextVerifyAt = treatedAsActive
-      ? null
+      ? dmarcOk
+        ? null
+        : calculateNextVerifyAt(newAttempts, false)
       : calculateNextVerifyAt(newAttempts, allPassed);
 
     console.log(
@@ -1461,8 +1478,10 @@ const handler = async (req: Request): Promise<Response> => {
       },
 
       // Legacy fields for backwards compatibility
-      message: allPassed
-        ? "Domain verification successful! All DNS records verified."
+      message: allPassed && dmarcOk
+        ? "Domain verified. All email records are in place."
+        : allPassed
+          ? "Sending records verified. Add a DMARC record to finish setup."
         : dnsConflictDetected
           ? 'DNS conflict detected: CNAME record conflicts with MX/TXT records at the same hostname. Click "Fix DNS Conflict" to repair automatically.'
           : dnsVerifiedButResendPending

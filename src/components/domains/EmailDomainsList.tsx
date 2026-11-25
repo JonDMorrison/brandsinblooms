@@ -116,7 +116,8 @@ export const EmailDomainsList = ({
   const [lastCheckTimes, setLastCheckTimes] = useState<Record<string, number>>(
     {},
   );
-  const RATE_LIMIT_MS = 5 * 60 * 1000; // 5 minutes
+  // Matches the server floor for a person clicking Check now.
+  const RATE_LIMIT_MS = 30 * 1000;
 
   // =========================================================
   // Compute Readiness Display (single source of truth)
@@ -285,10 +286,17 @@ export const EmailDomainsList = ({
       resendStatus?.verification_phase === "dns_present_waiting_provider"
     ) {
       if (!authentication.ready) {
+        const onlyDmarcMissing =
+          authentication.missing.length === 1 &&
+          /dmarc/i.test(authentication.missing[0] ?? "");
         return mapReadinessToDisplay(
           "ACTION_REQUIRED_AUTHENTICATION",
-          authentication.message,
-          "Marketing campaigns stay blocked until every authentication check passes.",
+          onlyDmarcMissing
+            ? "Add a DMARC record to unlock campaigns."
+            : authentication.message,
+          onlyDmarcMissing
+            ? `At your DNS provider, add a TXT record. Host: _dmarc.${domain.domain} (or _dmarc). Value: v=DMARC1; p=none; We check again automatically every few hours, or click Check now.`
+            : "Marketing campaigns stay blocked until every authentication check passes.",
         );
       }
       return mapReadinessToDisplay(
@@ -327,19 +335,36 @@ export const EmailDomainsList = ({
     if (domain.status === "failed") {
       return mapReadinessToDisplay(
         "ACTION_REQUIRED_DNS_MISSING",
-        "Domain verification failed.",
-        "Click Retry to try again.",
+        "We couldn't find your DNS records.",
+        "Check that the records below are added at your DNS provider, then click Retry.",
         "Retry",
       );
     }
 
-    // Domain is pending/warming up - still in progress
+    // Domain is pending - say what we actually see, not a generic "few minutes".
     if (domain.status === "pending_dns" || domain.status === "verifying") {
+      const recordsMissing = resendStatus?.verification_phase === "dns_missing";
+      const nextAt = domain.next_verify_at ? new Date(domain.next_verify_at) : null;
+      const nextCheck = nextAt
+        ? nextAt.getTime() <= Date.now()
+          ? "within a few minutes"
+          : formatDistanceToNow(nextAt, { addSuffix: true })
+        : null;
+      const nextCheckText = nextCheck
+        ? `Next automatic check ${nextCheck}.`
+        : "Click Check now after you add them.";
       return {
         status: "CONNECTED_READY",
-        badge: { text: "Verifying", variant: "amber" },
-        message: "DNS verification in progress.",
-        subMessage: "This may take a few minutes.",
+        badge: {
+          text: recordsMissing ? "Waiting for DNS" : "Verifying",
+          variant: "amber",
+        },
+        message: recordsMissing
+          ? "We can't see your DNS records yet."
+          : "Your DNS records are in. Final checks are running.",
+        subMessage: recordsMissing
+          ? `Add the records shown below at your DNS provider. Changes can take a few hours to appear. ${nextCheckText}`
+          : "This usually finishes within an hour.",
         showForceCheck: true,
       };
     }
