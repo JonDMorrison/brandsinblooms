@@ -2,11 +2,11 @@ export const HOMEPAGE_SEO = {
   title:
     "BloomSuite — CRM, POS & Websites for Garden Centres",
   description:
-    "Explore BloomSuite CRM, BloomSuite POS, and BloomSites: customer marketing, in-store operations, websites, and online selling for independent garden centres.",
+    "Sell more plants, simplify store operations and grow repeat business with BloomSites, BloomSuite POS and BloomSuite CRM, built for independent garden centres.",
   url: "https://bloomsuite.app/",
   imageUrl: "https://bloomsuite.app/og-image.png",
   imageAlt:
-    "BloomSuite AI-powered CRM for garden centres, florists and green businesses",
+    "BloomSuite websites, point of sale and customer marketing for garden centres",
 };
 
 export const HOMEPAGE_STRUCTURED_DATA = [

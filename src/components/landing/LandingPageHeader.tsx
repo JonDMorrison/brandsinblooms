@@ -9,9 +9,9 @@ import bloomsuiteLogo from "@/assets/bloomsuite-logo-correct.png";
 
 // Marketing destinations, ordered independently of the homepage product cards.
 const PRODUCT_NAV_ITEMS = [
-  { name: "CRM", href: "/features", description: "Customer relationships & marketing" },
-  { name: "Website Builder", href: "/website/features", description: "Create and manage your website" },
-  { name: "POS", href: "/pos", description: "In-store checkout & operations" },
+  { name: "BloomSuite CRM", href: "/features", description: "Customer relationships & marketing" },
+  { name: "BloomSites", href: "/website/features", description: "Websites & online selling" },
+  { name: "BloomSuite POS", href: "/pos", description: "In-store checkout & operations" },
   { name: "E-commerce", href: "/ecomm", description: "Sell your products online" },
 ] as const;
 
@@ -37,7 +37,7 @@ export const LandingPageHeader = ({ onLogin, showUserMenu = true }: LandingPageH
 
   const navItems = [
     { name: "Home", href: "/" },
-    { name: "Features", href: "/features" },
+    { name: "CRM features", href: "/features" },
     { name: "Build your suite", href: "/build-your-suite" },
     { name: "CRM pricing", href: "/pricing" },
     { name: "FAQ", href: "/faq" },
