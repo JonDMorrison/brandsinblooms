@@ -38,6 +38,25 @@ const categoryOptions=[
 ];
 
 const CONNECTED_WEBSITE_CODE_PATTERN=/^[0-9a-f]{64}$/;
+/**
+ * Card photo with a branded default. A missing image, or one that fails to
+ * load, shows the store logo (or its name) instead of an empty grey box.
+ */
+function ContentThumbnail({imageUrl,logoUrl,fallbackName}:{imageUrl:string|null;logoUrl:string;fallbackName:string}){
+  const [failed,setFailed]=React.useState<string|null>(null);
+  const [logoFailed,setLogoFailed]=React.useState(false);
+  const showPhoto=Boolean(imageUrl)&&failed!==imageUrl;
+  return <Box sx={{aspectRatio:"16 / 9",borderRadius:"md",overflow:"hidden",bgcolor:"neutral.100",display:"grid",placeItems:"center"}}>
+    {showPhoto?<Box component="img" src={imageUrl??undefined} alt="" loading="lazy"
+      onError={()=>setFailed(imageUrl)} sx={{width:"100%",height:"100%",objectFit:"cover"}}/>
+      :logoUrl&&!logoFailed?<Box component="img" src={logoUrl} alt={fallbackName} loading="lazy"
+        onError={()=>setLogoFailed(true)} sx={{maxWidth:"55%",maxHeight:"45%",objectFit:"contain",opacity:0.85}}/>
+      :<Stack spacing={0.75} alignItems="center" sx={{px:2,textAlign:"center"}}>
+        <Globe2 size={24} color="var(--joy-palette-neutral-400)" aria-hidden="true"/>
+        <Typography level="title-sm" color="neutral">{fallbackName}</Typography>
+      </Stack>}
+  </Box>;
+}
 const WRONG_CODE_MESSAGE="This is not a Connected websites code. In BloomSites, open Integrations, choose Connect BloomSites and BloomSuite, and generate a new code.";
 
 function ContentWorkspace() {
@@ -303,10 +322,8 @@ function ContentWorkspace() {
             {(data?.items??[]).map(item=><Sheet key={item.siteId+item.id} variant="outlined"
               sx={{p:1.5,borderRadius:"lg",bgcolor:promoteId===item.id?"neutral.50":"background.surface"}}>
               <Stack spacing={1.5} sx={{height:"100%"}}>
-                <Box sx={{aspectRatio:"16 / 9",borderRadius:"md",overflow:"hidden",bgcolor:"neutral.100",display:"grid",placeItems:"center"}}>
-                  {item.imageUrl?<Box component="img" src={item.imageUrl} alt="" sx={{width:"100%",height:"100%",objectFit:"cover"}}/>
-                    :<Globe2 size={32} color="var(--joy-palette-neutral-400)"/>}
-                </Box>
+                <ContentThumbnail imageUrl={item.imageUrl} logoUrl={designSystem.company.logoUrl}
+                  fallbackName={item.siteName||designSystem.company.name}/>
                 <Stack spacing={0.5} sx={{flex:1}}>
                   <Typography level="title-sm">{item.title}</Typography>
                   {item.eventStatus==="cancelled" || item.eventStatus==="sold_out" ? <Typography color="danger" level="body-sm">{item.eventStatus==="cancelled" ? "Cancelled" : "Sold out"}</Typography> : null}
