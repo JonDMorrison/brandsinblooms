@@ -125,3 +125,19 @@ describe("Product Card photo proportions (Block Builder feedback)", () => {
     expect(img).toContain("height:220px");
   });
 });
+
+describe("Product Card border (Block Builder feedback)", () => {
+  const card = (fields: Partial<StudioBlock>) =>
+    ({ ...createStudioBlock("product-card"), productName: "Fern", ...fields }) as StudioBlock;
+  const cardBorder = (html: string) => html.match(/^<div style="padding:[^;]+;border:([^;]+);/)?.[1];
+
+  it("keeps the card border when border settings were touched but no style is drawn", () => {
+    expect(cardBorder(renderExtendedBlock(card({ appearance: { border: { width: 2 } } }), 640) ?? "")).toBe("1px solid #cbd5e1");
+  });
+  it("a drawn block border replaces the card border", () => {
+    expect(cardBorder(renderExtendedBlock(card({ appearance: { border: { style: "dashed", width: 2 } } }), 640) ?? "")).toBe("none");
+  });
+  it("Show card border off removes it", () => {
+    expect(cardBorder(renderExtendedBlock(card({ showCardBorder: false }), 640) ?? "")).toBe("none");
+  });
+});

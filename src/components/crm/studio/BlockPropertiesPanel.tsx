@@ -214,6 +214,32 @@ function PanelSection({ title, children }: PanelSectionProps) {
   );
 }
 
+/** Left / Centre / Right for a block's button. `fallback` is the alignment used while unset. */
+function ButtonAlignmentField({
+  block,
+  updateField,
+  fallback = "left",
+}: {
+  block: StudioBlock;
+  updateField: (field: keyof StudioBlock, value: StudioBlock[keyof StudioBlock]) => void;
+  fallback?: "left" | "center" | "right";
+}) {
+  // Shows what the renderer does today when nothing is picked.
+  const current = block.buttonAlign ?? fallback;
+  return (
+    <StudioToggleField
+      label="Button alignment"
+      options={[
+        { label: "Left", value: "left" },
+        { label: "Centre", value: "center" },
+        { label: "Right", value: "right" },
+      ]}
+      value={current}
+      onChange={(value) => updateField("buttonAlign", value as StudioBlock["buttonAlign"])}
+    />
+  );
+}
+
 function CollapsibleSection({
   label,
   enabled,
@@ -2482,6 +2508,7 @@ function PanelContent({
                           onToggle={() => {}}
                           description="Refine the CTA once the button has copy"
                         >
+                          <ButtonAlignmentField block={block} updateField={updateField} fallback={block.textAlign === "center" || block.textAlign === "right" ? block.textAlign : "left"} />
                           <StudioToggleField
                             label="Button Style"
                             options={[
@@ -3203,6 +3230,7 @@ function PanelContent({
                       value={block.buttonUrl ?? ""}
                       onChange={(value) => updateField("buttonUrl", value)}
                     />
+                    <ButtonAlignmentField block={block} updateField={updateField} fallback={block.textAlign === "left" || block.textAlign === "right" ? block.textAlign : "center"} />
                     <StudioToggleField
                       label="Button Style"
                       options={[
@@ -5053,25 +5081,9 @@ function PanelContent({
                       value={block.textColor ?? "#111827"}
                       onChange={(value) => updateField("textColor", value)}
                     />
-                    <StudioSwitchField
-                      label="Show Card Border"
-                      checked={block.showCardBorder ?? block.showBorder ?? true}
-                      onChange={(value) => {
-                        updateField("showCardBorder", value);
-                        updateField("showBorder", value);
-                      }}
-                    />
-                    <StudioSliderField
-                      label="Card corner roundness"
-                      min={0}
-                      max={16}
-                      step={2}
-                      defaultValue={12}
-                      value={block.cardBorderRadius ?? 12}
-                      onChange={(value) =>
-                        updateField("cardBorderRadius", value)
-                      }
-                    />
+                    <Typography level="body-xs" sx={{ color: "neutral.500", fontSize: "11px", lineHeight: 1.45 }}>
+                      Card border and corners are under More options, Border &amp; label.
+                    </Typography>
                   </>
                 ),
               },
@@ -5518,6 +5530,27 @@ export default function BlockPropertiesPanel({
                 <AppearanceControls
                   key={block.id}
                   block={block}
+                  borderLead={block.type === "product-card" ? (
+                    <>
+                      <StudioSwitchField
+                        label="Show card border"
+                        checked={block.showCardBorder ?? block.showBorder ?? true}
+                        onChange={(value) => {
+                          onUpdateBlockField(block.id, "showCardBorder", value);
+                          onUpdateBlockField(block.id, "showBorder", value);
+                        }}
+                      />
+                      <StudioSliderField
+                        label="Card corner roundness"
+                        min={0}
+                        max={16}
+                        step={2}
+                        defaultValue={12}
+                        value={block.cardBorderRadius ?? 12}
+                        onChange={(value) => onUpdateBlockField(block.id, "cardBorderRadius", value)}
+                      />
+                    </>
+                  ) : undefined}
                   value={block.appearance}
                   onChange={(value) => {
                     onUpdateBlockField(block.id, "appearance", value);

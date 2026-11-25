@@ -121,6 +121,15 @@ describe("block-specific properties", () => {
     expect(screen.queryByText("Image spacing")).toBeNull();
   });
 
+  it("keeps Product Card's Show card border with the other border controls", () => {
+    openPanel(createStudioBlock("product-card"));
+    const borderSection = screen.getByText("Border & label").closest("details")!;
+    expect(borderSection).toContainElement(screen.getByText("Show card border"));
+    expect(borderSection).toContainElement(screen.getByText("Card corner roundness"));
+    expect(borderSection).toContainElement(screen.getByText("Border style"));
+    expect(screen.queryByText("Show Card Border")).toBeNull();
+  });
+
   it("offers portrait fit, one column split and one optional image link", () => {
     openPanel({ ...createStudioBlock("image-text"), imageLinkEnabled: true });
     expect(screen.getByText("9:16")).toBeInTheDocument();
