@@ -12,6 +12,12 @@ export function money(v: unknown): string | null {
   return `${v < 0 ? "-" : ""}${whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}.${cents}`;
 }
 
+/** Uncategorised share of all sales as a whole percent, or null when there is none to report. */
+export function coverage(uncategorised: unknown, all: unknown): number | null {
+  if (typeof uncategorised !== "number" || typeof all !== "number" || !(uncategorised > 0) || !(all > 0)) return null;
+  return Math.round((uncategorised / all) * 100);
+}
+
 /** True when model prose states a money-like amount (1,234 or 12.34). Dates do not match. */
 export function statesAmount(value: string): boolean {
   return /\b\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?\b|\b\d+\.\d{2}\b/.test(value);
@@ -19,7 +25,7 @@ export function statesAmount(value: string): boolean {
 
 interface Client {
   name: string; source: string; currency: string | null; first: string; last: string;
-  allSales: unknown; requested: Map<string, Row>; largest: unknown;
+  allSales: unknown; uncategorised: unknown; requested: Map<string, Row>; largest: unknown;
 }
 
 /**
@@ -41,6 +47,7 @@ export function revenueFacts(results: unknown[]): string | null {
       const client = clients.get(id) ?? {
         name: text(c.garden_centre) || "Unnamed client", source: text(c.source_system), currency,
         first: text(period.first), last: text(period.last), allSales: c.all_sales_total,
+        uncategorised: c.uncategorised_total,
         requested: new Map<string, Row>(), largest: c.largest_categories,
       };
       for (const q of rows(c.requested_categories)) client.requested.set(text(q.requested), q);
@@ -55,6 +62,8 @@ export function revenueFacts(results: unknown[]): string | null {
       const amount = (v: unknown) => { const m = money(v); return m === null ? null : c.currency ? `${m} ${c.currency}` : m; };
       lines.push(`*${c.name}* (${c.source}; ${c.currency ?? "currency not recorded"}; sales ${c.first} to ${c.last})`);
       lines.push(`• All sales: ${amount(c.allSales) ?? "not returned"}`);
+      const share = coverage(c.uncategorised, c.allSales);
+      if (share !== null) lines.push(`• No category recorded: ${amount(c.uncategorised)} (${share}% of all sales). Category figures below cover only the rest.`);
       const notRecorded: string[] = [];
       for (const [term, q] of c.requested) {
         if (typeof q.total === "string") { notRecorded.push(term); continue; }

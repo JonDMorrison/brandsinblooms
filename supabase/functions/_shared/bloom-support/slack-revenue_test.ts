@@ -1,5 +1,5 @@
 import { assert, assertEquals, assertStringIncludes } from "@std/assert";
-import { money, revenueFacts, statesAmount } from "./slack-revenue.ts";
+import { coverage, money, revenueFacts, statesAmount } from "./slack-revenue.ts";
 import { composeSlackAgentReply } from "./slack-agent-core.ts";
 
 const range = { from: "2025-11-25", to: "2026-11-25" };
@@ -33,8 +33,8 @@ Deno.test("separate per-term calls merge into one block per store, keeping zero 
     patio([{ requested: "event", total: 0, matched_labels: [], matched_label_count: 0 }]),
   ] };
   const plant = { requested_range: range, clients: [
-    westCoast([{ requested: "plant", total: 60827.4, matched_label_count: 18, matched_labels: [
-      { label: "2,801 Studio Indoor Planters", total: 16612.62 }, { label: "2,703 Studio Greens Planters", total: 13741.64 }] }]),
+    westCoast([{ requested: "plant", total: 62408.12, matched_label_count: 16, matched_labels: [
+      { label: "1,503 Poinsettias", total: 22758.1 }, { label: "1,501 Tropicals", total: 10090.4 }] }]),
     burnetts(["plant"]),
     patio([{ requested: "plant", total: 24676.33, matched_labels: [{ label: "Plants", total: 24676.33 }], matched_label_count: 1 }]),
   ] };
@@ -43,7 +43,7 @@ Deno.test("separate per-term calls merge into one block per store, keeping zero 
   assertStringIncludes(facts, "Recorded POS sales, 2025-11-25 to 2026-11-25:");
   assertStringIncludes(facts, "• All sales: 2,408,045.29 CAD");
   assertStringIncludes(facts, '• "event": 188.80 CAD (2,503 Workshops / Events 188.80)');
-  assertStringIncludes(facts, '• "plant": 60,827.40 CAD (2,801 Studio Indoor Planters 16,612.62; 2,703 Studio Greens Planters 13,741.64; +16 more labels)');
+  assertStringIncludes(facts, '• "plant": 62,408.12 CAD (1,503 Poinsettias 22,758.10; 1,501 Tropicals 10,090.40; +14 more labels)');
   // Lightspeed stores no currency: amounts carry none, and zero is a recorded zero.
   assertStringIncludes(facts, "*Patio Gardens* (Lightspeed; currency not recorded;");
   assertStringIncludes(facts, '• "event": 0.00 (no recorded category matched)');
@@ -70,4 +70,17 @@ Deno.test("the figures fit a Slack reply for four stores and three categories", 
 
 Deno.test("no revenue results means no figures block", () => {
   assertEquals(revenueFacts([]), null);
+});
+
+Deno.test("uncategorised sales are shown as a share so category figures are not read as complete", () => {
+  assertEquals(coverage(2099965.0, 2408045.29), 87);
+  assertEquals(coverage(0, 2408045.29), null);
+  assertEquals(coverage(null, 2408045.29), null);
+  const facts = revenueFacts([{ requested_range: range, clients: [
+    { ...westCoast([{ requested: "plant", total: 62408.12, matched_labels: [], matched_label_count: 16 }]), uncategorised_total: 2099965.0 },
+    burnetts(["plant"]),
+  ] }])!;
+  assertStringIncludes(facts, "• No category recorded: 2,099,965.00 CAD (87% of all sales). Category figures below cover only the rest.");
+  // Sources that keep no category at all say so instead; no share line.
+  assertEquals(facts.split("*Burnett")[1].includes("No category recorded"), false);
 });
