@@ -2,6 +2,7 @@ import {
   buildCampaignOrigin,
   normalizeCampaignOrigin,
 } from "@/lib/crm/campaignOrigin";
+import type { ThemeGenerationNavigationState } from "@/hooks/useStartThemeNewsletter";
 import { useThisWeeksTheme } from "@/hooks/useThisWeeksTheme";
 import {
   buildNewsletterIdeaDraftSeed,
@@ -999,7 +1000,7 @@ function CampaignEditorScreen() {
     window.location.reload();
   }, []);
 
-  const handleOpenStudio = React.useCallback(async () => {
+  const openStudio = React.useCallback(async (navigationState?: ThemeGenerationNavigationState) => {
     if (campaignType !== "email") {
       return;
     }
@@ -1025,8 +1026,12 @@ function CampaignEditorScreen() {
       return;
     }
 
-    navigate(`/crm/campaigns/${nextCampaignId}/studio`);
+    navigate(
+      `/crm/campaigns/${nextCampaignId}/studio`,
+      navigationState ? { state: navigationState } : undefined,
+    );
   }, [campaignId, campaignType, isLocked, isTenantReady, navigate, saveDraft]);
+  const handleOpenStudio = React.useCallback(() => openStudio(), [openStudio]);
 
   const handleScheduleForLater = React.useCallback(() => {
     setScheduleOpen(true);
@@ -1402,13 +1407,32 @@ function CampaignEditorScreen() {
     };
   }, [designSystem, weeklyThemeQuery.data]);
 
+  // "Start from this week's theme" applies the clean seed (the fallback),
+  // then opens Design Studio, which writes the newsletter with AI. The open
+  // waits one render so the saved draft carries the seed, not the old canvas.
+  const [pendingThemeStudio, setPendingThemeStudio] =
+    React.useState<ThemeGenerationNavigationState | null>(null);
   const handleStartFromTheme = React.useCallback(() => {
     if (!weeklyThemeTemplate) return;
     handleApplyTemplate(weeklyThemeTemplate);
     setSelectedIntent(null);
     setSelectedSavedTemplateId(null);
     setWeeklyThemeApplied(true);
-  }, [handleApplyTemplate, weeklyThemeTemplate]);
+    const theme = weeklyThemeQuery.data;
+    if (campaignType === "email" && theme) {
+      setPendingThemeStudio({
+        themeGeneration: {
+          weekNumber: theme.source.weekNumber,
+          themeImages: theme.source.images,
+        },
+      });
+    }
+  }, [campaignType, handleApplyTemplate, weeklyThemeQuery.data, weeklyThemeTemplate]);
+  React.useEffect(() => {
+    if (!pendingThemeStudio) return;
+    setPendingThemeStudio(null);
+    void openStudio(pendingThemeStudio);
+  }, [openStudio, pendingThemeStudio]);
 
   const weeklyThemeOption = React.useMemo(() => {
     const theme = weeklyThemeQuery.data;

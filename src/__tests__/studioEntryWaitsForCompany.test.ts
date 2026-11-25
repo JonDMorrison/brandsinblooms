@@ -19,7 +19,7 @@ describe("Design Studio entry on a new newsletter", () => {
   });
 
   it("never saves a draft before the company is known", () => {
-    const handler = page.slice(page.indexOf("const handleOpenStudio"), page.indexOf("const handleScheduleForLater"));
+    const handler = page.slice(page.indexOf("const openStudio"), page.indexOf("const handleScheduleForLater"));
     expect(handler.indexOf("if (!isTenantReady)")).toBeGreaterThan(-1);
     expect(handler.indexOf("if (!isTenantReady)")).toBeLessThan(handler.indexOf("saveDraft"));
   });
