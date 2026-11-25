@@ -2690,6 +2690,8 @@ ${buildFontLinks(designSystem)}  <!--[if !mso]><!-->
       .image-text-image img.responsive-crop-image { height:${mobileCropHeight} !important; }
       .gallery-grid-placeholder,
       .product-grid-placeholder { display:none !important; padding:0 !important; height:0 !important; }
+      .product-card-row .event-card-cell { padding-left:18px !important; padding-right:18px !important; }
+      .product-card-row .event-card-cell:first-child { padding-top:18px !important; }
 ${PRODUCT_GALLERY_MOBILE_CSS}${productGalleryHeightCss(renderedBlocks)}
     }
     @supports (aspect-ratio: 1 / 1) {

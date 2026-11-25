@@ -19,7 +19,7 @@ import { safeEmailUrl } from "@/lib/studio/newsletter/settings";
 import { navigationLinkColor } from "@/lib/studio/newsletter/settings";
 import { useNewsletterDesign } from "./NewsletterDesignContext";
 import { upcAImage } from "@/lib/studio/newsletter/barcode";
-import { validUpcA } from "@/lib/studio/newsletter/renderExtensions";
+import { couponUsesOldPrice, couponUsesPrice, validUpcA } from "@/lib/studio/newsletter/renderExtensions";
 import { chartDataTextFor, parseChartDataText } from "@/lib/studio/newsletter/chartData";
 
 type Update = (
@@ -362,16 +362,18 @@ function CouponFields({
           />
         </>
       )}
-      <Field
-        label={
-          block.couponOffer === "tiered"
-            ? "Price per item at minimum quantity"
-            : "Price (optional)"
-        }
-        value={block.couponPrice}
-        onChange={(value) => update("couponPrice", value)}
-        placeholder="Example: $19.99"
-      />
+      {couponUsesPrice(block.couponOffer) && (
+        <Field
+          label={
+            block.couponOffer === "tiered"
+              ? "Price per item at minimum quantity"
+              : "Sale price"
+          }
+          value={block.couponPrice}
+          onChange={(value) => update("couponPrice", value)}
+          placeholder="Example: $19.99"
+        />
+      )}
       {block.couponOffer === "tiered" && (
         <>
           <NumericField
@@ -389,11 +391,13 @@ function CouponFields({
           />
         </>
       )}
-      <Field
-        label="Old price (shown crossed out)"
-        value={block.originalPrice}
-        onChange={(value) => update("originalPrice", value)}
-      />
+      {couponUsesOldPrice(block.couponOffer) && (
+        <Field
+          label="Old price (shown crossed out after the sale price)"
+          value={block.originalPrice}
+          onChange={(value) => update("originalPrice", value)}
+        />
+      )}
       <Field
         label="Size or type this applies to"
         value={block.couponSizing}

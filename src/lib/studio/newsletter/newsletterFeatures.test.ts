@@ -380,6 +380,8 @@ describe("coupon presets and products", () => {
         buttonUrl: "https://example.com/offer",
         couponConditions: "In store only",
         couponExpiry: "October 31",
+        couponOffer: "price",
+        couponPrice: "$29.99",
         originalPrice: "$39.99",
         couponSizing: "#2 pot only",
       }),
@@ -388,7 +390,8 @@ describe("coupon presets and products", () => {
       output.indexOf("In store only"),
     );
     expect(output).toContain("Expires: October 31");
-    expect(output).toContain("<s>$39.99</s>");
+    // The old price follows the sale price (Nov 25 QA).
+    expect(output).toMatch(/\$29\.99 <s[^>]*>\$39\.99<\/s>/);
     expect(output).toContain("Skimmia japonica");
   });
   it("supports product subtitles, three badges and image on top", () => {

@@ -23,7 +23,9 @@ describe("Arts November block-builder regressions", () => {
     expect(screen.getByLabelText("Photo URL")).toHaveValue("https://example.com/photo.png");
     fireEvent.click(screen.getByRole("button", { name: "Square placeholder" }));
     expect(screen.getByLabelText("Photo URL")).toHaveValue("https://placehold.co/1200x1200/png");
-    expect(onApply).toHaveBeenCalledTimes(1);
+    // Placeholder shortcuts apply in one click.
+    expect(onApply).toHaveBeenLastCalledWith("https://placehold.co/1200x1200/png");
+    expect(onApply).toHaveBeenCalledTimes(2);
   });
 
   it("resolves a relative filename against the selected asset location", () => {

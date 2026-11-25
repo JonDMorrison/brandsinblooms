@@ -146,6 +146,30 @@ export function normalizeSocialLinks(value: unknown, order?: unknown): SocialLin
 }
 
 /**
+ * A bare network homepage ("https://facebook.com") is not anyone's page.
+ * Brand settings holding one should not seed a new block with a link.
+ */
+export function isSocialHomepageOnly(url: unknown): boolean {
+  if (typeof url !== "string" || !url.trim()) return false;
+  try {
+    const parsed = new URL(/^https?:\/\//i.test(url.trim()) ? url.trim() : `https://${url.trim()}`);
+    const host = parsed.hostname.toLowerCase().replace(/^(www|m)\./, "");
+    const homepages = ["facebook.com", "instagram.com", "twitter.com", "x.com", "linkedin.com",
+      "youtube.com", "tiktok.com", "pinterest.com", "threads.net", "threads.com"];
+    return homepages.includes(host) && parsed.pathname.replace(/\/+$/, "") === "" && !parsed.search;
+  } catch {
+    return false;
+  }
+}
+
+/** Links for a brand-new block: real page addresses only; the rest start empty and off. */
+export function socialLinksForNewBlock(links: SocialLink[]): SocialLink[] {
+  return links.map((link) =>
+    isSocialHomepageOnly(link.url) ? { ...link, url: "", enabled: false } : link,
+  );
+}
+
+/**
  * The footer's "Show Social Icons" switch. An explicit choice always wins;
  * a footer that never set it follows whether brand settings hold links.
  */

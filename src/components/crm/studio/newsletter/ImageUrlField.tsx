@@ -21,8 +21,12 @@ export default function ImageUrlField({
     setBase("");
     setError("");
   }, [currentUrl]);
+  // A block whose photo is a pasted web address (not an upload in our own
+  // storage) reopens with this section expanded, showing that address.
+  const usesPublicUrl =
+    /^https?:\/\//i.test(currentUrl) && !currentUrl.includes("/storage/v1/");
   return (
-    <details className="nl-controls" open={expanded || undefined}>
+    <details className="nl-controls" open={expanded || usesPublicUrl || undefined}>
       <summary>Use a public image URL</summary>
       {Boolean(settings?.assetLocations?.length) && (
         <Choice
@@ -54,8 +58,11 @@ export default function ImageUrlField({
       <div className="nl-grid-2">
         {[{ label: "Banner placeholder", size: "640x360" }, { label: "Square placeholder", size: "1200x1200" }].map(({ label, size }) => (
           <button key={size} type="button" className="nl-quiet" onClick={() => {
+            // One click applies the placeholder; no separate "Use this image".
+            const url = `https://placehold.co/${size}/png`;
+            onApply(url);
             setBase("");
-            setInput(`https://placehold.co/${size}/png`);
+            setInput(url);
             setError("");
           }}>{label}</button>
         ))}

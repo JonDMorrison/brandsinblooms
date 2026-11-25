@@ -139,6 +139,14 @@
     max-width: 100% !important;
     height: auto !important;
   }
+  /* Event card: keep the label and title clear of the card border. */
+  .nl-preview .product-card-row .event-card-cell {
+    padding-left: 18px !important;
+    padding-right: 18px !important;
+  }
+  .nl-preview .product-card-row .event-card-cell:first-child {
+    padding-top: 18px !important;
+  }
 }
 
 /* Section titles in the flat forms, matching the older drawer sections. */

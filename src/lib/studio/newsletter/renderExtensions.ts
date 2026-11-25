@@ -121,9 +121,14 @@ function imageAndContent(
   side: "left" | "right" | "top",
   width: number,
 ): string {
+  // A Product Card with its photo on top fills the card width at the photo's
+  // own proportions; the fixed 220px box left it small with wide margins.
   const photo = picture(
     block,
     side === "top" ? width : Math.floor(width * 0.38),
+    block.type === "product-card" && side === "top"
+      ? { height: null, fit: block.imageFit ?? "contain", className: "" }
+      : undefined,
   );
   if (!photo) return content;
   if (side === "top")
@@ -177,12 +182,29 @@ function renderEventCard(block: StudioBlock, width: number, editing = false): st
     return `<div class="mobile-padding" style="padding:28px 30px;border:1px solid #e4e7e2;border-radius:14px;background-color:${emailColor(block.backgroundColor, "#ffffff")};">${content}</div>`;
   }
 
-  const imageCell = `<td dir="ltr" class="responsive-column product-card-image" width="42%" valign="middle" style="width:42%;vertical-align:middle;padding:${imageSide === "right" ? "22px 22px 22px 11px" : "22px 11px 22px 22px"};">${image}</td>`;
-  const contentCell = `<td dir="ltr" class="responsive-column product-card-details" width="58%" valign="middle" style="width:58%;vertical-align:middle;padding:${imageSide === "right" ? "26px 11px 26px 26px" : "26px 26px 26px 11px"};">${content}</td>`;
+  const imageCell = `<td dir="ltr" class="responsive-column product-card-image event-card-cell" width="42%" valign="middle" style="width:42%;vertical-align:middle;padding:${imageSide === "right" ? "22px 22px 22px 11px" : "22px 11px 22px 22px"};">${image}</td>`;
+  const contentCell = `<td dir="ltr" class="responsive-column product-card-details event-card-cell" width="58%" valign="middle" style="width:58%;vertical-align:middle;padding:${imageSide === "right" ? "26px 11px 26px 26px" : "26px 26px 26px 11px"};">${content}</td>`;
   if (block.imagePosition === "top") {
     return `<div class="mobile-padding" style="padding:18px;border:1px solid #e4e7e2;border-radius:14px;background-color:${emailColor(block.backgroundColor, "#ffffff")};">${image}<div style="padding:18px 8px;">${content}</div></div>`;
   }
   return `<table role="presentation" class="product-card-row" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:separate;border:1px solid #e4e7e2;border-radius:14px;background-color:${emailColor(block.backgroundColor, "#ffffff")};"><tr>${imageSide === "right" ? contentCell + imageCell : imageCell + contentCell}</tr></table>`;
+}
+/**
+ * The Product Card price box shows a "$" in front of what is typed. A bare
+ * number ("29.99") is rendered with that symbol; anything already carrying a
+ * symbol or words ("€25", "From $10") is left as typed.
+ */
+export function withCurrencySymbol(price: string | undefined, symbol = "$"): string {
+  const value = (price ?? "").trim();
+  return /^\d[\d,]*(?:\.\d+)?$/.test(value) ? `${symbol}${value}` : value;
+}
+/** Offer types whose label is built from the "Price" field. */
+export function couponUsesPrice(offer: StudioBlock["couponOffer"]): boolean {
+  return offer === "price" || offer === "tiered";
+}
+/** Only a plain sale price is shown against a crossed-out old price. */
+export function couponUsesOldPrice(offer: StudioBlock["couponOffer"]): boolean {
+  return offer === "price";
 }
 export function couponOfferLabel(block: StudioBlock): string {
   switch (block.couponOffer) {
@@ -241,7 +263,11 @@ export function renderCoupon(block: StudioBlock, width: number, editing = false)
     heading(block) +
     paragraph(block, block.subheading, "subheading", 17) +
     paragraph(block, block.body) +
-    `${price ? `<div data-newsletter-role="price" style="margin:12px 0;${role(block, "price", 28, 800)}">${text(price)}</div>` : ""}${block.originalPrice ? `<div style="margin-bottom:8px;"><s>${text(block.originalPrice)}</s></div>` : ""}${block.couponPrice && block.couponOffer !== "price" && block.couponOffer !== "tiered" ? paragraph(block, block.couponPrice, "price", 20) : ""}` +
+    // Only "Sale price" shows an old price, after the new one. Price fields
+    // left over from another offer type are ignored.
+    (price
+      ? `<div data-newsletter-role="price" style="margin:12px 0;${role(block, "price", 28, 800)}">${text(price)}${couponUsesOldPrice(block.couponOffer) && present(block.originalPrice) ? ` <s data-newsletter-role="smallPrint" style="font-size:0.6em;font-weight:400;opacity:0.75;">${text(block.originalPrice)}</s>` : ""}</div>`
+      : "") +
     paragraph(block, block.couponSizing, "label", 13) +
     (block.showButton === false ? "" : renderNewsletterButton(block, undefined, undefined, editing)) +
     `<div style="padding-top:12px;">${finePrint}</div>` +
@@ -329,10 +355,10 @@ export function renderExtendedBlock(
           16,
         ) +
         (block.productPrice
-          ? `<div data-newsletter-role="price" style="margin:8px 0;${role(block, "price", 22, 700)}">${text(block.productPrice)}${block.originalPrice ? ` <s style="font-size:14px;font-weight:400;">${text(block.originalPrice)}</s>` : ""}</div>`
+          ? `<div data-newsletter-role="price" style="margin:8px 0;${role(block, "price", 22, 700)}">${text(withCurrencySymbol(block.productPrice))}${block.originalPrice ? ` <s style="font-size:14px;font-weight:400;">${text(withCurrencySymbol(block.originalPrice))}</s>` : ""}</div>`
           : "") +
         paragraph(block, block.productDescription ?? block.body) +
-        `<div style="text-align:${block.buttonAlign ?? "left"};">${renderNewsletterButton(block, undefined, undefined, editing)}</div>`;
+        `<div style="text-align:${block.buttonAlign ?? (block.layout === "centered" ? "center" : "left")};">${renderNewsletterButton(block, undefined, undefined, editing)}</div>`;
       const side =
         block.imagePosition === "left" ||
         block.imagePosition === "right" ||
