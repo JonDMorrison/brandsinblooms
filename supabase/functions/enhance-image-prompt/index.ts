@@ -1,6 +1,10 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { resolveAdminWorkspaceTenant } from "../bloom-assist/admin-workspace.ts";
+import { createSpendMeter, isSpendCapReached } from "../bloom-assist/security/spend-cap.ts";
+import { requestEnhancedImagePrompt } from "./provider.ts";
 import { getMasterGardenerSystemRole } from "../_shared/masterGardenerPrompt.ts";
 
 const openAIApiKey = Deno.env.get("OPENAI_API_KEY");
@@ -104,15 +108,39 @@ serve(async (req) => {
       });
     }
 
+    const token = /^Bearer\s+(\S+)$/i.exec(authHeader)?.[1];
+    if (!token) return new Response(JSON.stringify({ error: "Authorization required" }), { status: 401, headers: corsHeaders });
+    const supabase = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_ANON_KEY") ?? "", {
+      global: { headers: { Authorization: `Bearer ${token}` } },
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) return new Response(JSON.stringify({ error: "Invalid authorization" }), { status: 401, headers: corsHeaders });
     const { campaignContext: rawCampaignContext, prompt } = await req.json();
 
-    if (!prompt) {
-      throw new Error("Prompt is required");
+    if (typeof prompt !== "string" || !prompt.trim() || prompt.length > 4000) {
+      return new Response(JSON.stringify({ error: "Prompt must contain 1–4000 characters" }), { status: 400, headers: corsHeaders });
     }
 
+    // Resolve the company from the verified user and existing admin workspace
+    // rules. A caller-supplied company ID must never select the spending cap.
+    const { data: userRow, error: membershipError } = await supabase
+      .from("users").select("tenant_id").eq("id", user.id).maybeSingle();
+    if (membershipError) throw new Error("Membership unavailable");
+    const workspaceTenant = await resolveAdminWorkspaceTenant(supabase, user.id);
+    const tenantId = workspaceTenant ?? userRow?.tenant_id;
+    if (typeof tenantId !== "string" || !tenantId) {
+      return new Response(JSON.stringify({ error: "Company membership required" }), { status: 403, headers: corsHeaders });
+    }
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!serviceKey || !openAIApiKey) throw new Error("Provider unavailable");
+    const spendClient = createClient(Deno.env.get("SUPABASE_URL") ?? "", serviceKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const meter = createSpendMeter({ client: spendClient, tenantId, userId: user.id });
     const campaignContext = sanitizeCampaignContext(rawCampaignContext);
 
-    console.log("Enhancing prompt:", prompt);
+    // Do not log user campaign content.
 
     const baseSystemPrompt = `${getMasterGardenerSystemRole()}
 
@@ -147,47 +175,26 @@ Output only the enhanced prompt, nothing else.`;
           .join("\n")
       : `Enhance this image prompt: "${prompt}"`;
 
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${openAIApiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "gpt-5-mini-2025-08-07",
-        messages: [
-          {
-            role: "system",
-            content: `${baseSystemPrompt}${buildContextualPromptInstructions(campaignContext)}`,
-          },
-          {
-            role: "user",
-            content: userPrompt,
-          },
-        ],
-        max_completion_tokens: 200,
-      }),
+    const enhancedPrompt = await requestEnhancedImagePrompt({
+      key: openAIApiKey,
+      meter,
+      systemPrompt: baseSystemPrompt + buildContextualPromptInstructions(campaignContext),
+      userPrompt,
     });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("OpenAI API error:", response.status, errorText);
-      throw new Error(`OpenAI API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const enhancedPrompt = data.choices[0].message.content.trim();
-
-    console.log("Enhanced prompt:", enhancedPrompt);
 
     return new Response(JSON.stringify({ enhancedPrompt }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
-    console.error("Error in enhance-image-prompt:", error);
+    if (isSpendCapReached(error)) {
+      return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Usage limit reached" }), {
+        status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    console.error("Image prompt enhancement failed");
     return new Response(
       JSON.stringify({
-        error: error instanceof Error ? error.message : "Unknown error",
+        error: "Image prompt enhancement unavailable",
       }),
       {
         status: 500,
