@@ -138,15 +138,15 @@ export function getCustomerNameFromEvent(
   }
 
   if (isCustomerCreatedEvent(event)) {
-    const firstTextPart = event.description.parts.find(
-      (part) =>
+    for (const part of event.description.parts) {
+      if (
         part.type === "text" &&
+        "text" in part &&
         typeof part.text === "string" &&
-        part.text.trim(),
-    );
-
-    if (firstTextPart && typeof firstTextPart.text === "string") {
-      return firstTextPart.text.trim();
+        part.text.trim()
+      ) {
+        return part.text.trim();
+      }
     }
   }
 

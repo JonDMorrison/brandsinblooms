@@ -805,9 +805,9 @@ export const EmailDomainDetails = ({
                           : checksLoading
                             ? "Loading checks"
                             : "Pending check";
-                    const rawType = (
-                      record as EmailDnsRecord & { type: string }
-                    ).type;
+                    // The column is free text and also stores MX rows, which
+                    // EmailDnsRecord["type"] does not list yet.
+                    const rawType: string = record.type;
                     const priority = (
                       record as EmailDnsRecord & { priority?: number }
                     ).priority;

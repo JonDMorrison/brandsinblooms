@@ -15,10 +15,12 @@ import {
   ShoppingCart,
   TrendingUp,
   Users,
+  type LucideIcon,
 } from "lucide-react";
 import { JoyButton } from "@/components/joy/JoyButton";
 import { JoyDialog } from "@/components/joy/JoyDialog";
 import { AudienceSelector } from "@/components/crm/AudienceSelector";
+import type { AutomationCanvasNode } from "@/components/automation/flow/automationBuilderTypes";
 
 interface GuidedAutomationBuilderProps {
   onComplete: (automationConfig: any) => void;
@@ -208,7 +210,12 @@ export const GuidedAutomationBuilder: React.FC<
   ]);
 
   const generateAutomationStructure = () => {
-    const baseFlow = {
+    const baseFlow: {
+      nodes: Array<
+        Pick<AutomationCanvasNode, "id" | "type" | "position" | "data">
+      >;
+      edges: Array<{ id: string; source: string; target: string }>;
+    } = {
       nodes: [
         {
           id: "trigger-1",
@@ -220,7 +227,7 @@ export const GuidedAutomationBuilder: React.FC<
           },
         },
       ],
-      edges: [] as Array<{ id: string; source: string; target: string }>,
+      edges: [],
     };
 
     let lastNodeId = "trigger-1";
@@ -543,7 +550,7 @@ interface StepGridItem {
   id: string;
   title: string;
   description: string;
-  icon: React.ComponentType<{ size?: number }>;
+  icon: LucideIcon;
   meta?: string;
 }
 

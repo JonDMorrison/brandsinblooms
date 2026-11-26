@@ -472,7 +472,8 @@ export function CampaignLockedView({
   onReschedule,
 }: {
   onPreview: () => void;
-  onReschedule: () => void;
+  /** Omit to hide the Reschedule control. */
+  onReschedule?: () => void;
 }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -691,7 +692,7 @@ export function CampaignLockedView({
           sendImmediately: true,
           sendAt: null,
         });
-        if (!result.success) {
+        if (result.success === false) {
           throw new Error(result.error.description || result.error.title);
         }
         toast.success("Campaign queued");
@@ -995,14 +996,16 @@ export function CampaignLockedView({
         >
           Edit Campaign
         </JoyButton>
-        <JoyButton
-          variant="outlined"
-          color="neutral"
-          startDecorator={<Clock size={16} />}
-          onClick={onReschedule}
-        >
-          Reschedule
-        </JoyButton>
+        {onReschedule ? (
+          <JoyButton
+            variant="outlined"
+            color="neutral"
+            startDecorator={<Clock size={16} />}
+            onClick={onReschedule}
+          >
+            Reschedule
+          </JoyButton>
+        ) : null}
         <JoyButton
           variant="outlined"
           color="neutral"

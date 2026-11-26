@@ -505,9 +505,7 @@ export function SocialAnalyticsTab({ dateRange }: SocialAnalyticsTabProps) {
                           color:
                             trend.tone === "success"
                               ? "success.600"
-                              : trend.tone === "danger"
-                                ? "danger.600"
-                                : "neutral.500",
+                              : "neutral.500",
                         }}
                       >
                         {trend.label}

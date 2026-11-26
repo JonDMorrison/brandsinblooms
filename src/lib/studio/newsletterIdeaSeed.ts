@@ -897,8 +897,9 @@ export function resolveNewsletterIdeaDraftSeed({
       ? locationState.newsletterLayout
       : null;
   const ideaFromState = parseIdeaFromLocationState(locationState);
-  const layoutFromSearch = isNewsletterIdeaLayout(searchParams.get("layout"))
-    ? searchParams.get("layout")
+  const layoutParam = searchParams.get("layout");
+  const layoutFromSearch = isNewsletterIdeaLayout(layoutParam)
+    ? layoutParam
     : null;
   const layout = layoutFromState ?? layoutFromSearch;
   const idea = ideaFromState ?? parseIdeaFromSearchParams(searchParams);

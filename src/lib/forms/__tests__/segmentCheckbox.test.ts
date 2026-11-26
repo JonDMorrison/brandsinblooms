@@ -78,7 +78,7 @@ describe("getSegmentOptions", () => {
 
   it("drops malformed options without ids", () => {
     const field = buildField({
-      // @ts-expect-error — exercising the runtime guard
+      // Includes an empty id and a null entry to exercise the runtime guard.
       segment_options: [
         { segment_id: "", label: "Empty id" },
         { segment_id: UUID_A, label: "Valid" },

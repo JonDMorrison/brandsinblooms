@@ -4,12 +4,13 @@ import { Box, Button, Chip, Sheet, Stack, Typography } from "@mui/joy";
 import { toast } from "sonner";
 
 import { RawDataPre } from "@/components/integrations/shared/dataTabPrimitives";
+import type { Json } from "@/integrations/supabase/types";
 
 interface EndpointResult {
   success: boolean;
   count?: number;
   samples?: unknown[];
-  data?: Record<string, unknown>;
+  data?: Json;
   error?: string;
   timing_ms: number;
   status_code?: number;

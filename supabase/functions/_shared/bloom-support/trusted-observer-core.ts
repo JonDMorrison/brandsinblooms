@@ -26,7 +26,7 @@ export async function sha256(bytes: Uint8Array): Promise<string> {
 }
 
 /** One bounded ZIP entry only. No filesystem extraction, paths or dependencies. */
-async function readResponseBytes(response: Response, limit: number): Promise<Uint8Array<ArrayBuffer>> {
+async function readResponseBytes(response: Response, limit: number) {
   const reader = response.body?.getReader();
   if (!reader) throw Error("Missing decoded body");
   const chunks: Uint8Array[] = []; let length = 0;

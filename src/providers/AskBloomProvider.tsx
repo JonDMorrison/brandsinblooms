@@ -42,6 +42,7 @@ import type {
 import { getResourceFocusFromCache } from "@/utils/askBloomResourceRegistry";
 import { buildResourceFocusFromMutationResult } from "@/utils/askBloomMutationResults";
 import { serializeAskBloomBlock } from "@/utils/askBloomBlocks";
+import { toJsonValue } from "@/utils/jsonValue";
 import { parseResourceFromPath } from "@/utils/askBloomRouteContext";
 import { dispatchAskBloomResourceSync } from "@/utils/askBloomResourceSync";
 import { bloomChatClientContext } from "@/lib/bloomSupport/api";
@@ -206,9 +207,10 @@ const replaceActionCardBlock = (
     return nextBlock ? [nextBlock] : [];
   });
 
-const toPersistedBlockData = (blocks: AskBloomBlock[]) => ({
-  blocks: blocks.map(serializeAskBloomBlock),
-});
+const toPersistedBlockData = (blocks: AskBloomBlock[]): Json =>
+  toJsonValue({
+    blocks: blocks.map(serializeAskBloomBlock),
+  });
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);

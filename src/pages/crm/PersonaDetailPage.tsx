@@ -66,6 +66,7 @@ import { useCRMCustomers } from "@/hooks/useCRMCustomers";
 import { usePersonaCustomerCounts } from "@/hooks/usePersonaCustomerCounts";
 import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 import { getCustomerDisplayName } from "@/lib/personaUtils";
 
 type EditorState = {
@@ -109,17 +110,21 @@ const PERSONA_DETAIL_TAB_SX = {
   },
 } as const;
 
-const CAMPAIGN_SELECT_FIELDS = [
-  "id",
-  "name",
-  "status",
-  "total_sent",
-  "open_rate",
-  "click_rate",
-  "metrics",
-  "metadata",
-  "created_at",
-].join(", ");
+const CAMPAIGN_SELECT_FIELDS =
+  "id, name, status, total_sent, open_rate, click_rate, metrics, metadata, created_at";
+
+type PersonaCampaignRow = Pick<
+  Database["public"]["Tables"]["crm_campaigns"]["Row"],
+  | "id"
+  | "name"
+  | "status"
+  | "total_sent"
+  | "open_rate"
+  | "click_rate"
+  | "metrics"
+  | "metadata"
+  | "created_at"
+>;
 
 const currency = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -406,9 +411,9 @@ export default function PersonaDetailPage() {
       persona?.is_custom ?? false,
     ],
     enabled: Boolean(tenant?.id && personaId && persona),
-    queryFn: async () => {
+    queryFn: async (): Promise<PersonaCampaignRow[]> => {
       if (!tenant?.id || !personaId || !persona) {
-        return [] as any[];
+        return [];
       }
 
       const { data: fieldCampaigns, error: fieldCampaignError } = await supabase

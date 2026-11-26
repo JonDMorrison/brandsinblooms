@@ -26,6 +26,8 @@ export const TaskContent = ({ task, onRetryGeneration, retryingGeneration }: Tas
   const isStuckGenerating = normalizedTask.status === 'generating' && !normalizedTask.ai_output;
 
   // Enhanced content validation for video tasks
+  const hasValidContent =
+    normalizedTask.ai_output && normalizedTask.ai_output.trim() !== "";
 
   const handleRegenerateContent = async () => {
     if (!normalizedTask.campaigns?.title && !normalizedTask.holiday_id) {

@@ -292,7 +292,6 @@ function TextareaField({
     <FormControl sx={formControlSx}>
       <FieldLabel>{label}</FieldLabel>
       <Textarea
-        fullWidth
         maxRows={maxRows}
         minRows={minRows}
         onChange={(event) => onValueChange(event.target.value)}

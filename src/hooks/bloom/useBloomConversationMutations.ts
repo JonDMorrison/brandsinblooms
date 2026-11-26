@@ -197,6 +197,8 @@ export function useBloomConversationMutations() {
         mode,
         messageCount: 0,
         lastMessagePreview: "",
+        // Mirrors the bloom_conversations.metadata column default ('{}').
+        metadata: {},
         createdAt: now,
         updatedAt: now,
       };

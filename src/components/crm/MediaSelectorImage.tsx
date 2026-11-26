@@ -2,6 +2,7 @@ import React, { useState, useImperativeHandle, forwardRef } from "react";
 import { AlertTriangle, Camera, Upload, Sparkles, Wand2 } from "lucide-react";
 import { AIImageLoadingOverlay } from "@/components/ui-legacy/AIImageLoadingOverlay";
 import { useAIImageStudio } from "@/hooks/useAIImageStudio";
+import type { AIImageStudioSelectionMetadata } from "@/components/crm/ai-image-studio/types";
 import { useToast } from "@/hooks/use-toast";
 import { useAIImageGeneration } from "@/hooks/useAIImageGeneration";
 import { getCurrentSeason } from "@/utils/seasonalUtils";
@@ -110,10 +111,10 @@ export const MediaSelectorImage = forwardRef<
 
     const handleImageSelect = (
       imageUrl: string,
-      metadata?: Record<string, unknown>,
+      metadata?: AIImageStudioSelectionMetadata,
     ) => {
       if (onChange) {
-        onChange(imageUrl, metadata);
+        onChange(imageUrl, metadata ? { ...metadata } : undefined);
       } else {
         console.error("[MediaSelectorImage] onChange prop is missing!");
       }

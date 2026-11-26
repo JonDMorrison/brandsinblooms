@@ -17,7 +17,7 @@ export type JoyDrawerSize = "sm" | "md" | "lg";
 
 export interface JoyDrawerProps extends Omit<
   React.ComponentPropsWithoutRef<typeof Drawer>,
-  "anchor" | "children" | "onClose" | "open" | "size"
+  "anchor" | "children" | "onClose" | "open" | "size" | "title"
 > {
   open: boolean;
   onClose: (reason?: JoyOverlayCloseReason) => void;
@@ -31,6 +31,12 @@ export interface JoyDrawerProps extends Omit<
   disableClose?: boolean;
   hideCloseButton?: boolean;
 }
+
+// Slot props may be an object or an ownerState callback; only the object
+// form carries a static sx to merge.
+const staticSlotSx = <T extends { sx?: SxProps }>(
+  slot: T | ((ownerState: never) => unknown) | undefined,
+): SxProps | undefined => (typeof slot === "function" ? undefined : slot?.sx);
 
 const drawerWidthMap: Record<JoyDrawerSize, number> = {
   sm: 360,
@@ -73,7 +79,7 @@ export const JoyDrawer = ({
         ...slotProps,
         backdrop: {
           ...(slotProps?.backdrop ?? {}),
-          sx: mergeSx(bloomOverlayBackdropSx, slotProps?.backdrop?.sx),
+          sx: mergeSx(bloomOverlayBackdropSx, staticSlotSx(slotProps?.backdrop)),
         },
         content: {
           ...(slotProps?.content ?? {}),
@@ -110,7 +116,7 @@ export const JoyDrawer = ({
                 transform: "translateX(0)",
               },
             },
-            ...(slotProps?.content?.sx ?? {}),
+            ...(staticSlotSx(slotProps?.content) ?? {}),
           },
         },
       }}

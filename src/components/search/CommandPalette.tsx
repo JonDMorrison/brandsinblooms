@@ -1101,10 +1101,11 @@ export function CommandPalette({
           return;
         }
         case "toggle-automation": {
+          const { automationId, nextIsActive } = action.execution;
           const { error } = await supabase
             .from("crm_automations")
-            .update({ is_active: action.execution.nextIsActive })
-            .eq("id", action.execution.automationId);
+            .update({ is_active: nextIsActive })
+            .eq("id", automationId);
 
           if (error) {
             throw error;
@@ -1113,11 +1114,11 @@ export function CommandPalette({
           setItemOverrides((currentOverrides) => ({
             ...currentOverrides,
             [item.id]: {
-              metadata: action.execution.nextIsActive ? "Active" : "Inactive",
+              metadata: nextIsActive ? "Active" : "Inactive",
             },
           }));
           announce(
-            `${item.title} ${action.execution.nextIsActive ? "enabled" : "disabled"}.`,
+            `${item.title} ${nextIsActive ? "enabled" : "disabled"}.`,
           );
           trackAction();
           return;

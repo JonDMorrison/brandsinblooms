@@ -3,6 +3,18 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/utils/toast";
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+/** Reads `attachments.image.url` from a content task's attachments JSON. */
+const readAttachmentImageUrl = (attachments: unknown): string | undefined => {
+  if (!isRecord(attachments) || !isRecord(attachments.image)) {
+    return undefined;
+  }
+  const { url } = attachments.image;
+  return typeof url === "string" && url ? url : undefined;
+};
+
 interface PublishFlowHook {
   approveDraft: (taskId: string) => Promise<string | null>;
   scheduleDraft: (
@@ -34,9 +46,10 @@ export const usePublishFlow = (): PublishFlowHook => {
 
       // Extract image data from task attachments or image_url field
       let mediaUrl: string | undefined;
+      const attachmentImageUrl = readAttachmentImageUrl(task.attachments);
 
-      if (attachments?.image?.url) {
-        mediaUrl = attachments.image.url;
+      if (attachmentImageUrl) {
+        mediaUrl = attachmentImageUrl;
       } else if (task.image_url) {
         mediaUrl = task.image_url;
       }

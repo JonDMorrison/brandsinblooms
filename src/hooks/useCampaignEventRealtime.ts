@@ -37,7 +37,10 @@ function buildFilter({
   tenantId,
   recipientEmail,
   providerMessageId,
-}: UseCampaignEventRealtimeOptions) {
+}: Pick<
+  UseCampaignEventRealtimeOptions,
+  "campaignId" | "tenantId" | "recipientEmail" | "providerMessageId"
+>) {
   const filters = [`tenant_id=eq.${tenantId}`, `campaign_id=eq.${campaignId}`];
 
   const normalizedEmail = toRecipientKey(recipientEmail);

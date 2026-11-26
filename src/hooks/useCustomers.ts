@@ -71,9 +71,11 @@ export const useCustomers = (options: UseCustomersOptions = {}) => {
       const tagAssociation = options.tagId
         ? ["customer_tags!inner(tag_id)"]
         : [];
+      // The column list is assembled at runtime, so PostgREST cannot infer the
+      // row shape from it; name the shape explicitly.
       let query = supabase
         .from("crm_customers")
-        .select(
+        .select<string, Customer>(
           [
             "*",
             "customer_personas(persona_id,predefined_persona_id)",
@@ -134,7 +136,7 @@ export const useCustomers = (options: UseCustomersOptions = {}) => {
 
       if (error) throw error;
       return {
-        customers: data as Customer[],
+        customers: data,
         totalCount: count || 0,
       };
     },

@@ -1,4 +1,5 @@
 import Chip from "@mui/joy/Chip";
+import type { ColorPaletteProp } from "@mui/joy/styles/types";
 import Checkbox from "@mui/joy/Checkbox";
 import Sheet from "@mui/joy/Sheet";
 import Stack from "@mui/joy/Stack";
@@ -34,6 +35,8 @@ import {
   Merge,
 } from "lucide-react";
 import { useState } from "react";
+
+type ChipStyle = { color: ColorPaletteProp; label: string };
 // Removed sonner import - using global toast replacement
 import { isSuperAdmin } from "@/utils/adminUtils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -81,7 +84,7 @@ export const EnhancedUserTable = ({
     bulkDeleteUsers,
   } = useBulkUserOperations(onDeleteUser);
 
-  const getPlanChip = (plan: string) => {
+  const getPlanChip = (plan: string): ChipStyle => {
     switch (plan) {
       case "bloom":
         return { color: "primary", label: "Bloom" };
@@ -99,7 +102,7 @@ export const EnhancedUserTable = ({
     }
   };
 
-  const getStatusChip = (status: string) =>
+  const getStatusChip = (status: string): ChipStyle =>
     status === "active"
       ? { color: "success", label: "Active" }
       : {

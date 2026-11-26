@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/utils/toast';
 import { refreshHeaderDates } from '@/lib/crm/placeholderScan';
 import { buildCampaignBlockRows } from '@/lib/crm/campaignDraftPersistence';
+import { toJsonValue } from '@/utils/jsonValue';
 import { buildCampaignOrigin } from '@/lib/crm/campaignOrigin';
 import { loadDraftSenderDefaults } from '@/lib/crm/draftSenderDefaults';
 import type { StudioBlock } from '@/types/studioBlocks';
@@ -132,7 +133,7 @@ export const useCampaignCloning = () => {
         // source campaign's issue date. Flowerhouse incident: a July 31
         // send went out with "July 24 2026" in the header because the
         // metadata was cloned verbatim from the prior week's campaign.
-        metadata: originalCampaign.metadata ? {
+        metadata: toJsonValue(originalCampaign.metadata ? {
           ...sourceMetadata,
           ...(refreshedBlocks ? { contentBlocks: refreshedBlocks } : {}),
           replyTo,
@@ -145,7 +146,7 @@ export const useCampaignCloning = () => {
         } : {
           cloned_from: originalCampaignId,
           cloned_at: new Date().toISOString()
-        },
+        }),
         // Clear scheduling info if requested
         scheduled_at: options.clearScheduling ? null : originalCampaign.scheduled_at,
         sent_at: null,

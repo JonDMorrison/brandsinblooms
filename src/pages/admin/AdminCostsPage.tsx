@@ -661,7 +661,7 @@ export default function AdminCostsPage() {
               <Grid xs={12} md={4}>
                 <Sheet
                   variant="soft"
-                  color="secondary"
+                  color="neutral"
                   sx={{ p: 2, borderRadius: "var(--joy-radius-md)" }}
                 >
                   <Stack spacing={0.5}>

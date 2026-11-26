@@ -33,12 +33,15 @@ const report = {
   transactions: 29,
   source: "Customer Spending YTD.xls",
 };
-const pageContext = {
+const pageContext: BloomPageContext = {
+  pathname: "/crm/customers/customer",
+  pageCategory: "customers",
   entityType: "customer",
   entityId: "customer",
-  pageTitle: "Customer",
-  route: "/crm/customers/customer",
-} as BloomPageContext;
+  pageName: "Customer",
+  availableActions: [],
+  suggestions: [],
+};
 
 beforeEach(() => {
   vi.clearAllMocks();

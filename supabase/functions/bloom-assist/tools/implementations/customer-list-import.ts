@@ -424,7 +424,7 @@ export async function prepareCustomerListImport(
   if (accessProblem) return failure(accessProblem, "forbidden");
 
   const loaded = await loadList(params, context, deps);
-  if (!loaded.ok) return loaded.result;
+  if (loaded.ok === false) return loaded.result;
   const { list } = loaded;
   const { existing, unsubscribed } = await readExisting(
     context.serviceClient,
@@ -567,7 +567,7 @@ export async function executeCustomerListImport(
   if (accessProblem) return failure(accessProblem, "forbidden");
 
   const loaded = await loadList(params, context, deps);
-  if (!loaded.ok) return loaded.result;
+  if (loaded.ok === false) return loaded.result;
   const { list } = loaded;
   const customers = list.built.customers;
   const attestation = chatImportAttestation();

@@ -594,7 +594,7 @@ const CarouselComposerPage = () => {
                 value={caption}
                 onChange={(event) => setCaption(event.target.value)}
                 placeholder={`Write your ${limits.name} carousel caption...`}
-                maxLength={limits.caption}
+                slotProps={{ textarea: { maxLength: limits.caption } }}
               />
 
               <Stack

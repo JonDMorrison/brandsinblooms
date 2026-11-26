@@ -329,10 +329,11 @@ export default function SegmentBuilderPage() {
         return [] as Array<{ id: string; label: string }>;
       }
 
+      // personas is the global persona catalogue (no tenant_id column);
+      // crm_customers.persona_id and crm_segments.persona_id reference it.
       const { data, error } = await supabase
         .from("personas")
         .select("id, name")
-        .eq("tenant_id", tenantId)
         .order("name");
 
       if (error) {

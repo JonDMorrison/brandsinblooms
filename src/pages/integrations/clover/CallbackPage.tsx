@@ -36,6 +36,7 @@ const CallbackPage = () => {
         const merchantId = searchParams.get("merchant_id");
         const employeeId = searchParams.get("employee_id");
         const error = searchParams.get("error");
+        const errorDescription = searchParams.get("error_description");
 
         if (error) {
           clearTimeout(timeoutId);

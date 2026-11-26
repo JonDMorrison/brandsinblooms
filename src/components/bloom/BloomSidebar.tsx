@@ -311,9 +311,7 @@ function ConversationRow({
   const isEditing = editingId === conversation.id;
   const isArchived = conversation.status === "archived";
   const [contextMenuOpen, setContextMenuOpen] = React.useState(false);
-  const longPressTimerRef = React.useRef<ReturnType<
-    typeof window.setTimeout
-  > | null>(null);
+  const longPressTimerRef = React.useRef<number | null>(null);
   const suppressNextClickRef = React.useRef(false);
 
   const clearLongPress = React.useCallback(() => {

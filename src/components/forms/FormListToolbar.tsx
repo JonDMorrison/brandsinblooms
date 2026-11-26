@@ -381,7 +381,6 @@ export function FormListToolbar({
             anchorEl={sortMenuAnchor}
             open={Boolean(sortMenuAnchor)}
             onClose={handleSortMenuClose}
-            onBackdropClick={handleSortMenuClose}
             placement="bottom-end"
             sx={{
               "& .MuiMenu-paper": {

@@ -24,6 +24,7 @@ import {
   FormCompliance,
   FormField,
   FormSettings,
+  FormStatus,
   FormTheme,
   FormSubmission,
   FormSubmissionValue,
@@ -428,9 +429,18 @@ function normalizeAudience(value: unknown): FormAudience {
   };
 }
 
+/**
+ * forms.status is constrained to draft | published | archived
+ * (CHECK constraint); anything else reads as a draft.
+ */
+export function normalizeFormStatus(value: string | null | undefined): FormStatus {
+  return value === "published" || value === "archived" ? value : "draft";
+}
+
 function mapFormRow(row: FormRow): Form {
   return {
     ...row,
+    status: normalizeFormStatus(row.status),
     name: typeof row.name === "string" ? row.name : "",
     embed_key: typeof row.embed_key === "string" ? row.embed_key : "",
     fields_json: Array.isArray(row.fields_json)
@@ -453,11 +463,25 @@ function mapFormWithStatsRow(row: RawFormsWithStatsRow): FormWithStats {
   };
 }
 
+function normalizeSubmissionMetadata(value: unknown): FormSubmissionMetadata {
+  // form_submissions.metadata is NOT NULL DEFAULT '{}'; the canonical consent
+  // flags are only absent on legacy rows, where they mean "not given".
+  const candidate = isRecord(value)
+    ? (value as Partial<FormSubmissionMetadata>)
+    : {};
+
+  return {
+    ...candidate,
+    email_consent: candidate.email_consent ?? false,
+    sms_consent: candidate.sms_consent ?? false,
+  };
+}
+
 function mapFormSubmissionRow(row: FormSubmissionRow): FormSubmission {
   return {
     ...row,
     data: row.data as Record<string, FormSubmissionValue>,
-    metadata: row.metadata as FormSubmissionMetadata,
+    metadata: normalizeSubmissionMetadata(row.metadata),
     result: row.result as SubmissionResult,
   } as FormSubmission;
 }
@@ -808,7 +832,9 @@ export function useForms() {
 
       if (error) throw error;
 
-      const rows = Array.isArray(data) ? data : [];
+      // get_forms_with_stats counts arrive as number | string; read rows as
+      // unknown and narrow to the raw row shape mapFormWithStatsRow accepts.
+      const rows: unknown[] = Array.isArray(data) ? data : [];
       return rows
         .filter((form): form is RawFormsWithStatsRow => isRecord(form))
         .map((form) => mapFormWithStatsRow(form as RawFormsWithStatsRow));
