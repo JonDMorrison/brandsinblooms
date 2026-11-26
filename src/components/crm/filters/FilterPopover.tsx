@@ -12,7 +12,7 @@ import type { FilterDefinition, FilterOption, FilterValue } from "./types";
 export interface FilterPopoverProps {
   anchorEl: HTMLElement | null;
   filter: FilterDefinition;
-  menuRef?: React.Ref<HTMLUListElement>;
+  menuRef?: React.Ref<HTMLDivElement>;
   open: boolean;
   onClose: () => void;
   onChange: (value: FilterValue) => void;

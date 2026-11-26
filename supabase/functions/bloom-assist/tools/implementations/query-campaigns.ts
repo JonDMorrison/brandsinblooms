@@ -306,7 +306,7 @@ async function loadCampaignSegmentNames(
     throw segmentsError;
   }
 
-  const segmentNamesById = new Map(
+  const segmentNamesById = new Map<string, string>(
     (segments ?? []).map((segment) => [segment.id, segment.name]),
   );
   const segmentNamesByCampaign = new Map<string, string[]>();

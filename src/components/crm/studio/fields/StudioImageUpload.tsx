@@ -38,7 +38,6 @@ import type {
 import type {
   AIImageStudioAspectRatio,
   AIImageStudioCampaignContext,
-  AIImageStudioMultiBlockFlow,
   AIImageStudioSelectionMetadata,
 } from "@/components/crm/ai-image-studio/types";
 import { useAIImageGeneration } from "@/hooks/useAIImageGeneration";
@@ -70,11 +69,20 @@ export type StudioImageAIRequest = {
   blockId?: string;
   campaignContext?: AIImageStudioCampaignContext;
   contextType?: string;
-  multiBlockFlow?: AIImageStudioMultiBlockFlow;
+  multiBlockFlow?: StudioImageAIMultiBlockFlow;
   onSelect?: (
     url: string,
     metadata?: AIImageStudioSelectionMetadata,
   ) => void | Promise<void>;
+};
+
+/**
+ * Studio-side continuation flow: each step yields the next Studio request,
+ * which the Studio page translates into an AI Image Studio target.
+ */
+export type StudioImageAIMultiBlockFlow = {
+  advanceToNextTarget: () => StudioImageAIRequest | null;
+  hasNextTarget: () => boolean;
 };
 
 export type StudioImageApplyEvent = {

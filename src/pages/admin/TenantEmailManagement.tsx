@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import type { ColorPaletteProp } from "@mui/joy/styles/types";
 import Checkbox from "@mui/joy/Checkbox";
 import CircularProgress from "@mui/joy/CircularProgress";
 import Grid from "@mui/joy/Grid";
@@ -246,7 +247,9 @@ const getDomainStatusChipColor = (status: string) => {
   }
 };
 
-const getCampaignStatusChip = (status: string) => {
+const getCampaignStatusChip = (
+  status: string,
+): { color: ColorPaletteProp; label: string } => {
   const normalized = status.toLowerCase();
 
   if (

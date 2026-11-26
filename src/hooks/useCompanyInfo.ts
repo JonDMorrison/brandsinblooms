@@ -278,7 +278,7 @@ export const useCompanyInfo = () => {
     }
 
     let isDisposed = false;
-    let connectTimerId: ReturnType<typeof window.setTimeout> | null = null;
+    let connectTimerId: number | null = null;
 
     const subscribeToCompanyProfileChanges = () => {
       if (isDisposed || channelRef.current) {

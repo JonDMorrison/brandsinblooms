@@ -197,7 +197,9 @@ export const useSMSStats = () => {
         queuedMessages,
         recentCampaigns: campaigns.slice(0, 5).map((campaign) => {
           const metrics = resolveSmsCampaignMetrics(
-            campaign.metrics && typeof campaign.metrics === "object"
+            campaign.metrics &&
+              typeof campaign.metrics === "object" &&
+              !Array.isArray(campaign.metrics)
               ? campaign.metrics
               : null,
           );

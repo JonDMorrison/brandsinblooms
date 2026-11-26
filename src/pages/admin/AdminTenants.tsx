@@ -227,7 +227,7 @@ const AdminPage = () => {
                       />
                       <JoyStatusChip
                         status="results"
-                        tone="primary"
+                        tone="neutral"
                         label={`${tenants.length} tenants on this page`}
                       />
                     </Stack>

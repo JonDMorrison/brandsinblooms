@@ -283,8 +283,12 @@ export function sanitizeBlockImageUrls(
   ];
 
   for (const field of imageFields) {
-    if (field in result && result[field]) {
-      result[field] = getEmailSafeImageUrl(result[field]);
+    const value = result[field];
+    if (field in result && value) {
+      // Only strings are URLs; any other truthy value falls back to "".
+      result[field] = getEmailSafeImageUrl(
+        typeof value === "string" ? value : null,
+      );
     }
   }
 
@@ -348,7 +352,7 @@ export function debugBlockImageUrls(
     const imageFields = ["imageUrl", "backgroundImageUrl", "logoUrl"];
     for (const field of imageFields) {
       const url = block[field];
-      if (url && !isEmailSafeImageUrl(url)) {
+      if (url && !isEmailSafeImageUrl(typeof url === "string" ? url : null)) {
         console.warn(
           `[emailImageUrl] Block ${index} has non-email-safe ${field}: ${String(url).slice(0, 120)}`,
         );

@@ -834,7 +834,9 @@ export const CalendarView = React.memo(function CalendarView({
         selectionCount={selectedTasks.length}
         showPlanningPanel={showPlanningPanel}
         isRefreshing={isRefreshing}
-        lastUpdated={lastUpdated}
+        lastUpdated={
+          lastUpdated != null ? new Date(lastUpdated).toISOString() : null
+        }
         onPrevious={() => navigateRange("previous")}
         onNext={() => navigateRange("next")}
         onToday={goToToday}

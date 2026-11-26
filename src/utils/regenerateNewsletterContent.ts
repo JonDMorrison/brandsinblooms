@@ -11,6 +11,7 @@ export async function regenerateNewsletterContent(
     const { data: profile } = await supabase
       .from('company_profiles')
       .select('company_name')
+      .single();
 
     // Call the structured newsletter generation with existing content
     const { data, error } = await supabase.functions.invoke('generate-structured-newsletter', {

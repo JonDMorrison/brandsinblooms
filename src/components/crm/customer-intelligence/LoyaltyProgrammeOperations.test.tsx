@@ -372,10 +372,7 @@ async function choose(label: string, value: string) {
   const el = screen.getByLabelText(label);
   fireEvent.mouseDown(el);
   fireEvent.click(el);
-  const option = await screen.findByRole("option", {
-    name: value,
-    exact: true,
-  });
+  const option = await screen.findByRole("option", { name: value });
   fireEvent.click(option);
 }
 describe("calendar review and commit", () => {

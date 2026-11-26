@@ -32,7 +32,10 @@ import {
   normalizeStatCardPayload,
 } from "@/components/bloom/blocks/StatCardBlock";
 import { ThinkingBlock } from "@/components/bloom/blocks/ThinkingBlock";
-import type { BloomBlockActionContext } from "@/components/bloom/blocks/blockTypes";
+import type {
+  BloomBlockAction,
+  BloomBlockActionContext,
+} from "@/components/bloom/blocks/blockTypes";
 import {
   defaultColumnsForEntity,
   formatLabel,
@@ -194,7 +197,7 @@ function readDataCardPayload(payload: unknown) {
   return {
     entity,
     entityType,
-    actions: (() => {
+    actions: ((): BloomBlockAction[] => {
       const normalizedActions = normalizeActions(
         source.actions,
         entityType,

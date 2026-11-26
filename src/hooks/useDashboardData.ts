@@ -52,6 +52,19 @@ export type DashboardScheduledTask = DashboardContentTask & {
   } | null;
 };
 
+/** The scheduled_posts columns this hook selects. */
+export type DashboardScheduledPost = Pick<
+  ScheduledPostRow,
+  | "id"
+  | "content_id"
+  | "task_id"
+  | "platform"
+  | "publish_at"
+  | "status"
+  | "mode"
+  | "tenant_id"
+>;
+
 export type DashboardSocialConnection = Pick<
   SocialConnectionRow,
   | "id"
@@ -70,7 +83,7 @@ export type DashboardData = {
   scheduledTasks: DashboardContentTask[];
   publishedTasks: DashboardContentTask[];
   scheduledByDate: Record<string, DashboardScheduledTask[]>;
-  scheduledPosts: ScheduledPostRow[];
+  scheduledPosts: DashboardScheduledPost[];
   socialConnections: DashboardSocialConnection[];
 };
 

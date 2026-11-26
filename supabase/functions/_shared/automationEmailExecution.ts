@@ -197,12 +197,27 @@ export async function getNodeExecutionStats(
     else if (row.status === 'skipped') stats.skipped++;
     else if (row.status === 'failed') stats.failed++;
 
-    if (row.reason) {
-      stats.byReason[row.reason] = (stats.byReason[row.reason] || 0) + 1;
+    const reason = row.reason;
+    if (typeof reason === 'string' && reason) {
+      stats.byReason[reason] = (stats.byReason[reason] || 0) + 1;
     }
   }
 
   return stats;
+}
+
+/** A failed automation_email_executions row eligible for retry. */
+export type FailedEmailExecution = {
+  id: string;
+  customer_id: string;
+  email: string;
+  error: string | null;
+  created_at: string | null;
+  outbox_id: string | null;
+};
+
+function nullableString(value: unknown): string | null {
+  return typeof value === 'string' ? value : null;
 }
 
 /**
@@ -212,14 +227,7 @@ export async function getFailedExecutions(
   supabase: ReturnType<typeof createClient>,
   automationId: string,
   nodeId: string
-): Promise<Array<{
-  id: string;
-  customer_id: string;
-  email: string;
-  error: string;
-  created_at: string;
-  outbox_id: string | null;
-}>> {
+): Promise<FailedEmailExecution[]> {
   const { data, error } = await supabase
     .from('automation_email_executions')
     .select('id, customer_id, email, error, created_at, outbox_id')
@@ -236,13 +244,29 @@ export async function getFailedExecutions(
 
   // Deduplicate by customer_id, keep most recent failure
   const seen = new Set<string>();
-  const result: typeof data = [];
+  const result: FailedEmailExecution[] = [];
 
   for (const row of data) {
-    if (row.customer_id && !seen.has(row.customer_id)) {
-      seen.add(row.customer_id);
-      result.push(row);
+    const customerId = row.customer_id;
+    if (
+      typeof customerId !== 'string' ||
+      !customerId ||
+      seen.has(customerId) ||
+      typeof row.id !== 'string' ||
+      typeof row.email !== 'string'
+    ) {
+      continue;
     }
+
+    seen.add(customerId);
+    result.push({
+      id: row.id,
+      customer_id: customerId,
+      email: row.email,
+      error: nullableString(row.error),
+      created_at: nullableString(row.created_at),
+      outbox_id: nullableString(row.outbox_id),
+    });
   }
 
   return result;

@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import type { ColorPaletteProp } from "@mui/joy/styles/types";
 import Avatar from "@mui/joy/Avatar";
 import Box from "@mui/joy/Box";
 import Chip from "@mui/joy/Chip";
@@ -449,7 +450,14 @@ function formatDateTime(value: string | null) {
   return new Date(value).toLocaleString();
 }
 
-function buildTimeline(run: AutomationRun) {
+type TimelineStep = {
+  index: number;
+  title: string;
+  detail: string;
+  color: ColorPaletteProp;
+};
+
+function buildTimeline(run: AutomationRun): TimelineStep[] {
   const metadataSteps = Array.isArray(run.metadata?.steps)
     ? run.metadata.steps
     : null;

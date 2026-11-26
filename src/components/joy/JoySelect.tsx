@@ -28,6 +28,8 @@ export type JoySelectProps = Omit<
   options?: JoySelectOption[];
   onValueChange?: (value: string) => void;
   formControlSx?: SxProps;
+  /** Full width unless explicitly false. */
+  fullWidth?: boolean;
 };
 
 const labelSx: SxProps = {
@@ -119,7 +121,7 @@ const groupHeaderSx: SxProps = {
 };
 
 export const JoySelectGroupHeader = React.forwardRef<
-  HTMLLIElement,
+  HTMLDivElement,
   ListSubheaderProps
 >(({ sx, sticky = false, ...props }, ref) => (
   <ListSubheader

@@ -13,8 +13,8 @@ import {
   type BloomPageContext,
   type BloomModelPreference,
   type BloomMode,
-  type Json,
 } from "@/hooks/bloom/types";
+import type { Json } from "@/integrations/supabase/types";
 import { resolvePageContext } from "@/components/bloom/utils/resolvePageContext";
 import {
   parsePersistedFormState,

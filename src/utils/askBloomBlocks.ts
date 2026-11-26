@@ -30,6 +30,23 @@ export const toDataRecord = (value: unknown): Record<string, unknown> => {
   return { value };
 };
 
+/**
+ * Normalizes a persisted/streamed suggestion-chips payload into the
+ * `AskBloomSuggestionChipsBlock` data shape. Non-string or blank entries are
+ * dropped (the renderer applies the same filter).
+ */
+export const toSuggestionChipsData = (
+  payload: Record<string, unknown>,
+): Record<string, unknown> & { suggestions: string[] } => ({
+  ...payload,
+  suggestions: Array.isArray(payload.suggestions)
+    ? payload.suggestions.filter(
+        (item): item is string =>
+          typeof item === "string" && item.trim().length > 0,
+      )
+    : [],
+});
+
 const KNOWN_ASK_BLOOM_BLOCK_TYPES: readonly AskBloomBlockType[] = [
   "text",
   "thinking",
@@ -121,14 +138,40 @@ export const bloomContentBlockToAskBloomBlock = (
         },
       };
     }
-    case "block":
+    case "block": {
+      const type = toAskBloomBlockType(bloomBlock.blockType);
+      const data = toDataRecord(bloomBlock.payload);
+      if (type === "suggestion_chips") {
+        return {
+          type,
+          content: "",
+          data: toSuggestionChipsData(data),
+          id,
+          bloomContentBlock: bloomBlock,
+        };
+      }
+      if (type === "mutation_action") {
+        // Same rule as persisted-message rehydration: a well-formed action
+        // card stays a mutation, anything else degrades to a data card.
+        const actionCard = toAskBloomActionCard(data);
+        return actionCard
+          ? { ...actionCard, id, bloomContentBlock: bloomBlock }
+          : {
+              type: "data_card",
+              content: "",
+              data,
+              id,
+              bloomContentBlock: bloomBlock,
+            };
+      }
       return {
-        type: toAskBloomBlockType(bloomBlock.blockType),
+        type,
         content: "",
-        data: toDataRecord(bloomBlock.payload),
+        data,
         id,
         bloomContentBlock: bloomBlock,
       };
+    }
   }
 };
 

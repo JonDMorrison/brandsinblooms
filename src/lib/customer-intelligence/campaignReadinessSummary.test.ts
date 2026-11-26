@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { summarizeCampaignReadiness } from "./campaignReadinessSummary";
+import type { TenantAudienceHealth } from "@/hooks/useTenantAudienceHealth";
 
 describe("West Coast campaign readiness", () => {
-  const sample = { total: 13, confirmed: 3, eligible: 2, suppressed: 1, pending: 5, optedOut: 4 };
+  const sample: TenantAudienceHealth = { total: 13, confirmed: 3, eligible: 2, suppressed: 1, pending: 5, optedOut: 4, neverOptedIn: 0 };
   it("separates contact quality from permission to send", () => {
     expect(summarizeCampaignReadiness(20, sample)).toEqual({
       activeCustomers: 20, withEmailToReview: 13, needsEmailReview: 7,

@@ -71,7 +71,7 @@ export function normalizeVisibilityRules(value: unknown): FormVisibilityRule[] {
   }
 
   return value
-    .map((rule) => {
+    .map((rule): FormVisibilityRule | null => {
       if (!isRecord(rule)) {
         return null;
       }

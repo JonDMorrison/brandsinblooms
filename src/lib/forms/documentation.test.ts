@@ -67,6 +67,7 @@ const form: Form = {
     email_consent_text: "I agree to receive email updates.",
     sms_consent_required: false,
     sms_consent_text: "",
+    at_least_one_consent_required: false,
     double_opt_in: false,
     gdpr_compliant: false,
   },

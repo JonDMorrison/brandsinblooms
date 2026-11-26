@@ -50,9 +50,7 @@ function looksLikeWorkbookContainer(bytes: Uint8Array): boolean {
   );
 }
 
-function isAlternateWorkbookFormat(workbook: {
-  bookType?: unknown;
-}): boolean {
+function isAlternateWorkbookFormat(workbook: object): boolean {
   // SheetJS identifies XLML, ODS and FODS through bookType. Those formats
   // ignore selected-sheet reads and are outside the supported file contract.
   return "bookType" in workbook;

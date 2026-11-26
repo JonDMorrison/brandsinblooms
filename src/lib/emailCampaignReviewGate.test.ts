@@ -20,7 +20,8 @@ describe('authoritative email review guard',()=>{
  it('rechecks the campaign between provider attempts',async()=>{
   const {db}=client({metadata:{}});
   await assertEmailCampaignReviewAllowsDelivery(db,'tenant','campaign');
-  db.from.mockImplementation(()=>({select:()=>({eq:()=>({eq:()=>({maybeSingle:async()=>({data:{send_blocked_reason:'connected_content_review'},error:null})})})})}));
+  const held=client({send_blocked_reason:'connected_content_review'});
+  db.from.mockImplementation(()=>held.db.from());
   await expect(assertEmailCampaignReviewAllowsDelivery(db,'tenant','campaign')).rejects.toMatchObject({decision:'review_required'});
  });
  it('allows messages without a campaign',async()=>{

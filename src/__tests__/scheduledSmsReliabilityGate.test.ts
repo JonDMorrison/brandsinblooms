@@ -85,7 +85,7 @@ import {QueryClient, QueryClientProvider} from "@tanstack/react-query";
 import {ConnectedSmsReview} from "@/components/sms/ConnectedSmsReview";
 import {SMSCampaignWizard} from "@/components/sms/SMSCampaignWizard";
 import {loadConnectedSmsDraft, saveConnectedSmsDraft, type SmsCampaignDraft} from "@/lib/sms/campaignDraft";
-const mocks = vi.hoisted(() => ({rpc: vi.fn(), invoke: vi.fn(), eq: vi.fn(), row: {} as Record<string, unknown>, navigate: vi.fn(), error: null as null | {message: string}, empty: []}));
+const mocks = vi.hoisted(() => ({rpc: vi.fn(), invoke: vi.fn(), eq: vi.fn(), row: {} as Record<string, unknown> & {message: string}, navigate: vi.fn(), error: null as null | {message: string}, empty: []}));
 vi.mock("react-router-dom", () => ({useNavigate: () => mocks.navigate, useSearchParams: () => [new URLSearchParams("draftId=draft-123")]}));
 vi.mock("@/hooks/useTenant", () => ({useTenant: () => ({tenant: {id: "tenant-123"}, loading: false})}));
 vi.mock("@/hooks/useAuth", () => ({useAuth: () => ({user: {id: "user-123"}})}));

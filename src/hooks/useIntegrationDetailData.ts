@@ -19,7 +19,11 @@ import {
 import { formatCount } from "@/components/integrations/shared/formatCount";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import type { Database, Json } from "@/integrations/supabase/types";
+import {
+  Constants,
+  type Database,
+  type Json,
+} from "@/integrations/supabase/types";
 import { useIsSuperAdmin } from "@/hooks/useIsSuperAdmin";
 import { isMailchimpImportJobActivelyRunning } from "@/hooks/mailchimpImportState";
 import { useTenant } from "@/hooks/useTenant";
@@ -66,6 +70,19 @@ const REQUIRED_SHOPIFY_WEBHOOK_EVENTS = [
 
 const META_OAUTH_SCOPE =
   "pages_manage_posts,pages_read_engagement,pages_show_list,instagram_basic,instagram_content_publish,instagram_manage_insights,read_insights";
+
+type PosJobStatus = Database["public"]["Enums"]["pos_job_status"];
+
+const POS_JOB_STATUSES: readonly PosJobStatus[] =
+  Constants.public.Enums.pos_job_status;
+
+/**
+ * Sync-log status filter → pos_job_status value. "all" (and any value that is
+ * not a pos_job_status) applies no status filter.
+ */
+function toPosJobStatusFilter(status: string): PosJobStatus | null {
+  return POS_JOB_STATUSES.find((candidate) => candidate === status) ?? null;
+}
 
 const COMING_SOON_INTEGRATION_SLUGS = [
   "clover",
@@ -136,35 +153,6 @@ const COMING_SOON_CONTENT: Record<
     notifyConfirmation:
       "You're on the list. We'll notify you when Clover is approved and available.",
     requestLabel: "Ask about Clover availability →",
-  },
-  shopify: {
-    statusLabel: "Coming soon",
-    statusTone: "warning",
-    availabilityLabel: "Planned ecommerce release",
-    description:
-      "The new first-class Shopify integration will replace the retired legacy flow and bring ecommerce activity fully into the shared BloomSuite integrations shell.",
-    metadata: [
-      "Category: POS Systems",
-      "Scope: Products, orders, customers, and storefront data",
-      "Availability: Planned release",
-    ],
-    capabilities: [
-      "Sync Shopify products, orders, and customers into BloomSuite CRM",
-      "Trigger automations on new orders, abandoned carts, and fulfillment events",
-      "Import your Shopify customer base as a migration source",
-      "Display Shopify products on BloomSuite-powered store pages",
-    ],
-    callout: {
-      tone: "warning",
-      title:
-        "The legacy Shopify connection flow in BloomSuite has been retired.",
-      description:
-        "The new first-class Shopify integration is currently being built.",
-    },
-    notifyLabel: "Notify me when available",
-    notifyConfirmation:
-      "You're on the list. We'll notify you when Shopify is available.",
-    requestLabel: "Request this integration →",
   },
   hubspot: {
     statusLabel: "Coming soon",
@@ -520,7 +508,10 @@ export type LightspeedDashboardOptions = {
   customers?: {
     page?: number;
     search?: string;
-    sortField?: LightspeedCustomerSortField | SquareCustomerSortField;
+    sortField?:
+      | LightspeedCustomerSortField
+      | SquareCustomerSortField
+      | ShopifyCustomerSortField;
     sortDirection?: LightspeedSortDirection;
   };
   sales?: {
@@ -529,7 +520,10 @@ export type LightspeedDashboardOptions = {
     status?: string;
     startDate?: string | null;
     endDate?: string | null;
-    sortField?: LightspeedSalesSortField | SquareSalesSortField;
+    sortField?:
+      | LightspeedSalesSortField
+      | SquareSalesSortField
+      | ShopifyOrdersSortField;
     sortDirection?: LightspeedSortDirection;
   };
   products?: {
@@ -538,7 +532,10 @@ export type LightspeedDashboardOptions = {
     category?: string;
     categories?: string[];
     inStockOnly?: boolean;
-    sortField?: LightspeedProductsSortField | SquareProductsSortField;
+    sortField?:
+      | LightspeedProductsSortField
+      | SquareProductsSortField
+      | ShopifyProductsSortField;
     sortDirection?: LightspeedSortDirection;
   };
   syncLogs?: {
@@ -883,24 +880,6 @@ function normalizeLightspeedJobSyncType(
   return "customers";
 }
 
-function normalizeShopifyJobSyncType(
-  syncType: PosSyncJobRow["sync_type"] | string,
-): "customers" | "orders" | "products" | "full" {
-  if (syncType === "orders" || syncType === "sales") {
-    return "orders";
-  }
-
-  if (syncType === "products") {
-    return "products";
-  }
-
-  if (syncType === "full") {
-    return "full";
-  }
-
-  return "customers";
-}
-
 function isTerminalLightspeedJobStatus(status: PosSyncJobRow["status"]) {
   return (
     status === "completed" || status === "failed" || status === "cancelled"
@@ -1118,16 +1097,6 @@ function normalizeLightspeedSyncLogRow(
   return {
     ...job,
     normalizedSyncType: normalizeLightspeedJobSyncType(job.sync_type),
-    progressPercent: calculateLightspeedJobProgress(job),
-    isStale: isLightspeedJobStale(job),
-    isTerminal: isTerminalLightspeedJobStatus(job.status),
-  };
-}
-
-function normalizeShopifySyncLogRow(job: PosSyncJobRow): ShopifySyncLogRow {
-  return {
-    ...job,
-    normalizedSyncType: normalizeShopifyJobSyncType(job.sync_type),
     progressPercent: calculateLightspeedJobProgress(job),
     isStale: isLightspeedJobStale(job),
     isTerminal: isTerminalLightspeedJobStatus(job.status),
@@ -1871,7 +1840,7 @@ function buildComingSoonRequestPath(name: string) {
 }
 
 function buildComingSoonDetailData(
-  seed: IntegrationDefinition,
+  seed: Pick<IntegrationDefinition, "slug" | "name">,
   notifyEmail: string | null,
   isSubmitted: boolean,
 ): ComingSoonDetailData | null {
@@ -2692,7 +2661,7 @@ function buildMarketingImportDetailData(
   const timeline: IntegrationDetailTimelineEntry[] =
     provider === "mailchimp"
       ? [
-          ...importHistory.map((entry) => ({
+          ...importHistory.map((entry): IntegrationDetailTimelineEntry => ({
             key: `${provider}-${entry.id}`,
             label:
               entry.segmentsCreated > 0
@@ -3468,7 +3437,7 @@ function buildEmailInfrastructureDetailData(
       tone: primaryDomain?.verified_at ? "success" : "warning",
     },
   ];
-  const healthRows = {
+  const healthRows: EmailInfrastructureDetailData["healthRows"] = {
     domain: [
       {
         label: "Primary Domain",
@@ -4687,6 +4656,9 @@ export function useIntegrationDetailData(
           if (healthDashboardResult.error) throw healthDashboardResult.error;
           if (deliverabilityResult.error) throw deliverabilityResult.error;
 
+          // get_tenant_email_health_dashboard is missing from the generated
+          // Supabase types, so its `data` is typed `null`; read it as unknown.
+          const healthDashboardData: unknown = healthDashboardResult.data;
           const emailInfrastructureDetail = buildEmailInfrastructureDetailData(
             domains,
             (dnsRecordsResult.data ?? []) as EmailInfrastructureDnsRecord[],
@@ -4695,9 +4667,9 @@ export function useIntegrationDetailData(
                 checks?: EmailInfrastructureHealthCheck[];
               } | null
             )?.checks ?? []) as EmailInfrastructureHealthCheck[],
-            (Array.isArray(healthDashboardResult.data)
-              ? (healthDashboardResult.data[0] ?? null)
-              : (healthDashboardResult.data ?? null)) as Record<
+            (Array.isArray(healthDashboardData)
+              ? (healthDashboardData[0] ?? null)
+              : (healthDashboardData ?? null)) as Record<
               string,
               unknown
             > | null,
@@ -5532,30 +5504,13 @@ export function useIntegrationDetailData(
         };
       }
 
-      const { from, to, safePage } = getLightspeedPageRange(
-        shopifyDashboardOptions.syncLogs.page,
-      );
-      let request = supabase
-        .from("pos_sync_jobs_v2")
-        .select("*", { count: "exact" })
-        .eq("tenant_id", tenant.id)
-        .eq("provider", "shopify");
-
-      if (shopifyDashboardOptions.syncLogs.status !== "all") {
-        request = request.eq("status", shopifyDashboardOptions.syncLogs.status);
-      }
-
-      const { data, error, count } = await request
-        .order("created_at", { ascending: false })
-        .range(from, to);
-
-      if (error) {
-        throw error;
-      }
-
+      // pos_sync_jobs_v2.provider is the pos_provider enum
+      // (square, clover, lightspeed). It has no "shopify" value, so no
+      // Shopify job row can exist there and filtering on it is rejected by
+      // Postgres (22P02). Return the empty state the page already showed.
       return {
-        rows: (data ?? []).map(normalizeShopifySyncLogRow),
-        pagination: buildLightspeedPagination(safePage, count ?? 0),
+        rows: [] as ShopifySyncLogRow[],
+        pagination: buildLightspeedPagination(1, 0),
       };
     },
   });
@@ -5575,20 +5530,8 @@ export function useIntegrationDetailData(
         return [] as ShopifySyncLogRow[];
       }
 
-      const { data, error } = await supabase
-        .from("pos_sync_jobs_v2")
-        .select("*")
-        .eq("tenant_id", tenant.id)
-        .eq("provider", "shopify")
-        .in("status", [...LIGHTSPEED_ACTIVE_JOB_STATUSES])
-        .order("created_at", { ascending: false })
-        .limit(3);
-
-      if (error) {
-        throw error;
-      }
-
-      return (data ?? []).map(normalizeShopifySyncLogRow);
+      // No Shopify rows can exist in pos_sync_jobs_v2 (see sync logs above).
+      return [] as ShopifySyncLogRow[];
     },
   });
 
@@ -5603,19 +5546,8 @@ export function useIntegrationDetailData(
         return [] as ShopifySyncLogRow[];
       }
 
-      const { data, error } = await supabase
-        .from("pos_sync_jobs_v2")
-        .select("*")
-        .eq("tenant_id", tenant.id)
-        .eq("provider", "shopify")
-        .order("created_at", { ascending: false })
-        .limit(5);
-
-      if (error) {
-        throw error;
-      }
-
-      return (data ?? []).map(normalizeShopifySyncLogRow);
+      // No Shopify rows can exist in pos_sync_jobs_v2 (see sync logs above).
+      return [] as ShopifySyncLogRow[];
     },
   });
 
@@ -5997,8 +5929,11 @@ export function useIntegrationDetailData(
         .eq("tenant_id", tenant.id)
         .eq("provider", "square");
 
-      if (squareDashboardOptions.syncLogs.status !== "all") {
-        request = request.eq("status", squareDashboardOptions.syncLogs.status);
+      const syncStatusFilter = toPosJobStatusFilter(
+        squareDashboardOptions.syncLogs.status,
+      );
+      if (syncStatusFilter) {
+        request = request.eq("status", syncStatusFilter);
       }
 
       const { data, error, count } = await request
@@ -6399,8 +6334,11 @@ export function useIntegrationDetailData(
         .eq("tenant_id", tenant.id)
         .eq("provider", "clover");
 
-      if (cloverDashboardOptions.syncLogs.status !== "all") {
-        request = request.eq("status", cloverDashboardOptions.syncLogs.status);
+      const syncStatusFilter = toPosJobStatusFilter(
+        cloverDashboardOptions.syncLogs.status,
+      );
+      if (syncStatusFilter) {
+        request = request.eq("status", syncStatusFilter);
       }
 
       const { data, error, count } = await request
@@ -6898,11 +6836,11 @@ export function useIntegrationDetailData(
         .eq("tenant_id", tenant.id)
         .eq("provider", "lightspeed");
 
-      if (lightspeedDashboardOptions.syncLogs.status !== "all") {
-        request = request.eq(
-          "status",
-          lightspeedDashboardOptions.syncLogs.status,
-        );
+      const syncStatusFilter = toPosJobStatusFilter(
+        lightspeedDashboardOptions.syncLogs.status,
+      );
+      if (syncStatusFilter) {
+        request = request.eq("status", syncStatusFilter);
       }
 
       const { data, error, count } = await request

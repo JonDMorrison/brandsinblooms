@@ -692,12 +692,12 @@ export function SyncLogsTabView({
           justifyContent="space-between"
         >
           <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
-            <StatusFilterPills
+            <StatusFilterPills<MailchimpSyncLogsStatusFilter>
               options={STATUS_OPTIONS}
               value={statusFilter}
               onChange={setStatusFilter}
             />
-            <StatusFilterPills
+            <StatusFilterPills<MailchimpSyncLogsDatePreset>
               options={DATE_PRESET_OPTIONS}
               value={datePreset}
               onChange={setDatePreset}
