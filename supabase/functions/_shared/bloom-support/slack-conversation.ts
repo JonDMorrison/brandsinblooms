@@ -10,7 +10,8 @@ import { diagnosticClientHint, findDiagnosticAccount, isIntegrationDiagnosticQue
 import { majorProjectInvitationIntent, findMajorProjectInvitationTarget, projectInviteSlackAnswer } from "./major-project-invitations.ts";
 import { taskNumberFromQuestion, taskStatusText } from "./integration-tasks.ts";
 import { callProduct, runRead } from "./operations.ts";
-import { detectSlackAction, executeSlackAction, slackActionsAllowed } from "./slack-actions.ts";
+import { type CloseRequest, detectCloseRequest, detectSlackAction, executeSlackAction, slackActionsAllowed, slackCloseAllowed } from "./slack-actions.ts";
+import { actions } from "./service.ts";
 
 type Route = SlackRoute | "ask";
 interface Context { allowed:boolean; principal_id:string; role:string; channel:string; route:Route; root_ts:string; user_id:string; ticket_id:string|null; history:Array<{question:string;answer:string}>; delivery_state:string; reply_ts:string|null }
@@ -26,7 +27,7 @@ async function sql<T>(name:string,args:Record<string,unknown>):Promise<T>{
 }
 export function conversationFallback(route:Route, question:string):string {
   if (route!=="projects" && route!=="clients" && /\b(close|resolve|delete|refund|send|approve|publish|deploy)\b/i.test(question))
-    return "I can help check what is ready, but I haven't changed or closed anything. Please reply in the specific ticket's thread so I can check its evidence and next step. A request to close tickets is not proof that the customer problem is fixed.";
+    return "I haven't changed or closed anything. To close a request, say *close #* and its number, or reply *close this ticket* in that ticket's thread. Refunds, sends, approvals and deploys happen in the Bloom Support desk.";
   if(route==="finance") return "The Stripe payout report shows transfers from Stripe to the bank, not commission payments. I don't have a verified commission total from this conversation. Do you mean commission earned or commission paid, and which week?";
   if(route==="tickets" || route==="alerts") return "Which ticket do you mean? Reply in its Bloom ticket thread so I can check the recorded problem, owner, verification and next step without guessing.";
   if(route==="releases") return "A merge means the code is on main, not that the customer flow is verified. Which PR or release do you want to check? The linked GitHub and support records are the source of truth.";
@@ -128,6 +129,40 @@ export function staffChannelRefusal(reason:StaffChannelReason):string {
   if(reason==="shared") return "This channel is shared outside Brands in Blooms, so I can't share ticket or client records here. Use the Bloom Support desk.";
   return "I couldn't check this channel with Slack. The Bloom Slack app may be missing a permission (channels:read, groups:read). No records were shared.";
 }
+type RecentTicket={ticket_id:string;number:number;subject:string;status:string};
+/** The ticket Bloom last posted about in this channel, for "this ticket" outside a ticket thread. Best effort. */
+async function recentTicket(jobId:string):Promise<RecentTicket|null>{
+  const {data,error}=await db().rpc("bloom_support_slack_recent_ticket",{p_job:jobId});
+  const r=data as RecentTicket|null;
+  return !error && r && typeof r.ticket_id==="string" && Number.isSafeInteger(Number(r.number)) ? r : null;
+}
+/** Close one request the way the desk's quick resolve does. The database enforces permission and evidence rules. */
+async function closeFromSlack(c:Context,request:CloseRequest,jobId:string):Promise<string>{
+  if(!slackCloseAllowed(c.role)) return "Only owner-level staff can close a request from Slack. Nothing was changed. Close it in the Bloom Support desk.";
+  let ticketId=c.ticket_id;
+  if(!ticketId && request.number!==null){
+    const matches=await rpc<Array<{id:string;number:number}>>("list_tickets",{actor:c.principal_id,filters:{q:"#"+request.number,limit:5}});
+    ticketId=(Array.isArray(matches)?matches:[]).find(t=>Number(t.number)===request.number)?.id??null;
+    if(!ticketId) return "I couldn't find request #"+request.number+". Nothing was changed.";
+  }
+  if(!ticketId){
+    const recent=await recentTicket(jobId).catch(()=>null);
+    return recent
+      ? "Do you mean request #"+recent.number+" ("+safeTicketText(recent.subject,90)+")? Reply *close #"+recent.number+"* and I'll close it. Nothing was changed yet."
+      : "Tell me which request to close, for example *close #1028*. Ask *what tickets are open* to see the numbers. Nothing was changed.";
+  }
+  const caller={principalId:c.principal_id,role:c.role,via:"service" as const,scopes:[],name:null};
+  const ticket=await rpc<Record<string,unknown>>("get_ticket",{actor:c.principal_id,ticket_id:ticketId});
+  const label="request #"+Number(ticket.number)+" ("+safeTicketText(ticket.subject,90)+")";
+  if(ticket.status==="resolved") return label.charAt(0).toUpperCase()+label.slice(1)+" is already closed. Nothing was changed.";
+  try{
+    await actions.updateTicket(caller,ticketId,{status:"resolved",resolution_summary:request.summary});
+  }catch(e){
+    const why=e instanceof BloomError?safeTicketText(e.message,220):"the support desk did not accept the change";
+    return "I couldn't close "+label+": "+why+". Nothing was changed. Close it in the Bloom Support desk if it needs more detail.";
+  }
+  return "Closed "+label+". The client gets the usual resolved notice with this note: \u201c"+safeTicketText(request.summary,300)+"\u201d. Reopen it in the Bloom Support desk if that was not what you meant.";
+}
 /** One leased job owns its progress message. Unknown post outcomes never cause blind duplicates. */
 export async function respondToSlackConversation(job:{id:string;payload:Record<string,unknown>}):Promise<string>{
   const c=await sql<Context>("bloom_support_slack_conversation_context",{p_job:job.id});
@@ -166,10 +201,14 @@ export async function respondToSlackConversation(job:{id:string;payload:Record<s
   const deniedAction=/\b(?:do not|don't|don’t|never|without|not yet|how (?:do|can|would)|what (?:would|if)|example|hypothetical)\b/i.test(question);
   const slackAction = !deniedAction && c.ticket_id && slackActionsAllowed(c.route, c.role)
     ? detectSlackAction(question) : null;
+  const closeRequest = slackAction ? null : detectCloseRequest(question);
   if (!sameConversationAccess(c,beforeWork)) {
     text = "I can no longer verify your access to this conversation. Please check the authorized support desk for any recorded work.";
   } else if (!privateChannel && (c.ticket_id || c.route !== "ask")) {
     text = staffChannelRefusal(channelCheck.reason);
+  } else if (closeRequest && privateChannel) {
+    try { text = await closeFromSlack(c, closeRequest, job.id); }
+    catch { text = "I couldn't confirm that the request was closed. Check its current state in the Bloom Support desk before retrying."; }
   } else if (slackAction) {
     try {
       const result = await executeSlackAction(

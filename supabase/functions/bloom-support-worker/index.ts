@@ -19,7 +19,7 @@ import { emailConfig, sendSupportEmail, subjectFor, trackingLink, type SendResul
 import { createGmailDraft, gmailDraftQueueAvailable, shouldQueueAsDraft } from "../_shared/bloom-support/gmail-drafts.ts";
 import { respondToSlackConversation } from "../_shared/bloom-support/slack-conversation.ts";
 import { postSlackInternalMessage, postSlackInternalText, postSlackSupportNotification, slackRoute } from "../_shared/bloom-support/slack.ts";
-import { renderSlackDigestBlocks } from "../_shared/bloom-support/slack-digest.ts";
+import { renderSlackDigestBlocks, type SlackAnswerRow, unansweredDigest } from "../_shared/bloom-support/slack-digest.ts";
 import { actionableAlertMessage, missingAlertContextMessage } from "../_shared/bloom-support/actionable-alerts.ts";
 import { stripeDailyPayoutBrief } from "../_shared/bloom-support/finance.ts";
 import {
@@ -808,11 +808,17 @@ async function digest(job: Job): Promise<string> {
   }
 
   if (period === "daily") {
-    const slack = renderSlackDigestBlocks(report, { appUrl: appUrl(), date });
+    const base = renderSlackDigestBlocks(report, { appUrl: appUrl(), date });
+    // Questions staff asked in Slack that Bloom did not answer. Best effort: a
+    // failed lookup never holds back the digest itself.
+    const gaps = unansweredDigest(await db().rpc("bloom_support_slack_recent_answers", {
+      p_since: new Date(Date.now() - 86_400_000).toISOString(),
+    }).then((r) => !r.error && Array.isArray(r.data) ? r.data as SlackAnswerRow[] : [], () => []));
+    const slack = base && gaps ? { text: base.text, blocks: [...base.blocks, ...gaps.blocks] } : base ?? gaps;
     if (slack) {
       try {
         await postSlackInternalMessage("digest", slack.text, `${job.id}-slack`, undefined, slack.blocks);
-        outcomes.push("Slack digest posted");
+        outcomes.push(gaps ? "Slack digest posted with unanswered questions" : "Slack digest posted");
       } catch (e) {
         console.log("bloom-support-worker: Slack morning digest skipped:", e instanceof Error ? e.message : String(e));
       }

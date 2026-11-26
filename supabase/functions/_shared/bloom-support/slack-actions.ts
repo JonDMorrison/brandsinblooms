@@ -16,8 +16,12 @@
  *   resume      — resume Bloom automation (reverts a hold)
  *   waiting     — mark ticket as waiting (pauses auto-escalation)
  *
+ * Owner-level staff can also close a request from Slack ("close #1028", or
+ * "close this ticket" inside that ticket's thread). It is the desk's quick
+ * resolve: same permission check, same audit trail, same resolved notice to
+ * the client. See detectCloseRequest and slack-conversation.ts.
+ *
  * The dashboard remains the required path for:
- *   - Resolving / closing tickets (requires evidence confirmation)
  *   - Approving or discarding operations (requires visual review)
  *   - Sending customer-facing messages (requires human review)
  *   - Assigning tickets to other staff members
@@ -140,4 +144,36 @@ export async function executeSlackAction(
 export function slackActionsAllowed(route: string, role: string): boolean {
   // Actions only run in ticket threads, not in general channels or non-staff contexts
   return route === "tickets" && /^(platform_admin|platform_operator|support)/.test(role);
+}
+
+/** A staff member pointing at a ticket without naming it: "this ticket", "that one", "close it". */
+export function refersToUnnamedTicket(text: string): boolean {
+  return /\b(?:this|that|the) (?:ticket|request|one|alert|issue|case)\b|\b(?:close|resolve|reopen|check|open) (?:it|that|this)\b/i.test(text);
+}
+
+export interface CloseRequest { number: number | null; summary: string }
+/** The note a client reads when a request is closed from Slack without one. */
+export const DEFAULT_CLOSE_SUMMARY = "We've finished working on this request. Reply to this message if you still need help.";
+
+/**
+ * "close #1028", "resolve ticket 1028: fixed by the redeploy", "close this ticket".
+ * Only a direct instruction counts; questions, negations and hypotheticals do not.
+ */
+export function detectCloseRequest(text: string): CloseRequest | null {
+  if (!text || text.length > 600) return null;
+  const t = text.replace(/\s+/g, " ").trim();
+  if (/\b(?:do not|don't|don’t|never|without|not yet|should (?:i|we)|can (?:i|we)|how (?:do|can|would)|what (?:would|if)|why|example|hypothetical)\b|\?\s*$/i.test(t)) return null;
+  const m = /^(?:bloom[,:]?\s+)?(?:please\s+)?(?:(?:can|could|would) you (?:please\s+)?)?(?:close|resolve|mark (?:as\s+)?(?:resolved|closed|done|solved))\b(.*)$/i.exec(t);
+  if (!m) return null;
+  const rest = m[1];
+  const num = /(?:#|\b(?:ticket|request|number|no\.?)\s*#?)(\d{3,7})\b/i.exec(rest) ?? /^\s*(\d{3,7})\b/.exec(rest);
+  const after = (num ? rest.slice(rest.indexOf(num[0]) + num[0].length) : rest)
+    .replace(/^\s*(?:this|that|the)?\s*(?:ticket|request|one|it)?\s*(?:as\s+(?:resolved|closed|done|solved))?\s*[:,.\-–]?\s*(?:because|since|as|with note|note)?\s*[:,\-–]?\s*/i, "").trim();
+  const summary = after.length >= 8 ? after.slice(0, 300) : DEFAULT_CLOSE_SUMMARY;
+  return { number: num ? Number(num[1]) : null, summary };
+}
+
+/** Closing sends the client a resolved notice, so only owner-level staff may do it from Slack. */
+export function slackCloseAllowed(role: string): boolean {
+  return role === "platform_admin" || role === "platform_operator";
 }

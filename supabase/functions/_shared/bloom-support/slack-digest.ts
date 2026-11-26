@@ -126,3 +126,42 @@ function formatAge(ms: number): string {
   if (ms < 86_400_000) return `${(ms / 3_600_000).toFixed(1)} hrs`;
   return `${(ms / 86_400_000).toFixed(1)} days`;
 }
+
+/**
+ * Why a Slack answer did not answer, or null when it did. The morning digest
+ * lists these so a gap is seen by the team before a person has to hit it twice.
+ */
+export function unansweredReason(answer: unknown): string | null {
+  if(typeof answer!=="string" || !answer.trim()) return "no answer was recorded";
+  const a=answer.slice(0,700);
+  if(/can't share ticket or client records here|couldn't check this channel with Slack/i.test(a)) return "the channel was refused";
+  if(/\bcannot read (?:application fees|invoices|the balance|payouts|the account)\b|no Stripe read-only key/i.test(a)) return "the Stripe key lacks access";
+  if(/\bI(?: am|'m|\u2019m) unable to\b|\bI (?:can(?:no|'|\u2019)t|cannot|(?:currently )?(?:don't|do not|don\u2019t) have access)\b|\bnot accessible\b|\b(?:restricted|not permitted)\b/i.test(a)) return "Bloom said it could not";
+  if(/\bI couldn't (?:finish|verify|confirm|complete|check)\b|\bcould not (?:complete|finish|validate)\b|did not answer this time|exceeded the safe work limit|safe processing window ended/i.test(a)) return "the lookup did not finish";
+  if(/^(?:which|what) (?:ticket|product|pr|release)\b|\bI need (?:more (?:details|context)|the specific ticket)\b|\bplease (?:provide|specify|clarify)\b|\bI don't have enough verified information\b/i.test(a)) return "Bloom asked for details instead of answering";
+  return null;
+}
+
+export interface SlackAnswerRow { route?: unknown; question?: unknown; answer?: unknown }
+const plain = (v: unknown, max: number): string => typeof v === "string"
+  ? v.replace(/[*_~`<>|@]/g, " ").replace(/\s+/g, " ").trim().slice(0, max) : "";
+/**
+ * The questions staff asked in Slack since the last digest that Bloom did not
+ * answer, grouped by question. Null when every question was answered.
+ */
+export function unansweredDigest(rows: readonly SlackAnswerRow[]): SlackDigest | null {
+  const seen = new Map<string, { route: string; question: string; reason: string; count: number }>();
+  for (const r of rows) {
+    const reason = unansweredReason(r.answer), question = plain(r.question, 140);
+    if (!reason || !question) continue;
+    const key = `${plain(r.route, 20)}|${question.toLowerCase()}`;
+    const entry = seen.get(key) ?? { route: plain(r.route, 20) || "ask", question, reason, count: 0 };
+    entry.count++; seen.set(key, entry);
+  }
+  if (!seen.size) return null;
+  const items = [...seen.values()].slice(0, 12);
+  const title = seen.size === 1 ? "1 question Bloom could not answer" : `${seen.size} questions Bloom could not answer`;
+  const lines = items.map(i => `• #bloom-${i.route === "ask" ? "ask" : i.route}: “${i.question}”${i.count > 1 ? ` (asked ${i.count} times)` : ""} — ${i.reason}`);
+  const text = `*${title}*\n${lines.join("\n")}`;
+  return { text, blocks: [{ type: "divider" }, { type: "section", text: { type: "mrkdwn", text: text.slice(0, 2900) } }] };
+}
