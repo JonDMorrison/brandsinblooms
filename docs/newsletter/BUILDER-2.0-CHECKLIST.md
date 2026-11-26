@@ -49,7 +49,7 @@ Rules that stay in force for every step:
 
 | Item | Status | Evidence / gap |
 | --- | --- | --- |
-| Inline editing on the canvas | Open | |
+| Inline editing on the canvas | Partial | Plain text can be typed on the canvas: headline, subheading, small label, button words, product name and second line, quote author and title, event location, caption. Click the words, type, then click away or press Enter. Escape puts the old words back. It writes to the same block field the panel edits, as one undo step, saved as plain text only. Clicking button words never follows the link. Not editable on the canvas yet: paragraph text and other rich text (use the panel), text holding personalisation such as {{ first_name }}, prices, formatted dates, gallery items, and the footer. Preview stays read-only. Template locks do not exist yet, so there is nothing to respect there. |
 | Drag handle visibility, Move to Top / Bottom, keyboard reorder, undo | Done | Toolbar has Move to top, Move up, Move down, Move to bottom, Duplicate, Delete, each with a hover hint. Bottom means just above the footer. The drag handle is a bordered button with hover and focus states. Alt + Up / Down moves the selected block, with Shift for top / bottom, and never while typing. The block stays selected. Each move is one undo step (tested). Checked live 2026-11-26: coupon moved to top, stayed selected, footer stayed last, undo restored the order. Not yet tested by hand with 20 blocks. Outline tab still has up / down only. |
 | Four starting options, "Customize in Design Studio" | Open | |
 

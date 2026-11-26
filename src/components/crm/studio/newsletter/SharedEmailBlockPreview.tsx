@@ -10,6 +10,11 @@ import { uploadStudioImageFile } from "../fields/StudioImageUpload";
 import { STUDIO_BLOCK_LOOKUP } from "../blockLibraryData";
 import "./newsletterControls.css";
 import { normalizeSocialLinks } from "@/lib/studio/socialIcons";
+import {
+  inlineTextFromElement,
+  markInlineEditableText,
+  type InlineTextField,
+} from "@/lib/studio/newsletter/inlineTextEditing";
 type Update = (
   blockId: string,
   field: keyof StudioBlock,
@@ -152,6 +157,51 @@ export default function SharedEmailBlockPreview({
     target.current = { field, index, blockId: block.id, itemId };
     input.current?.click();
   };
+  // Click-to-edit for plain text (headline, button words and so on). The
+  // element is made editable in place and saved to its block field when the
+  // person clicks away or presses Enter. Escape puts the old words back.
+  const editing = React.useRef<{ element: HTMLElement; original: string } | null>(null);
+  const finishTextEdit = (save: boolean) => {
+    const active = editing.current;
+    if (!active) return;
+    editing.current = null;
+    const { element, original } = active;
+    const field = element.getAttribute("data-nl-edit") as InlineTextField | null;
+    const next = inlineTextFromElement(element);
+    element.removeAttribute("contenteditable");
+    element.removeAttribute("data-nl-editing");
+    const current = latest.current;
+    if (!save || !field || next === original) {
+      element.textContent = original;
+      return;
+    }
+    current.onUpdateBlockField?.(current.block.id, field, next);
+  };
+  const startTextEdit = (element: HTMLElement, point?: { x: number; y: number }) => {
+    if (!onUpdateBlockField || busy) return;
+    if (editing.current?.element === element) return;
+    finishTextEdit(true);
+    editing.current = { element, original: inlineTextFromElement(element) };
+    // "plaintext-only" stops pasted formatting where the browser supports it.
+    element.setAttribute("contenteditable", "plaintext-only");
+    if (!element.isContentEditable) element.setAttribute("contenteditable", "true");
+    element.setAttribute("data-nl-editing", "true");
+    element.focus({ preventScroll: true });
+    const selection = element.ownerDocument.getSelection();
+    if (!selection) return;
+    const doc = element.ownerDocument as Document & {
+      caretRangeFromPoint?: (x: number, y: number) => Range | null;
+    };
+    const atPoint = point && doc.caretRangeFromPoint ? doc.caretRangeFromPoint(point.x, point.y) : null;
+    const range = atPoint && element.contains(atPoint.startContainer) ? atPoint : doc.createRange();
+    if (range !== atPoint) {
+      range.selectNodeContents(element);
+      // Keyboard entry selects all the words; a mouse click outside the text goes to the end.
+      if (point) range.collapse(false);
+    }
+    selection.removeAllRanges();
+    selection.addRange(range);
+  };
   // Floating "Replace image" buttons, one per editable photo, positioned
   // over the photo's bottom-right corner. The Photo Banner keeps its own.
   const wrapper = React.useRef<HTMLDivElement>(null);
@@ -241,9 +291,53 @@ export default function SharedEmailBlockPreview({
           className="nl-preview"
           onClick={(event) => {
             if ((event.target as Element).closest("a")) event.preventDefault();
+            const text = (event.target as Element).closest<HTMLElement>("[data-nl-edit]");
+            if (text) {
+              startTextEdit(text, { x: event.clientX, y: event.clientY });
+              return;
+            }
             choose(event.target as Element);
           }}
+          onBlur={(event) => {
+            if (editing.current?.element === event.target) finishTextEdit(true);
+          }}
+          onDoubleClick={(event) => {
+            // Double-click selects a word here. It must not jump to the panel.
+            if ((event.target as Element).closest("[data-nl-edit]")) event.stopPropagation();
+          }}
+          onPaste={(event) => {
+            // Browsers without plaintext-only: paste words only, on one line.
+            if (!editing.current || editing.current.element.getAttribute("contenteditable") !== "true") return;
+            event.preventDefault();
+            const words = event.clipboardData.getData("text/plain").replace(/[\r\n]+/g, " ");
+            const selection = window.getSelection();
+            if (!selection || selection.rangeCount === 0) return;
+            const range = selection.getRangeAt(0);
+            range.deleteContents();
+            range.insertNode(document.createTextNode(words));
+            range.collapse(false);
+          }}
           onKeyDown={(event) => {
+            const active = editing.current;
+            if (active && event.target === active.element) {
+              // Keep typing out of the page shortcuts (delete block, move block, undo).
+              event.stopPropagation();
+              if (event.key === "Enter") {
+                event.preventDefault();
+                active.element.blur();
+              } else if (event.key === "Escape") {
+                event.preventDefault();
+                finishTextEdit(false);
+                active.element.blur();
+              }
+              return;
+            }
+            const text = (event.target as Element).closest<HTMLElement>("[data-nl-edit]");
+            if (text && event.target === text && (event.key === "Enter" || event.key === " ")) {
+              event.preventDefault();
+              startTextEdit(text);
+              return;
+            }
             if (
               (event.key === "Enter" || event.key === " ") &&
               (event.target as Element).matches('img, [data-editor-placeholder="image"][data-newsletter-image]')
@@ -253,6 +347,7 @@ export default function SharedEmailBlockPreview({
             }
           }}
           ref={(node) => {
+            if (node && onUpdateBlockField) markInlineEditableText(node, block);
             if (node && onUpdateBlockField)
               node
                 .querySelectorAll<HTMLElement>(

@@ -236,3 +236,24 @@
   outline: 2px solid var(--joy-palette-primary-400, #1f5b63);
   outline-offset: 2px;
 }
+
+/* Words that can be typed straight on the canvas. */
+.nl-preview [data-nl-edit] {
+  cursor: text;
+  border-radius: 3px;
+  outline: 1px dashed transparent;
+  outline-offset: 3px;
+  transition: outline-color 120ms ease, background-color 120ms ease;
+}
+.nl-preview [data-nl-edit]:hover {
+  outline-color: rgba(31, 91, 99, 0.55);
+}
+.nl-preview [data-nl-edit]:focus-visible {
+  outline: 2px solid rgba(31, 91, 99, 0.75);
+}
+.nl-preview [data-nl-edit][data-nl-editing] {
+  outline: 2px solid #1f5b63;
+  background-color: rgba(255, 255, 255, 0.35);
+  /* A long word typed into a button must not be clipped. */
+  min-width: 1ch;
+}
