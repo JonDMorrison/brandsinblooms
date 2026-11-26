@@ -10,6 +10,7 @@ import { format, formatDistanceToNow, isValid } from "date-fns";
 import { CalendarClock, Check, Circle, Mail, MessageSquare, Send } from "lucide-react";
 import type { CampaignCatalogItem } from "@/lib/crm/campaignEditor";
 import { campaignReadiness, campaignStage } from "@/lib/crm/campaignCardModel";
+import { describeMergeTags } from "@/lib/mergeTagEngine";
 
 interface CampaignCardGridProps {
   campaigns: CampaignCatalogItem[];
@@ -39,7 +40,7 @@ function Thumbnail({ campaign }: { campaign: CampaignCatalogItem }) {
   const Icon = campaign.channel === "sms" ? MessageSquare : Mail;
   const showImage = Boolean(campaign.thumbnailUrl) && !failed;
   // With no image, show the email's opening headline so the tile reads as a preview.
-  const headline = campaign.firstHeadline?.trim() || campaign.subjectLine.trim();
+  const headline = describeMergeTags(campaign.firstHeadline?.trim() || campaign.subjectLine.trim());
   return (
     <AspectRatio ratio="16/9" sx={{ borderRadius: "md", overflow: "hidden" }}>
       {showImage ? (
@@ -200,9 +201,8 @@ export function CampaignCardGrid({
         const stage = campaignStage(campaign.status);
         const recipients = getRecipients(campaign);
         const colour = getColour?.(campaign);
-        const subtitle = campaign.subjectLine.trim() && campaign.subjectLine.trim() !== getName(campaign)
-          ? campaign.subjectLine.trim()
-          : null;
+        const subject = describeMergeTags(campaign.subjectLine.trim());
+        const subtitle = subject && subject !== getName(campaign) ? subject : null;
         return (
           <Card
             key={campaign.id}
