@@ -1,3 +1,5 @@
+import Switch from "@mui/joy/Switch";
+import { Lock } from "lucide-react";
 import * as React from "react";
 import Box from "@mui/joy/Box";
 import Chip from "@mui/joy/Chip";
@@ -77,6 +79,9 @@ function TemplateCard({
         </Typography>
       ) : null}
       <Stack direction="row" useFlexGap flexWrap="wrap" gap={0.5}>
+        {template.isLocked ? (
+          <Chip size="sm" variant="soft" color="warning" startDecorator={<Lock size={12} />}>Locked design</Chip>
+        ) : null}
         {template.category ? (
           <Chip size="sm" variant="soft" color="primary">{template.category}</Chip>
         ) : null}
@@ -117,6 +122,7 @@ function TemplateCard({
 export function CampaignTemplatesPage() {
   const navigate = useNavigate();
   const { hasPermission } = useUserRole();
+  const canDesign = hasPermission("content.design");
   const canWrite = hasPermission("campaigns.write");
   const {
     savedTemplates,
@@ -131,7 +137,7 @@ export function CampaignTemplatesPage() {
   } = useSavedTemplates();
   const [filters, setFilters] = React.useState<TemplateFilters>(DEFAULT_TEMPLATE_FILTERS);
   const [editing, setEditing] = React.useState<SavedTemplate | null>(null);
-  const [draft, setDraft] = React.useState({ name: "", description: "", category: "", tags: "" });
+  const [draft, setDraft] = React.useState({ name: "", description: "", category: "", tags: "", isLocked: false });
   const [deleting, setDeleting] = React.useState<SavedTemplate | null>(null);
   const busy = isUpdatingDetails || isDuplicating || isArchiving;
 
@@ -146,6 +152,7 @@ export function CampaignTemplatesPage() {
       description: template.description ?? "",
       category: template.category ?? "",
       tags: template.tags.join(", "),
+      isLocked: template.isLocked,
     });
     setEditing(template);
   };
@@ -159,6 +166,7 @@ export function CampaignTemplatesPage() {
         description: draft.description,
         category: draft.category,
         tags: parseTagInput(draft.tags),
+        ...(canDesign && draft.isLocked !== editing.isLocked ? { isLocked: draft.isLocked } : {}),
       });
       toast.success("Template details saved");
       setEditing(null);
@@ -342,6 +350,22 @@ export function CampaignTemplatesPage() {
               value={draft.tags}
               onChange={(event) => setDraft((current) => ({ ...current, tags: event.target.value }))}
             />
+            {canDesign ? (
+              <Stack spacing={0.5}>
+                <Stack direction="row" spacing={1.25} alignItems="center">
+                  <Switch
+                    checked={draft.isLocked}
+                    onChange={(event) => setDraft((current) => ({ ...current, isLocked: event.target.checked }))}
+                    slotProps={{ input: { "aria-label": "Lock this design" } }}
+                  />
+                  <Typography level="body-md">Lock this design</Typography>
+                </Stack>
+                <Typography level="body-sm" sx={{ color: "neutral.700" }}>
+                  Emails started from a locked design keep its layout, colours and styling. Staff who cannot
+                  change designs can still change the words, photos, prices, dates and links.
+                </Typography>
+              </Stack>
+            ) : null}
           </Stack>
         </JoyDialogContent>
         <JoyDialogActions>

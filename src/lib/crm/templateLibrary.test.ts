@@ -4,6 +4,7 @@ import { normalizeTemplateTags } from "@/hooks/useSavedTemplates";
 import { categoriesInUse, DEFAULT_TEMPLATE_FILTERS, filterTemplates, parseTagInput } from "./templateLibrary";
 
 const template = (id: string, fields: Partial<SavedTemplate>): SavedTemplate => ({
+  isLocked: false,
   id,
   user_id: "u1",
   tenant_id: "t1",

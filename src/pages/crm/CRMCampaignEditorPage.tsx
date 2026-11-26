@@ -1,3 +1,5 @@
+import { useCampaignTemplateLock } from "@/hooks/useCampaignTemplateLock";
+import { CampaignTemplateLockNotice } from "@/components/crm/campaign-editor/CampaignTemplateLockNotice";
 import {
   buildCampaignOrigin,
   normalizeCampaignOrigin,
@@ -1346,6 +1348,19 @@ function CampaignEditorScreen() {
   const showLockedView =
     !showActiveSendView && status !== CAMPAIGN_STATUS.DRAFT;
 
+  // An email started from a locked design is held to it. The database takes
+  // the lock when the saved email names the template, then enforces it on
+  // every later save. This only records the name once the email exists.
+  const lockedTemplateToRecordRef = React.useRef<string | null>(null);
+  const templateLock = useCampaignTemplateLock(campaignId);
+  const recordTemplateLock = templateLock.record;
+  React.useEffect(() => {
+    const templateId = lockedTemplateToRecordRef.current;
+    if (!campaignId || !templateId || isSaving) return;
+    lockedTemplateToRecordRef.current = null;
+    void recordTemplateLock(templateId);
+  }, [campaignId, isSaving, recordTemplateLock, contentBlocks]);
+
   const applyTemplateToCampaign = React.useCallback(
     (template: CampaignTemplate) => {
       if (template.id === BLANK_TEMPLATE_ID) {
@@ -1357,6 +1372,10 @@ function CampaignEditorScreen() {
         updateContent({ contentBlocks: template.buildBlocks(designSystem) });
         return;
       }
+      const appliedSaved = template.id.startsWith("saved:")
+        ? savedTemplates.find((item) => item.id === template.id.slice(6))
+        : undefined;
+      lockedTemplateToRecordRef.current = appliedSaved?.isLocked ? appliedSaved.id : null;
       setOrigin(
         template.id.startsWith(WEEKLY_THEME_TEMPLATE_PREFIX)
           ? (normalizeCampaignOrigin(
@@ -1578,6 +1597,7 @@ function CampaignEditorScreen() {
         return;
       }
       setOrigin(buildCampaignOrigin("saved_template", template.id));
+      lockedTemplateToRecordRef.current = template.isLocked ? template.id : null;
       updateContent({ contentBlocks: template.layout_json });
       setSelectedSavedTemplateId(template.id);
       setSelectedIntent(null);
@@ -2387,6 +2407,11 @@ function CampaignEditorScreen() {
       >
         {campaignType === "email" ? (
           <Stack spacing={3}>
+            <CampaignTemplateLockNotice
+              lock={templateLock.lock}
+              releasing={templateLock.release.isPending}
+              onRelease={() => templateLock.release.mutate()}
+            />
             <IntentPicker
               savedTemplates={savedTemplates}
               selectedIntent={selectedIntent}
