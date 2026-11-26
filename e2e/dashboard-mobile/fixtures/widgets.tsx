@@ -14,6 +14,15 @@ export function useTenantAudienceHealth() {
     isError: false,
   };
 }
+// Stands in for the real helper in useTenantAudienceHealth.ts. The fixture
+// audience is mostly reachable, so the card keeps its standard caption.
+export function summarizeReachability(health: { eligible: number }) {
+  return {
+    value: health.eligible.toLocaleString(),
+    description: "Confirmed and not suppressed for email",
+    explained: false,
+  };
+}
 export function useCampaignDeliveryMetrics() {
   return {
     summary: { totalDelivered: 2000, avgClickRate: 3.2, avgOpenRate: 20.5 },

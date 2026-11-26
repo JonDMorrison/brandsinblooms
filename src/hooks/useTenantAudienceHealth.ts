@@ -135,6 +135,48 @@ export function useTenantAudienceHealth(
 
 export const EMPTY_TENANT_AUDIENCE_HEALTH = EMPTY_HEALTH;
 
+export interface ReachabilitySummary {
+  /** The reachable count, as shown on the card. */
+  value: string;
+  /** One-line caption under the count. */
+  description: string;
+  /** True when the caption explains a reachable count far below the list. */
+  explained: boolean;
+}
+
+const REACHABLE_CAPTION = "Confirmed and not suppressed for email";
+
+/**
+ * Card copy for reachable customers. When reachable is 0 or under half the
+ * list, the caption says why, from the email_reachability_summary buckets,
+ * so a bare 0 next to a sent campaign does not read as a bug.
+ */
+export function summarizeReachability(
+  health: TenantAudienceHealth,
+): ReachabilitySummary {
+  const value = health.eligible.toLocaleString();
+  if (health.total === 0 || health.eligible * 2 >= health.total) {
+    return { value, description: REACHABLE_CAPTION, explained: false };
+  }
+
+  const reasons = [
+    { count: health.suppressed, label: "can't receive email (invalid, bounced, suppressed or test addresses)" },
+    { count: health.neverOptedIn, label: "never opted in" },
+    { count: health.optedOut, label: "asked to stop" },
+    { count: health.pending, label: "are waiting for permission" },
+  ]
+    .filter((reason) => reason.count > 0)
+    .sort((a, b) => b.count - a.count)
+    .map((reason) => `${reason.count.toLocaleString()} ${reason.label}`);
+
+  const lead = `${value} of ${health.total.toLocaleString()} reachable.`;
+  return {
+    value,
+    description: reasons.length ? `${lead} ${reasons.join("; ")}.` : lead,
+    explained: true,
+  };
+}
+
 
 export interface CampaignAudienceHealthOptions {
   tenantId: string | null | undefined;

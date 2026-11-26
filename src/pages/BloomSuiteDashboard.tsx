@@ -30,7 +30,10 @@ import { useAdmin } from "@/contexts/AdminContext";
 import { useOnboardingStatus } from "@/contexts/OnboardingStatusContext";
 import { useCampaignDeliveryMetrics } from "@/hooks/analytics/useCampaignDeliveryMetrics";
 import { useTenant } from "@/hooks/useTenant";
-import { useTenantAudienceHealth } from "@/hooks/useTenantAudienceHealth";
+import {
+  summarizeReachability,
+  useTenantAudienceHealth,
+} from "@/hooks/useTenantAudienceHealth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { formatPercent } from "@/components/analytics/analyticsUtils";
 import {
@@ -253,6 +256,14 @@ export const BloomSuiteDashboard = () => {
   const performance = useCampaignDeliveryMetrics(30, {
     enabled: canSeeReports,
   });
+  const reachability =
+    audience.data && !audience.isError
+      ? summarizeReachability(audience.data)
+      : {
+          value: "",
+          description: "Confirmed and not suppressed for email",
+          explained: false,
+        };
   const latestCampaign = performance.campaigns[0];
   const hasEmailData = performance.summary.totalDelivered > 0;
   const displayName = useMemo(() => {
@@ -273,8 +284,8 @@ export const BloomSuiteDashboard = () => {
             value:
               audience.isError || !audience.data
                 ? "Unavailable"
-                : audience.data.eligible.toLocaleString(),
-            description: "Confirmed and not suppressed for email",
+                : reachability.value,
+            description: reachability.description,
             loading: audience.isLoading,
             destination: "/crm/customers",
             empty: audience.isError || !audience.data,
