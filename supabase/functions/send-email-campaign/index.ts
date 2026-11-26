@@ -5,6 +5,7 @@ import {
   getUniqueUrls,
   hasPII,
 } from "../_shared/linkRewriter.ts";
+import { dedupeRecipientsByEmail } from "../_shared/recipientEmailDedup.ts";
 import {
   serializeSupabaseError,
   isUuidLike,
@@ -1566,6 +1567,27 @@ serve(async (req: Request) => {
       if (email.toLowerCase().endsWith("@noemail.local")) return false;
       return true;
     });
+
+    // One copy per email address. Customer IDs are already unique here; this
+    // covers separate customer records that share an address.
+    {
+      const emailDedup = dedupeRecipientsByEmail(customers, {
+        respectOptOut: !forceBypassConsent,
+      });
+      if (
+        emailDedup.duplicateRecords.length > 0 ||
+        emailDedup.restrictedRecords.length > 0
+      ) {
+        console.log("📧 Email-level recipient dedup applied:", {
+          campaignId,
+          before: customers.length,
+          after: emailDedup.recipients.length,
+          duplicate_records_skipped: emailDedup.duplicateRecords.length,
+          restricted_records_skipped: emailDedup.restrictedRecords.length,
+        });
+      }
+      customers = emailDedup.recipients;
+    }
 
     // Filter out suppressed recipients (Milestone 5: suppression_list is canonical)
     // includeSuppressed bypass is intentionally ignored.

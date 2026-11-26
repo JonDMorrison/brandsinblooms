@@ -197,4 +197,18 @@ describe("SegmentsAudienceSelect", () => {
   it("exports a stable sentinel id", () => {
     expect(ALL_CONTACTS_SEGMENT_ID).toBe("__ALL_CONTACTS__");
   });
+
+  it("tells the sender that overlapping segments get one copy", () => {
+    render(
+      <SegmentsAudienceSelect
+        segments={[]}
+        selectedSegments={[]}
+        includeAllCustomers={false}
+        onChange={() => undefined}
+      />,
+    );
+    expect(screen.getByTestId("audience-one-copy-note")).toHaveTextContent(
+      "Contacts belonging to multiple selected segments will only receive one copy of this campaign.",
+    );
+  });
 });

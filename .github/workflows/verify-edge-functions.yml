@@ -104,3 +104,10 @@ jobs:
             --allow-env \
             supabase/functions/mailchimp-import/__tests__/index.test.ts \
             supabase/functions/mailchimp-fetch-preview/__tests__/index.test.ts
+
+      - name: Test campaign recipient email dedup
+        run: |
+          deno test \
+            --config supabase/functions/deno.json \
+            --frozen-lockfile \
+            supabase/functions/_shared/recipientEmailDedup.test.ts
