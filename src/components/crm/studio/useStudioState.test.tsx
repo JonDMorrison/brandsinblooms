@@ -244,7 +244,7 @@ describe("Add all theme blocks (qa2 #6)", () => {
 
 describe("move to top and bottom", () => {
   it("moves a block to the top, and to just above the footer, in one undoable step each", () => {
-    const { result } = renderHook(() => useStudioState({ initialCampaignName: "Campaign" }));
+    const { result } = renderHook(() => useStudioState({ initialCampaignName: "Campaign", designSystem }));
     act(() => { result.current.addBlock("headline"); });
     act(() => { result.current.addBlock("plain-text"); });
     act(() => { result.current.addBlock("divider"); });
@@ -270,7 +270,7 @@ describe("move to top and bottom", () => {
   });
 
   it("never moves the footer", () => {
-    const { result } = renderHook(() => useStudioState({ initialCampaignName: "Campaign" }));
+    const { result } = renderHook(() => useStudioState({ initialCampaignName: "Campaign", designSystem }));
     act(() => { result.current.addBlock("headline"); });
     const footer = result.current.blocks.find((block) => block.type === "footer")!;
     const before = result.current.blocks.map((block) => block.id);
