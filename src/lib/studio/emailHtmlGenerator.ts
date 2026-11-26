@@ -251,11 +251,14 @@ function getFooterContactLines(
     .map((line) => stripEmailFragmentsFromAddressLine(stringValue(line)))
     .filter(Boolean);
 
-  if (stringValue(designSystem?.company.phone)) {
+  // Phone and email are optional lines and can be hidden. The business name
+  // and mailing address cannot: an empty custom value falls back to the
+  // account's, so sender identification is always present.
+  if (block.showFooterPhone !== false && stringValue(designSystem?.company.phone)) {
     lines.push(stringValue(designSystem?.company.phone));
   }
 
-  if (stringValue(designSystem?.company.email)) {
+  if (block.showFooterEmail !== false && stringValue(designSystem?.company.email)) {
     lines.push(stringValue(designSystem?.company.email));
   }
 
@@ -1072,6 +1075,13 @@ function renderHeroBlock(
   );
 }
 
+/**
+ * Shortest photo or banner height. The old floors (200px for Photo Banner,
+ * 150px for Image) stopped short banners, such as a 150px strip, from being
+ * shown at their own height and left an empty band under them.
+ */
+export const MIN_BANNER_HEIGHT = 60;
+
 function renderGraphicImageBlock(
   block: StudioBlock,
   designSystem: StudioDesignSystem | null | undefined,
@@ -1089,7 +1099,7 @@ function renderGraphicImageBlock(
     const padding = (block.insetPadding ?? block.imagePadding) ? 16 : 0;
     const ratioHeight = getImageHeightForRatio(EMAIL_WIDTH - padding * 2, block.imageRatio);
     const maxHeight = ratioHeight ?? Math.max(
-      150,
+      MIN_BANNER_HEIGHT,
       Math.min(600, numberValue(block.maxHeight, 400)),
     );
     const objectPosition = getImageObjectPosition(
@@ -1125,7 +1135,7 @@ function renderGraphicImageBlock(
   const radius = numberValue(block.borderRadius, 0);
   const padding = (block.insetPadding ?? block.imagePadding) ? 16 : 0;
   const maxHeight = Math.max(
-    200,
+    MIN_BANNER_HEIGHT,
     Math.min(600, numberValue(block.maxHeight, 400)),
   );
   const align = getAlignment(block.textAlign, "center");
@@ -1376,7 +1386,7 @@ export function getEmailImageCropFrame(block: StudioBlock): ImageCropFrame | nul
     const padding = (block.insetPadding ?? block.imagePadding) ? 16 : 0;
     const width = EMAIL_WIDTH - padding * 2;
     const height = getImageHeightForRatio(width, block.imageRatio) ?? Math.max(
-      150,
+      MIN_BANNER_HEIGHT,
       Math.min(600, numberValue(block.maxHeight, 400)),
     );
     return { width, height };

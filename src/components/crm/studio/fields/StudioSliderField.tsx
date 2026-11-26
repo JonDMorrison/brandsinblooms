@@ -24,6 +24,7 @@ export default function StudioSliderField({
 }: StudioSliderFieldProps) {
   const [internalValue, setInternalValue] = React.useState(defaultValue);
   const resolvedValue = value ?? internalValue;
+  const [draft, setDraft] = React.useState<string | null>(null);
 
   const commitValue = React.useCallback(
     (nextValue: number) => {
@@ -50,18 +51,48 @@ export default function StudioSliderField({
         >
           {label}
         </Typography>
-        <Typography
-          level="body-xs"
-          sx={{
-            color: "neutral.500",
-            fontSize: "11px",
-            fontFamily: "SF Mono, Menlo, monospace",
-            minWidth: 36,
+        {/* Type an exact number, or drag the slider. */}
+        <input
+          type="number"
+          aria-label={label}
+          min={min}
+          max={max}
+          step={step}
+          value={draft ?? resolvedValue}
+          onChange={(event) => {
+            const raw = event.target.value;
+            setDraft(raw);
+            const next = event.target.valueAsNumber;
+            // Keep partial typing on screen; apply only numbers already in range.
+            if (Number.isFinite(next) && next >= min && next <= max) commitValue(next);
+          }}
+          onBlur={() => {
+            if (draft === null) return;
+            const next = Number(draft);
+            if (draft.trim() !== "" && Number.isFinite(next))
+              commitValue(Math.max(min, Math.min(max, next)));
+            setDraft(null);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              event.currentTarget.blur();
+            }
+          }}
+          style={{
+            width: 58,
+            minHeight: 26,
+            boxSizing: "border-box",
+            padding: "2px 6px",
+            border: "1.5px solid var(--joy-palette-neutral-200, #d5dde0)",
+            borderRadius: 8,
+            background: "#ffffff",
+            color: "#203137",
+            font: "inherit",
+            fontSize: 12,
             textAlign: "right",
           }}
-        >
-          {resolvedValue}
-        </Typography>
+        />
       </Stack>
       <Slider
         size="sm"
@@ -69,7 +100,10 @@ export default function StudioSliderField({
         max={max}
         step={step}
         value={resolvedValue}
-        onChange={(_event, nextValue) => commitValue(nextValue as number)}
+        onChange={(_event, nextValue) => {
+          setDraft(null);
+          commitValue(nextValue as number);
+        }}
         sx={{
           "--Slider-trackSize": "4px",
           "--Slider-thumbSize": "16px",
