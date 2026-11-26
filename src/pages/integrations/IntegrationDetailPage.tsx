@@ -4310,7 +4310,7 @@ export default function IntegrationDetailPage() {
                         <div
                           className={cn(
                             "mt-3 text-3xl font-semibold tracking-tight text-slate-950",
-                            card.valueClassName,
+                            readMetricValueClassName(card),
                           )}
                         >
                           {card.value}
@@ -5431,7 +5431,7 @@ export default function IntegrationDetailPage() {
               payloadPreview={comingSoonDetail.payloadPreview}
             />
           ) : isEmailInfrastructure && emailInfrastructureDetail ? (
-            <IntegrationDetailTabs
+            <IntegrationDetailTabs<EmailInfrastructureTabValue>
               items={emailInfrastructureTabItems}
               onChange={setEmailInfrastructureTab}
               value={emailInfrastructureTab}
@@ -5845,7 +5845,7 @@ export default function IntegrationDetailPage() {
                     ) : null}
                   </>
                 ) : isShopify && shopifyConnection ? (
-                  <IntegrationDetailTabs
+                  <IntegrationDetailTabs<LightspeedTabValue>
                     items={shopifyTabItems}
                     onChange={setLightspeedTab}
                     value={lightspeedTab}
@@ -6248,7 +6248,7 @@ export default function IntegrationDetailPage() {
                   </IntegrationDetailTabs>
                 ) : isSquare && squareDetail ? (
                   <>
-                    <IntegrationDetailTabs
+                    <IntegrationDetailTabs<LightspeedTabValue>
                       items={squareTabItems}
                       onChange={setLightspeedTab}
                       value={lightspeedTab}
@@ -6627,7 +6627,7 @@ export default function IntegrationDetailPage() {
                   </>
                 ) : isClover && cloverDetail ? (
                   <>
-                    <IntegrationDetailTabs
+                    <IntegrationDetailTabs<LightspeedTabValue>
                       items={cloverTabItems}
                       onChange={setLightspeedTab}
                       value={lightspeedTab}
@@ -8043,7 +8043,7 @@ export default function IntegrationDetailPage() {
                   </>
                 ) : isLightspeed && lightspeedDetail ? (
                   <>
-                    <IntegrationDetailTabs
+                    <IntegrationDetailTabs<LightspeedTabValue>
                       items={lightspeedTabItems}
                       onChange={setLightspeedTab}
                       value={lightspeedTab}

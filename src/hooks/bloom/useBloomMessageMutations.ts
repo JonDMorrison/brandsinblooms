@@ -672,8 +672,8 @@ export function useBloomMessageMutations(
           message,
           mode,
           // Spread into a plain object literal so it satisfies the Json
-          // index signature; an absent context is passed through unchanged.
-          page_context: pageContext ? { ...pageContext } : pageContext,
+          // index signature (SendMessageInput types an absent context as null).
+          page_context: pageContext ? { ...pageContext } : null,
           timezone,
           attachments,
         },

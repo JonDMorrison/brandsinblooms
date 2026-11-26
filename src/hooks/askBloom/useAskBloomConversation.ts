@@ -364,21 +364,21 @@ const parseToolCalls = (row: BloomMessageRow): AskBloomToolCall[] => {
   return toolCalls
     .flatMap((toolCall) => (isRecord(toolCall) ? [toolCall] : []))
     .map((toolCall, index): AskBloomToolCall => {
-    const argumentsValue = isRecord(toolCall.arguments)
-      ? toolCall.arguments
-      : isRecord(toolCall.tool_input)
-        ? toolCall.tool_input
-        : {};
+      const argumentsValue = isRecord(toolCall.arguments)
+        ? toolCall.arguments
+        : isRecord(toolCall.tool_input)
+          ? toolCall.tool_input
+          : {};
 
-    return {
-      id: readString(toolCall.id) || `tool-call-${row.id}-${index}`,
-      name:
-        readString(toolCall.name) || readString(toolCall.tool_name) || "tool",
-      arguments: argumentsValue,
-      result: toolCall.result ?? toolCall.tool_output ?? null,
-      status: toToolCallStatus(toolCall.status),
-    };
-  });
+      return {
+        id: readString(toolCall.id) || `tool-call-${row.id}-${index}`,
+        name:
+          readString(toolCall.name) || readString(toolCall.tool_name) || "tool",
+        arguments: argumentsValue,
+        result: toolCall.result ?? toolCall.tool_output ?? null,
+        status: toToolCallStatus(toolCall.status),
+      };
+    });
 };
 
 const toAskBloomConversation = (

@@ -19,7 +19,11 @@ import {
 import { formatCount } from "@/components/integrations/shared/formatCount";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import type { Database, Json } from "@/integrations/supabase/types";
+import {
+  Constants,
+  type Database,
+  type Json,
+} from "@/integrations/supabase/types";
 import { useIsSuperAdmin } from "@/hooks/useIsSuperAdmin";
 import { isMailchimpImportJobActivelyRunning } from "@/hooks/mailchimpImportState";
 import { useTenant } from "@/hooks/useTenant";
@@ -66,6 +70,19 @@ const REQUIRED_SHOPIFY_WEBHOOK_EVENTS = [
 
 const META_OAUTH_SCOPE =
   "pages_manage_posts,pages_read_engagement,pages_show_list,instagram_basic,instagram_content_publish,instagram_manage_insights,read_insights";
+
+type PosJobStatus = Database["public"]["Enums"]["pos_job_status"];
+
+const POS_JOB_STATUSES: readonly PosJobStatus[] =
+  Constants.public.Enums.pos_job_status;
+
+/**
+ * Sync-log status filter → pos_job_status value. "all" (and any value that is
+ * not a pos_job_status) applies no status filter.
+ */
+function toPosJobStatusFilter(status: string): PosJobStatus | null {
+  return POS_JOB_STATUSES.find((candidate) => candidate === status) ?? null;
+}
 
 const COMING_SOON_INTEGRATION_SLUGS = [
   "clover",
@@ -1842,7 +1859,7 @@ function buildComingSoonRequestPath(name: string) {
 }
 
 function buildComingSoonDetailData(
-  seed: IntegrationDefinition,
+  seed: Pick<IntegrationDefinition, "slug" | "name">,
   notifyEmail: string | null,
   isSubmitted: boolean,
 ): ComingSoonDetailData | null {
@@ -5515,8 +5532,11 @@ export function useIntegrationDetailData(
         .eq("tenant_id", tenant.id)
         .eq("provider", "shopify");
 
-      if (shopifyDashboardOptions.syncLogs.status !== "all") {
-        request = request.eq("status", shopifyDashboardOptions.syncLogs.status);
+      const syncStatusFilter = toPosJobStatusFilter(
+        shopifyDashboardOptions.syncLogs.status,
+      );
+      if (syncStatusFilter) {
+        request = request.eq("status", syncStatusFilter);
       }
 
       const { data, error, count } = await request
@@ -5971,8 +5991,11 @@ export function useIntegrationDetailData(
         .eq("tenant_id", tenant.id)
         .eq("provider", "square");
 
-      if (squareDashboardOptions.syncLogs.status !== "all") {
-        request = request.eq("status", squareDashboardOptions.syncLogs.status);
+      const syncStatusFilter = toPosJobStatusFilter(
+        squareDashboardOptions.syncLogs.status,
+      );
+      if (syncStatusFilter) {
+        request = request.eq("status", syncStatusFilter);
       }
 
       const { data, error, count } = await request
@@ -6373,8 +6396,11 @@ export function useIntegrationDetailData(
         .eq("tenant_id", tenant.id)
         .eq("provider", "clover");
 
-      if (cloverDashboardOptions.syncLogs.status !== "all") {
-        request = request.eq("status", cloverDashboardOptions.syncLogs.status);
+      const syncStatusFilter = toPosJobStatusFilter(
+        cloverDashboardOptions.syncLogs.status,
+      );
+      if (syncStatusFilter) {
+        request = request.eq("status", syncStatusFilter);
       }
 
       const { data, error, count } = await request
@@ -6872,11 +6898,11 @@ export function useIntegrationDetailData(
         .eq("tenant_id", tenant.id)
         .eq("provider", "lightspeed");
 
-      if (lightspeedDashboardOptions.syncLogs.status !== "all") {
-        request = request.eq(
-          "status",
-          lightspeedDashboardOptions.syncLogs.status,
-        );
+      const syncStatusFilter = toPosJobStatusFilter(
+        lightspeedDashboardOptions.syncLogs.status,
+      );
+      if (syncStatusFilter) {
+        request = request.eq("status", syncStatusFilter);
       }
 
       const { data, error, count } = await request

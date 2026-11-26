@@ -310,7 +310,7 @@ export const CRMAutomationBuilder = () => {
         trigger_type: mappedTriggerType,
         trigger_conditions: triggerConditions,
         overlap_behavior: overlapBehavior,
-        workflow_steps: workflowSteps,
+        workflow_steps: toJsonValue(workflowSteps),
         flow_state: toJsonValue(flowState),
         user_id: user.id,
         ...(tenantId ? { tenant_id: tenantId } : {}),

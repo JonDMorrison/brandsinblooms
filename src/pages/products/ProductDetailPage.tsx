@@ -537,9 +537,11 @@ export default function ProductDetailPage() {
   const buildProductResourceFocus = useCallback(
     (currentProduct: Product) =>
       buildProductFocus(
-        // Spread to a plain object literal: ProductLike is an open record.
+        // Spread to plain object literals: the focus builder takes open records.
         { ...currentProduct },
-        currentProduct.variations ?? [],
+        (currentProduct.variations ?? []).map((variation) => ({
+          ...variation,
+        })),
         undefined,
       ),
     [],
