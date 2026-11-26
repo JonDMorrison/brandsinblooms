@@ -1,4 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
+import * as React from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   stripRedundantContent,
@@ -9,6 +10,11 @@ import {
   extractPreFormText,
 } from "@/components/bloom/utils/contentGate";
 import { stripToolJsonFromText } from "@/components/bloom/utils/stripToolJson";
+import type { BloomMessage } from "@/hooks/bloom/types";
+import {
+  bloomMessagesQueryKey,
+  useBloomMessages,
+} from "@/hooks/bloom/useBloomMessages";
 import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
@@ -31,7 +37,23 @@ import {
 
 type BloomConversationRow =
   Database["public"]["Tables"]["bloom_conversations"]["Row"];
-type BloomMessageRow = Database["public"]["Tables"]["bloom_messages"]["Row"];
+/**
+ * The persisted message columns the drawer's parsers read. Messages come from
+ * the shared Bloom message cache (`bloomMessagesQueryKey`), so they arrive as
+ * `BloomMessage` and are mapped back onto these columns by `fromBloomMessage`.
+ */
+type BloomMessageRow = Pick<
+  Database["public"]["Tables"]["bloom_messages"]["Row"],
+  | "id"
+  | "conversation_id"
+  | "role"
+  | "content"
+  | "block_data"
+  | "follow_up_chips"
+  | "metadata"
+  | "attachments"
+  | "created_at"
+>;
 
 interface UseAskBloomConversationParams {
   conversationId: string | null;
@@ -42,7 +64,13 @@ interface UseAskBloomConversationParams {
 
 interface AskBloomConversationQueryResult {
   conversation: AskBloomConversation | null;
-  messages: AskBloomMessage[];
+}
+
+export interface AskBloomConversationRefetchResult {
+  data: {
+    conversation: AskBloomConversation | null;
+    messages: AskBloomMessage[];
+  };
 }
 
 const EMPTY_ASK_BLOOM_MESSAGES: AskBloomMessage[] = [];
@@ -424,17 +452,39 @@ const toAskBloomMessage = (row: BloomMessageRow): AskBloomMessage => {
   };
 };
 
+const fromBloomMessage = (message: BloomMessage): BloomMessageRow => ({
+  id: message.id,
+  conversation_id: message.conversationId,
+  role: message.role,
+  content: message.text,
+  block_data: message.blockData,
+  follow_up_chips: message.followUpChips,
+  metadata: message.metadata,
+  attachments: message.attachments,
+  created_at: message.createdAt,
+});
+
+/** Maps a message from the shared Bloom message cache onto the drawer shape. */
+export const toAskBloomMessageFromBloomMessage = (
+  message: BloomMessage,
+): AskBloomMessage => toAskBloomMessage(fromBloomMessage(message));
+
 export function useAskBloomConversation({
   conversationId,
   resourceType,
   resourceId,
   enabled,
 }: UseAskBloomConversationParams) {
+  const queryClient = useQueryClient();
   const { user } = useAuth();
   const { tenant } = useTenant();
   const tenantId = tenant?.id ?? null;
   const userId = user?.id ?? null;
 
+  // The conversation row (and the resource-focused lookup) stays drawer-owned.
+  // Its messages do not: they live in the Bloom message cache that /bloom also
+  // reads and writes, so the drawer and /bloom see the same messages for a
+  // conversation id.
   const query = useQuery({
     queryKey: [
       "ask-bloom-conversation",
@@ -456,7 +506,7 @@ export function useAskBloomConversation({
     retry: 1,
     queryFn: async (): Promise<AskBloomConversationQueryResult> => {
       if (!tenantId || !userId) {
-        return { conversation: null, messages: [] };
+        return { conversation: null };
       }
 
       if (conversationId) {
@@ -473,30 +523,15 @@ export function useAskBloomConversation({
           throw conversationError;
         }
 
-        if (!conversationRow) {
-          return { conversation: null, messages: [] };
-        }
-
-        const { data: messageRows, error: messageError } = await supabase
-          .from("bloom_messages")
-          .select("*")
-          .eq("conversation_id", conversationRow.id)
-          .eq("tenant_id", tenantId)
-          .eq("user_id", userId)
-          .order("created_at", { ascending: true });
-
-        if (messageError) {
-          throw messageError;
-        }
-
         return {
-          conversation: toAskBloomConversation(conversationRow),
-          messages: (messageRows ?? []).map(toAskBloomMessage),
+          conversation: conversationRow
+            ? toAskBloomConversation(conversationRow)
+            : null,
         };
       }
 
       if (!resourceType || !resourceId) {
-        return { conversation: null, messages: [] };
+        return { conversation: null };
       }
 
       const { data: conversationRows, error: conversationError } =
@@ -516,34 +551,81 @@ export function useAskBloomConversation({
       }
 
       const conversationRow = conversationRows?.[0] ?? null;
-      if (!conversationRow) {
-        return { conversation: null, messages: [] };
-      }
-
-      const { data: messageRows, error: messageError } = await supabase
-        .from("bloom_messages")
-        .select("*")
-        .eq("conversation_id", conversationRow.id)
-        .eq("tenant_id", tenantId)
-        .eq("user_id", userId)
-        .order("created_at", { ascending: true });
-
-      if (messageError) {
-        throw messageError;
-      }
-
       return {
-        conversation: toAskBloomConversation(conversationRow),
-        messages: (messageRows ?? []).map(toAskBloomMessage),
+        conversation: conversationRow
+          ? toAskBloomConversation(conversationRow)
+          : null,
       };
     },
   });
 
+  const conversation = query.data?.conversation ?? null;
+  const resolvedConversationId = conversation?.id ?? null;
+  const messagesQuery = useBloomMessages(resolvedConversationId);
+  const {
+    data: bloomMessages,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = messagesQuery;
+
+  // The drawer shows the whole conversation, so keep loading older pages of
+  // the shared (paginated) cache until it is complete.
+  React.useEffect(() => {
+    if (!resolvedConversationId || !hasNextPage || isFetchingNextPage) {
+      return;
+    }
+
+    void fetchNextPage();
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage, resolvedConversationId]);
+
+  const messages = React.useMemo(
+    () =>
+      resolvedConversationId
+        ? bloomMessages.map(toAskBloomMessageFromBloomMessage)
+        : EMPTY_ASK_BLOOM_MESSAGES,
+    [bloomMessages, resolvedConversationId],
+  );
+
+  const { refetch: refetchConversation } = query;
+  const refetch =
+    React.useCallback(async (): Promise<AskBloomConversationRefetchResult> => {
+      const conversationResult = await refetchConversation();
+      const nextConversation = conversationResult.data?.conversation ?? null;
+
+      if (!nextConversation) {
+        return { data: { conversation: null, messages: [] } };
+      }
+
+      const messageQueryKey = bloomMessagesQueryKey(nextConversation.id);
+      await queryClient.refetchQueries({
+        queryKey: messageQueryKey,
+        exact: true,
+      });
+      const pages =
+        queryClient.getQueryData<{
+          pages: Array<{ messages: BloomMessage[] }>;
+        }>(messageQueryKey)?.pages ?? [];
+
+      return {
+        data: {
+          conversation: nextConversation,
+          messages: pages
+            .slice()
+            .reverse()
+            .flatMap((page) => page.messages)
+            .map(toAskBloomMessageFromBloomMessage),
+        },
+      };
+    }, [queryClient, refetchConversation]);
+
   return {
-    conversation: query.data?.conversation ?? null,
-    messages: query.data?.messages ?? EMPTY_ASK_BLOOM_MESSAGES,
-    isLoading: query.isLoading,
-    error: query.error,
-    refetch: query.refetch,
+    conversation,
+    messages,
+    isLoading:
+      query.isLoading ||
+      Boolean(resolvedConversationId && messagesQuery.isLoading),
+    error: query.error ?? messagesQuery.error,
+    refetch,
   };
 }
