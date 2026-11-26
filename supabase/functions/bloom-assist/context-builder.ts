@@ -142,6 +142,8 @@ type BuildContextLayersArgs = {
   toolDefinitionProvider?: ToolDefinitionProvider;
   /** Tenant spending cap for any compaction summary call. */
   meter?: SpendMeter | null;
+  /** Server lookup of records the user named (see named-entity-lookup.ts). */
+  namedEntityNote?: string | null;
 };
 
 const tenantProfileCache = new Map<string, TenantCacheEntry>();
@@ -1277,6 +1279,7 @@ export async function buildContextLayers({
   inputSecurity,
   toolDefinitionProvider,
   meter,
+  namedEntityNote,
 }: BuildContextLayersArgs): Promise<ContextBuildResult> {
   const historyContextPromise = context.conversationId
     ? getContextWithCompaction(
@@ -1322,6 +1325,7 @@ export async function buildContextLayers({
     buildUserLayer(context, request, bloomProfile, entitySummary),
     buildToolLayer(tools, request, context),
     ...(savedCustomerResultContext ? [{role:"system" as const,content:savedCustomerResultContext}] : []),
+    ...(namedEntityNote ? [{ role: "system" as const, content: namedEntityNote }] : []),
   ];
   const currentUserMessage = buildCurrentUserLayer(request, attachmentContext);
   let historyLayerMessages = historyContext.messages;

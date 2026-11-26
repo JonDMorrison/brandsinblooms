@@ -26,6 +26,7 @@ import type {
 import { sandboxToolResult } from "./security/tool-result-sandbox.ts";
 import { meteredModelFetch, type SpendMeter } from "./security/spend-cap.ts";
 import { correctFalseFailureReply, toolOutcomeFrom, type ToolOutcome } from "./reply-guard.ts";
+import { enforceNamedEntityReply, type NamedEntityLookupResult } from "./named-entity-lookup.ts";
 
 const OPENAI_CHAT_COMPLETIONS_URL =
   "https://api.openai.com/v1/chat/completions";
@@ -50,6 +51,8 @@ type StreamHandlerOptions = {
   tools: OpenAIToolDefinition[];
   estimatedInputTokens: number;
   maxToolIterations?: number;
+  /** Server lookup of records the user named; a missing one is never answered as real. */
+  namedEntityLookups?: readonly NamedEntityLookupResult[];
   validateOutput?: (
     response: string,
     context: OutputValidationContext,
@@ -1368,6 +1371,8 @@ export function processOpenAIStream(
     }
     // Never tell the user a lookup failed when every lookup succeeded.
     content = correctFalseFailureReply(content, toolOutcomes);
+    // Never answer about a named record the lookup proved does not exist.
+    content = enforceNamedEntityReply(content, options.namedEntityLookups ?? []);
     const thinkingContent = routingState.thinkingContent.trim() || null;
     const tokenCounts = computeTokenCounts(
       latestUsage,
