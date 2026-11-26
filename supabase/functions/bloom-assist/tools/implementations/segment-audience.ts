@@ -60,7 +60,6 @@ type CustomerRow = Pick<
   | "total_emails_clicked"
   | "total_emails_sent"
   | "email_click_rate"
-  | "email_engagement_score"
   | "first_purchase_date"
   | "last_purchase_date"
   | "lifetime_value"
@@ -73,7 +72,12 @@ type CustomerRow = Pick<
   | "product_tags"
   | "is_vip"
   | "order_history"
->;
+> & {
+  engagement: Pick<
+    Database["public"]["Tables"]["customer_engagement_scores"]["Row"],
+    "overall_score"
+  > | null;
+};
 type CustomerIdentityRow = Pick<
   Database["public"]["Tables"]["crm_customers"]["Row"],
   | "id"
@@ -671,7 +675,6 @@ async function fetchTenantCustomers(
       total_emails_clicked,
       total_emails_sent,
       email_click_rate,
-      email_engagement_score,
       first_purchase_date,
       last_purchase_date,
       lifetime_value,
@@ -683,7 +686,8 @@ async function fetchTenantCustomers(
       tags,
       product_tags,
       is_vip,
-      order_history
+      order_history,
+      engagement:customer_engagement_scores(overall_score)
     `,
     )
     .eq("tenant_id", tenantId)

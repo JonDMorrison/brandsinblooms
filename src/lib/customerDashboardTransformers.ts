@@ -108,7 +108,8 @@ export const transformToCustomerBasicInfo = (
 // =============================================
 
 export interface EngagementMetrics {
-  engagementScore: number;
+  /** Computed engagement 0-100; null when the customer has no signal. */
+  engagementScore: number | null;
   engagementTrend: number[] | null;
   daysSinceLastEngagement: number | null;
   engagementVelocity: number | null;
@@ -124,7 +125,10 @@ export const transformToEngagementMetrics = (
   lifecycle: CustomerLifecycleMetrics | null,
 ): EngagementMetrics => {
   return {
-    engagementScore: Math.round(customer360?.engagement_overall_score ?? 0),
+    engagementScore:
+      customer360?.engagement_overall_score == null
+        ? null
+        : Math.round(customer360.engagement_overall_score),
     engagementTrend: null,
     daysSinceLastEngagement:
       crossChannel?.days_since_last_engagement ??

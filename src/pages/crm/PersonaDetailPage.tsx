@@ -67,6 +67,7 @@ import { usePersonaCustomerCounts } from "@/hooks/usePersonaCustomerCounts";
 import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
 import { getCustomerDisplayName } from "@/lib/personaUtils";
+import { getCustomerEngagementScore } from "@/lib/segmentFields";
 
 type EditorState = {
   mode: "edit" | "duplicate";
@@ -475,32 +476,22 @@ export default function PersonaDetailPage() {
   );
 
   const engagementBreakdown = React.useMemo(() => {
-    const high = assignedCustomers.filter((customer) =>
-      personaStats?.customerIds.includes(customer.id) ? true : true,
+    const scores = assignedCustomers.map((customer) =>
+      getCustomerEngagementScore(customer),
     );
+    const known = scores.filter((score): score is number => score !== null);
 
     return [
-      {
-        label: "High",
-        value: high.filter(
-          (customer) => (customer.email_engagement_score ?? 0) >= 70,
-        ).length,
-      },
+      { label: "High", value: known.filter((score) => score >= 70).length },
       {
         label: "Medium",
-        value: high.filter((customer) => {
-          const score = customer.email_engagement_score ?? 0;
-          return score >= 40 && score < 70;
-        }).length,
+        value: known.filter((score) => score >= 40 && score < 70).length,
       },
-      {
-        label: "Low",
-        value: high.filter(
-          (customer) => (customer.email_engagement_score ?? 0) < 40,
-        ).length,
-      },
+      { label: "Low", value: known.filter((score) => score < 40).length },
+      // No engagement signal yet is not low engagement.
+      { label: "Not enough data", value: scores.length - known.length },
     ];
-  }, [assignedCustomers, personaStats?.customerIds]);
+  }, [assignedCustomers]);
 
   const revenueShare = React.useMemo(() => {
     const personaRevenue = personaStats?.totalValue ?? 0;
@@ -529,7 +520,10 @@ export default function PersonaDetailPage() {
       );
     }
 
-    if ((personaStats?.averageEngagement ?? 0) < 45) {
+    if (
+      personaStats?.averageEngagement != null &&
+      personaStats.averageEngagement < 45
+    ) {
       nextSteps.push(
         "Lead with education-first content before moving into product-heavy offers.",
       );
@@ -693,7 +687,9 @@ export default function PersonaDetailPage() {
             <JoyCardHeader title="Average engagement" />
             <JoyCardContent>
               <Typography level="h2">
-                {personaStats?.averageEngagement ?? 0}%
+                {personaStats?.averageEngagement != null
+                  ? `${personaStats.averageEngagement}%`
+                  : "Not enough data"}
               </Typography>
             </JoyCardContent>
           </JoyCard>

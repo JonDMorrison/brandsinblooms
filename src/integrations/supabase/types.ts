@@ -5239,6 +5239,101 @@ export type Database = {
           },
         ];
       };
+      customer_engagement_score_runs: {
+        Row: {
+          customers: number;
+          error: string | null;
+          finished_at: string | null;
+          id: number;
+          scored: number;
+          started_at: string;
+          status: string;
+          tenant_id: string;
+        };
+        Insert: {
+          customers?: number;
+          error?: string | null;
+          finished_at?: string | null;
+          id?: number;
+          scored?: number;
+          started_at?: string;
+          status?: string;
+          tenant_id: string;
+        };
+        Update: {
+          customers?: number;
+          error?: string | null;
+          finished_at?: string | null;
+          id?: number;
+          scored?: number;
+          started_at?: string;
+          status?: string;
+          tenant_id?: string;
+        };
+        Relationships: [];
+      };
+      customer_engagement_scores: {
+        Row: {
+          computed_at: string;
+          customer_id: string;
+          email_score: number | null;
+          overall_score: number | null;
+          purchase_score: number | null;
+          recency_score: number | null;
+          signals: Json;
+          tenant_id: string;
+        };
+        Insert: {
+          computed_at?: string;
+          customer_id: string;
+          email_score?: number | null;
+          overall_score?: number | null;
+          purchase_score?: number | null;
+          recency_score?: number | null;
+          signals?: Json;
+          tenant_id: string;
+        };
+        Update: {
+          computed_at?: string;
+          customer_id?: string;
+          email_score?: number | null;
+          overall_score?: number | null;
+          purchase_score?: number | null;
+          recency_score?: number | null;
+          signals?: Json;
+          tenant_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "customer_engagement_scores_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: true;
+            referencedRelation: "crm_customers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "customer_engagement_scores_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: true;
+            referencedRelation: "customer_360_enriched";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "customer_engagement_scores_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "customer_engagement_scores_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       customer_engagement_summary: {
         Row: {
           created_at: string | null;
@@ -15477,6 +15572,7 @@ export type Database = {
           engagement_last_calculated_at: string | null;
           engagement_overall_score: number | null;
           engagement_purchase_score: number | null;
+          engagement_recency_score: number | null;
           engagement_sms_score: number | null;
           engagement_tier: string | null;
           first_name: string | null;
@@ -17248,6 +17344,10 @@ export type Database = {
       };
       refresh_all_risk_signals: {
         Args: { p_tenant_id: string };
+        Returns: number;
+      };
+      refresh_customer_engagement_scores: {
+        Args: { p_batch_size?: number; p_tenant_id?: string };
         Returns: number;
       };
       refresh_email_campaign_revenue_metrics: {
