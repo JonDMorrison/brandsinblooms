@@ -30,6 +30,7 @@ type ProductRow = Pick<
   | "currency"
   | "inventory_count"
   | "track_inventory"
+  | "low_stock_threshold"
   | "is_visible"
   | "created_at"
 >;
@@ -46,9 +47,36 @@ const PRODUCT_SELECT = `
   currency,
   inventory_count,
   track_inventory,
+  low_stock_threshold,
   is_visible,
   created_at
 `;
+
+// Low stock is a per-product rule, never a model-chosen constant: an active
+// product that tracks inventory is low when its count is at or below its own
+// low_stock_threshold. All three columns are nullable
+// (20251208105551_3eed07fd-a3e9-4359-9679-b809ea709541.sql); a NULL count or
+// NULL threshold means the product has no usable rule, so it is not low stock.
+// This matches the SQL `inventory_count <= low_stock_threshold`, where NULL
+// never compares true.
+const LOW_STOCK_SCAN_PAGE_SIZE = 1000;
+const LOW_STOCK_SCAN_MAX_ROWS = 10000;
+const LOW_STOCK_REPLACED_OPERATORS = new Set(["lt", "lte"]);
+
+export function isLowStockProduct(
+  row: Pick<
+    ProductRow,
+    "status" | "track_inventory" | "inventory_count" | "low_stock_threshold"
+  >,
+): boolean {
+  return (
+    row.status === "active" &&
+    row.track_inventory === true &&
+    typeof row.inventory_count === "number" &&
+    typeof row.low_stock_threshold === "number" &&
+    row.inventory_count <= row.low_stock_threshold
+  );
+}
 
 const PRODUCT_SORT_FIELDS = [
   "name",
@@ -85,6 +113,8 @@ function mapProduct(row: ProductRow): JsonObject {
     currency: row.currency,
     inventory_count: row.inventory_count,
     track_inventory: row.track_inventory,
+    low_stock_threshold: row.low_stock_threshold,
+    is_low_stock: isLowStockProduct(row),
     is_visible: row.is_visible,
     created_at: row.created_at,
   };
@@ -105,28 +135,79 @@ export const queryProducts: ToolImplementation = async (
     },
   );
   const [from, to] = paginationRange(queryParams.page, queryParams.pageSize);
-  const filters = queryParams.filters.map(normalizeProductFilter);
+  const lowStockOnly = params.low_stock === true;
+  // A low-stock request uses each product's own threshold, so a fixed
+  // inventory cap the model added ("inventory_count < 10") is dropped.
+  const filters = queryParams.filters
+    .map(normalizeProductFilter)
+    .filter(
+      (filter) =>
+        !lowStockOnly ||
+        filter.field !== "inventory_count" ||
+        !LOW_STOCK_REPLACED_OPERATORS.has(filter.operator),
+    );
 
-  let query = client
-    .from("products")
-    .select(PRODUCT_SELECT, { count: "exact" })
-    .eq("tenant_id", context.tenantId);
+  const buildQuery = () => {
+    let query = client
+      .from("products")
+      .select(PRODUCT_SELECT, { count: "exact" })
+      .eq("tenant_id", context.tenantId);
 
-  if (queryParams.search) {
-    const search = sanitizePostgrestSearch(queryParams.search);
-    if (search) {
-      query = query.or(`name.ilike.%${search}%,sku.ilike.%${search}%`);
+    if (lowStockOnly) {
+      query = query
+        .eq("status", "active")
+        .eq("track_inventory", true)
+        .not("inventory_count", "is", null)
+        .not("low_stock_threshold", "is", null);
     }
+
+    if (queryParams.search) {
+      const search = sanitizePostgrestSearch(queryParams.search);
+      if (search) {
+        query = query.or(`name.ilike.%${search}%,sku.ilike.%${search}%`);
+      }
+    }
+
+    return applyFilters(query, filters, {
+      entity: "product",
+      timezone: context.timezone,
+    }).order(sortBy, { ascending: queryParams.sortOrder === "asc" });
+  };
+
+  if (lowStockOnly) {
+    // PostgREST cannot compare two columns, so candidate rows are scanned in
+    // pages and the per-product threshold rule is applied here.
+    const matches: ProductRow[] = [];
+    for (
+      let offset = 0;
+      offset < LOW_STOCK_SCAN_MAX_ROWS;
+      offset += LOW_STOCK_SCAN_PAGE_SIZE
+    ) {
+      const { data, error } = await buildQuery().range(
+        offset,
+        offset + LOW_STOCK_SCAN_PAGE_SIZE - 1,
+      );
+      if (error) {
+        throw error;
+      }
+      const rows = (data ?? []) as ProductRow[];
+      matches.push(...rows.filter(isLowStockProduct));
+      if (rows.length < LOW_STOCK_SCAN_PAGE_SIZE) {
+        break;
+      }
+    }
+
+    const items = matches
+      .slice(from, to + 1)
+      .map((row) => mapProduct(row) as JsonValue);
+    return createListResult({
+      entityLabel: "low-stock product",
+      items,
+      count: matches.length,
+    });
   }
 
-  query = applyFilters(query, filters, {
-    entity: "product",
-    timezone: context.timezone,
-  })
-    .order(sortBy, { ascending: queryParams.sortOrder === "asc" })
-    .range(from, to);
-
-  const { data, error, count } = await query;
+  const { data, error, count } = await buildQuery().range(from, to);
   if (error) {
     throw error;
   }

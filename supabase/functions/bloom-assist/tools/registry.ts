@@ -358,8 +358,10 @@ function queryParameters(
   entity: string,
   fields: readonly string[],
   sortFields: readonly string[],
+  extraProperties: Record<string, JsonObject> = {},
 ): JsonObject {
   return objectSchema({
+    ...extraProperties,
     filters: arraySchema(
       "AND-joined filters. Use junction operators for persona, segment, and tag relationships when supported by the tool.",
       filterSchema(entity, fields),
@@ -580,11 +582,16 @@ export const TOOL_REGISTRY: ToolDefinition[] = [
   defineTool({
     name: "query_products",
     description:
-      "Find and list products, SKUs, inventory items, catalog entries, plants, supplies, visible items, low-stock items, or imported POS products. Use for product tables and catalog searches. Use get_product_detail for one known product.",
+      "Find and list products, SKUs, inventory items, catalog entries, plants, supplies, visible items, low-stock items, or imported POS products. Use for product tables and catalog searches. For low stock, running low, reorder or out-of-stock-soon questions set low_stock to true and do not add an inventory_count number filter: each product has its own low_stock_threshold, and low stock means an active, inventory-tracked product whose inventory_count is at or below that threshold. Use get_product_detail for one known product.",
     parameters: queryParameters(
       "product",
       PRODUCT_FILTER_FIELDS,
       PRODUCT_FILTER_FIELDS,
+      {
+        low_stock: booleanSchema(
+          "True to list only low-stock products: active, inventory-tracked products whose inventory_count is at or below their own low_stock_threshold. Replaces any inventory_count less-than filter.",
+        ),
+      },
     ),
     category: "query",
     riskLevel: "safe",

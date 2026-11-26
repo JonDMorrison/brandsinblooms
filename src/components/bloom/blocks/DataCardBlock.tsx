@@ -49,6 +49,7 @@ import {
   readString,
   statusTone,
 } from "@/components/bloom/blocks/blockUtils";
+import { readProductStockLevel } from "@/components/bloom/utils/productStock";
 import { useBloomProfile } from "@/hooks/bloom/useBloomProfile";
 import { useBloomProfileMutations } from "@/hooks/bloom/useBloomProfileMutations";
 import {
@@ -427,9 +428,8 @@ function ProductCard({
   const imageUrl = primaryProductImageUrl(entity);
   const currency = entity.currency;
   const inventory = readNumber(entity.inventory_count);
-  const threshold = readNumber(entity.low_stock_threshold) ?? 10;
-  const lowInventory = inventory !== null && inventory < threshold;
-  const trackInventory = entity.track_inventory !== false;
+  const { isLow: lowInventory, tracked: trackInventory } =
+    readProductStockLevel(entity);
 
   return (
     <EntityCardShell
