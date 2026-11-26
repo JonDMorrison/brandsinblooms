@@ -57,7 +57,7 @@ export function JoyStatCard({
           alignItems="flex-start"
           justifyContent="space-between"
         >
-          <Stack spacing={0.75}>
+          <Stack spacing={0.75} sx={{ minWidth: 0 }}>
             <Typography level="body-xs" color="neutral">
               {label}
             </Typography>
@@ -70,6 +70,7 @@ export function JoyStatCard({
                 lineHeight: 1.05,
                 letterSpacing: "-0.02em",
                 color: "neutral.900",
+                overflowWrap: "anywhere",
               }}
             >
               {value}
