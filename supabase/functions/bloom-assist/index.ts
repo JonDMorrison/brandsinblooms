@@ -55,7 +55,11 @@ import { taskPlanSummaryToJson, taskPlanToJson } from "./task-plan/types.ts";
 import { executeTool } from "./tools/executor.ts";
 import { isSupportTool } from "./tools/implementations/support-tools.ts";
 import { classifyIntentWithComplexity } from "./tools/intent-classifier.ts";
-import { getToolCategoriesForRouting } from "./tools/tool-routing.ts";
+import {
+  getToolCategoriesForRouting,
+  isSendReadinessQuestion,
+  SEND_READINESS_TOOL,
+} from "./tools/tool-routing.ts";
 import {
   filterRegisteredTools,
   getRegisteredTool,
@@ -961,6 +965,7 @@ function getToolDefinitionsForMode(
   mode: BloomMode,
   userRole: string,
   classification: IntentClassificationResult,
+  requiredToolNames: ReadonlySet<string> = new Set(),
 ) {
   const categories = getToolCategoriesForRouting(mode, classification);
   return filterRegisteredTools({ mode, userRole })
@@ -968,6 +973,7 @@ function getToolDefinitionsForMode(
       (tool) =>
         !categories ||
         categories.has(tool.category) ||
+        requiredToolNames.has(tool.function.name) ||
         // "This is broken" can classify as anything; support stays reachable.
         (mode !== "image" && isSupportTool(tool.function.name)),
     )
@@ -2714,6 +2720,13 @@ function createBloomStreamResponse(
           return;
         }
 
+        // "Is my sender set up so I can send campaigns?" is always answered
+        // from get_send_readiness (sender AND who can receive email), never
+        // from bounce rates alone.
+        const asksSendReadiness = isSendReadinessQuestion(effectiveBody.message);
+        const requiredToolNames = new Set<string>(
+          asksSendReadiness ? [SEND_READINESS_TOOL] : [],
+        );
         const contextBuildResult = await buildContextLayers({
           serviceClient,
           dataClient,
@@ -2724,7 +2737,12 @@ function createBloomStreamResponse(
           currentMessageId: userMessageId,
           inputSecurity,
           toolDefinitionProvider: ({ mode, userRole }) =>
-            getToolDefinitionsForMode(mode, userRole, intentClassification),
+            getToolDefinitionsForMode(
+              mode,
+              userRole,
+              intentClassification,
+              requiredToolNames,
+            ),
           meter: spendMeter,
         });
         latencyCapture.contextBuildCompletedAt = Date.now();
@@ -2753,6 +2771,7 @@ function createBloomStreamResponse(
               contextBuildResult.estimatedInputTokens,
             truncated_history_count: contextBuildResult.truncatedHistoryCount,
             tool_count: contextBuildResult.tools.length,
+            send_readiness_routed: asksSendReadiness,
             intent_category: intentClassification.category,
             intent_complexity: intentClassification.complexity,
             model_preference: effectiveBody.model_preference,
@@ -2781,7 +2800,13 @@ function createBloomStreamResponse(
 
         if (contextBuildResult.tools.length > 0) {
           openAiRequestBody.tools = contextBuildResult.tools;
-          openAiRequestBody.tool_choice = "auto";
+          openAiRequestBody.tool_choice =
+            asksSendReadiness &&
+            contextBuildResult.tools.some(
+              (tool) => tool.function.name === SEND_READINESS_TOOL,
+            )
+              ? { type: "function", function: { name: SEND_READINESS_TOOL } }
+              : "auto";
         }
 
         latencyCapture.openAiRequestStartedAt = Date.now();

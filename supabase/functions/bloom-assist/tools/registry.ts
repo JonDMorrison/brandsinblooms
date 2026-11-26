@@ -1171,9 +1171,20 @@ export const TOOL_REGISTRY: ToolDefinition[] = [
     allowedModes: QUERY_MODES,
   }),
   defineTool({
+    name: "get_send_readiness",
+    description:
+      "Answer whether this company can send email campaigns right now: is the sender set up (verified sending domain and default From address) and how many customers can actually receive email (total, reachable, can't receive, waiting, stopped, never opted in). Use for every question like 'is my sender set up', 'can I send campaigns', 'will my email go out', or 'how many people can I email'. Returns verdict ready, not_ready or unknown with a reason; never say sending will work unless verdict is ready.",
+    parameters: objectSchema({}),
+    category: "query",
+    riskLevel: "safe",
+    requiresConfirmation: false,
+    allowedRoles: ALL_ROLES,
+    allowedModes: QUERY_MODES,
+  }),
+  defineTool({
     name: "get_email_health",
     description:
-      "Analyze email deliverability, domain health, bounces, spam complaints, sender reputation, warmup status, and 30-day email health. Use for email health questions, not campaign listing or SMS health.",
+      "Analyze email deliverability, domain health, bounces, spam complaints, sender reputation, warmup status, and 30-day email health. Use for email health questions, not campaign listing or SMS health. It reports past bounce and complaint rates only; it does not say whether campaigns can be sent or reach anyone. For \"can I send\" or \"is my sender set up\" questions, use get_send_readiness.",
     parameters: objectSchema({
       domain: stringSchema("Optional sending domain name to inspect."),
       date_range: stringSchema(

@@ -233,6 +233,7 @@ export type ToolName =
   | "get_dashboard_summary"
   | "get_revenue_analytics"
   | "get_email_health"
+  | "get_send_readiness"
   | "get_customer_timeline"
   | "get_campaign_analytics"
   | "get_integration_status"

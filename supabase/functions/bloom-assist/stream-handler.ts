@@ -25,7 +25,12 @@ import type {
 } from "./security/output-validator.ts";
 import { sandboxToolResult } from "./security/tool-result-sandbox.ts";
 import { meteredModelFetch, type SpendMeter } from "./security/spend-cap.ts";
-import { correctFalseFailureReply, toolOutcomeFrom, type ToolOutcome } from "./reply-guard.ts";
+import {
+  correctFalseFailureReply,
+  correctSendReadinessReply,
+  toolOutcomeFrom,
+  type ToolOutcome,
+} from "./reply-guard.ts";
 
 const OPENAI_CHAT_COMPLETIONS_URL =
   "https://api.openai.com/v1/chat/completions";
@@ -1368,6 +1373,8 @@ export function processOpenAIStream(
     }
     // Never tell the user a lookup failed when every lookup succeeded.
     content = correctFalseFailureReply(content, toolOutcomes);
+    // Never say sending will work when the send-readiness check said it will not.
+    content = correctSendReadinessReply(content, toolOutcomes);
     const thinkingContent = routingState.thinkingContent.trim() || null;
     const tokenCounts = computeTokenCounts(
       latestUsage,
