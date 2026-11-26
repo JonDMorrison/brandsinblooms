@@ -1,5 +1,5 @@
 import { assertEquals, assert, assertStringIncludes } from "@std/assert";
-import { answerWithSlackAgent, checkStaffChannel, isoDate, isSlackModelEndpoint, type SlackAgentContext } from "./slack-agent.ts";
+import { FINANCE_ELSEWHERE_REPLY, answerWithSlackAgent, checkStaffChannel, isoDate, isSlackModelEndpoint, withOpenTotals, type SlackAgentContext } from "./slack-agent.ts";
 const channel = "C0CFNEQBS2X";
 const principal = "10000000-0000-4000-8000-000000000001";
 const context: SlackAgentContext = { allowed: true, principal_id: principal, role: "platform_admin", channel, route: "tickets", root_ts: "1794936205.974579", user_id: "U06VD9ZGA4U", ticket_id: null, history: [] };
@@ -328,4 +328,54 @@ Deno.test("a revenue question where the tool is not offered gets the fixed where
     assertEquals(/cannot access|restricted/i.test(result), false);
     assertEquals(calls.some(c => c.url.endsWith("chat/completions")), false);
   }, (url, body) => url.includes("conversations.info") ? publicMeta : standard(url, body));
+});
+
+Deno.test("open request totals are computed in code from the per-status counts", () => {
+  const s = withOpenTotals({ by_status: { new: 1, waiting: 2, working: 10, needs_owner: 1, resolved: 40 }, mine: 3 });
+  assertEquals(s.open_total, 14);
+  assertEquals(s.open_by_status, { new: 1, waiting: 2, working: 10, needs_owner: 1 });
+  assertEquals(s.resolved_total, 40);
+  assertEquals(s.mine, 3);
+  assertEquals(withOpenTotals({ open: 3 }), { open: 3 });
+});
+const stripeReply = (url: string, route = "finance"): unknown => {
+  if (url.endsWith("bloom_support_slack_conversation_context")) return { ...context, route };
+  if (url.endsWith("/v1/account")) return { id: "acct_1QFLpBDmtxsdhOlW" };
+  if (url.includes("/v1/payouts")) return { has_more: false, data: [{ id: "po_1", amount: 8940, currency: "cad", status: "in_transit", arrival_date: 1795791600, created: 1795705200 }] };
+  if (url.includes("/v1/balance")) return { available: [{ amount: 1000, currency: "cad" }], pending: [] };
+  return undefined;
+};
+Deno.test("a payout question in a private channel is answered from Stripe in code, without the model", async () => {
+  await fixture(async calls => {
+    const result = await answerWithSlackAgent({ ...context, route: "finance" }, "when is the next payout", "job");
+    assertStringIncludes(result ?? "", "89.40 CAD (1 payout)");
+    assertStringIncludes(result ?? "", "10.00 CAD available");
+    assertStringIncludes(result ?? "", "Checked sources:");
+    assertEquals((result ?? "").includes("po_1"), false);
+    assertEquals(calls.some(c => c.url.endsWith("chat/completions")), false);
+    assert(calls.some(c => c.body.p_fn === "log"), "the lookup is audited");
+  }, (url, body) => stripeReply(url) ?? standard(url, body), { BLOOM_SUPPORT_STRIPE_READONLY_KEY: "rk_test_placeholder" });
+});
+Deno.test("a Stripe key that cannot read invoices is named, not reported as a restriction on Bloom", async () => {
+  await fixture(async () => {
+    const result = await answerWithSlackAgent({ ...context, route: "finance" }, "What clients has paid the most money to us", "job");
+    assertStringIncludes(result ?? "", "cannot read invoices");
+    assertEquals(/restricted|not permitted|sensitive/i.test(result ?? ""), false);
+  }, (url, body) => url.includes("/v1/invoices") ? new Response("{}", { status: 403 }) : stripeReply(url) ?? standard(url, body), { BLOOM_SUPPORT_STRIPE_READONLY_KEY: "rk_test_placeholder" });
+});
+Deno.test("financial answers in a public channel need the owners' financial setting, not just the open-channel setting", async () => {
+  const settings = (financials: boolean) => (url: string, body: Record<string, unknown>): unknown => {
+    if (url.includes("conversations.info")) return publicMeta;
+    if (url.endsWith("bloom_support_rpc") && body.p_fn === "setting" && (body.p as Record<string, unknown>).key === "slack_agent")
+      return { enabled: true, allow_any_staff_channel: true, ...(financials ? { owner_financials_in_any_staff_channel: true } : {}) };
+    return stripeReply(url, "ask") ?? standard(url, body);
+  };
+  await fixture(async calls => {
+    assertEquals(await answerWithSlackAgent({ ...context, route: "ask" }, "when is the next payout", "job"), FINANCE_ELSEWHERE_REPLY);
+    assertEquals(calls.some(c => c.url.includes("api.stripe.com")), false);
+  }, settings(false), { BLOOM_SUPPORT_STRIPE_READONLY_KEY: "rk_test_placeholder" });
+  await fixture(async () => {
+    assertEquals(await checkStaffChannel(channel), { allowed: true, reason: "ok", financials: true });
+    assertStringIncludes(await answerWithSlackAgent({ ...context, route: "ask" }, "when is the next payout", "job") ?? "", "89.40 CAD");
+  }, settings(true), { BLOOM_SUPPORT_STRIPE_READONLY_KEY: "rk_test_placeholder" });
 });
