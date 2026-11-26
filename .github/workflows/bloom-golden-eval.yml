@@ -1,0 +1,76 @@
+name: Bloom Golden Questions
+
+# Asks the DEPLOYED bloom-assist a fixed set of read-only questions for the
+# Northfield tenant (fake data), signed in as a test user, computes the correct
+# answers from the database as that same user, and fails on any wrong answer.
+# See scripts/bloom-evals/golden.mjs.
+#
+# Manual only: it talks to the live project and spends Bloom budget, so it never
+# runs on pull requests, pushes or a schedule.
+#
+# Repository secrets (a normal Northfield user; no service-role key is used):
+#   BLOOM_GOLDEN_EMAIL     test user's email
+#   BLOOM_GOLDEN_PASSWORD  test user's password
+# The Supabase URL and publishable key come from src/integrations/supabase/config.ts.
+# Each run writes Bloom conversations to the database as that user.
+
+on:
+  workflow_dispatch:
+    inputs:
+      questions:
+        description: "Optional comma-separated question ids (customer-count, top-spenders, last-campaign, low-stock, lapsed, vip-segment, missing-campaign, email-readiness, off-topic). Empty runs all."
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bloom-golden-eval
+  cancel-in-progress: false
+
+jobs:
+  golden:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      BLOOM_GOLDEN_EMAIL: ${{ secrets.BLOOM_GOLDEN_EMAIL }}
+      BLOOM_GOLDEN_PASSWORD: ${{ secrets.BLOOM_GOLDEN_PASSWORD }}
+      BLOOM_GOLDEN_QUESTIONS: ${{ github.event.inputs.questions }}
+      BLOOM_GOLDEN_REPORT: bloom-golden-report.json
+    steps:
+      - name: Check configuration
+        shell: bash
+        run: |
+          missing=""
+          for name in BLOOM_GOLDEN_EMAIL BLOOM_GOLDEN_PASSWORD; do
+            [[ -n "${!name}" ]] || missing="$missing $name"
+          done
+          if [[ -n "$missing" ]]; then
+            echo "::error title=Bloom golden eval not configured::Missing repository secrets:$missing"
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Run the golden questions
+        run: node scripts/bloom-evals/golden.mjs
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bloom-golden-report
+          path: bloom-golden-report.json
+          if-no-files-found: ignore
+          retention-days: 30
