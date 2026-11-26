@@ -285,3 +285,39 @@ Deno.test("revenue amounts in the reply come from the tool result, never from mo
     return standard(url, body);
   });
 });
+Deno.test("revenue adds BloomSites tickets and fundraising from the signed CMS bridge for the same range", async () => {
+  for (const cms of ["ok", "down"] as const) {
+    let modelCalls = 0;
+    await fixture(async calls => {
+      const result = await answerWithSlackAgent(context, "Events and fundraising revenue by garden centre?", "job") ?? "";
+      const bridge = calls.find(c => c.url === "https://cms.test/api/internal/bloom/ops");
+      assert(bridge, "CMS bridge was called");
+      assertEquals(bridge.body, { action: "revenue.by_site", inputs: { from: "2025-11-25", to: "2026-11-25" } });
+      if (cms === "ok") {
+        assertStringIncludes(result, "BloomSites event tickets and fundraising, 2025-11-25 to 2026-11-25:");
+        assertStringIncludes(result, "• *Lacoste Garden Centre*: tickets 46,835.25 CAD net, 881 orders (refunds 292.50; 11 orders paid in store, amount not recorded)");
+        assertStringIncludes(result, "Not covered: BloomSites online store orders outside fundraising.");
+      } else {
+        assertStringIncludes(result, "BloomSites event tickets and fundraising could not be retrieved this time");
+        assertStringIncludes(result, '• "event": 188.80 CAD');
+      }
+    }, (url, body) => {
+      if (url === "https://cms.test/api/internal/bloom/ops") {
+        if (cms === "down") return new Response(JSON.stringify({ error: "error" }), { status: 500, headers: { "content-type": "application/json" } });
+        return { requested_range: { from: "2025-11-25", to: "2026-11-25" }, excluded: {}, sites: [{ site_id: "s", site_name: "Lacoste Garden Centre", event_tickets_paid_in_store: 11,
+          event_tickets: [{ currency: "CAD", orders: 881, gross_minor: 4712775, refunded_minor: 29250, net_minor: 4683525 }], fundraising: [] }] };
+      }
+      if (url.endsWith("bloom_support_slack_revenue_by_client")) return { requested_range: { from: "2025-11-25", to: "2026-11-25" }, clients: [{
+        garden_centre: "West Coast Gardens", source_system: "IDEAL POS", currency: "CAD", period_with_sales: { first: "2025-11-25", last: "2026-11-02" },
+        all_sales_total: 10, requested_categories: [{ requested: "event", total: 188.8, matched_label_count: 1, matched_labels: [{ label: "Workshops / Events", total: 188.8 }] }] }] };
+      if (url.endsWith("chat/completions")) {
+        modelCalls++;
+        if (modelCalls === 1) return { choices: [{ message: revenueCall({ from: null, to: null, category: "event" }) }] };
+        const tool = (body.messages as Array<{ role: string; content: string }>).find(m => m.role === "tool")?.content ?? "";
+        assertEquals(tool.includes("not reachable"), false, "model must not be told BloomSites is unreachable when it was read");
+        return { choices: [{ message: { role: "assistant", content: "Revenue by garden centre is below." } }] };
+      }
+      return standard(url, body);
+    }, { BLOOM_OPS_URL_CMS: "https://cms.test/api/internal/bloom/ops", BLOOM_OPS_SECRET_CMS: "test-cms-secret" });
+  }
+});
