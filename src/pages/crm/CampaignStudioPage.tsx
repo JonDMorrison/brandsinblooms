@@ -682,8 +682,8 @@ function CampaignStudioPageContent() {
     ? `/crm/campaigns/${campaignId}/edit`
     : "/crm/campaigns";
   const campaignRecordRef = React.useRef<CampaignEditorRecord | null>(null);
-  const activeCampaignType: EditorCampaignType =
-    campaignRecordRef.current?.campaignType ?? "email";
+  // Design Studio edits email content only; drafts persist as "email" too.
+  const activeCampaignType: EditorCampaignType = "email";
   const channelRef = React.useRef<ReturnType<typeof supabase.channel> | null>(
     null,
   );

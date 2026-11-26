@@ -155,7 +155,11 @@ function toRecord(value: unknown): Record<string, unknown> {
     : {};
 }
 
-function normalizeInputBlocks(
+/**
+ * Normalizes loosely-shaped editor/legacy blocks into StudioBlocks (stable id,
+ * order and visibility). Idempotent, so callers may pre-normalize.
+ */
+export function normalizeInputBlocks(
   blocks: Array<StudioBlock | Record<string, unknown>>,
 ) {
   return blocks.flatMap((block, index) => {

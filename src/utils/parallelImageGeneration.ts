@@ -124,12 +124,13 @@ function normalizeTags(rawTags: unknown): string[] {
     .filter((tag): tag is string => Boolean(tag));
 }
 
-function normalizeBundleContent(content: unknown): GeneratedBundle | null {
-  if (!isObject(content) || !Array.isArray(content.items)) {
-    return null;
-  }
+/** draft_snapshots.content holds a GeneratedBundle when it carries `items`. */
+function isGeneratedBundleContent(content: unknown): content is GeneratedBundle {
+  return isObject(content) && Array.isArray(content.items);
+}
 
-  return content as GeneratedBundle;
+function normalizeBundleContent(content: unknown): GeneratedBundle | null {
+  return isGeneratedBundleContent(content) ? content : null;
 }
 
 function getEligibleItems(items: GeneratedBundleItem[]) {

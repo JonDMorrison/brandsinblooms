@@ -40,7 +40,12 @@ export async function fetchSystemSegmentDataAvailability(
     toExists(liveCustomers().gt("total_spent", 0).limit(1)),
     toExists(liveCustomers().gt("pos_order_count", 0).limit(1)),
     toExists(
-      liveCustomers().not("tags", "is", null).neq("tags", "{}").limit(1),
+      // `filter(..., "neq", "{}")` sends the same `tags=neq.{}` as before; the
+      // typed `neq` only accepts a string[] for an array column.
+      liveCustomers()
+        .not("tags", "is", null)
+        .filter("tags", "neq", "{}")
+        .limit(1),
     ),
     toExists(
       supabase

@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { Link as RouterLink, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { toJsonValue } from "@/utils/jsonValue";
 import { AskBloomResourceTrigger } from "@/components/askBloom/AskBloomResourceTrigger";
 import { JoyButton } from "@/components/joy/JoyButton";
 import { PageContainer } from "@/components/joy/PageContainer";
@@ -257,7 +258,13 @@ export const CRMAutomationBuilder = () => {
       const triggerData = (triggerNode?.data ?? {}) as Partial<TriggerNodeData>;
       const triggerSubtype = String(triggerData.triggerType || "manual");
       const triggerConditions = {
-        ...extractTriggerConditions(flowState),
+        ...extractTriggerConditions({
+          // Untyped canvas nodes can never be the trigger node.
+          nodes: flowState.nodes.flatMap((node) =>
+            node.type ? [{ ...node, type: node.type }] : [],
+          ),
+          edges: flowState.edges,
+        }),
         subtype: triggerSubtype,
       };
       const overlapBehavior = String(triggerData.overlapBehavior || "ignore");
@@ -304,7 +311,7 @@ export const CRMAutomationBuilder = () => {
         trigger_conditions: triggerConditions,
         overlap_behavior: overlapBehavior,
         workflow_steps: workflowSteps,
-        flow_state: flowState,
+        flow_state: toJsonValue(flowState),
         user_id: user.id,
         ...(tenantId ? { tenant_id: tenantId } : {}),
       };

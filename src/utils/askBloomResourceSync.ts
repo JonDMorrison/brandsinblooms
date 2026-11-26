@@ -32,15 +32,17 @@ export const subscribeAskBloomResourceSync = (
   }
 
   const handleEvent = (event: Event) => {
-    if (!(event instanceof CustomEvent<AskBloomResourceSyncDetail>)) {
+    if (!(event instanceof CustomEvent)) {
       return;
     }
 
-    if (!event.detail) {
+    // Only publishAskBloomResourceSync dispatches this event name.
+    const syncEvent: CustomEvent<AskBloomResourceSyncDetail> = event;
+    if (!syncEvent.detail) {
       return;
     }
 
-    listener(event.detail);
+    listener(syncEvent.detail);
   };
 
   window.addEventListener(ASK_BLOOM_RESOURCE_SYNC_EVENT, handleEvent);

@@ -1,7 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { firstContentHeadline } from "@/lib/crm/campaignDisplayName";
 import { hasContentBlocks } from "@/lib/studio/emailHtmlGenerator";
-import type { Database } from "@/integrations/supabase/types";
+import type { Database, TablesInsert } from "@/integrations/supabase/types";
 import {
   CAMPAIGN_STATUS,
   isCampaignStatus,
@@ -20,10 +20,6 @@ import {
 type CampaignRow = Database["public"]["Tables"]["crm_campaigns"]["Row"];
 type SegmentRow = Database["public"]["Tables"]["crm_segments"]["Row"];
 type PersonaRow = Database["public"]["Tables"]["crm_personas"]["Row"];
-type CampaignSegmentRow =
-  Database["public"]["Tables"]["campaign_segments"]["Row"];
-type CampaignPersonaRow =
-  Database["public"]["Tables"]["campaign_personas"]["Row"];
 type CampaignBlockBackupRow =
   Database["public"]["Tables"]["campaign_blocks"]["Row"];
 
@@ -381,6 +377,7 @@ function toContentBlockFromBackupRow(
         ? content.id
         : row.id,
     type,
+    label: typeof content.label === "string" ? content.label : undefined,
     headline:
       typeof content.headline === "string"
         ? content.headline
@@ -546,7 +543,7 @@ async function syncCampaignSegments(
     .eq("campaign_id", campaignId);
 
   if (segments.length > 1) {
-    const rows: CampaignSegmentRow["Insert"][] = segments.map((segment) => ({
+    const rows: TablesInsert<"campaign_segments">[] = segments.map((segment) => ({
       campaign_id: campaignId,
       segment_id: segment.id,
     }));
@@ -567,7 +564,7 @@ async function syncCampaignPersonas(
     .eq("campaign_id", campaignId);
 
   if (personas.length > 0) {
-    const rows: CampaignPersonaRow["Insert"][] = personas.map((persona) => ({
+    const rows: TablesInsert<"campaign_personas">[] = personas.map((persona) => ({
       campaign_id: campaignId,
       persona_id: persona.id,
     }));

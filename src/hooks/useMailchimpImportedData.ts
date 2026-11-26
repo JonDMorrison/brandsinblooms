@@ -1237,10 +1237,9 @@ export function useMailchimpImportedCompliance(options?: {
   });
 }
 
-export function useMailchimpCompliancePage(
-  rows: MailchimpConsentRecord[] | MailchimpSuppressionRecord[],
-  page: number,
-) {
+export function useMailchimpCompliancePage<
+  T extends MailchimpConsentRecord | MailchimpSuppressionRecord,
+>(rows: T[], page: number) {
   return useMemo(() => {
     return {
       rows: paginateRows(rows, page, COMPLIANCE_PAGE_SIZE),
