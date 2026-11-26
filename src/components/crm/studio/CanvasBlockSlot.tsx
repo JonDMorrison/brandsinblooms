@@ -10,6 +10,8 @@ import { CSS } from "@dnd-kit/utilities";
 import {
   ChevronDown,
   ChevronUp,
+  ChevronsDown,
+  ChevronsUp,
   Copy,
   GripVertical,
   Trash2,
@@ -175,37 +177,50 @@ export default function CanvasBlockSlot({
             <Box
               sx={{
                 position: "absolute",
-                left: -20,
+                left: -30,
                 top: "50%",
                 transform: "translateY(-50%)",
                 opacity: showAffordances ? 1 : 0,
                 transition: "all 120ms ease",
                 zIndex: 3,
+                // Stays reachable by keyboard even while hidden from the mouse.
+                "&:focus-within": { opacity: 1 },
               }}
             >
               <IconButton
                 ref={setActivatorNodeRef}
                 {...attributes}
                 {...listeners}
-                variant="plain"
+                variant="outlined"
                 color="neutral"
                 size="sm"
                 aria-label={`Drag ${displayLabel}`}
+                title="Drag to move this block"
                 onClick={(event) => event.stopPropagation()}
                 sx={{
                   cursor: isDragging ? "grabbing" : "grab",
-                  color: "neutral.300",
-                  minWidth: 20,
-                  minHeight: 20,
-                  width: 20,
-                  height: 20,
+                  color: "neutral.600",
+                  bgcolor: "#ffffff",
+                  borderColor: "neutral.300",
+                  boxShadow: "0 1px 3px rgba(15, 23, 42, 0.12)",
+                  borderRadius: "8px",
+                  minWidth: 26,
+                  minHeight: 40,
+                  width: 26,
+                  height: 40,
                   "&:hover": {
-                    bgcolor: "transparent",
-                    color: "neutral.500",
+                    bgcolor: "primary.50",
+                    borderColor: "primary.300",
+                    color: "primary.700",
+                  },
+                  "&:focus-visible": {
+                    outline: "2px solid",
+                    outlineColor: "primary.400",
+                    outlineOffset: 2,
                   },
                 }}
               >
-                <GripVertical size={14} />
+                <GripVertical size={16} />
               </IconButton>
             </Box>
           ) : null}
@@ -313,6 +328,7 @@ export default function CanvasBlockSlot({
                 color="neutral"
                 size="sm"
                 aria-label={`Duplicate ${displayLabel}`}
+                title="Duplicate"
                 onClick={() => onDuplicate(block.id)}
               >
                 <Copy size={14} />
@@ -323,7 +339,23 @@ export default function CanvasBlockSlot({
                 variant="plain"
                 color="neutral"
                 size="sm"
+                aria-label={`Move ${displayLabel} to the top`}
+                title="Move to top"
+                disabled={isFirst}
+                onClick={() =>
+                  onReorder(block.id, { kind: "direction", direction: "top" })
+                }
+              >
+                <ChevronsUp size={14} />
+              </IconButton>
+            ) : null}
+            {!isFooterBlock ? (
+              <IconButton
+                variant="plain"
+                color="neutral"
+                size="sm"
                 aria-label={`Move ${displayLabel} up`}
+                title="Move up"
                 disabled={isFirst}
                 onClick={() =>
                   onReorder(block.id, {
@@ -341,6 +373,7 @@ export default function CanvasBlockSlot({
                 color="neutral"
                 size="sm"
                 aria-label={`Move ${displayLabel} down`}
+                title="Move down"
                 disabled={isLast}
                 onClick={() =>
                   onReorder(block.id, {
@@ -352,6 +385,21 @@ export default function CanvasBlockSlot({
                 <ChevronDown size={14} />
               </IconButton>
             ) : null}
+            {!isFooterBlock ? (
+              <IconButton
+                variant="plain"
+                color="neutral"
+                size="sm"
+                aria-label={`Move ${displayLabel} to the bottom`}
+                title="Move to bottom"
+                disabled={isLast}
+                onClick={() =>
+                  onReorder(block.id, { kind: "direction", direction: "bottom" })
+                }
+              >
+                <ChevronsDown size={14} />
+              </IconButton>
+            ) : null}
             {/* The footer holds the required unsubscribe link, so it cannot
                 be deleted from the email. */}
             {isFooterBlock ? null : (
@@ -360,6 +408,7 @@ export default function CanvasBlockSlot({
               color="neutral"
               size="sm"
               aria-label={`Delete ${displayLabel}`}
+              title="Delete"
               onClick={() => onDelete(block.id)}
               sx={{
                 "&:hover": {

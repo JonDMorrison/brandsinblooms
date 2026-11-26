@@ -2197,6 +2197,18 @@ function CampaignStudioPageContent() {
         return;
       }
 
+      // Alt + Up / Down moves the selected block. Add Shift for top / bottom.
+      // Never while typing: isEditableTarget returned above.
+      if (event.altKey && !modifier && (key === "arrowup" || key === "arrowdown") && studio.selectedBlockId) {
+        event.preventDefault();
+        const up = key === "arrowup";
+        studio.reorderBlock(
+          studio.selectedBlockId,
+          event.shiftKey ? (up ? "top" : "bottom") : up ? "up" : "down",
+        );
+        return;
+      }
+
       if ((key === "delete" || key === "backspace") && studio.selectedBlockId) {
         event.preventDefault();
         studio.removeBlock(studio.selectedBlockId);

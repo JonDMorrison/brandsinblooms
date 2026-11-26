@@ -50,7 +50,7 @@ Rules that stay in force for every step:
 | Item | Status | Evidence / gap |
 | --- | --- | --- |
 | Inline editing on the canvas | Open | |
-| Drag handle visibility, Move to Top / Bottom, keyboard reorder, undo | Open | |
+| Drag handle visibility, Move to Top / Bottom, keyboard reorder, undo | Merged | Toolbar has Move to top, Move up, Move down, Move to bottom, Duplicate, Delete, each with a hover hint. Bottom means just above the footer. The drag handle is a bordered button with hover and focus states. Alt + Up / Down moves the selected block, with Shift for top / bottom, and never while typing. The block stays selected. Each move is one undo step (tested). Not yet tested by hand with 20 blocks. Outline tab still has up / down only. |
 | Four starting options, "Customize in Design Studio" | Open | |
 
 ## Milestone C: content library
