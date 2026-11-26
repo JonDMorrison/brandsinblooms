@@ -32,13 +32,13 @@ import { useBloomMessageMutations } from "@/hooks/bloom/useBloomMessageMutations
 import { useBloomModelPreference } from "@/hooks/bloom/useBloomModelPreference";
 import { useBloomProfile } from "@/hooks/bloom/useBloomProfile";
 import {
-  useBloomStreaming,
+  useAskBloomStreaming,
   type BloomActiveToolCall,
   type BloomResearchPlan,
   type BloomResearchStepStatus,
   type BloomStreamingBlock,
   type BloomStreamingConnectionState,
-} from "@/hooks/bloom/useBloomStreaming";
+} from "@/hooks/askBloom/useAskBloomStreaming";
 import type {
   BloomEditedTaskFields,
   BloomTaskCompletionSummary,
@@ -483,12 +483,16 @@ export const BloomProvider = ({ children }: { children?: React.ReactNode }) => {
     researchConversationId,
     researchPlan,
     researchSteps,
-    startStream,
+    sendMessage: startStream,
     streamError,
     streamingBlocks,
     streamingContent,
     streamingThinking,
-  } = useBloomStreaming(bloomMessageMutationHandlers);
+  } = useAskBloomStreaming({
+    ...bloomMessageMutationHandlers,
+    messageStore: "bloomMessageCache",
+    tenantId: tenant?.id ?? null,
+  });
 
   const setActiveMode = React.useCallback((mode: BloomMode) => {
     if (isBloomMode(mode)) {
@@ -543,15 +547,14 @@ export const BloomProvider = ({ children }: { children?: React.ReactNode }) => {
         navigate(`/bloom/${conversationId}`);
       }
 
-      startStream(
+      startStream(trimmedText, {
         conversationId,
-        trimmedText,
-        activeMode,
+        mode: activeMode,
         modelPreference,
         pageContext,
-        getTimezone(),
+        timezone: getTimezone(),
         attachments,
-      );
+      });
     },
     [
       activeConversationId,

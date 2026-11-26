@@ -2,9 +2,10 @@ import * as React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { resolvePageContext } from "@/components/bloom/utils/resolvePageContext";
 import {
-  useBloomStreaming,
+  useAskBloomStreaming,
   type BloomStreamingDoneMetadata,
-} from "@/hooks/bloom/useBloomStreaming";
+} from "@/hooks/askBloom/useAskBloomStreaming";
+import { useTenant } from "@/hooks/useTenant";
 import type {
   BloomJsonArray,
   BloomMode,
@@ -99,6 +100,7 @@ export function useBloomCompactMode() {
     React.useState(false);
   const activationPathnameRef = React.useRef<string | null>(null);
   const pendingAutoRedirectRef = React.useRef(false);
+  const { tenant } = useTenant();
   const {
     activeToolCall,
     cancelStream,
@@ -113,12 +115,14 @@ export function useBloomCompactMode() {
     researchPlan,
     researchSteps,
     resetStream,
-    startStream,
+    sendMessage: startStream,
     streamError,
     streamingBlocks,
     streamingContent,
     streamingThinking,
-  } = useBloomStreaming({
+  } = useAskBloomStreaming({
+    messageStore: "bloomMessageCache",
+    tenantId: tenant?.id ?? null,
     onConversationResolved: (conversationId) => {
       setResolvedConversationId(conversationId);
     },
@@ -200,15 +204,14 @@ export function useBloomCompactMode() {
       setDraftPrompt("");
       setIsActive(true);
 
-      startStream(
-        null,
-        nextPrompt,
-        activeMode,
-        "auto",
+      startStream(nextPrompt, {
+        conversationId: null,
+        mode: activeMode,
+        modelPreference: "auto",
         pageContext,
-        getTimezone(),
+        timezone: getTimezone(),
         attachments,
-      );
+      });
 
       return true;
     },

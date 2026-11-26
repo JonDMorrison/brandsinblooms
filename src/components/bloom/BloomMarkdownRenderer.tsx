@@ -63,6 +63,170 @@ const markdownImageBaseSx = {
   borderRadius: "var(--joy-radius-md)",
 } as const;
 
+/**
+ * Panel typography: the Ask Bloom drawer's compact, 14px reading style. It
+ * styles the default markdown elements (same-tab links included) instead of
+ * the chat components below.
+ */
+const panelMarkdownSx = {
+  minWidth: 0,
+  "& p": {
+    margin: "0 0 10px 0",
+    fontSize: "14px",
+    lineHeight: 1.6,
+    color: "text.primary",
+    "&:last-child": { marginBottom: 0 },
+  },
+  "& strong, & b": {
+    fontWeight: 700,
+    color: "text.primary",
+  },
+  "& em, & i": {
+    fontStyle: "italic",
+  },
+  "& a": {
+    color: "primary.plainColor",
+    textDecoration: "underline",
+    textDecorationColor: "var(--joy-palette-primary-300)",
+    textUnderlineOffset: "2px",
+    cursor: "pointer",
+    fontWeight: 500,
+    "&:hover": {
+      textDecorationColor: "var(--joy-palette-primary-plainColor)",
+    },
+  },
+  '& a[href*="blocked"]': {
+    color: "text.tertiary",
+    textDecoration: "underline",
+    cursor: "not-allowed",
+  },
+  "& code": {
+    fontFamily: "var(--joy-fontFamily-code, monospace)",
+    fontSize: "12.5px",
+    fontWeight: 500,
+    backgroundColor: "neutral.softBg",
+    color: "text.primary",
+    padding: "1.5px 5px",
+    borderRadius: "4px",
+    border: "1px solid",
+    borderColor: "neutral.outlinedBorder",
+    whiteSpace: "nowrap",
+  },
+  "& pre": {
+    margin: "10px 0",
+    padding: "12px 14px",
+    backgroundColor: "neutral.softBg",
+    borderRadius: "6px",
+    border: "1px solid",
+    borderColor: "neutral.outlinedBorder",
+    overflowX: "auto",
+    "& code": {
+      backgroundColor: "transparent",
+      border: "none",
+      padding: 0,
+      fontSize: "12.5px",
+      lineHeight: 1.6,
+      whiteSpace: "pre",
+    },
+  },
+  "& ol": {
+    margin: "8px 0",
+    paddingLeft: "22px",
+    listStyleType: "decimal",
+    "& li": {
+      marginBottom: "6px",
+      fontSize: "14px",
+      lineHeight: 1.6,
+      paddingLeft: "4px",
+      color: "text.primary",
+      "&::marker": {
+        color: "text.tertiary",
+        fontWeight: 500,
+      },
+    },
+  },
+  "& ul": {
+    margin: "8px 0",
+    paddingLeft: "22px",
+    listStyleType: "disc",
+    "& li": {
+      marginBottom: "6px",
+      fontSize: "14px",
+      lineHeight: 1.6,
+      paddingLeft: "4px",
+      color: "text.primary",
+      "&::marker": {
+        color: "text.tertiary",
+      },
+    },
+  },
+  "& hr": {
+    margin: "12px 0",
+    border: "none",
+    borderTop: "1px solid",
+    borderColor: "divider",
+  },
+  "& h1, & h2, & h3, & h4": {
+    fontWeight: 700,
+    color: "text.primary",
+    margin: "14px 0 8px 0",
+    lineHeight: 1.3,
+    "&:first-of-type": { marginTop: 0 },
+  },
+  "& h1": { fontSize: "18px" },
+  "& h2": { fontSize: "16px" },
+  "& h3": { fontSize: "15px" },
+  "& h4": { fontSize: "14px" },
+  "& blockquote": {
+    margin: "10px 0",
+    padding: "8px 14px",
+    borderLeft: "3px solid",
+    borderColor: "neutral.outlinedBorder",
+    backgroundColor: "background.level1",
+    borderRadius: "0 6px 6px 0",
+    "& p": {
+      margin: 0,
+      color: "text.secondary",
+      fontStyle: "italic",
+    },
+  },
+  "& table": {
+    display: "block",
+    width: "max-content",
+    minWidth: "100%",
+    maxWidth: "100%",
+    overflowX: "auto",
+    borderCollapse: "collapse",
+    tableLayout: "fixed",
+    margin: "10px 0",
+    fontSize: "13px",
+    "& th": {
+      textAlign: "left",
+      fontWeight: 600,
+      padding: "6px 10px",
+      width: "160px",
+      minWidth: "160px",
+      borderBottom: "2px solid",
+      borderColor: "divider",
+      color: "text.secondary",
+      whiteSpace: "normal",
+      overflowWrap: "anywhere",
+      verticalAlign: "top",
+    },
+    "& td": {
+      padding: "6px 10px",
+      width: "160px",
+      minWidth: "160px",
+      borderBottom: "1px solid",
+      borderColor: "divider",
+      color: "text.primary",
+      whiteSpace: "normal",
+      overflowWrap: "anywhere",
+      verticalAlign: "top",
+    },
+  },
+} as const;
+
 const MarkdownParagraph = React.memo(function MarkdownParagraph({
   children,
   sx,
@@ -85,10 +249,25 @@ const MarkdownImage = React.memo(function MarkdownImage({
   return <Box component="img" alt={alt} src={src} sx={sx} />;
 });
 
-const MarkdownRoot = React.memo(function MarkdownRoot({
-  compact,
+const PanelMarkdown = React.memo(function PanelMarkdown({
   content,
-}: BloomMarkdownProps) {
+}: {
+  content: string;
+}) {
+  return (
+    <Box sx={panelMarkdownSx}>
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+    </Box>
+  );
+});
+
+const ChatMarkdown = React.memo(function ChatMarkdown({
+  compact = false,
+  content,
+}: {
+  compact?: boolean;
+  content: string;
+}) {
   const paragraphLevel = "body-md";
   const bodyLineHeight = compact ? 1.55 : 1.65;
   const paragraphSx = React.useMemo(
@@ -460,6 +639,18 @@ const MarkdownRoot = React.memo(function MarkdownRoot({
       </ReactMarkdown>
     </Box>
   );
+});
+
+const MarkdownRoot = React.memo(function MarkdownRoot({
+  compact,
+  content,
+  variant = "chat",
+}: BloomMarkdownProps) {
+  if (variant === "panel") {
+    return <PanelMarkdown content={content} />;
+  }
+
+  return <ChatMarkdown compact={compact} content={content} />;
 });
 
 export default MarkdownRoot;

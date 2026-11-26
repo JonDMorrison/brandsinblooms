@@ -6,7 +6,7 @@ import {
   normalizeToolResult,
   readString,
 } from "@/components/bloom/content/cards/cardUtils";
-import type { BloomStreamingBlock } from "@/hooks/bloom/useBloomStreaming";
+import type { BloomStreamingBlock } from "@/hooks/askBloom/useAskBloomStreaming";
 import type {
   BloomFieldChange,
   BloomTaskJsonObject,

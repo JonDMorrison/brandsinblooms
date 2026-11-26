@@ -19,7 +19,7 @@ export type StreamingPhase =
   | "idle";
 
 export interface StreamingPhaseContext {
-  /** The streaming connection state from `useBloomStreaming`. */
+  /** The streaming connection state from `useAskBloomStreaming`. */
   connectionState?:
     | "idle"
     | "connecting"

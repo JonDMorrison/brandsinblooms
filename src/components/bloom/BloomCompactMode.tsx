@@ -14,7 +14,7 @@ import {
 } from "@/components/bloom/BloomStreamingMessage";
 import { CompactBlockRenderer } from "@/components/bloom/CompactBlockRenderer";
 import type { BloomMessage, BloomMode } from "@/hooks/bloom/types";
-import type { BloomStreamingConnectionState } from "@/hooks/bloom/useBloomStreaming";
+import type { BloomStreamingConnectionState } from "@/hooks/askBloom/useAskBloomStreaming";
 
 type CompactPromptMode = Extract<BloomMode, "standard" | "reasoning">;
 

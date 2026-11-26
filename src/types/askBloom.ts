@@ -4,7 +4,7 @@ import type { PendingResourceForm } from "@/components/bloom/utils/resourceFormR
 import type {
   BloomActiveToolCall,
   BloomStreamingBlock,
-} from "@/hooks/bloom/useBloomStreaming";
+} from "@/hooks/askBloom/useAskBloomStreaming";
 import type {
   BloomTaskCompletionSummary,
   BloomEditedTaskFields,

@@ -35,7 +35,7 @@ import {
   type PendingResourceForm,
   type ResourceFormSchema,
 } from "@/components/bloom/utils/resourceFormRegistry";
-import type { BloomStreamingBlock } from "@/hooks/bloom/useBloomStreaming";
+import type { BloomStreamingBlock } from "@/hooks/askBloom/useAskBloomStreaming";
 import { ApprovalPreviewExtras } from "@/components/bloom/ApprovalPreviewExtras";
 import type {
   BloomTaskPlan,

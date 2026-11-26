@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useQueryClient, type InfiniteData } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   analyzeStreamingContent,
@@ -11,6 +12,7 @@ import {
   extractIdentifiersFromToolResults,
   stripRedundantContent,
 } from "@/components/bloom/content/parseContentBlocks";
+import { stripEchoedToolPayloads } from "@/components/bloom/content/sanitizeBloomContent";
 import { stripToolJsonFromText } from "@/components/bloom/utils/stripToolJson";
 import type { PendingResourceForm } from "@/components/bloom/utils/resourceFormRegistry";
 import {
@@ -19,9 +21,29 @@ import {
 } from "@/integrations/supabase/config";
 import type { Json } from "@/integrations/supabase/types";
 import {
+  bloomSupabase,
+  isBloomMode,
+  type BloomConversation,
+  type BloomJsonArray,
+  type BloomMessage,
+  type BloomModelPreference,
+  type BloomMode,
+  type BloomPageContextPayload,
+} from "@/hooks/bloom/types";
+import {
+  bloomConversationsQueryBaseKey,
+  sortBloomConversations,
+} from "@/hooks/bloom/useBloomConversations";
+import {
+  bloomMessagesQueryKey,
+  fetchBloomMessagesPage,
+  type BloomMessagesPage,
+} from "@/hooks/bloom/useBloomMessages";
+import {
   parseBloomTaskCompletionSummary,
   parseBloomTaskPlan,
   parseBloomTaskStatusUpdate,
+  taskPlanBlockData,
   type BloomTaskJsonObject,
   type BloomTaskCompletionSummary,
   type BloomTaskPlanAction,
@@ -31,10 +53,6 @@ import {
   type BloomTaskStatusUpdate,
   type BloomValidationAnnotation,
 } from "@/hooks/bloom/taskPlanTypes";
-import type {
-  BloomActiveToolCall,
-  BloomStreamingBlock,
-} from "@/hooks/bloom/useBloomStreaming";
 import type {
   AskBloomActionCard,
   AskBloomBlock,
@@ -53,18 +71,125 @@ import {
 } from "@/utils/askBloomBlocks";
 import { bloomChatClientContext } from "@/lib/bloomSupport/api";
 
-interface UseAskBloomStreamingOptions {
+/*
+ * The one client conversation hook for Bloom. Every surface that talks to the
+ * `bloom-assist` edge function — the Ask Bloom drawer, the /bloom workspace and
+ * the command-palette compact panel — streams through `useAskBloomStreaming`.
+ *
+ * Two message stores are supported:
+ * - "local": the caller owns the message list and receives the finished
+ *   assistant message through `onMessage` (Ask Bloom drawer).
+ * - "bloomMessageCache": the hook writes the optimistic user message, the
+ *   streaming placeholder and the persisted page into the Bloom React Query
+ *   message cache (/bloom workspace and the compact panel).
+ *
+ * Live stream state (text, thinking, tool calls, blocks, research progress,
+ * pending task plan, latency) is returned for every store.
+ */
+
+const TOKEN_FLUSH_INTERVAL_MS = 50;
+const TOKEN_FLUSH_COUNT = 5;
+const MAX_CONSECUTIVE_PARSE_ERRORS = 5;
+const STREAM_INTERRUPTED_MESSAGE = "Connection lost. Partial response preserved.";
+
+export type BloomStreamingConnectionState =
+  | "idle"
+  | "connecting"
+  | "streaming"
+  | "error"
+  | "done";
+
+export interface BloomActiveToolCall {
+  toolName: string;
+  description: string;
+}
+
+export interface BloomStreamingBlock {
+  id: string;
+  toolName: string | null;
+  blockType: string;
+  payload: Json;
+  createdAt: string;
+}
+
+export type BloomResearchStepState =
+  | "pending"
+  | "executing"
+  | "completed"
+  | "failed";
+
+export interface BloomResearchPlan {
+  totalSteps: number;
+  stepLabels: string[];
+}
+
+export interface BloomResearchStepStatus {
+  status: BloomResearchStepState;
+  toolName: string;
+  label: string;
+  startedAt: string;
+  updatedAt: string;
+}
+
+interface BloomServerLatencyMetrics {
+  server_ttft_ms: number | null;
+  server_ttfb_ms: number | null;
+  server_total_ms: number | null;
+  context_build_ms: number | null;
+  llm_latency_ms: number | null;
+}
+
+interface BloomCacheAuditStats {
+  hits: number;
+  misses: number;
+  invalidations: number;
+}
+
+export interface BloomStreamingDoneMetadata {
   conversationId: string | null;
-  resourceFocus: ResourceFocus | null;
-  onMessage: (message: AskBloomMessage) => void;
-  onStreamingUpdate: (partialContent: string) => void;
+  tokensInput: number | null;
+  tokensOutput: number | null;
+  model: string | null;
+  title: string | null;
+  followUpChips: BloomJsonArray;
+  modeOverride: BloomMode | null;
+  latencyMetrics: BloomServerLatencyMetrics | null;
+  cacheStats: BloomCacheAuditStats | null;
+}
+
+export interface BloomStreamingLatencyMetrics {
+  clientTtftMs: number | null;
+  clientTtfbMs: number | null;
+  clientTotalMs: number | null;
+  serverMetrics: BloomServerLatencyMetrics | null;
+  cacheStats: BloomCacheAuditStats | null;
+}
+
+export type AskBloomMessageStore = "local" | "bloomMessageCache";
+
+export interface UseAskBloomStreamingOptions {
+  /** Default conversation for `sendMessage`; an override wins. */
+  conversationId?: string | null;
+  /** Default resource focus for `sendMessage`; an override wins. */
+  resourceFocus?: ResourceFocus | null;
+  /** Where conversation messages live. Defaults to "local". */
+  messageStore?: AskBloomMessageStore;
+  /**
+   * Tenant that scopes the Bloom message cache and latency audit rows. Required
+   * for the "bloomMessageCache" store; ignored by the "local" store.
+   */
+  tenantId?: string | null;
+  /**
+   * Surface a plan Bloom wrote as text through `onTaskPlan`. Defaults to on for
+   * the "local" store and off for "bloomMessageCache".
+   */
+  interceptTextPlans?: boolean;
+  onMessage?: (message: AskBloomMessage) => void;
+  onStreamingUpdate?: (partialContent: string) => void;
   onActionCard?: (card: AskBloomActionCard, blocks: AskBloomBlock[]) => void;
-  onError: (error: string) => void;
+  onError?: (error: string) => void;
   onDone?: () => void;
   onStreamComplete?: () => void;
-  // Optional state callbacks used by Ask Bloom provider state and later UI
-  // milestones. They should not alter the existing assistant message block
-  // path, which still flows through `onStreamingBlock` / `onActionCard`.
   onThinkingToken?: (thinkingContent: string) => void;
   onToolStart?: (toolCall: BloomActiveToolCall) => void;
   onToolResult?: (block: BloomStreamingBlock) => void;
@@ -77,21 +202,83 @@ interface UseAskBloomStreamingOptions {
   onTaskComplete?: (payload: BloomTaskCompletionSummary) => void;
   onFollowUpChips?: (chips: string[]) => void;
   onResourceFormDetected?: (form: PendingResourceForm) => void;
+  onModeOverride?: (mode: BloomMode) => void;
+  onConversationResolved?: (conversationId: string) => void;
 }
 
-interface SendMessageOverrides {
+export interface AskBloomSendMessageOverrides {
   conversationId?: string | null;
   resourceFocus?: ResourceFocus | null;
   assistantMessageId?: string | null;
+  /** Defaults to "standard". */
+  mode?: BloomMode;
+  /** "auto" (the default) lets bloom-assist pick the model. */
+  modelPreference?: BloomModelPreference;
+  /**
+   * Page context sent to bloom-assist. When omitted it is derived from the
+   * resource focus (Ask Bloom drawer behaviour).
+   */
+  pageContext?: BloomPageContextPayload | null;
+  timezone?: string;
+  attachments?: BloomJsonArray;
+}
+
+interface StreamRequest {
+  conversationId: string | null;
+  message: string;
+  mode: BloomMode;
 }
 
 interface ParsedSseEvent {
   event: string;
-  data: unknown;
+  data: Json;
 }
+
+interface ParseResult {
+  event: ParsedSseEvent | null;
+  error: string | null;
+}
+
+type ResearchStepSsePayload = {
+  stepNumber: number;
+  totalSteps: number;
+  label: string;
+  status: Exclude<BloomResearchStepState, "pending">;
+  toolName: string;
+};
+
+type TerminalEvent = "done" | "error" | null;
 
 const ASK_BLOOM_UNAVAILABLE_MESSAGE =
   "Ask Bloom is temporarily unavailable. The Bloom Assist edge function may be down, undeployed, or failing to start.";
+
+/**
+ * Error copy per store, so each surface keeps the wording it already shows.
+ */
+const STORE_COPY: Record<
+  AskBloomMessageStore,
+  {
+    requestFailed: (status: number) => string;
+    noStream: string;
+    streamFailed: string;
+    missingSession: string;
+  }
+> = {
+  local: {
+    requestFailed: (status) =>
+      `Ask Bloom request failed with status ${status}.`,
+    noStream: "Ask Bloom did not return a readable stream.",
+    streamFailed: "Ask Bloom could not complete that request.",
+    missingSession: "Sign in to message Ask Bloom.",
+  },
+  bloomMessageCache: {
+    requestFailed: (status) =>
+      `Bloom Assist request failed with status ${status}.`,
+    noStream: "Bloom Assist did not return a readable stream.",
+    streamFailed: "Bloom Assist stream failed.",
+    missingSession: "Sign in to message Bloom.",
+  },
+};
 
 const getTimezone = () => {
   try {
@@ -101,7 +288,42 @@ const getTimezone = () => {
   }
 };
 
-const parseSseMessage = (rawMessage: string): ParsedSseEvent | null => {
+const isJsonValue = (value: unknown): value is Json => {
+  if (
+    value === null ||
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean"
+  ) {
+    return true;
+  }
+
+  if (Array.isArray(value)) {
+    return value.every(isJsonValue);
+  }
+
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return Object.values(value).every(
+    (entry) => entry === undefined || isJsonValue(entry),
+  );
+};
+
+/** Trimmed non-empty string, or null. */
+const readOptionalString = (value: unknown): string | null =>
+  typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+
+const readNumber = (value: unknown): number | null =>
+  typeof value === "number" && Number.isFinite(value) ? value : null;
+
+const readBloomMode = (value: unknown): BloomMode | null => {
+  const mode = readOptionalString(value);
+  return mode && isBloomMode(mode) ? mode : null;
+};
+
+const parseSseMessage = (rawMessage: string): ParseResult => {
   const lines = rawMessage.split(/\r?\n/);
   let event = "message";
   const dataLines: string[] = [];
@@ -122,27 +344,95 @@ const parseSseMessage = (rawMessage: string): ParsedSseEvent | null => {
   }
 
   if (dataLines.length === 0) {
-    return null;
+    return { event: null, error: null };
   }
 
   const dataText = dataLines.join("\n");
   if (!dataText || dataText === "[DONE]") {
-    return null;
+    return { event: null, error: null };
   }
 
   try {
-    return { event, data: JSON.parse(dataText) as unknown };
+    const parsed: unknown = JSON.parse(dataText);
+    if (!isJsonValue(parsed)) {
+      return { event: null, error: "SSE data was not JSON-compatible." };
+    }
+    return { event: { event, data: parsed }, error: null };
   } catch {
-    return null;
+    return { event: null, error: "SSE data was malformed JSON." };
   }
+};
+
+const readResponseErrorMessage = async (
+  response: Response,
+  store: AskBloomMessageStore,
+) => {
+  if (
+    store === "local" &&
+    (response.status === 502 ||
+      response.status === 503 ||
+      response.status === 504)
+  ) {
+    return `${ASK_BLOOM_UNAVAILABLE_MESSAGE} Received ${response.status} from the service.`;
+  }
+
+  const text = await response.text();
+  if (!text.trim()) {
+    return STORE_COPY[store].requestFailed(response.status);
+  }
+
+  try {
+    const parsed: unknown = JSON.parse(text);
+    if (isRecord(parsed)) {
+      return (
+        readOptionalString(parsed.error) ??
+        readOptionalString(parsed.message) ??
+        text
+      );
+    }
+  } catch {
+    return text;
+  }
+
+  return text;
+};
+
+const toRequestErrorMessage = (
+  error: unknown,
+  store: AskBloomMessageStore,
+) => {
+  if (store === "bloomMessageCache") {
+    return error instanceof Error ? error.message : STREAM_INTERRUPTED_MESSAGE;
+  }
+
+  if (error instanceof Error) {
+    if (error.name === "AbortError") {
+      return "Ask Bloom request was cancelled.";
+    }
+
+    if (error instanceof TypeError) {
+      return `${ASK_BLOOM_UNAVAILABLE_MESSAGE} The browser could not complete the network request.`;
+    }
+
+    return error.message;
+  }
+
+  return STORE_COPY.local.streamFailed;
+};
+
+const readSseErrorMessage = (data: Json, store: AskBloomMessageStore) => {
+  if (isRecord(data)) {
+    return readOptionalString(data.message) ?? STORE_COPY[store].streamFailed;
+  }
+
+  return readOptionalString(data) ?? STORE_COPY[store].streamFailed;
 };
 
 /**
  * Reads streaming token text WITHOUT trimming. The SSE token payload carries
  * the leading/trailing spaces that ARE the inter-word whitespace (e.g.
  * " customer"). Routing token text through the trimming `readString` collapses
- * adjacent tokens together ("Certainly!Tohelp..."). Mirrors Bloom's raw token
- * reader in `useBloomStreaming.ts`.
+ * adjacent tokens together ("Certainly!Tohelp...").
  */
 const readRawTokenText = (data: unknown): string => {
   if (typeof data === "string") {
@@ -273,48 +563,6 @@ const buildAssistantBlocks = (
   }
 
   return normalizedBlocks;
-};
-
-const readResponseErrorMessage = async (response: Response) => {
-  if (
-    response.status === 502 ||
-    response.status === 503 ||
-    response.status === 504
-  ) {
-    return `${ASK_BLOOM_UNAVAILABLE_MESSAGE} Received ${response.status} from the service.`;
-  }
-
-  const text = await response.text();
-  if (!text.trim()) {
-    return `Ask Bloom request failed with status ${response.status}.`;
-  }
-
-  try {
-    const parsed: unknown = JSON.parse(text);
-    if (isRecord(parsed)) {
-      return readString(parsed.error) || readString(parsed.message) || text;
-    }
-  } catch {
-    return text;
-  }
-
-  return text;
-};
-
-const toAskBloomRequestErrorMessage = (error: unknown) => {
-  if (error instanceof Error) {
-    if (error.name === "AbortError") {
-      return "Ask Bloom request was cancelled.";
-    }
-
-    if (error instanceof TypeError) {
-      return `${ASK_BLOOM_UNAVAILABLE_MESSAGE} The browser could not complete the network request.`;
-    }
-
-    return error.message;
-  }
-
-  return "Ask Bloom could not complete that request.";
 };
 
 const isPageEntityType = (
@@ -870,90 +1118,1281 @@ const sanitizeFinalAssistantContent = (
   return finalContent.trim();
 };
 
+const STEP_LINE_PATTERN =
+  /^\s*(?:(\d{1,2})[.)]|step\s+(\d{1,2})\s*[:.)-])\s*(.+?)\s*$/gim;
+const MAX_RESEARCH_STEP_LABEL_LENGTH = 180;
+
+const emptyResearchPlan = (): BloomResearchPlan => ({
+  totalSteps: 0,
+  stepLabels: [],
+});
+
+const normalizeResearchStepLabel = (value: string) => {
+  const label = value.replace(/\s+/g, " ").trim();
+  if (label.length <= MAX_RESEARCH_STEP_LABEL_LENGTH) {
+    return label;
+  }
+
+  return `${label.slice(0, MAX_RESEARCH_STEP_LABEL_LENGTH - 3).trim()}...`;
+};
+
+const parseResearchPlanFromThinking = (content: string): BloomResearchPlan => {
+  const labelsByStepNumber = new Map<number, string>();
+
+  for (const match of content.matchAll(STEP_LINE_PATTERN)) {
+    const stepNumber = Number(match[1] ?? match[2]);
+    const label = normalizeResearchStepLabel(match[3] ?? "");
+    if (!Number.isInteger(stepNumber) || stepNumber <= 0 || !label) {
+      continue;
+    }
+    labelsByStepNumber.set(stepNumber, label);
+  }
+
+  if (labelsByStepNumber.size === 0) {
+    return emptyResearchPlan();
+  }
+
+  const totalSteps = Math.max(...labelsByStepNumber.keys());
+  return {
+    totalSteps,
+    stepLabels: Array.from(
+      { length: totalSteps },
+      (_item, index) => labelsByStepNumber.get(index + 1) ?? "",
+    ),
+  };
+};
+
+const isResearchStepState = (
+  value: unknown,
+): value is ResearchStepSsePayload["status"] =>
+  value === "executing" || value === "completed" || value === "failed";
+
+const readResearchStep = (data: Json): ResearchStepSsePayload | null => {
+  if (!isRecord(data)) {
+    return null;
+  }
+
+  const stepNumber =
+    readNumber(data.step_number) ?? readNumber(data.stepNumber);
+  const totalSteps =
+    readNumber(data.total_steps) ?? readNumber(data.totalSteps);
+  const label = readOptionalString(data.label);
+  const toolName =
+    readOptionalString(data.tool_name) ?? readOptionalString(data.toolName);
+  const status = readOptionalString(data.status);
+
+  if (
+    stepNumber === null ||
+    stepNumber <= 0 ||
+    !Number.isInteger(stepNumber) ||
+    totalSteps === null ||
+    totalSteps < 0 ||
+    !label ||
+    !toolName ||
+    !isResearchStepState(status)
+  ) {
+    return null;
+  }
+
+  return {
+    stepNumber,
+    totalSteps,
+    label: normalizeResearchStepLabel(label),
+    status,
+    toolName,
+  };
+};
+
+const readToolStart = (data: Json): BloomActiveToolCall | null => {
+  if (!isRecord(data)) {
+    return null;
+  }
+
+  const toolName =
+    readOptionalString(data.tool) ?? readOptionalString(data.tool_name);
+  if (!toolName) {
+    return null;
+  }
+
+  return {
+    toolName,
+    description:
+      readOptionalString(data.description) ?? describeToolCall(toolName),
+  };
+};
+
+const readToolResult = (
+  data: Json,
+): Omit<BloomStreamingBlock, "id" | "createdAt"> | null => {
+  if (!isRecord(data)) {
+    return null;
+  }
+
+  const blockType =
+    readOptionalString(data.block_type) ?? readOptionalString(data.blockType);
+  const payload = data.result;
+  if (!blockType || !isJsonValue(payload)) {
+    return null;
+  }
+
+  return {
+    toolName: readOptionalString(data.tool) ?? readOptionalString(data.tool_name),
+    blockType,
+    payload,
+  };
+};
+
+const readLatencyMetrics = (
+  source: Record<string, unknown>,
+): BloomServerLatencyMetrics | null => {
+  if (!isRecord(source.latency_metrics)) {
+    return null;
+  }
+
+  const metrics = source.latency_metrics;
+  return {
+    server_ttft_ms: readNumber(metrics.server_ttft_ms),
+    server_ttfb_ms: readNumber(metrics.server_ttfb_ms),
+    server_total_ms: readNumber(metrics.server_total_ms),
+    context_build_ms: readNumber(metrics.context_build_ms),
+    llm_latency_ms: readNumber(metrics.llm_latency_ms),
+  };
+};
+
+const readCacheStats = (
+  source: Record<string, unknown>,
+): BloomCacheAuditStats | null => {
+  if (!isRecord(source.cache_stats)) {
+    return null;
+  }
+
+  const stats = source.cache_stats;
+  const hits = readNumber(stats.hits);
+  const misses = readNumber(stats.misses);
+  const invalidations = readNumber(stats.invalidations);
+
+  if (hits === null || misses === null || invalidations === null) {
+    return null;
+  }
+
+  return { hits, misses, invalidations };
+};
+
+const latencyDelta = (startAt: number | null, endAt: number | null) =>
+  startAt === null || endAt === null ? null : Math.max(0, endAt - startAt);
+
+const readDoneMetadata = (
+  source: Record<string, unknown>,
+): BloomStreamingDoneMetadata => {
+  const followUpChips = Array.isArray(source.follow_up_chips)
+    ? source.follow_up_chips.filter(isJsonValue)
+    : [];
+
+  return {
+    conversationId:
+      readOptionalString(source.conversation_id) ??
+      readOptionalString(source.conversationId),
+    tokensInput:
+      readNumber(source.tokens_input) ?? readNumber(source.tokensInput),
+    tokensOutput:
+      readNumber(source.tokens_output) ?? readNumber(source.tokensOutput),
+    model: readOptionalString(source.model),
+    title: readOptionalString(source.title),
+    followUpChips,
+    modeOverride:
+      readBloomMode(source.mode_override) ?? readBloomMode(source.modeOverride),
+    latencyMetrics: readLatencyMetrics(source),
+    cacheStats: readCacheStats(source),
+  };
+};
+
+type BloomMessagesCache = InfiniteData<BloomMessagesPage, string | null>;
+
+const appendMessage = (
+  current: BloomMessagesCache | undefined,
+  message: BloomMessage,
+): BloomMessagesCache => {
+  if (!current || current.pages.length === 0) {
+    return {
+      pages: [{ messages: [message], nextCursor: null }],
+      pageParams: [null],
+    };
+  }
+
+  const [recentPage, ...olderPages] = current.pages;
+  return {
+    ...current,
+    pages: [
+      {
+        ...recentPage,
+        messages: [...recentPage.messages, message],
+      },
+      ...olderPages,
+    ],
+  };
+};
+
+const upsertMessage = (
+  current: BloomMessagesCache | undefined,
+  message: BloomMessage,
+): BloomMessagesCache => {
+  if (!current || current.pages.length === 0) {
+    return appendMessage(current, message);
+  }
+
+  const exists = current.pages.some((page) =>
+    page.messages.some((candidate) => candidate.id === message.id),
+  );
+
+  if (!exists) {
+    return appendMessage(current, message);
+  }
+
+  return {
+    ...current,
+    pages: current.pages.map((page) => ({
+      ...page,
+      messages: page.messages.map((candidate) =>
+        candidate.id === message.id ? message : candidate,
+      ),
+    })),
+  };
+};
+
+const patchMessage = (
+  current: BloomMessagesCache | undefined,
+  messageId: string,
+  patch: Partial<BloomMessage>,
+): BloomMessagesCache | undefined => {
+  if (!current) {
+    return current;
+  }
+
+  return {
+    ...current,
+    pages: current.pages.map((page) => ({
+      ...page,
+      messages: page.messages.map((message) =>
+        message.id === messageId ? { ...message, ...patch } : message,
+      ),
+    })),
+  };
+};
+
+const createLiveTaskPlanMessage = (
+  conversationId: string,
+  mode: BloomMode,
+  plan: BloomTaskPlan,
+): BloomMessage => ({
+  id: `live-task-plan-${plan.planId}`,
+  conversationId,
+  role: "assistant",
+  text: plan.summary || "I prepared a task plan for your approval.",
+  thinkingContent: null,
+  blockData: taskPlanBlockData(plan),
+  mode,
+  model: null,
+  tokensInput: null,
+  tokensOutput: null,
+  attachments: [],
+  followUpChips: [],
+  isBookmarked: false,
+  isCompacted: false,
+  metadata: {},
+  createdAt: plan.createdAt,
+});
+
+const createOptimisticUserMessage = (
+  conversationId: string,
+  mode: BloomMode,
+  text: string,
+  attachments: BloomJsonArray,
+  createdAt: string,
+): BloomMessage => ({
+  id: `optimistic-${crypto.randomUUID()}`,
+  conversationId,
+  role: "user",
+  text,
+  thinkingContent: null,
+  blockData: {},
+  mode,
+  model: null,
+  tokensInput: null,
+  tokensOutput: null,
+  attachments,
+  followUpChips: [],
+  isBookmarked: false,
+  isCompacted: false,
+  metadata: {},
+  createdAt,
+});
+
+const createStreamingAssistantMessage = (
+  conversationId: string,
+  mode: BloomMode,
+  id: string,
+  createdAt: string,
+): BloomMessage => ({
+  id,
+  conversationId,
+  role: "assistant",
+  text: "",
+  thinkingContent: null,
+  blockData: {},
+  mode,
+  model: null,
+  tokensInput: null,
+  tokensOutput: null,
+  attachments: [],
+  followUpChips: [],
+  isBookmarked: false,
+  isCompacted: false,
+  metadata: { render_key: id },
+  createdAt,
+});
+
+const messageHasBlocks = (message: BloomMessage) => {
+  const blockData = message.blockData;
+  return isRecord(blockData) && Array.isArray(blockData.blocks)
+    ? blockData.blocks.length > 0
+    : false;
+};
+
+const renderKeyForMessage = (message: BloomMessage) => {
+  const renderKey = message.metadata.render_key;
+  return typeof renderKey === "string" && renderKey.trim()
+    ? renderKey
+    : message.id;
+};
+
+const mergePersistedPageWithStreamingState = (
+  current: BloomMessagesCache | undefined,
+  persistedPage: BloomMessagesPage,
+  placeholderId: string | null,
+): BloomMessagesPage => {
+  if (!current || !placeholderId) {
+    return persistedPage;
+  }
+
+  const currentMessages = current.pages.flatMap((page) => page.messages);
+  const placeholder = currentMessages.find(
+    (message) => message.id === placeholderId && message.role === "assistant",
+  );
+
+  if (!placeholder) {
+    return persistedPage;
+  }
+
+  const persistedMessages = [...persistedPage.messages];
+  const persistedAssistantIndex = [...persistedMessages]
+    .map((message, index) => ({ message, index }))
+    .reverse()
+    .find(({ message }) => message.role === "assistant")?.index;
+
+  if (persistedAssistantIndex === undefined) {
+    return persistedPage;
+  }
+
+  const persistedAssistant = persistedMessages[persistedAssistantIndex];
+  persistedMessages[persistedAssistantIndex] = {
+    ...persistedAssistant,
+    blockData: messageHasBlocks(placeholder)
+      ? placeholder.blockData
+      : persistedAssistant.blockData,
+    thinkingContent:
+      placeholder.thinkingContent ?? persistedAssistant.thinkingContent,
+    metadata: {
+      ...persistedAssistant.metadata,
+      render_key: renderKeyForMessage(placeholder),
+    },
+  };
+
+  return {
+    ...persistedPage,
+    messages: persistedMessages,
+  };
+};
+
+const createStreamingBlockData = (blocks: BloomStreamingBlock[]): Json => {
+  if (blocks.length === 0) {
+    return {};
+  }
+
+  return {
+    blocks: blocks.map((block) => ({
+      id: block.id,
+      block_type: block.blockType,
+      payload: block.payload,
+    })),
+  };
+};
+
 export function useAskBloomStreaming(options: UseAskBloomStreamingOptions) {
+  const queryClient = useQueryClient();
   const { session } = useAuth();
-  const [isStreaming, setIsStreaming] = React.useState(false);
+  const store: AskBloomMessageStore = options.messageStore ?? "local";
+  const tenantId = options.tenantId ?? null;
+  const userId = session?.user.id ?? null;
+  const accessToken = session?.access_token ?? null;
+  const conversationsQueryBaseKey = React.useMemo(
+    () => bloomConversationsQueryBaseKey(tenantId),
+    [tenantId],
+  );
+
+  const [connectionState, setConnectionStateValue] =
+    React.useState<BloomStreamingConnectionState>("idle");
+  const [streamingContent, setStreamingContent] = React.useState("");
+  const [streamingThinking, setStreamingThinking] = React.useState("");
+  const [activeToolCall, setActiveToolCall] =
+    React.useState<BloomActiveToolCall | null>(null);
+  const [streamError, setStreamError] = React.useState<string | null>(null);
+  const [streamingBlocks, setStreamingBlocks] = React.useState<
+    BloomStreamingBlock[]
+  >([]);
+  const [pendingTaskPlan, setPendingTaskPlan] =
+    React.useState<BloomTaskPlan | null>(null);
+  const [researchPlan, setResearchPlan] = React.useState<BloomResearchPlan>(
+    () => emptyResearchPlan(),
+  );
+  const [researchSteps, setResearchSteps] = React.useState<
+    Map<number, BloomResearchStepStatus>
+  >(() => new Map());
+  const [researchConversationId, setResearchConversationId] = React.useState<
+    string | null
+  >(null);
+  const [lastLatencyMetrics, setLastLatencyMetrics] =
+    React.useState<BloomStreamingLatencyMetrics | null>(null);
+  const [lastDoneMetadata, setLastDoneMetadata] =
+    React.useState<BloomStreamingDoneMetadata | null>(null);
+
   const optionsRef = React.useRef(options);
+  const connectionStateRef = React.useRef<BloomStreamingConnectionState>("idle");
+  const tokenBufferRef = React.useRef("");
+  const tokenBufferCountRef = React.useRef(0);
+  const streamingContentRef = React.useRef("");
+  const streamingThinkingRef = React.useRef("");
+  const streamingBlocksRef = React.useRef<BloomStreamingBlock[]>([]);
+  const researchPlanRef = React.useRef<BloomResearchPlan>(emptyResearchPlan());
+  const researchStepsRef = React.useRef<Map<number, BloomResearchStepStatus>>(
+    new Map(),
+  );
+  // window.setInterval returns a DOM interval id (number).
+  const flushIntervalRef = React.useRef<number | null>(null);
   const abortControllerRef = React.useRef<AbortController | null>(null);
-  const activeRequestIdRef = React.useRef<string | null>(null);
+  const readerRef =
+    React.useRef<ReadableStreamDefaultReader<Uint8Array> | null>(null);
+  const activeStreamIdRef = React.useRef<string | null>(null);
+  const activeConversationIdRef = React.useRef<string | null>(null);
+  const activePlaceholderMessageIdRef = React.useRef<string | null>(null);
   const cancelRequestedRef = React.useRef(false);
+  const consecutiveParseErrorsRef = React.useRef(0);
+  const streamStartTimeRef = React.useRef<number | null>(null);
+  const firstTokenTimeRef = React.useRef<number | null>(null);
+  const firstBlockTimeRef = React.useRef<number | null>(null);
 
   React.useEffect(() => {
     optionsRef.current = options;
   }, [options]);
 
-  const cancelStream = React.useCallback(() => {
-    cancelRequestedRef.current = true;
-    activeRequestIdRef.current = null;
-    abortControllerRef.current?.abort();
-    abortControllerRef.current = null;
-    setIsStreaming(false);
+  const setConnectionState = React.useCallback(
+    (next: BloomStreamingConnectionState) => {
+      connectionStateRef.current = next;
+      setConnectionStateValue(next);
+    },
+    [],
+  );
+
+  const patchConversationLists = React.useCallback(
+    (updater: (conversation: BloomConversation) => BloomConversation) => {
+      queryClient
+        .getQueriesData<BloomConversation[]>({
+          queryKey: conversationsQueryBaseKey,
+        })
+        .forEach(([queryKey, conversations]) => {
+          if (!conversations) {
+            return;
+          }
+
+          queryClient.setQueryData<BloomConversation[]>(
+            queryKey,
+            sortBloomConversations(conversations.map(updater)),
+          );
+        });
+    },
+    [conversationsQueryBaseKey, queryClient],
+  );
+
+  const flushTextBuffer = React.useCallback(() => {
+    const bufferedText = tokenBufferRef.current;
+    if (!bufferedText) {
+      return;
+    }
+
+    tokenBufferRef.current = "";
+    tokenBufferCountRef.current = 0;
+    streamingContentRef.current += bufferedText;
+    setStreamingContent(streamingContentRef.current);
   }, []);
 
+  const clearFlushInterval = React.useCallback(() => {
+    if (flushIntervalRef.current !== null) {
+      window.clearInterval(flushIntervalRef.current);
+      flushIntervalRef.current = null;
+    }
+  }, []);
+
+  const startFlushInterval = React.useCallback(() => {
+    clearFlushInterval();
+    flushIntervalRef.current = window.setInterval(
+      flushTextBuffer,
+      TOKEN_FLUSH_INTERVAL_MS,
+    );
+  }, [clearFlushInterval, flushTextBuffer]);
+
+  const resetStreamState = React.useCallback(() => {
+    tokenBufferRef.current = "";
+    tokenBufferCountRef.current = 0;
+    streamingContentRef.current = "";
+    streamingThinkingRef.current = "";
+    streamingBlocksRef.current = [];
+    researchPlanRef.current = emptyResearchPlan();
+    researchStepsRef.current = new Map();
+    consecutiveParseErrorsRef.current = 0;
+    streamStartTimeRef.current = null;
+    firstTokenTimeRef.current = null;
+    firstBlockTimeRef.current = null;
+    setStreamingContent("");
+    setStreamingThinking("");
+    setStreamingBlocks([]);
+    setResearchPlan(emptyResearchPlan());
+    setResearchSteps(new Map());
+    setResearchConversationId(null);
+    setPendingTaskPlan(null);
+    setActiveToolCall(null);
+    setStreamError(null);
+    setLastLatencyMetrics(null);
+    setLastDoneMetadata(null);
+  }, []);
+
+  const dismissPendingTaskPlan = React.useCallback(() => {
+    setPendingTaskPlan(null);
+  }, []);
+
+  const logClientLatencyMetrics = React.useCallback(
+    async (
+      request: StreamRequest,
+      doneMetadata: BloomStreamingDoneMetadata,
+      latencyMetrics: BloomStreamingLatencyMetrics,
+    ) => {
+      const resolvedConversationId =
+        doneMetadata.conversationId ?? request.conversationId;
+
+      if (!tenantId || !userId || !resolvedConversationId) {
+        return;
+      }
+
+      const { error } = await bloomSupabase.from("bloom_audit_log").insert({
+        tenant_id: tenantId,
+        user_id: userId,
+        conversation_id: resolvedConversationId,
+        event_type: "response",
+        event_data: {
+          metric_source: "client",
+          stage: "m36a_client_stream_metrics",
+          mode: request.mode,
+          model: doneMetadata.model,
+          mode_override: doneMetadata.modeOverride,
+          latency_metrics: {
+            client_ttft_ms: latencyMetrics.clientTtftMs,
+            client_ttfb_ms: latencyMetrics.clientTtfbMs,
+            client_total_ms: latencyMetrics.clientTotalMs,
+            server_ttft_ms: doneMetadata.latencyMetrics?.server_ttft_ms ?? null,
+            server_ttfb_ms: doneMetadata.latencyMetrics?.server_ttfb_ms ?? null,
+            server_total_ms:
+              doneMetadata.latencyMetrics?.server_total_ms ?? null,
+            context_build_ms:
+              doneMetadata.latencyMetrics?.context_build_ms ?? null,
+            llm_latency_ms: doneMetadata.latencyMetrics?.llm_latency_ms ?? null,
+          },
+          cache_stats: doneMetadata.cacheStats,
+        },
+        model_used: doneMetadata.model,
+        latency_ms: latencyMetrics.clientTotalMs,
+      });
+
+      if (error) {
+        throw error;
+      }
+    },
+    [tenantId, userId],
+  );
+
+  const mergeResearchPlan = React.useCallback((nextPlan: BloomResearchPlan) => {
+    if (nextPlan.totalSteps <= 0) {
+      return;
+    }
+
+    const currentPlan = researchPlanRef.current;
+    const totalSteps = Math.max(currentPlan.totalSteps, nextPlan.totalSteps);
+    const stepLabels = Array.from({ length: totalSteps }, (_item, index) => {
+      return nextPlan.stepLabels[index] || currentPlan.stepLabels[index] || "";
+    });
+    const changed =
+      totalSteps !== currentPlan.totalSteps ||
+      stepLabels.some(
+        (label, index) => label !== currentPlan.stepLabels[index],
+      );
+
+    if (!changed) {
+      return;
+    }
+
+    const mergedPlan = { totalSteps, stepLabels };
+    researchPlanRef.current = mergedPlan;
+    setResearchPlan(mergedPlan);
+  }, []);
+
+  const updateResearchStep = React.useCallback(
+    (step: ResearchStepSsePayload) => {
+      const stepLabels = Array.from(
+        { length: Math.max(step.totalSteps, step.stepNumber) },
+        (_item, index) => (index + 1 === step.stepNumber ? step.label : ""),
+      );
+      mergeResearchPlan({
+        totalSteps: Math.max(step.totalSteps, step.stepNumber),
+        stepLabels,
+      });
+
+      const now = new Date().toISOString();
+      const nextSteps = new Map(researchStepsRef.current);
+      const existing = nextSteps.get(step.stepNumber);
+      nextSteps.set(step.stepNumber, {
+        status: step.status,
+        toolName: step.toolName,
+        label: step.label,
+        startedAt: existing?.startedAt ?? now,
+        updatedAt: now,
+      });
+      researchStepsRef.current = nextSteps;
+      setResearchSteps(nextSteps);
+    },
+    [mergeResearchPlan],
+  );
+
+  const markResearchComplete = React.useCallback(() => {
+    if (researchStepsRef.current.size === 0) {
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const nextSteps = new Map<number, BloomResearchStepStatus>();
+    researchStepsRef.current.forEach((step, stepNumber) => {
+      nextSteps.set(stepNumber, { ...step, updatedAt: now });
+    });
+    researchStepsRef.current = nextSteps;
+    setResearchSteps(nextSteps);
+  }, []);
+
+  const abortActiveTransport = React.useCallback(() => {
+    abortControllerRef.current?.abort();
+    if (readerRef.current) {
+      void readerRef.current.cancel().catch(() => undefined);
+    }
+    abortControllerRef.current = null;
+    readerRef.current = null;
+    clearFlushInterval();
+  }, [clearFlushInterval]);
+
+  const patchPartialAssistantMessage = React.useCallback(() => {
+    const conversationId = activeConversationIdRef.current;
+    const placeholderId = activePlaceholderMessageIdRef.current;
+    if (!conversationId || !placeholderId) {
+      return;
+    }
+
+    flushTextBuffer();
+    queryClient.setQueryData<BloomMessagesCache>(
+      bloomMessagesQueryKey(conversationId),
+      (current) =>
+        patchMessage(current, placeholderId, {
+          text: stripEchoedToolPayloads(streamingContentRef.current),
+          thinkingContent: streamingThinkingRef.current.trim() || null,
+          blockData: createStreamingBlockData(streamingBlocksRef.current),
+        }),
+    );
+  }, [flushTextBuffer, queryClient]);
+
+  const cancelStream = React.useCallback(() => {
+    const state = connectionStateRef.current;
+    if (state === "idle" || state === "done") {
+      // Nothing is in flight, but a superseded request may still hold a
+      // controller: make sure nothing can call back after a cancel.
+      activeStreamIdRef.current = null;
+      abortActiveTransport();
+      return;
+    }
+
+    cancelRequestedRef.current = true;
+    patchPartialAssistantMessage();
+    activeStreamIdRef.current = null;
+    setActiveToolCall(null);
+    setStreamError("Response cancelled.");
+    setConnectionState("done");
+    abortActiveTransport();
+  }, [abortActiveTransport, patchPartialAssistantMessage, setConnectionState]);
+
+  const appendToken = React.useCallback(
+    (text: string) => {
+      tokenBufferRef.current += text;
+      tokenBufferCountRef.current += 1;
+
+      if (tokenBufferCountRef.current >= TOKEN_FLUSH_COUNT) {
+        flushTextBuffer();
+      }
+    },
+    [flushTextBuffer],
+  );
+
+  const appendThinkingToken = React.useCallback(
+    (text: string, mode: BloomMode) => {
+      streamingThinkingRef.current += text;
+      setStreamingThinking(streamingThinkingRef.current);
+
+      if (mode === "research") {
+        mergeResearchPlan(
+          parseResearchPlanFromThinking(streamingThinkingRef.current),
+        );
+      }
+    },
+    [mergeResearchPlan],
+  );
+
+  const addStreamingBlock = React.useCallback(
+    (block: Omit<BloomStreamingBlock, "id" | "createdAt">) => {
+      const nextBlock: BloomStreamingBlock = {
+        ...block,
+        id: `stream-block-${crypto.randomUUID()}`,
+        createdAt: new Date().toISOString(),
+      };
+      streamingBlocksRef.current = [...streamingBlocksRef.current, nextBlock];
+      setStreamingBlocks(streamingBlocksRef.current);
+    },
+    [],
+  );
+
+  const insertOptimisticMessages = React.useCallback(
+    async (
+      request: StreamRequest,
+      attachments: BloomJsonArray,
+      placeholderId: string,
+    ) => {
+      if (!request.conversationId) {
+        return;
+      }
+
+      const conversationId = request.conversationId;
+      const messageQueryKey = bloomMessagesQueryKey(conversationId);
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: messageQueryKey }),
+        queryClient.cancelQueries({ queryKey: conversationsQueryBaseKey }),
+      ]);
+
+      const now = new Date().toISOString();
+      const userMessage = createOptimisticUserMessage(
+        conversationId,
+        request.mode,
+        request.message,
+        attachments,
+        now,
+      );
+      const assistantMessage = createStreamingAssistantMessage(
+        conversationId,
+        request.mode,
+        placeholderId,
+        now,
+      );
+
+      queryClient.setQueryData<BloomMessagesCache>(
+        messageQueryKey,
+        (current) =>
+          appendMessage(appendMessage(current, userMessage), assistantMessage),
+      );
+
+      patchConversationLists((conversation) =>
+        conversation.id === conversationId
+          ? {
+              ...conversation,
+              messageCount: conversation.messageCount + 1,
+              lastMessagePreview: request.message.slice(0, 180),
+              updatedAt: now,
+            }
+          : conversation,
+      );
+    },
+    [conversationsQueryBaseKey, patchConversationLists, queryClient],
+  );
+
+  const upsertLiveTaskPlan = React.useCallback(
+    (conversationId: string, mode: BloomMode, plan: BloomTaskPlan) => {
+      queryClient.setQueryData<BloomMessagesCache>(
+        bloomMessagesQueryKey(conversationId),
+        (current) =>
+          upsertMessage(
+            current,
+            createLiveTaskPlanMessage(conversationId, mode, plan),
+          ),
+      );
+    },
+    [queryClient],
+  );
+
+  const finalizePersistedMessages = React.useCallback(
+    async (
+      request: StreamRequest,
+      doneMetadata: BloomStreamingDoneMetadata,
+    ) => {
+      const resolvedConversationId =
+        doneMetadata.conversationId ?? request.conversationId;
+      if (!resolvedConversationId || !tenantId || !userId) {
+        return;
+      }
+
+      optionsRef.current.onConversationResolved?.(resolvedConversationId);
+      const currentMessages = queryClient.getQueryData<BloomMessagesCache>(
+        bloomMessagesQueryKey(resolvedConversationId),
+      );
+      const page = await fetchBloomMessagesPage({
+        conversationId: resolvedConversationId,
+        tenantId,
+        userId,
+      });
+      const mergedPage = mergePersistedPageWithStreamingState(
+        currentMessages,
+        page,
+        activePlaceholderMessageIdRef.current,
+      );
+
+      queryClient.setQueryData<BloomMessagesCache>(
+        bloomMessagesQueryKey(resolvedConversationId),
+        { pages: [mergedPage], pageParams: [null] },
+      );
+      activePlaceholderMessageIdRef.current = null;
+
+      if (doneMetadata.title) {
+        patchConversationLists((conversation) =>
+          conversation.id === resolvedConversationId
+            ? {
+                ...conversation,
+                title: doneMetadata.title ?? conversation.title,
+                updatedAt: new Date().toISOString(),
+              }
+            : conversation,
+        );
+      }
+
+      void queryClient.invalidateQueries({
+        queryKey: conversationsQueryBaseKey,
+      });
+    },
+    [
+      conversationsQueryBaseKey,
+      patchConversationLists,
+      queryClient,
+      tenantId,
+      userId,
+    ],
+  );
+
   const sendMessage = React.useCallback(
-    (userMessage: string, overrides: SendMessageOverrides = {}) => {
+    (userMessage: string, overrides: AskBloomSendMessageOverrides = {}) => {
       const trimmedMessage = userMessage.trim();
       if (!trimmedMessage) {
         return;
       }
 
-      const accessToken = session?.access_token;
-      if (!accessToken) {
-        optionsRef.current.onError("Sign in to message Ask Bloom.");
+      const copy = STORE_COPY[store];
+      if (store === "local" && !accessToken) {
+        optionsRef.current.onError?.(copy.missingSession);
         return;
       }
 
-      cancelStream();
+      // Supersede any stream still in flight; its callbacks stop here.
+      cancelRequestedRef.current = true;
+      activeStreamIdRef.current = null;
+      abortActiveTransport();
+      resetStreamState();
 
-      const requestId = crypto.randomUUID();
-      const resolvedConversationId =
-        overrides.conversationId ?? optionsRef.current.conversationId;
-      const resolvedResourceFocus =
+      const streamId = crypto.randomUUID();
+      const conversationId =
+        overrides.conversationId ?? optionsRef.current.conversationId ?? null;
+      const resourceFocus =
         overrides.resourceFocus === undefined
-          ? optionsRef.current.resourceFocus
+          ? (optionsRef.current.resourceFocus ?? null)
           : overrides.resourceFocus;
-      const resolvedAssistantMessageId =
-        overrides.assistantMessageId ?? `ask-bloom-assistant-${requestId}`;
+      const mode = overrides.mode ?? "standard";
+      const modelPreference = overrides.modelPreference ?? "auto";
+      const attachments = overrides.attachments ?? [];
+      const pageContext =
+        overrides.pageContext === undefined
+          ? resolvePageContext(resourceFocus)
+          : overrides.pageContext;
+      const timezone = overrides.timezone ?? getTimezone();
+      const usesMessageCache = store === "bloomMessageCache";
+      const placeholderId = usesMessageCache
+        ? `streaming-${streamId}`
+        : (overrides.assistantMessageId ?? `ask-bloom-assistant-${streamId}`);
+      const interceptTextPlans =
+        optionsRef.current.interceptTextPlans ?? store === "local";
+      const request: StreamRequest = {
+        conversationId,
+        message: trimmedMessage,
+        mode,
+      };
       const createdAt = new Date().toISOString();
 
+      streamStartTimeRef.current = Date.now();
+      activeStreamIdRef.current = streamId;
+      activeConversationIdRef.current = usesMessageCache
+        ? conversationId
+        : null;
+      activePlaceholderMessageIdRef.current =
+        usesMessageCache && conversationId ? placeholderId : null;
+      if (mode === "research") {
+        setResearchConversationId(conversationId);
+      }
       cancelRequestedRef.current = false;
-      activeRequestIdRef.current = requestId;
-      setIsStreaming(true);
+      setConnectionState("connecting");
+      startFlushInterval();
 
       void (async () => {
+        let terminalEvent: TerminalEvent = null;
+        let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+        let abortController: AbortController | null = null;
+        const isCurrentStream = () => activeStreamIdRef.current === streamId;
+
+        // Raw text and the drawer's message-block view of this stream.
         let assistantContent = "";
         let assistantThinking = "";
         let blockIndex = 0;
         let assistantBlocks: AskBloomBlock[] = [];
         let rawStreamingBlocks: BloomStreamingBlock[] = [];
         let toolCalls: AskBloomToolCall[] = [];
-        let resolvedAssistantConversationId = resolvedConversationId;
         let textPlanDetected = false;
 
         const maybeHandleStreamingInterception = () => {
+          if (!interceptTextPlans || textPlanDetected) {
+            return;
+          }
+
           const { gateDecision } = analyzeAssistantStreamingState(
             assistantContent,
             rawStreamingBlocks,
           );
 
-          if (
-            gateDecision.action === "intercept_plan" &&
-            !textPlanDetected &&
-            resolvedAssistantMessageId
-          ) {
+          if (gateDecision.action === "intercept_plan") {
             textPlanDetected = true;
             optionsRef.current.onActiveToolCall?.(null);
             optionsRef.current.onTaskPlan?.(
               buildTaskPlanFromDetectedTextPlan(
                 gateDecision.plan,
-                resolvedAssistantMessageId,
+                placeholderId,
               ),
             );
           }
         };
 
+        const failStream = (message: string) => {
+          flushTextBuffer();
+          patchPartialAssistantMessage();
+          setActiveToolCall(null);
+          setStreamError(message);
+          setConnectionState("error");
+          optionsRef.current.onError?.(message);
+        };
+
+        const handleEvent = async (
+          event: ParsedSseEvent,
+        ): Promise<TerminalEvent> => {
+          const callbacks = optionsRef.current;
+
+          switch (event.event) {
+            case "token": {
+              const tokenText = readRawTokenText(event.data);
+              if (tokenText) {
+                if (firstTokenTimeRef.current === null) {
+                  firstTokenTimeRef.current = Date.now();
+                }
+                assistantContent += tokenText;
+                appendToken(tokenText);
+                maybeHandleStreamingInterception();
+                callbacks.onStreamingUpdate?.(assistantContent);
+              }
+              return null;
+            }
+            case "thinking_token": {
+              const thinkingText = readRawTokenText(event.data);
+              if (thinkingText) {
+                assistantThinking += thinkingText;
+                appendThinkingToken(thinkingText, mode);
+                callbacks.onThinkingToken?.(assistantThinking);
+              }
+              return null;
+            }
+            case "research_step": {
+              const step = readResearchStep(event.data);
+              if (step) {
+                updateResearchStep(step);
+              }
+              callbacks.onResearchProgress?.(event.data);
+              return null;
+            }
+            case "task_plan": {
+              const plan = parseBloomTaskPlan(event.data);
+              if (plan) {
+                setActiveToolCall(null);
+                setPendingTaskPlan(plan);
+                callbacks.onActiveToolCall?.(null);
+                callbacks.onTaskPlan?.(plan);
+                if (usesMessageCache && conversationId) {
+                  upsertLiveTaskPlan(conversationId, mode, plan);
+                }
+              }
+              return null;
+            }
+            case "task_progress": {
+              const progress = parseBloomTaskStatusUpdate(event.data);
+              if (progress) {
+                callbacks.onTaskProgress?.(progress);
+              }
+              return null;
+            }
+            case "task_complete": {
+              const summary = parseBloomTaskCompletionSummary(event.data);
+              if (summary) {
+                callbacks.onTaskComplete?.(summary);
+              }
+              return null;
+            }
+            case "action_card": {
+              const actionCard = toAskBloomActionCard(event.data);
+              if (actionCard) {
+                assistantBlocks = [...assistantBlocks, actionCard];
+                callbacks.onActionCard?.(
+                  actionCard,
+                  buildAssistantBlocks(assistantContent, assistantBlocks),
+                );
+              }
+              return null;
+            }
+            case "tool_start": {
+              const activeTool = readToolStart(event.data);
+              setActiveToolCall(activeTool);
+              if (!isRecord(event.data)) {
+                return null;
+              }
+
+              const nextToolCall: AskBloomToolCall = {
+                id:
+                  readString(event.data.id) ||
+                  `tool-call-${crypto.randomUUID()}`,
+                name: activeTool?.toolName ?? "tool",
+                arguments: toDataRecord(
+                  event.data.params ??
+                    event.data.arguments ??
+                    event.data.tool_input,
+                ),
+                result: null,
+                status: "running",
+              };
+              toolCalls = appendToolCall(toolCalls, nextToolCall);
+              const toolCallForCallbacks: BloomActiveToolCall = {
+                toolName: nextToolCall.name,
+                description: describeToolCall(nextToolCall.name),
+              };
+              callbacks.onToolStart?.(toolCallForCallbacks);
+              if (!callbacks.onToolStart) {
+                callbacks.onActiveToolCall?.(toolCallForCallbacks);
+              }
+              return null;
+            }
+            case "tool_result": {
+              setActiveToolCall(null);
+              const liveBlock = readToolResult(event.data);
+              if (liveBlock) {
+                if (firstBlockTimeRef.current === null) {
+                  firstBlockTimeRef.current = Date.now();
+                }
+                addStreamingBlock(liveBlock);
+              }
+              if (!isRecord(event.data)) {
+                return null;
+              }
+
+              const toolCallId = readString(event.data.id);
+              const toolName =
+                readString(event.data.tool) ||
+                readString(event.data.tool_name) ||
+                "tool";
+              const result = event.data.result ?? null;
+
+              toolCalls = appendToolCall(toolCalls, {
+                id: toolCallId || `tool-result-${toolName}`,
+                name: toolName,
+                arguments: {},
+                result,
+                status: toToolCallStatus(event.data.status ?? "complete"),
+              });
+
+              // Preserve the full Bloom tool-result block instead of
+              // collapsing it to a generic data card. The original block type
+              // and tool metadata are carried through for renderers.
+              const toolResultBlock: BloomContentBlock = {
+                type: "tool_result",
+                id: toolCallId || `tool-result-${toolName}-${blockIndex}`,
+                toolName,
+                blockType:
+                  readString(event.data.block_type ?? event.data.blockType) ||
+                  null,
+                data: result,
+                status: toBloomToolResultStatus(event.data.status),
+                message: readString(event.data.message) || null,
+                error:
+                  readString(event.data.error_message ?? event.data.error) ||
+                  null,
+                count:
+                  isRecord(result) && typeof result.count === "number"
+                    ? result.count
+                    : null,
+              };
+
+              const askBlock = bloomContentBlockToAskBloomBlock(
+                toolResultBlock,
+                blockIndex,
+              );
+              const streamingBlock: BloomStreamingBlock = {
+                id: toolResultBlock.id,
+                toolName: toolResultBlock.toolName,
+                blockType: toolResultBlock.blockType ?? "tool_result",
+                payload: toJsonPayload(result),
+                createdAt: new Date().toISOString(),
+              };
+              blockIndex += 1;
+
+              assistantBlocks = [...assistantBlocks, askBlock];
+              rawStreamingBlocks = [...rawStreamingBlocks, streamingBlock];
+              callbacks.onActiveToolCall?.(null);
+              callbacks.onToolResult?.(streamingBlock);
+              if (!callbacks.onToolResult) {
+                callbacks.onBloomStreamingBlock?.(streamingBlock);
+              }
+              callbacks.onStreamingBlock?.(askBlock);
+              return null;
+            }
+            case "error": {
+              failStream(readSseErrorMessage(event.data, store));
+              return "error";
+            }
+            case "done": {
+              flushTextBuffer();
+              markResearchComplete();
+              const source = isRecord(event.data) ? event.data : {};
+              const doneMetadata = readDoneMetadata(source);
+              const doneAt = Date.now();
+              const latencyMetrics: BloomStreamingLatencyMetrics = {
+                clientTtftMs: latencyDelta(
+                  streamStartTimeRef.current,
+                  firstTokenTimeRef.current,
+                ),
+                clientTtfbMs: latencyDelta(
+                  streamStartTimeRef.current,
+                  firstBlockTimeRef.current,
+                ),
+                clientTotalMs: latencyDelta(streamStartTimeRef.current, doneAt),
+                serverMetrics: doneMetadata.latencyMetrics,
+                cacheStats: doneMetadata.cacheStats,
+              };
+              setLastLatencyMetrics(latencyMetrics);
+              setLastDoneMetadata(doneMetadata);
+              if (doneMetadata.modeOverride) {
+                callbacks.onModeOverride?.(doneMetadata.modeOverride);
+              }
+
+              if (usesMessageCache) {
+                void logClientLatencyMetrics(
+                  request,
+                  doneMetadata,
+                  latencyMetrics,
+                ).catch((error) => {
+                  console.error(
+                    "Failed to log Bloom client latency metrics",
+                    error,
+                  );
+                });
+                await finalizePersistedMessages(request, doneMetadata);
+              } else {
+                const persistedAssistantMessageId =
+                  readString(source.assistant_message_id) || placeholderId;
+                const followUpChips = doneMetadata.followUpChips.filter(
+                  (chip): chip is string => typeof chip === "string",
+                );
+                if (followUpChips.length > 0) {
+                  assistantBlocks = [
+                    ...assistantBlocks,
+                    {
+                      type: "suggestion_chips",
+                      content: "",
+                      data: { suggestions: followUpChips },
+                    },
+                  ];
+                  callbacks.onFollowUpChips?.(followUpChips);
+                }
+
+                const finalContent = sanitizeFinalAssistantContent(
+                  assistantContent,
+                  rawStreamingBlocks,
+                );
+
+                callbacks.onMessage?.({
+                  id: persistedAssistantMessageId,
+                  conversationId:
+                    (readString(source.conversation_id) || conversationId) ??
+                    `ask-bloom-conversation-${streamId}`,
+                  role: "assistant",
+                  content: finalContent,
+                  blocks: buildAssistantBlocks(finalContent, assistantBlocks),
+                  toolCalls,
+                  createdAt,
+                  isStreaming: false,
+                });
+                callbacks.onStreamComplete?.();
+                callbacks.onDone?.();
+              }
+
+              setActiveToolCall(null);
+              setConnectionState("done");
+              return "done";
+            }
+            default:
+              return null;
+          }
+        };
+
         try {
-          const abortController = new AbortController();
+          if (usesMessageCache && (!tenantId || !userId)) {
+            throw new Error(
+              "Sign in and select an organization to message Bloom.",
+            );
+          }
+
+          if (!accessToken) {
+            throw new Error(copy.missingSession);
+          }
+
+          if (usesMessageCache) {
+            await insertOptimisticMessages(request, attachments, placeholderId);
+          }
+
+          abortController = new AbortController();
           abortControllerRef.current = abortController;
 
           const response = await fetch(
@@ -968,320 +2407,215 @@ export function useAskBloomStreaming(options: UseAskBloomStreamingOptions) {
               },
               signal: abortController.signal,
               body: JSON.stringify({
-                conversation_id: resolvedConversationId,
+                conversation_id: conversationId,
                 message: trimmedMessage,
-                mode: "standard",
-                model_preference: null,
-                session_type: resolvedResourceFocus
-                  ? "resource_focused"
-                  : "standard",
-                resource_focus: resolvedResourceFocus
+                mode,
+                model_preference:
+                  modelPreference === "auto" ? null : modelPreference,
+                session_type: resourceFocus ? "resource_focused" : "standard",
+                resource_focus: resourceFocus
                   ? {
-                      resourceType: resolvedResourceFocus.resourceType,
-                      resourceId: resolvedResourceFocus.resourceId,
-                      resourceSummary: resolvedResourceFocus.resourceSummary,
+                      resourceType: resourceFocus.resourceType,
+                      resourceId: resourceFocus.resourceId,
+                      resourceSummary: resourceFocus.resourceSummary,
                     }
                   : null,
-                page_context: resolvePageContext(resolvedResourceFocus),
-                timezone: getTimezone(),
-                attachments: [],
+                page_context: pageContext,
+                timezone,
+                attachments,
                 client_context: bloomChatClientContext(),
               }),
             },
           );
 
-          if (activeRequestIdRef.current !== requestId) {
+          if (!isCurrentStream()) {
             return;
           }
 
           if (!response.ok) {
-            throw new Error(await readResponseErrorMessage(response));
+            throw new Error(await readResponseErrorMessage(response, store));
           }
 
           if (!response.body) {
-            throw new Error("Ask Bloom did not return a readable stream.");
+            throw new Error(copy.noStream);
           }
 
-          const reader = response.body.getReader();
+          setConnectionState("streaming");
+          reader = response.body.getReader();
+          readerRef.current = reader;
           const decoder = new TextDecoder();
           let buffer = "";
-          let streamFinished = false;
 
-          while (!streamFinished && activeRequestIdRef.current === requestId) {
-            const { value, done } = await reader.read();
-            if (done) {
-              buffer += decoder.decode();
-            } else {
-              buffer += decoder.decode(value, { stream: true });
-            }
-
+          const consumeBuffer = async (
+            isFinal: boolean,
+          ): Promise<TerminalEvent> => {
             const parts = buffer.split(/\r?\n\r?\n/);
-            buffer = done ? "" : (parts.pop() ?? "");
+            buffer = isFinal ? "" : (parts.pop() ?? "");
 
             for (const part of parts) {
-              const event = parseSseMessage(part.trim());
-              if (!event) {
+              if (!isCurrentStream()) {
+                return null;
+              }
+
+              const rawMessage = part.trim();
+              if (!rawMessage) {
                 continue;
               }
 
-              if (event.event === "token") {
-                const tokenText = readRawTokenText(event.data);
-                if (tokenText) {
-                  assistantContent += tokenText;
-                  maybeHandleStreamingInterception();
-                  optionsRef.current.onStreamingUpdate(assistantContent);
-                }
-                continue;
-              }
-
-              if (event.event === "thinking_token") {
-                const thinkingText = readRawTokenText(event.data);
-                if (thinkingText) {
-                  assistantThinking += thinkingText;
-                  optionsRef.current.onThinkingToken?.(assistantThinking);
-                }
-                continue;
-              }
-
-              if (event.event === "research_step") {
-                optionsRef.current.onResearchProgress?.(event.data);
-                continue;
-              }
-
-              if (event.event === "task_plan") {
-                const plan = parseBloomTaskPlan(event.data);
-                if (plan) {
-                  optionsRef.current.onActiveToolCall?.(null);
-                  optionsRef.current.onTaskPlan?.(plan);
-                }
-                continue;
-              }
-
-              if (event.event === "task_progress") {
-                const progress = parseBloomTaskStatusUpdate(event.data);
-                if (progress) {
-                  optionsRef.current.onTaskProgress?.(progress);
-                }
-                continue;
-              }
-
-              if (event.event === "task_complete") {
-                const summary = parseBloomTaskCompletionSummary(event.data);
-                if (summary) {
-                  optionsRef.current.onTaskComplete?.(summary);
-                }
-                continue;
-              }
-
-              if (event.event === "action_card") {
-                const actionCard = toAskBloomActionCard(event.data);
-                if (!actionCard) {
-                  continue;
-                }
-
-                assistantBlocks = [...assistantBlocks, actionCard];
-                optionsRef.current.onActionCard?.(
-                  actionCard,
-                  buildAssistantBlocks(assistantContent, assistantBlocks),
-                );
-                continue;
-              }
-
-              if (event.event === "tool_start" && isRecord(event.data)) {
-                const nextToolCall: AskBloomToolCall = {
-                  id:
-                    readString(event.data.id) ||
-                    `tool-call-${crypto.randomUUID()}`,
-                  name:
-                    readString(event.data.tool) ||
-                    readString(event.data.tool_name) ||
-                    "tool",
-                  arguments: toDataRecord(
-                    event.data.params ??
-                      event.data.arguments ??
-                      event.data.tool_input,
-                  ),
-                  result: null,
-                  status: "running",
-                };
-                toolCalls = appendToolCall(toolCalls, nextToolCall);
-                const activeToolCall = {
-                  toolName: nextToolCall.name,
-                  description: describeToolCall(nextToolCall.name),
-                };
-                optionsRef.current.onToolStart?.(activeToolCall);
-                if (!optionsRef.current.onToolStart) {
-                  optionsRef.current.onActiveToolCall?.(activeToolCall);
-                }
-                continue;
-              }
-
-              if (event.event === "tool_result" && isRecord(event.data)) {
-                const toolCallId = readString(event.data.id);
-                const toolName =
-                  readString(event.data.tool) ||
-                  readString(event.data.tool_name) ||
-                  "tool";
-                const result = event.data.result ?? null;
-
-                toolCalls = appendToolCall(toolCalls, {
-                  id: toolCallId || `tool-result-${toolName}`,
-                  name: toolName,
-                  arguments: {},
-                  result,
-                  status: toToolCallStatus(event.data.status ?? "complete"),
+              const parsed = parseSseMessage(rawMessage);
+              if (parsed.error) {
+                consecutiveParseErrorsRef.current += 1;
+                console.warn("Malformed Bloom SSE event", {
+                  raw: rawMessage.slice(0, 1000),
+                  reason: parsed.error,
                 });
 
-                // Preserve the full Bloom tool-result block instead of
-                // collapsing it to a generic data card. The original block type
-                // and tool metadata are carried through for renderers (M02+).
-                const toolResultBlock: BloomContentBlock = {
-                  type: "tool_result",
-                  id: toolCallId || `tool-result-${toolName}-${blockIndex}`,
-                  toolName,
-                  blockType:
-                    readString(event.data.block_type ?? event.data.blockType) ||
-                    null,
-                  data: result,
-                  status: toBloomToolResultStatus(event.data.status),
-                  message: readString(event.data.message) || null,
-                  error:
-                    readString(event.data.error_message ?? event.data.error) ||
-                    null,
-                  count:
-                    isRecord(result) && typeof result.count === "number"
-                      ? result.count
-                      : null,
-                };
-
-                const askBlock = bloomContentBlockToAskBloomBlock(
-                  toolResultBlock,
-                  blockIndex,
-                );
-                const streamingBlock: BloomStreamingBlock = {
-                  id: toolResultBlock.id,
-                  toolName: toolResultBlock.toolName,
-                  blockType: toolResultBlock.blockType ?? "tool_result",
-                  payload: toJsonPayload(result),
-                  createdAt: new Date().toISOString(),
-                };
-                blockIndex += 1;
-
-                assistantBlocks = [...assistantBlocks, askBlock];
-                rawStreamingBlocks = [...rawStreamingBlocks, streamingBlock];
-                optionsRef.current.onActiveToolCall?.(null);
-                optionsRef.current.onToolResult?.(streamingBlock);
-                if (!optionsRef.current.onToolResult) {
-                  optionsRef.current.onBloomStreamingBlock?.(streamingBlock);
-                }
-                optionsRef.current.onStreamingBlock?.(askBlock);
-                continue;
-              }
-
-              if (event.event === "error") {
-                const message =
-                  readString(isRecord(event.data) ? event.data.message : "") ||
-                  "Ask Bloom could not complete that request.";
-                optionsRef.current.onError(message);
-                streamFinished = true;
-                break;
-              }
-
-              if (event.event === "done" && isRecord(event.data)) {
-                resolvedAssistantConversationId =
-                  readString(event.data.conversation_id) ||
-                  resolvedAssistantConversationId;
-                const persistedAssistantMessageId =
-                  readString(event.data.assistant_message_id) ||
-                  resolvedAssistantMessageId;
-
-                const followUpChips = Array.isArray(event.data.follow_up_chips)
-                  ? event.data.follow_up_chips
-                  : [];
-                if (followUpChips.length > 0) {
-                  assistantBlocks = [
-                    ...assistantBlocks,
-                    {
-                      type: "suggestion_chips",
-                      content: "",
-                      data: { suggestions: followUpChips },
-                    },
-                  ];
-                  optionsRef.current.onFollowUpChips?.(
-                    followUpChips.filter(
-                      (chip): chip is string => typeof chip === "string",
-                    ),
+                if (
+                  consecutiveParseErrorsRef.current >=
+                  MAX_CONSECUTIVE_PARSE_ERRORS
+                ) {
+                  throw new Error(
+                    "Bloom stream returned malformed events. Partial response preserved.",
                   );
                 }
+                continue;
+              }
 
-                const finalContent = sanitizeFinalAssistantContent(
-                  assistantContent,
-                  rawStreamingBlocks,
-                );
+              if (!parsed.event) {
+                continue;
+              }
 
-                optionsRef.current.onMessage({
-                  id: persistedAssistantMessageId,
-                  conversationId:
-                    resolvedAssistantConversationId ??
-                    `ask-bloom-conversation-${requestId}`,
-                  role: "assistant",
-                  content: finalContent,
-                  blocks: buildAssistantBlocks(finalContent, assistantBlocks),
-                  toolCalls,
-                  createdAt,
-                  isStreaming: false,
-                });
-                optionsRef.current.onStreamComplete?.();
-                optionsRef.current.onDone?.();
-                streamFinished = true;
-                break;
+              consecutiveParseErrorsRef.current = 0;
+              const terminal = await handleEvent(parsed.event);
+              if (terminal) {
+                return terminal;
               }
             }
 
+            return null;
+          };
+
+          while (isCurrentStream()) {
+            const { done, value } = await reader.read();
             if (done) {
+              buffer += decoder.decode();
+              if (buffer.trim()) {
+                buffer += "\n\n";
+              }
+              terminalEvent = await consumeBuffer(true);
+              break;
+            }
+
+            buffer += decoder.decode(value, { stream: true });
+            terminalEvent = await consumeBuffer(false);
+            if (terminalEvent) {
               break;
             }
           }
 
           if (
-            !streamFinished &&
-            activeRequestIdRef.current === requestId &&
+            !terminalEvent &&
+            isCurrentStream() &&
             !cancelRequestedRef.current
           ) {
-            optionsRef.current.onError(
-              "Connection lost. Partial response preserved.",
-            );
+            failStream(STREAM_INTERRUPTED_MESSAGE);
           }
         } catch (error) {
-          if (
-            activeRequestIdRef.current !== requestId ||
-            cancelRequestedRef.current
-          ) {
+          if (!isCurrentStream() || cancelRequestedRef.current) {
             return;
           }
 
-          optionsRef.current.onError(toAskBloomRequestErrorMessage(error));
+          failStream(toRequestErrorMessage(error, store));
         } finally {
-          if (activeRequestIdRef.current === requestId) {
-            activeRequestIdRef.current = null;
+          if (readerRef.current === reader) {
+            readerRef.current = null;
           }
-          abortControllerRef.current = null;
-          cancelRequestedRef.current = false;
-          setIsStreaming(false);
+          if (reader) {
+            try {
+              reader.releaseLock();
+            } catch {
+              // The stream may already be closed or cancelled.
+            }
+          }
+          if (abortControllerRef.current === abortController) {
+            abortControllerRef.current = null;
+          }
+          if (activeStreamIdRef.current === streamId) {
+            clearFlushInterval();
+            flushTextBuffer();
+          }
         }
       })();
     },
-    [cancelStream, session?.access_token],
+    [
+      abortActiveTransport,
+      accessToken,
+      addStreamingBlock,
+      appendThinkingToken,
+      appendToken,
+      clearFlushInterval,
+      finalizePersistedMessages,
+      flushTextBuffer,
+      insertOptimisticMessages,
+      logClientLatencyMetrics,
+      markResearchComplete,
+      patchPartialAssistantMessage,
+      resetStreamState,
+      setConnectionState,
+      startFlushInterval,
+      store,
+      tenantId,
+      updateResearchStep,
+      upsertLiveTaskPlan,
+      userId,
+    ],
   );
 
   React.useEffect(
     () => () => {
       cancelRequestedRef.current = true;
-      activeRequestIdRef.current = null;
-      abortControllerRef.current?.abort();
+      activeStreamIdRef.current = null;
+      abortActiveTransport();
     },
-    [cancelStream],
+    [abortActiveTransport],
   );
 
-  return { sendMessage, cancelStream, isStreaming };
+  const resolvedResearchSteps = Array.from(researchSteps.values()).filter(
+    (step) => step.status === "completed" || step.status === "failed",
+  ).length;
+  const allResearchStepsResolved =
+    researchSteps.size > 0 && resolvedResearchSteps >= researchSteps.size;
+  const isResearchSynthesizing =
+    connectionState === "streaming" &&
+    allResearchStepsResolved &&
+    streamingContent.trim().length > 0;
+  const isResearchComplete =
+    connectionState === "done" && researchSteps.size > 0;
+
+  return {
+    sendMessage,
+    cancelStream,
+    isStreaming:
+      connectionState === "connecting" || connectionState === "streaming",
+    /** True once a signed-in user (and, for the Bloom message cache, an organization) is loaded. */
+    canSend: Boolean(
+      accessToken && (store === "local" || (tenantId && userId)),
+    ),
+    connectionState,
+    streamingContent,
+    streamingThinking,
+    activeToolCall,
+    streamError,
+    streamingBlocks,
+    researchPlan,
+    researchSteps,
+    researchConversationId,
+    isResearchSynthesizing,
+    isResearchComplete,
+    pendingTaskPlan,
+    lastLatencyMetrics,
+    lastDoneMetadata,
+    resetStream: resetStreamState,
+    dismissPendingTaskPlan,
+  };
 }
