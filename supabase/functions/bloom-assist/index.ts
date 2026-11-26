@@ -18,6 +18,11 @@ import {
 import { buildCorsHeaders, handleCorsPreflight } from "../_shared/cors.ts";
 import { buildContextLayers } from "./context-builder.ts";
 import { prefetchEntitySummary } from "./entity-prefetch.ts";
+import {
+  buildNamedEntityContextNote,
+  extractNamedEntityReferences,
+  lookupNamedEntitiesInMessage,
+} from "./named-entity-lookup.ts";
 import { selectModel } from "./model-router.ts";
 import {
   processPostResponse,
@@ -966,8 +971,9 @@ function getToolDefinitionsForMode(
   userRole: string,
   classification: IntentClassificationResult,
   requiredToolNames: ReadonlySet<string> = new Set(),
+  namesRecord = false,
 ) {
-  const categories = getToolCategoriesForRouting(mode, classification);
+  const categories = getToolCategoriesForRouting(mode, classification, namesRecord);
   return filterRegisteredTools({ mode, userRole })
     .filter(
       (tool) =>
@@ -2727,6 +2733,17 @@ function createBloomStreamResponse(
         const requiredToolNames = new Set<string>(
           asksSendReadiness ? [SEND_READINESS_TOOL] : [],
         );
+        // A named campaign, segment, product or customer is looked up
+        // (tenant scoped) before the model answers about it.
+        const namesRecord =
+          extractNamedEntityReferences(effectiveBody.message).length > 0;
+        const namedEntityLookups = namesRecord
+          ? await lookupNamedEntitiesInMessage(
+              dataClient,
+              context.tenantId,
+              effectiveBody.message,
+            )
+          : [];
         const contextBuildResult = await buildContextLayers({
           serviceClient,
           dataClient,
@@ -2742,8 +2759,10 @@ function createBloomStreamResponse(
               userRole,
               intentClassification,
               requiredToolNames,
+              namesRecord,
             ),
           meter: spendMeter,
+          namedEntityNote: buildNamedEntityContextNote(namedEntityLookups),
         });
         latencyCapture.contextBuildCompletedAt = Date.now();
 
@@ -2772,6 +2791,11 @@ function createBloomStreamResponse(
             truncated_history_count: contextBuildResult.truncatedHistoryCount,
             tool_count: contextBuildResult.tools.length,
             send_readiness_routed: asksSendReadiness,
+            named_entity_lookups: namedEntityLookups.map((lookup) => ({
+              entity_type: lookup.entityType,
+              requested_name: lookup.requestedName,
+              status: lookup.status,
+            })),
             intent_category: intentClassification.category,
             intent_complexity: intentClassification.complexity,
             model_preference: effectiveBody.model_preference,
@@ -2844,6 +2868,7 @@ function createBloomStreamResponse(
             tools: contextBuildResult.tools,
             estimatedInputTokens: contextBuildResult.estimatedInputTokens,
             maxToolIterations: selectedMaxToolIterations,
+            namedEntityLookups,
             validateOutput: (response, validationContext) =>
               validateOutput(response, context.userRole, validationContext),
             onOutputViolation: async (violation) => {

@@ -280,6 +280,27 @@ function resultRecord(
   return raw;
 }
 
+function readCurrencyCode(value: unknown): string | null {
+  const code = readString(value)?.toUpperCase() ?? null;
+  return code && /^[A-Z]{3}$/.test(code) ? code : null;
+}
+
+/**
+ * The currency a tool result states for its amounts: on the result itself or
+ * in its search criteria (reported-spending audiences). Null when unstated, so
+ * amounts are never given an assumed currency.
+ */
+export function resultCurrency(result: NormalizedToolResult): string | null {
+  const source = resultRecord(result);
+  if (!source) {
+    return null;
+  }
+  return (
+    readCurrencyCode(source.currency) ??
+    (isRecord(source.criteria) ? readCurrencyCode(source.criteria.currency) : null)
+  );
+}
+
 export function mutationStateForResult(
   result: NormalizedToolResult,
 ): MutationResultState | null {

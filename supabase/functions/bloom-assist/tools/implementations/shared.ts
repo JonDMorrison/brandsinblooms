@@ -12,6 +12,7 @@ import {
   resolveCampaignStats,
   type CampaignStats,
 } from "../../../../../src/lib/crm/campaignStats.ts";
+import { resolveTenantCurrency } from "../../../../../src/lib/tenantCurrency.ts";
 
 export type BloomQueryClient = SupabaseClient<Database, "public">;
 
@@ -176,6 +177,27 @@ export function sanitizePostgrestSearch(value: string): string {
 }
 
 export const UNKNOWN_AMOUNT_LABEL = "Unknown";
+
+/**
+ * The tenant's display currency, resolved by the same rule the CRM pages use
+ * (`resolveTenantCurrency`: tenants.settings.currency, else country). Returns
+ * null when the tenant row cannot be read, so amounts stay plain rather than
+ * carrying an assumed currency.
+ */
+export async function loadTenantCurrency(
+  client: BloomQueryClient,
+  tenantId: string,
+): Promise<string | null> {
+  const { data, error } = await client
+    .from("tenants")
+    .select("country, settings")
+    .eq("id", tenantId)
+    .maybeSingle();
+  if (error || !data) {
+    return null;
+  }
+  return resolveTenantCurrency(data);
+}
 
 /**
  * Formats a money amount for people to read.

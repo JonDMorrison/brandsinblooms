@@ -6,7 +6,8 @@ import {compareReportedPeriodSpend} from '../../../_shared/customer-intelligence
 import {planAudienceRefresh} from '../../../_shared/customer-intelligence/audience-refresh.ts';
 import type {JsonObject, JsonValue, PersistenceClient} from '../../types.ts';
 import type {ToolExecutionContext, ToolImplementation, ToolResult} from '../types.ts';
-import {explorePurchases, analyzeBasket, finiteNumber, validatePurchaseRule, MATCH_REASONS, type CustomerSet, type PurchaseFact} from '../../../_shared/customer-intelligence/purchase-exploration.ts';
+import {explorePurchases, analyzeBasket, finiteNumber, localDate, validatePurchaseRule, MATCH_REASONS, type CustomerSet, type PurchaseFact, type PurchaseRule} from '../../../_shared/customer-intelligence/purchase-exploration.ts';
+import {evaluateSegmentRule, normalizeSegmentRuleGroup, type SegmentRuleCondition, type SegmentRuleGroup} from '../../../_shared/segmentEvaluator.ts';
 import {compareCustomerGrowth, moneyMinorUnits, type GrowthOrder, type GrowthSettings} from '../../../_shared/customer-intelligence/customer-growth.ts';
 import {readAllPages} from '../../../_shared/customer-intelligence/query-pages.ts';
 import {currentSummaryImports,periodSummaryFacts,type PeriodSummaryEvent} from '../../../_shared/customer-intelligence/period-summary.ts';
@@ -208,6 +209,10 @@ export async function exploreCustomerPurchases(params: JsonObject,context: ToolE
     for (const id of outside) { set.excluded_ids.push(id); set.reasons[id] = 'outside_top_n'; }
     Object.assign(set.trail[set.trail.length-1], {included:set.included_ids.length, excluded:set.excluded_ids.length, top_n:topN, matched_buyers:set.included_ids.length+outside.length});
   }
+  // "Haven't bought in over 12 months" must use the Lapsed segment's definition,
+  // not only the customers who happen to have transaction records.
+  const recency = topN === undefined ? recencyRule(rule, localDate(cutoff,context.timezone) ?? cutoff.slice(0,10)) : null;
+  const recencySummary = recency ? summarizeRecency({recency,population,set,...await loadRecencyEvidence(context,cutoff)}) : null;
   if (JSON.stringify(set).length > 16000000) throw new Error('This result is too large to save safely. No partial audience was returned.');
   const {error} = await context.serviceClient.from('bloom_customer_sets').insert({id:set.id,tenant_id:context.tenantId,user_id:context.userId,conversation_id:context.conversationId,parent_id:set.parent_id,label:String(params.label),payload:set,created_at:cutoff});
   if (error) throw new Error(`The exact customer result could not be saved: ${error.message}`);
@@ -218,11 +223,12 @@ export async function exploreCustomerPurchases(params: JsonObject,context: ToolE
     rows:result.rows.map(row=>({...row,matched_reported_spend:matched.get(row.customer_id)?.amount??null,matched_quantity:matched.get(row.customer_id)?.quantity??null,currency:matched.get(row.customer_id)?.currency??null})),
     order:matched.size?'Largest matched spending first.':'Customer ID order.',
     source_periods:narrowed?.sourcePeriods??[],
-    coverage_note:'These are matches in available records, not proof of complete period coverage. Disclose the actual report end date for YTD evidence; do not describe it as a complete calendar-year retention rate.',
+    ...(recencySummary?{recency:recencySummary.data,notes:[...recencySummary.notes,...result.notes]}:{}),
+    coverage_note:[recencySummary?.coverage_note,'These are matches in available records, not proof of complete period coverage. Disclose the actual report end date for YTD evidence; do not describe it as a complete calendar-year retention rate.'].filter(Boolean).join(' '),
     evidence_note:reportOnly?'Matches come from imported period sales reports (product totals per customer per report period), not dated receipts.':null},
     set.included_ids.length,typeof params.top_n==='number'
       ? `Search succeeded: ${(set.included_ids.length+set.excluded_ids.filter(id=>set.reasons[id]==='outside_top_n').length).toLocaleString('en-US')} customers bought it. The saved group is the top ${set.included_ids.length.toLocaleString('en-US')} by matched spending; follow-up questions about "these" use exactly those ${set.included_ids.length.toLocaleString('en-US')}. This is a complete answer, not an error.`
-      : exploreMessage(rule.mode,set.included_ids.length,set.excluded_ids.length,set.unknown_ids.length));
+      : recencySummary?.message ?? exploreMessage(rule.mode,set.included_ids.length,set.excluded_ids.length,set.unknown_ids.length));
 };
 /** Plain result line. Customers with no records on file are normal for imported reports, not a failed lookup. */
 export function exploreMessage(mode: string, included: number, excluded: number, unknown: number): string {
@@ -235,6 +241,72 @@ export function exploreMessage(mode: string, included: number, excluded: number,
   if (mode === 'all') return lead;
   const other = mode === 'not_purchased' ? `${n(excluded)} did buy it.` : `${n(excluded)} have purchase records without it.`;
   return `${lead} ${other} ${n(unknown)} lack sufficient purchase evidence for this question, so they remain unknown and are counted separately. This is a complete answer, not an error.`;
+}
+
+/** An open-ended "since" window with no product filter: a lapsed or recency question. */
+export interface RecencyRule {mode:'purchased'|'not_purchased'; start_date:string; days:number}
+export function recencyRule(rule: PurchaseRule, today: string): RecencyRule | null {
+  if ((rule.mode!=='purchased'&&rule.mode!=='not_purchased')||rule.product||rule.category||rule.department||rule.within_days!==undefined||!rule.start_date) return null;
+  // A window with its own end ("did not shop in 2025", "bought in 2026") is a period question, not recency.
+  if (rule.end_date!==undefined&&rule.end_date!==today) return null;
+  const days=Math.round((Date.parse(`${today}T00:00:00Z`)-Date.parse(`${rule.start_date}T00:00:00Z`))/86400000);
+  return Number.isInteger(days)&&days>0?{mode:rule.mode,start_date:rule.start_date,days}:null;
+}
+/** The same condition a "Lapsed (12+ months)" segment stores: last_purchase_date older_than_days N. */
+export function recencyCondition(recency: RecencyRule): SegmentRuleCondition {
+  return {field:'last_purchase_date',operator:recency.mode==='not_purchased'?'older_than_days':'within_days',value:recency.days};
+}
+export interface RecencySegment {id:string; name:string; conditions:unknown; customer_count:number|null}
+/** A saved segment whose whole rule is exactly this recency condition. */
+export function matchingRecencySegment(segments: RecencySegment[], condition: SegmentRuleCondition): RecencySegment | null {
+  return segments.find(segment=>{
+    const group=normalizeSegmentRuleGroup(segment.conditions);
+    if(group.children.length!==1)return false;
+    const child=group.children[0];
+    if(Array.isArray((child as SegmentRuleGroup).children))return false;
+    const rule=child as SegmentRuleCondition;
+    return rule.fieldId===condition.field&&rule.operatorId===condition.operator&&Number(rule.value)===condition.value;
+  })??null;
+}
+async function loadRecencyEvidence(context: ToolExecutionContext, cutoff: string): Promise<{lastPurchase:Map<string,string|null>;segments:RecencySegment[]}> {
+  const client=await requireAnalysisAccess(context);
+  const rows=await readAllPages<{id:string;last_purchase_date:string|null}>((from,to)=>client.from('crm_customers').select('id,last_purchase_date')
+    .eq('tenant_id',context.tenantId).is('deleted_at',null).is('merged_into_customer_id',null).lte('created_at',cutoff).order('id').range(from,to));
+  const {data,error}=await client.from('crm_segments').select('id,name,conditions,customer_count')
+    .eq('tenant_id',context.tenantId).is('deleted_at',null).order('name').order('id');
+  if(error)throw new Error(error.message);
+  return {lastPurchase:new Map(rows.map(row=>[row.id,row.last_purchase_date])),segments:(data??[]) as RecencySegment[]};
+}
+/**
+ * One answer for lapsed/recency questions on every surface: the customer-record
+ * definition the segment uses, the transaction-record count beside it, and how
+ * many customers have no purchase records at all.
+ */
+export function summarizeRecency(input:{recency:RecencyRule;population:string[];set:CustomerSet;lastPurchase:ReadonlyMap<string,string|null>;segments:RecencySegment[]}) {
+  const {recency,set}=input, n=(value:number)=>value.toLocaleString('en-US'), lapsed=recency.mode==='not_purchased';
+  const condition=recencyCondition(recency), segment=matchingRecencySegment(input.segments,condition);
+  const population=[...new Set(input.population)];
+  const byRecord=new Set(population.filter(id=>input.lastPurchase.has(id)&&evaluateSegmentRule({rules:[condition]},{id,last_purchase_date:input.lastPurchase.get(id)??null})));
+  const noDate=population.filter(id=>!input.lastPurchase.get(id)).length;
+  const noRecords=set.unknown_ids.filter(id=>set.reasons[id]==='no_purchase_history');
+  const noRecordsMatching=noRecords.filter(id=>byRecord.has(id)).length;
+  const withRecords=population.length-noRecords.length, transactions=set.included_ids.length;
+  const recordLabel=`Last purchase date on customer records${segment?` (the same rule as the “${segment.name}” segment)`:' (the rule saved segments use)'}`;
+  const transactionLabel='Individual transaction records on file';
+  const what=lapsed?`no purchase since ${recency.start_date} (more than ${n(recency.days)} days)`:`a purchase since ${recency.start_date} (within ${n(recency.days)} days)`;
+  const coverage=`${n(noRecords.length)} of ${n(population.length)} customers have no purchase records on file, so the transaction-record count cannot include them; ${n(noRecordsMatching)} of them ${lapsed?'are lapsed':'bought recently'} by the date on their customer record.${noDate?` ${n(noDate)} customers have no last purchase date on their record and are not counted in either number.`:''}`;
+  const differs=byRecord.size!==transactions;
+  const message=`Customers with ${what}: ${n(byRecord.size)} by ${recordLabel.replace(/^Last/,'the last')}. `
+    +(differs?`${transactionLabel} show ${n(transactions)} of the ${n(withRecords)} customers who have them. `:`${transactionLabel} agree (${n(transactions)}). `)
+    +`${coverage} Lead with the customer-record number${differs?', show both numbers with these labels,':''} and state the coverage note. The saved group for follow-up questions is the ${n(transactions)} customers found in transaction records. This is a complete answer, not an error.`;
+  return {message,coverage_note:coverage,
+    notes:[`${recordLabel}: ${n(byRecord.size)}.`,`${transactionLabel}: ${n(transactions)} of ${n(withRecords)} customers with records.`,coverage],
+    data:{definition:`last_purchase_date ${condition.operator} ${n(recency.days)} on the customer record`,since:recency.start_date,days:recency.days,
+      segment:segment?{id:segment.id,name:segment.name,stored_count:segment.customer_count}:null,
+      by_customer_record:{label:recordLabel,count:byRecord.size},
+      by_transaction_records:{label:transactionLabel,count:transactions,customers_with_records:withRecords},
+      no_purchase_records:{count:noRecords.length,matching_by_customer_record:noRecordsMatching},
+      no_last_purchase_date:noDate,saved_group:'transaction_records'}};
 }
 export const inspectCustomerSet: ToolImplementation = async (params,context) => {
   if(params.list_audiences===true){
@@ -567,7 +639,7 @@ export async function exploreCustomerReportedSpending(params: JsonObject,context
   const result=publicSetFrom(set,visible,await loadCustomerNames(context,set.included_ids.slice(0,50)));
   return analysisResult({...result,source_filename:report.source_filename,period_start:report.source_period_start,period_end:report.source_period_end,
     criteria:{minimum_spend:minimum,minimum_transactions:transactions,currency},
-    rows:result.rows.map(row=>({...row,reported_period_spend:values.get(row.customer_id)?.amount,reported_transactions:values.get(row.customer_id)?.transactions})),
+    rows:result.rows.map(row=>({...row,reported_period_spend:values.get(row.customer_id)?.amount,reported_transactions:values.get(row.customer_id)?.transactions,currency})),
     note:'Reported period spending and transaction totals are not lifetime value or dated receipts. Missing customers remain unknown, not inactive. Continue product searches with scope=previous_result.'},set.included_ids.length,'Selected an exact audience from the reconciled spending report. No customer classification or marketing consent changed.');
 };
 

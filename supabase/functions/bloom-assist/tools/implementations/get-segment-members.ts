@@ -9,6 +9,7 @@ import type {
 import {
   formatCurrency,
   getQueryClient,
+  loadTenantCurrency,
   paginationRange,
   toNumberOrNull,
   uniqueStrings,
@@ -364,6 +365,7 @@ function mapMember(
   membership: MembershipRow,
   customer: SegmentMemberCustomer,
   summaries: Map<string, CustomerRelationshipSummary>,
+  currency: string | null,
 ): JsonObject {
   const summary = summaries.get(customer.id) ?? {
     personaNames: [],
@@ -382,7 +384,8 @@ function mapMember(
     phone: customer.phone,
     lifecycle_stage: lifecycleStage(customer),
     preferred_channel: customer.preferred_channel,
-    total_spent: formatCurrency(toNumberOrNull(customer.total_spent)),
+    total_spent: formatCurrency(toNumberOrNull(customer.total_spent), currency),
+    currency,
     last_purchase_date: customer.last_purchase_date,
     last_activity_at: lastActivityAt(customer),
     created_at: customer.created_at,
@@ -456,15 +459,14 @@ export const getSegmentMembers: ToolImplementation = async (
   const customers = memberships
     .map((membership) => membership.crm_customers)
     .filter((customer): customer is SegmentMemberCustomer => Boolean(customer));
-  const summaries = await loadRelationshipSummaries(
-    client,
-    context.tenantId,
-    customers,
-  );
+  const [summaries, currency] = await Promise.all([
+    loadRelationshipSummaries(client, context.tenantId, customers),
+    loadTenantCurrency(client, context.tenantId),
+  ]);
   const mapped = memberships
     .flatMap((membership) => {
       const customer = membership.crm_customers;
-      return customer ? [mapMember(membership, customer, summaries)] : [];
+      return customer ? [mapMember(membership, customer, summaries, currency)] : [];
     })
     .filter((member) => matchesSearch(member, search));
   const items = mapped.slice(from, to + 1).map((member) => member as JsonValue);

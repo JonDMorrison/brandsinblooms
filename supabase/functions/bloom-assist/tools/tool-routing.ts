@@ -43,7 +43,24 @@ export function isSendReadinessQuestion(message: string): boolean {
   return SEND_READINESS_PATTERNS.some((pattern) => pattern.test(text));
 }
 
+/**
+ * When the message names a campaign, segment, product or customer, the
+ * lookup tools must be offered whatever the intent was classified as, so
+ * Bloom can search for the record before answering about it.
+ */
 export function getToolCategoriesForRouting(
+  mode: BloomMode,
+  classification: IntentClassificationResult,
+  namesRecord = false,
+): Set<ToolCategory> | null {
+  const categories = baseCategories(mode, classification);
+  if (!namesRecord || !categories || mode === "image" || categories.has("query")) {
+    return categories;
+  }
+  return new Set<ToolCategory>([...categories, "query"]);
+}
+
+function baseCategories(
   mode: BloomMode,
   classification: IntentClassificationResult,
 ): Set<ToolCategory> | null {
