@@ -2344,13 +2344,21 @@ export function renderNewsletterBlock(
         ),
       }
     : undefined;
-  const appearance =
+  const mergedAppearance =
     hasAppearance || fontDefaults
       ? mergeAppearance(
           mergeAppearance(fontDefaults, settings?.defaults),
           block.appearance,
         )
       : undefined;
+  // Block spacing counts only once a number has been entered. An emptied
+  // padding box used to switch a block's own padding off for good, which made
+  // controls such as the header's vertical padding look broken.
+  const appearance =
+    mergedAppearance?.padding &&
+    !Object.values(mergedAppearance.padding).some((edge) => typeof edge === "number")
+      ? { ...mergedAppearance, padding: undefined }
+      : mergedAppearance;
   const prepared: StudioBlock = {
     ...block,
     ...(block.type === "navigation" ? {

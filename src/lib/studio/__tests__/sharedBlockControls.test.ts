@@ -169,3 +169,23 @@ describe("quote controls", () => {
     expect(quote({ layout: "large-centered", quoteMarkSize: 72 })).toContain("font-size:72px");
   });
 });
+
+describe("block spacing replaces the header's own vertical padding", () => {
+  const header = (fields: Partial<StudioBlock>) =>
+    renderNewsletterBlock(make("newsletter-header", { headline: "Garden News", ...fields }));
+
+  it("keeps the saved vertical padding while no block spacing is entered", () => {
+    expect(header({ verticalPadding: 40 })).toContain("padding:40px 24px");
+  });
+
+  it("an emptied block spacing box no longer switches the header padding off", () => {
+    expect(header({ verticalPadding: 40, appearance: { padding: {} } })).toContain("padding:40px 24px");
+    expect(header({ verticalPadding: 40, appearance: { padding: { top: undefined } } })).toContain("padding:40px 24px");
+  });
+
+  it("entered block spacing is what gets drawn", () => {
+    const html = header({ verticalPadding: 40, appearance: { padding: { top: 8, right: 24, bottom: 8, left: 24 } } });
+    expect(html).toContain("padding:8px 24px 8px 24px");
+    expect(html).not.toContain("padding:40px 24px");
+  });
+});

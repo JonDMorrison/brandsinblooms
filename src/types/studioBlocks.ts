@@ -128,6 +128,8 @@ export interface StudioBlock {
   couponExpiry?: string;
   couponBarcode?: string;
   couponBarcodeImageUrl?: string;
+  /** Unset means UPC-A, the only format before formats could be chosen. */
+  couponBarcodeFormat?: "upc-a" | "upc-e" | "ean-13" | "ean-8" | "code-128";
   productSubtitle?: string;
   badges?: ProductBadge[];
   links?: NewsletterLink[];

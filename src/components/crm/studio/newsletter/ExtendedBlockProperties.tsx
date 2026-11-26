@@ -19,8 +19,8 @@ import { ButtonAlignField, ElementAlignField, TextAlignField, VerticalAlignField
 import { safeEmailUrl } from "@/lib/studio/newsletter/settings";
 import { navigationLinkColor } from "@/lib/studio/newsletter/settings";
 import { useNewsletterDesign } from "./NewsletterDesignContext";
-import { upcAImage } from "@/lib/studio/newsletter/barcode";
-import { couponUsesOldPrice, couponUsesPrice, validUpcA } from "@/lib/studio/newsletter/renderExtensions";
+import { BARCODE_FORMATS, barcodeImage, checkBarcode, couponBarcodeFormat, type BarcodeFormat } from "@/lib/studio/newsletter/barcode";
+import { couponUsesOldPrice, couponUsesPrice } from "@/lib/studio/newsletter/renderExtensions";
 import { chartDataTextFor, parseChartDataText } from "@/lib/studio/newsletter/chartData";
 import { sanitizeEmailHtmlWithReport } from "@/lib/studio/newsletter/emailHtmlSanitizer";
 
@@ -318,6 +318,8 @@ function CouponFields({
 }) {
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState("");
+  const barcodeFormat = couponBarcodeFormat(block.couponBarcodeFormat);
+  const barcodeCheck = checkBarcode(barcodeFormat, block.couponBarcode || "");
   return (
     <>
       <Field
@@ -514,28 +516,41 @@ function CouponFields({
       <ButtonFields block={block} update={update} canHide />
       <details>
         <summary>Add a barcode your till can scan</summary>
+        <Choice
+          label="Barcode type"
+          value={barcodeFormat}
+          options={BARCODE_FORMATS.map(({ value, label }) => ({ value, label }))}
+          onChange={(value) => {
+            update("couponBarcodeFormat", value as BarcodeFormat);
+            update("couponBarcodeImageUrl", "");
+          }}
+        />
         <Field
-          label="12-digit coupon code from your till"
+          label="Coupon code from your till"
           value={block.couponBarcode}
           onChange={(value) => {
             update("couponBarcode", value);
             update("couponBarcodeImageUrl", "");
           }}
         />
+        <p className="nl-note">{BARCODE_FORMATS.find((item) => item.value === barcodeFormat)?.hint}</p>
         <p className="nl-note">
-          Use a coupon code already configured in your POS. This prints the
-          barcode; it does not create a redeemable discount.
+          Use a coupon code that is already set up in your till. This prints
+          the barcode. It does not create a discount.
         </p>
         <button
           type="button"
           className="nl-quiet"
-          disabled={busy || !validUpcA(block.couponBarcode || "")}
+          disabled={busy || !barcodeCheck.ok}
           onClick={async () => {
+            if (!barcodeCheck.ok) return;
             setBusy(true);
             setError("");
             try {
-              const file = await upcAImage(block.couponBarcode || "");
+              const file = await barcodeImage(barcodeFormat, barcodeCheck.code);
               const url = await uploadStudioImageFile(file);
+              // Save the full code, with its check digit, so the printed number matches the bars.
+              if (barcodeCheck.code !== block.couponBarcode) update("couponBarcode", barcodeCheck.code);
               update("couponBarcodeImageUrl", url);
             } catch (err) {
               setError(
@@ -548,10 +563,13 @@ function CouponFields({
             }
           }}
         >
-          {busy ? "Creating barcode…" : "Create printable barcode"}
+          {busy ? "Creating barcode…" : block.couponBarcodeImageUrl ? "Barcode added. Create it again" : "Create printable barcode"}
         </button>
-        {block.couponBarcode && !validUpcA(block.couponBarcode) && (
-          <p className="nl-error">The UPC-A check digit is invalid.</p>
+        {block.couponBarcode?.trim() && !barcodeCheck.ok && (
+          <p className="nl-note" role="status">{barcodeCheck.message}</p>
+        )}
+        {barcodeCheck.ok && barcodeCheck.note && !block.couponBarcodeImageUrl && (
+          <p className="nl-note" role="status">{barcodeCheck.note}</p>
         )}
         {error && (
           <p role="alert" className="nl-error">
@@ -910,6 +928,10 @@ function GalleryFields({
     </>
   );
 }
+/** Website Links: anything but a plain text link is drawn as a pill. */
+export function navigationLooksLikePills(block: StudioBlock): boolean {
+  return block.buttonStyle === "outlined" || block.buttonStyle === "filled" || block.buttonStyle === "ghost";
+}
 /** Event cards sit beside the words unless moved; Blog and Announcement start on top. */
 function photoPlacement(block: StudioBlock): "top" | "left" | "right" {
   if (block.imagePosition === "top" || block.imagePosition === "left" || block.imagePosition === "right")
@@ -1149,6 +1171,32 @@ export default function ExtendedBlockProperties({
             update={update}
             max={block.type === "navigation" ? 5 : 3}
           />
+          {block.type === "navigation" && (
+            <>
+              <Choice
+                label="How the links look"
+                value={navigationLooksLikePills(block) ? "pills" : "links"}
+                options={[
+                  { value: "links", label: "Standard links" },
+                  { value: "pills", label: "Pills (outlined buttons)" },
+                ]}
+                onChange={(value) => update("buttonStyle", value === "pills" ? "outlined" : "link")}
+              />
+              <ElementAlignField
+                label="Link alignment"
+                allowFullWidth={false}
+                align={block.textAlign}
+                fallback="center"
+                onChange={({ align }) => {
+                  const side = align ?? "center";
+                  if (side !== block.textAlign) update("textAlign", side);
+                  // The grouped layout is what lets the whole row move to one side.
+                  const preset = side === "center" ? "nav-centered" : `nav-${side}`;
+                  if (block.layoutPreset !== preset) update("layoutPreset", preset);
+                }}
+              />
+            </>
+          )}
           {block.type === "navigation" && (
             <ColorField
               label="Link colour"

@@ -31,6 +31,7 @@ export function readSavedBlock(value: unknown): StudioBlock | null {
         "couponExpiry",
         "couponBarcode",
         "couponBarcodeImageUrl",
+        "couponBarcodeFormat",
         "productSubtitle",
         "tableCaption",
         "chartUnit",
