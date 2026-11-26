@@ -26,7 +26,7 @@ export const SHOWROOM_BOOK_DEMO = "https://bloomsuite.app/contact";
 
 export const SHOWROOM_PRODUCTS: readonly ShowroomProduct[] = [
   { id: "pos-backoffice", group: "BloomSuite POS", name: "Back office", description: "Products, stock, customers, loyalty and reports.", href: "https://demo.bloomsuite.app/", available: true },
-  { id: "pos-register", group: "BloomSuite POS", name: "Register", description: "Ring up plants, add a loyalty member and take a practice payment.", href: "https://bloomtill-till-demo.vercel.app/", available: true },
+  { id: "pos-register", group: "BloomSuite POS", name: "Register", description: "Ring up plants, add a loyalty member and take a practice payment.", href: "https://demo.bloomsuite.app/register/", available: true },
   { id: "websites", group: "BloomSites Website Builder", name: "Website editor", description: "Click any headline or photo on a garden centre homepage and change it.", href: "https://demo.bloomsuite.app/websites/", available: true },
   { id: "crm", group: "BloomSuite CRM", name: "Customers & marketing", description: "Contacts, segments, newsletters, forms and automations.", href: "https://demo.bloomsuite.app/crm/", available: true },
 ];
