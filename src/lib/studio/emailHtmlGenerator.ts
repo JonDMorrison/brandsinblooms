@@ -1515,22 +1515,34 @@ function renderQuoteBlock(
     layout === "classic"
       ? `border-left:4px solid ${accentColor};padding-left:20px;`
       : "";
-  const avatar = avatarUrl
-    ? `<img src="${escapeAttribute(avatarUrl)}" alt="" width="40" height="40" style="display:block;width:40px;height:40px;border-radius:50%;border:0;outline:none;text-decoration:none;" />`
+  // "Show author photo" off hides the photo and keeps it saved. Blocks saved
+  // before the size control existed keep the original 40px.
+  const avatarSize = Math.round(
+    Math.max(24, Math.min(160, numberValue(block.authorAvatarSize, 40))),
+  );
+  const avatar = avatarUrl && block.showAuthorImage !== false
+    ? `<img src="${escapeAttribute(avatarUrl)}" alt="" width="${avatarSize}" height="${avatarSize}" style="display:block;width:${avatarSize}px;height:${avatarSize}px;object-fit:cover;border-radius:50%;border:0;outline:none;text-decoration:none;" />`
     : "";
+  // A picked text alignment wins. Unset keeps each layout's own alignment.
+  const align =
+    block.textAlign === "left" || block.textAlign === "center" || block.textAlign === "right"
+      ? block.textAlign
+      : centered
+        ? "center"
+        : "left";
   const padding = numberValue(block.contentPadding, 32);
   const authorRow = author || authorTitle || avatar;
 
   if (layout === "avatar-card") {
     return renderSection(
       backgroundColor,
-      `<div class="mobile-padding" style="padding:${padding}px 24px;background-color:${backgroundColor};"><div style="border:1px solid #e5e7eb;border-radius:12px;padding:24px;background-color:#ffffff;"><div style="font-family:${getFontStack(designSystem, "body")};font-size:19px;line-height:1.55;font-style:${block.fontStyle || "italic"};color:${textColor};margin:0;">${quoteHtml}</div>${authorRow ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="left" style="margin-top:20px;border-collapse:collapse;"><tr>${avatar ? `<td style="padding-right:12px;">${avatar}</td>` : ""}<td style="font-family:${getFontStack(designSystem, "subheading")};font-size:13px;line-height:1.4;color:${textColor};"><strong>${escapeHtml(author || "Author Name")}</strong>${authorTitle ? `<br><span style="color:${textColor};opacity:0.62;">${escapeHtml(authorTitle)}</span>` : ""}</td></tr></table>` : ""}</div></div>`,
+      `<div class="mobile-padding" style="padding:${padding}px 24px;background-color:${backgroundColor};"><div style="border:1px solid #e5e7eb;border-radius:12px;padding:24px;background-color:#ffffff;"><div style="font-family:${getFontStack(designSystem, "body")};font-size:19px;line-height:1.55;font-style:${block.fontStyle || "italic"};color:${textColor};margin:0;text-align:${align};">${quoteHtml}</div>${authorRow ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="${align}" style="margin-top:20px;border-collapse:collapse;"><tr>${avatar ? `<td style="padding-right:12px;">${avatar}</td>` : ""}<td style="font-family:${getFontStack(designSystem, "subheading")};font-size:13px;line-height:1.4;color:${textColor};"><strong>${escapeHtml(author || "Author Name")}</strong>${authorTitle ? `<br><span style="color:${textColor};opacity:0.62;">${escapeHtml(authorTitle)}</span>` : ""}</td></tr></table>` : ""}</div></div>`,
     );
   }
 
   return renderSection(
     backgroundColor,
-    `<div class="mobile-padding" style="padding:${padding}px 24px;background-color:${backgroundColor};text-align:${centered ? "center" : "left"};">${centered ? `<div style="font-family:${getFontStack(designSystem, "headline")};font-size:${numberValue(block.quoteMarkSize, 48)}px;line-height:0.8;color:${accentColor};opacity:0.15;">&quot;</div>` : ""}<div style="${border}"><div style="font-family:${getFontStack(designSystem, "body")};font-size:${centered ? 24 : 19}px;line-height:${centered ? 1.42 : 1.55};font-style:${block.fontStyle || "italic"};color:${textColor};margin:0;">${quoteHtml}</div>${authorRow ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="${centered ? "center" : "left"}" style="margin-top:${centered ? 20 : 16}px;border-collapse:collapse;"><tr>${avatar ? `<td style="padding-right:12px;">${avatar}</td>` : ""}<td style="font-family:${getFontStack(designSystem, "subheading")};font-size:13px;line-height:1.4;color:${textColor};"><strong>${escapeHtml(author || "Author Name")}</strong>${authorTitle ? `<br><span style="color:${textColor};opacity:0.62;">${escapeHtml(authorTitle)}</span>` : ""}</td></tr></table>` : ""}</div></div>`,
+    `<div class="mobile-padding" style="padding:${padding}px 24px;background-color:${backgroundColor};text-align:${align};">${centered ? `<div style="font-family:${getFontStack(designSystem, "headline")};font-size:${numberValue(block.quoteMarkSize, 48)}px;line-height:0.8;color:${accentColor};opacity:0.15;">&quot;</div>` : ""}<div style="${border}"><div style="font-family:${getFontStack(designSystem, "body")};font-size:${centered ? 24 : 19}px;line-height:${centered ? 1.42 : 1.55};font-style:${block.fontStyle || "italic"};color:${textColor};margin:0;">${quoteHtml}</div>${authorRow ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="${align}" style="margin-top:${centered ? 20 : 16}px;border-collapse:collapse;"><tr>${avatar ? `<td style="padding-right:12px;">${avatar}</td>` : ""}<td style="font-family:${getFontStack(designSystem, "subheading")};font-size:13px;line-height:1.4;color:${textColor};"><strong>${escapeHtml(author || "Author Name")}</strong>${authorTitle ? `<br><span style="color:${textColor};opacity:0.62;">${escapeHtml(authorTitle)}</span>` : ""}</td></tr></table>` : ""}</div></div>`,
   );
 }
 

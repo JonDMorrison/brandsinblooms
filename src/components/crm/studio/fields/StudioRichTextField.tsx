@@ -515,6 +515,12 @@ export default function StudioRichTextField({
           onClick={() => editor.chain().focus("end").insertContent("<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>").run()}>
           Insert lorem ipsum
         </Button>
+        <Button type="button" size="sm" variant="plain" color="neutral" disabled={!onChange || editor.isEmpty}
+          aria-label={`Clear ${label}`}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => editor.chain().focus().clearContent(true).run()}>
+          Clear text
+        </Button>
         <Typography
           level="body-xs"
           sx={{

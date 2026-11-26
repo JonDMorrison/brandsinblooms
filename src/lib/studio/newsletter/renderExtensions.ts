@@ -27,13 +27,25 @@ const present = (value: unknown): value is string =>
   typeof value === "string" && value.trim().length > 0;
 const table = (rows: string, extra = "") =>
   `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" ${extra} style="width:100%;border-collapse:collapse;">${rows}</table>`;
+/**
+ * Text alignment picked for a block. Applied to each text element, never to a
+ * wrapper, so a button keeps its own alignment. Navigation and button groups
+ * use `textAlign` to place their links and are left alone here.
+ */
+export function blockTextAlign(block: StudioBlock): "left" | "center" | "right" | undefined {
+  if (block.type === "navigation" || block.type === "button-group") return undefined;
+  return block.textAlign === "left" || block.textAlign === "center" || block.textAlign === "right"
+    ? block.textAlign
+    : undefined;
+}
 function role(
   block: StudioBlock,
   key: TextRole,
   fallbackSize: number,
   weight = 400,
 ) {
-  return `font-family:${emailFont(block.appearance?.text?.[key]?.fontFamily)};${textCss(block.appearance?.text?.[key], { size: fallbackSize, weight, lineHeight: 1.5, color: block.textColor || "#172d2c" })}`;
+  const align = blockTextAlign(block);
+  return `${align ? `text-align:${align};` : ""}font-family:${emailFont(block.appearance?.text?.[key]?.fontFamily)};${textCss(block.appearance?.text?.[key], { size: fallbackSize, weight, lineHeight: 1.5, color: block.textColor || "#172d2c" })}`;
 }
 function paragraph(
   block: StudioBlock,
@@ -86,6 +98,14 @@ function alignedButton(block: StudioBlock, button: string): string {
   const align = block.buttonAlign === "center" || block.buttonAlign === "right" ? block.buttonAlign : "left";
   return `<div style="text-align:${align};">${button}</div>`;
 }
+/** Photo height for a cropped (Fill / Stretch) photo; unset keeps `fallback`. */
+function croppedPhotoHeight(block: StudioBlock, fallback: number, min = 60, max = 600): number {
+  return Math.round(clampNumber(block.imageHeight, fallback, min, max));
+}
+const sideVerticalAlign = (block: StudioBlock): "top" | "middle" | "bottom" =>
+  block.appearance?.verticalAlign === "top" || block.appearance?.verticalAlign === "bottom"
+    ? block.appearance.verticalAlign
+    : "middle";
 type PictureSizing = { height: number | null; fit: string; className: string };
 
 function picture(block: StudioBlock, width = 220, sizing?: PictureSizing): string {
@@ -98,7 +118,12 @@ function picture(block: StudioBlock, width = 220, sizing?: PictureSizing): strin
     // squeezed into a 220px-high box).
     : block.type === "product-card" && block.imageFit === "cover"
       ? `${clampNumber(block.imageHeight, 220, 120, 480)}px`
-      : "auto";
+      // Blog and Announcement: "Show whole photo" (the default) keeps the
+      // photo's own shape. Fill and Stretch use the chosen height.
+      : (block.type === "blog" || block.type === "announcement") &&
+          (block.imageFit === "cover" || block.imageFit === "fill")
+        ? `${croppedPhotoHeight(block, 240)}px`
+        : "auto";
   const fit = sizing?.fit ?? block.imageFit ?? "contain";
   const image = `<img data-newsletter-image="imageUrl" class="responsive-image${sizing?.className ? ` ${sizing.className}` : ""}" src="${attr(url)}" alt="${attr(block.imageAlt || block.headline || block.productName || "")}" width="${width}"${sizing?.height ? ` height="${sizing.height}"` : ""} style="display:block;width:100%;max-width:${width}px;height:${height};object-fit:${fit};border:0;border-radius:${clampNumber(block.borderRadius, 6, 0, 48)}px;" />`;
   const linked = safeEmailUrl(block.linkUrl)
@@ -162,11 +187,17 @@ function imageAndContent(
 }
 
 function renderEventCard(block: StudioBlock, width: number, editing = false): string {
-  const imageUrl = safeEmailUrl(block.imageUrl, true);
+  const imageUrl = block.showImage === false ? "" : safeEmailUrl(block.imageUrl, true);
   const imageSide = block.imagePosition === "right" ? "right" : "left";
-  const imageWidth = Math.floor(width * 0.42);
+  const onTop = block.imagePosition === "top";
+  // On top the photo spans the card. Beside the words it takes 42%.
+  const imageWidth = onTop ? Math.max(120, width - 36) : Math.floor(width * 0.42);
+  // Unset keeps the original look: the photo fills a 252px-high box.
+  const fit = block.imageFit === "contain" || block.imageFit === "fill" ? block.imageFit : "cover";
+  const wholePhoto = fit === "contain";
+  const imageHeight = croppedPhotoHeight(block, 252);
   const image = imageUrl
-    ? `<img data-newsletter-image="imageUrl" class="responsive-image responsive-crop-image" src="${attr(imageUrl)}" alt="${attr(block.imageAlt || block.headline || "Event photo")}" width="${imageWidth}" height="252" style="display:block;width:100%;max-width:${imageWidth}px;height:252px;object-fit:cover;object-position:50% 50%;border:0;outline:none;text-decoration:none;border-radius:12px;" />`
+    ? `<img data-newsletter-image="imageUrl" class="responsive-image${wholePhoto ? "" : " responsive-crop-image"}" src="${attr(imageUrl)}" alt="${attr(block.imageAlt || block.headline || "Event photo")}" width="${imageWidth}"${wholePhoto ? "" : ` height="${imageHeight}"`} style="display:block;width:100%;max-width:${imageWidth}px;height:${wholePhoto ? "auto" : `${imageHeight}px`};${wholePhoto ? "" : `object-fit:${fit};object-position:50% 50%;`}border:0;outline:none;text-decoration:none;border-radius:12px;" />`
     : "";
   const chosenDate = /^\d{4}-\d{2}-\d{2}$/.test(block.eventStartDate ?? "")
     ? new Date(`${block.eventStartDate}T12:00:00Z`).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" })
@@ -190,14 +221,15 @@ function renderEventCard(block: StudioBlock, width: number, editing = false): st
     location +
     paragraph(block, fee, "label", 13) +
     paragraph(block, block.body) +
-    alignedButton(block, renderNewsletterButton(block, undefined, undefined, editing));
+    (block.showButton === false ? "" : alignedButton(block, renderNewsletterButton(block, undefined, undefined, editing)));
 
   if (!image) {
     return `<div class="mobile-padding" style="padding:28px 30px;border:1px solid #e4e7e2;border-radius:14px;background-color:${emailColor(block.backgroundColor, "#ffffff")};">${content}</div>`;
   }
 
+  const vertical = sideVerticalAlign(block);
   const imageCell = `<td dir="ltr" class="responsive-column product-card-image event-card-cell" width="42%" valign="middle" style="width:42%;vertical-align:middle;padding:${imageSide === "right" ? "22px 22px 22px 11px" : "22px 11px 22px 22px"};">${image}</td>`;
-  const contentCell = `<td dir="ltr" class="responsive-column product-card-details event-card-cell" width="58%" valign="middle" style="width:58%;vertical-align:middle;padding:${imageSide === "right" ? "26px 11px 26px 26px" : "26px 26px 26px 11px"};">${content}</td>`;
+  const contentCell = `<td dir="ltr" class="responsive-column product-card-details event-card-cell" width="58%" valign="${vertical}" style="width:58%;vertical-align:${vertical};padding:${imageSide === "right" ? "26px 11px 26px 26px" : "26px 26px 26px 11px"};">${content}</td>`;
   if (block.imagePosition === "top") {
     return `<div class="mobile-padding" style="padding:18px;border:1px solid #e4e7e2;border-radius:14px;background-color:${emailColor(block.backgroundColor, "#ffffff")};">${image}<div style="padding:18px 8px;">${content}</div></div>`;
   }
@@ -660,14 +692,15 @@ export function renderExtendedBlock(
     case "blog":
     case "announcement":
       return imageAndContent(
-        block,
+        // "Show photo" off hides the photo and keeps the saved one.
+        block.showImage === false ? { ...block, imageUrl: "" } : block,
         paragraph(block, block.tagLabel, "label", 12) +
           heading(block) +
           paragraph(block, block.subheading, "subheading", 17) +
           paragraph(block, block.eventDate, "label", 13) +
           paragraph(block, block.eventLocation, "label", 13) +
           paragraph(block, block.body) +
-          alignedButton(block, renderNewsletterButton(block, undefined, undefined, editing)),
+          (block.showButton === false ? "" : alignedButton(block, renderNewsletterButton(block, undefined, undefined, editing))),
         block.imagePosition === "right"
           ? "right"
           : block.imagePosition === "left"

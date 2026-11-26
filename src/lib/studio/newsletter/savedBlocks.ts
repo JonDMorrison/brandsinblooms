@@ -198,6 +198,7 @@ export function readSavedBlock(value: unknown): StudioBlock | null {
         "showPrices",
         "showOriginalPrice",
         "showCtaButtons",
+        "showImage",
         "showDescription",
         "showTextOverlay",
         "textShadow",

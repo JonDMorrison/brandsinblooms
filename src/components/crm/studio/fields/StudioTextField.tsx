@@ -4,7 +4,11 @@ import Input from "@mui/joy/Input";
 import Stack from "@mui/joy/Stack";
 import Textarea from "@mui/joy/Textarea";
 import Typography from "@mui/joy/Typography";
-import { Sparkles } from "lucide-react";
+import Button from "@mui/joy/Button";
+import { Sparkles, X } from "lucide-react";
+
+const SAMPLE_TEXT =
+  "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.";
 
 type StudioTextFieldProps = {
   label: string;
@@ -31,6 +35,9 @@ export default function StudioTextField({
   startDecorator,
   type = "text",
 }: StudioTextFieldProps) {
+  // Clear and sample text only for controlled boxes: they need the current value.
+  const canEdit = Boolean(onChange) && value !== undefined;
+  const clearable = type === "text" || type === "url" || type === "email" || type === undefined;
   return (
     <Stack spacing={0.5} sx={{ width: "100%", maxWidth: "100%", minWidth: 0 }}>
       <Typography
@@ -46,6 +53,7 @@ export default function StudioTextField({
         {label}
       </Typography>
       {multiline ? (
+        <>
         <Textarea
           size="sm"
           variant="outlined"
@@ -88,6 +96,26 @@ export default function StudioTextField({
             },
           }}
         />
+        {canEdit && (
+          <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+            {!value && (
+              <Button type="button" size="sm" variant="plain" color="neutral"
+                onClick={() => onChange?.(SAMPLE_TEXT)}
+                sx={{ minHeight: 26, fontSize: "12px", px: 0.75 }}>
+                Insert lorem ipsum
+              </Button>
+            )}
+            {Boolean(value) && (
+              <Button type="button" size="sm" variant="plain" color="neutral"
+                aria-label={`Clear ${label}`}
+                onClick={() => onChange?.("")}
+                sx={{ minHeight: 26, fontSize: "12px", px: 0.75 }}>
+                Clear text
+              </Button>
+            )}
+          </Stack>
+        )}
+        </>
       ) : (
         <Input
           size="sm"
@@ -99,7 +127,19 @@ export default function StudioTextField({
           onChange={(event) => onChange?.(event.target.value)}
           startDecorator={startDecorator}
           endDecorator={
-            aiDecorator ? (
+            canEdit && clearable && value && !aiDecorator ? (
+              <IconButton
+                variant="plain"
+                color="neutral"
+                size="sm"
+                aria-label={`Clear ${label}`}
+                title="Clear"
+                onClick={() => onChange?.("")}
+                sx={{ minWidth: 24, minHeight: 24, borderRadius: "6px", color: "neutral.500" }}
+              >
+                <X size={14} />
+              </IconButton>
+            ) : aiDecorator ? (
               <IconButton
                 variant="plain"
                 color="neutral"
