@@ -29,6 +29,7 @@ import {
   type BloomTaskRiskLevel,
   type BloomTaskPlan,
   type BloomTaskStatusUpdate,
+  type BloomValidationAnnotation,
 } from "@/hooks/bloom/taskPlanTypes";
 import type {
   BloomActiveToolCall,
@@ -601,12 +602,9 @@ const buildTextPlanToolParams = (
 ): BloomTaskJsonObject => {
   const normalizedParams = normalizeTextPlanParams(rawParams);
 
-  if (toolName === "send_campaign") {
-    return {
-      ...normalizedParams,
-      send_mode: normalizedParams.send_mode ?? "now",
-    };
-  }
+  // send_campaign is passed through untouched: a missing send_mode is never
+  // defaulted to "now" (or to a schedule). textPlanValidationAnnotations
+  // blocks the task and asks the person when to send instead.
 
   if (toolName === "schedule_campaign") {
     const scheduledAt =
@@ -743,7 +741,32 @@ const inferTextPlanDescription = (
     : `${titleCase(action)} ${entityName}`;
 };
 
-const buildTaskPlanFromDetectedTextPlan = (
+export const MISSING_SEND_MODE_MESSAGE =
+  "Bloom didn't say when to send this campaign. Tell Bloom to send it now or give a date and time to schedule it.";
+
+/**
+ * Blocking checks for a plan intercepted from Bloom's text. A send whose
+ * timing Bloom left out must stop and ask the person — it is never sent now
+ * or scheduled by default.
+ */
+const textPlanValidationAnnotations = (
+  toolName: string,
+  toolParams: BloomTaskJsonObject,
+): BloomValidationAnnotation[] => {
+  if (toolName === "send_campaign" && readTextPlanParam(toolParams, "send_mode") === null) {
+    return [
+      {
+        type: "error",
+        message: MISSING_SEND_MODE_MESSAGE,
+        step: "send_mode",
+      },
+    ];
+  }
+
+  return [];
+};
+
+export const buildTaskPlanFromDetectedTextPlan = (
   plan: DetectedTextPlan,
   originatingMessageId: string,
 ): BloomTaskPlan => {
@@ -790,7 +813,7 @@ const buildTaskPlanFromDetectedTextPlan = (
       dependsOn: [],
       editableFields: [],
       editableFieldMetadata: [],
-      validationAnnotations: [],
+      validationAnnotations: textPlanValidationAnnotations(toolName, toolParams),
       notice: null,
       status: "pending" as const,
       errorMessage: null,
