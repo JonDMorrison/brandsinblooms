@@ -20,6 +20,8 @@ export type JoyTextareaProps = Omit<JoyBaseTextareaProps, "variant"> & {
   rows?: number;
   onValueChange?: (value: string) => void;
   formControlSx?: SxProps;
+  /** Full width unless explicitly false. */
+  fullWidth?: boolean;
 };
 
 const assignRef = <T,>(ref: React.Ref<T> | undefined, value: T | null) => {

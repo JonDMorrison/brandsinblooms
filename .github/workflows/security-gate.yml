@@ -34,6 +34,10 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
 
+      # Vite builds without type-checking, so type errors only surface here.
+      - name: Type-check the application
+        run: npx tsc --noEmit -p tsconfig.app.json
+
       - name: Reject committed credentials and unsafe database access
         run: npm run test:security
 

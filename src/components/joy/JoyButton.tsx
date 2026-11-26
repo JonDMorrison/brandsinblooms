@@ -3,6 +3,8 @@ import {
   cloneElement,
   forwardRef,
   isValidElement,
+  type AnchorHTMLAttributes,
+  type ElementType,
   type ReactElement,
   type ReactNode,
 } from "react";
@@ -42,8 +44,22 @@ type CommonProps = {
   color?: NativeJoyColor;
 };
 
-export type JoyButtonProps = Omit<JoyBaseButtonProps, "size" | "variant"> &
-  CommonProps;
+// Joy's Button is polymorphic (`component="a"` renders a link), but the
+// non-generic ButtonProps only types button attributes. Callers that render
+// a download or navigation link pass these through to the anchor.
+type LinkProps = Pick<
+  AnchorHTMLAttributes<HTMLAnchorElement>,
+  "href" | "download" | "target" | "rel" | "hrefLang"
+> & {
+  component?: ElementType;
+};
+
+export type JoyButtonProps = Omit<
+  JoyBaseButtonProps,
+  "size" | "variant" | "component"
+> &
+  CommonProps &
+  LinkProps;
 
 const ICON_SIZES: Record<NativeJoySize, number> = {
   sm: 16,
@@ -141,43 +157,43 @@ const resolveVariantConfig = (
     case "default":
       return {
         variant: "solid" as const,
-        color: (color ?? "primary") as const,
+        color: color ?? ("primary" as const),
         sx: undefined,
       };
     case "outline":
       return {
         variant: "soft" as const,
-        color: (color ?? "neutral") as const,
+        color: color ?? ("neutral" as const),
         sx: undefined,
       };
     case "secondary":
       return {
         variant: "soft" as const,
-        color: (color ?? "neutral") as const,
+        color: color ?? ("neutral" as const),
         sx: undefined,
       };
     case "ghost":
       return {
         variant: "plain" as const,
-        color: (color ?? "neutral") as const,
+        color: color ?? ("neutral" as const),
         sx: undefined,
       };
     case "destructive":
       return {
         variant: "solid" as const,
-        color: (color ?? "danger") as const,
+        color: color ?? ("danger" as const),
         sx: undefined,
       };
     case "destructiveOutline":
       return {
         variant: "solid" as const,
-        color: (color ?? "danger") as const,
+        color: color ?? ("danger" as const),
         sx: undefined,
       };
     case "cta":
       return {
         variant: "solid" as const,
-        color: (color ?? "primary") as const,
+        color: color ?? ("primary" as const),
         sx: {
           px: { xs: 3, sm: 4.5 },
           py: { xs: 1.5, sm: 1.75 },
@@ -192,7 +208,7 @@ const resolveVariantConfig = (
     case "link":
       return {
         variant: "plain" as const,
-        color: (color ?? "primary") as const,
+        color: color ?? ("primary" as const),
         sx: {
           px: 0,
           minHeight: "auto",
