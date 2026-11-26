@@ -321,3 +321,11 @@ Deno.test("revenue adds BloomSites tickets and fundraising from the signed CMS b
     }, { BLOOM_OPS_URL_CMS: "https://cms.test/api/internal/bloom/ops", BLOOM_OPS_SECRET_CMS: "test-cms-secret" });
   }
 });
+Deno.test("a revenue question where the tool is not offered gets the fixed where-to-ask reply, with no model call", async () => {
+  await fixture(async calls => {
+    const result = await answerWithSlackAgent({ ...context, route: "ask" }, "<#C0CFUG4LFLJ> Can you tell us how much revenue we've generated from events, fundraising and plant sales by garden center?", "job") ?? "";
+    assertStringIncludes(result, "I answer it in the private Bloom finance channel for owner-level staff");
+    assertEquals(/cannot access|restricted/i.test(result), false);
+    assertEquals(calls.some(c => c.url.endsWith("chat/completions")), false);
+  }, (url, body) => url.includes("conversations.info") ? publicMeta : standard(url, body));
+});

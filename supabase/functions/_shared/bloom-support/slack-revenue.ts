@@ -127,3 +127,19 @@ export function bloomSitesBlock(range: string, sites: Map<string, Row>): string 
   if (lines.length === 1) lines.push("No event-ticket or fundraising sales recorded.");
   return lines.join("\n");
 }
+
+/**
+ * A request for revenue by garden centre (as opposed to a product question
+ * about where to find sales reports). Both a money word and a cross-client
+ * or totals cue must appear.
+ */
+export function revenueByClientQuestion(question: string): boolean {
+  const q = question.toLowerCase();
+  return /\b(?:revenue|sales|fundrais\w*|ticket sales|turnover|income)\b/.test(q)
+    && /\b(?:garden cent(?:re|er)s?|by (?:client|store|centre|center|location|garden)|per (?:client|store|centre|center)|each (?:client|store|centre|center)|all (?:clients|stores)|we(?:'ve| have)? (?:generated|made|earned)|how much)\b/.test(q);
+}
+
+/** Fixed reply where revenue_by_client is not offered: where to ask, never a claimed restriction on Bloom. */
+export const REVENUE_ELSEWHERE_REPLY =
+  "Revenue by garden centre is client financial data, so I answer it in the private Bloom finance channel for owner-level staff, not in this channel. " +
+  "Ask there and I'll reply with recorded POS sales plus BloomSites event-ticket and fundraising totals for the period you name (default: the last 12 months).";
