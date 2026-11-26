@@ -1,5 +1,5 @@
 import { assertEquals, assert, assertThrows, assertStringIncludes } from "@std/assert";
-import { SLACK_PERSONA, inPersona, personaEnabled, quip, AGENT_SYSTEM, ToolPermissionError, toolFailure, availableTools, composeSlackAgentReply, explicitIntent, openAiTools, runAgent, safeAgentAnswer, scrub, TOOL_SPECS, validateArguments, type AgentContext, type AgentDependencies, type ChatMessage } from "./slack-agent-core.ts";
+import { openCountQuestion, SLACK_PERSONA, inPersona, personaEnabled, quip, AGENT_SYSTEM, ToolPermissionError, toolFailure, availableTools, composeSlackAgentReply, explicitIntent, openAiTools, runAgent, safeAgentAnswer, scrub, TOOL_SPECS, validateArguments, type AgentContext, type AgentDependencies, type ChatMessage } from "./slack-agent-core.ts";
 const context = (patch: Partial<AgentContext> = {}): AgentContext => ({
   jobId: "job", principalId: "staff", role: "platform_admin", channel: "private", route: "tickets", rootTs: "1.000001",
   ticketId: null, question: "What needs attention?", history: [], privateChannel: true, ...patch,
@@ -271,4 +271,27 @@ Deno.test("with the persona on, a model reply that forgot the voice still opens 
   assertEquals((await runAgent(context({ persona: true }), voiced.deps)).text, "📋 Fourteen. I counted so you don't have to.");
   const off = harness([answer("There are 14 open requests.")]);
   assertEquals((await runAgent(context(), off.deps)).text, "There are 14 open requests.");
+});
+
+Deno.test("a ticket count is always looked up first, and the voice instructions carry no example facts", async () => {
+  assert(openCountQuestion("How many open tickets"));
+  assert(openCountQuestion("how many requests are waiting on us?"));
+  assert(openCountQuestion("what's the total number of tickets open"));
+  assertEquals(openCountQuestion("what tickets are open"), false);
+  assertEquals(openCountQuestion("when is the next payout"), false);
+  // No figures or weekdays in the persona text: the model has repeated an example figure as an answer.
+  assertEquals(/\d|\b(?:fourteen|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i.test(SLACK_PERSONA), false);
+  assertStringIncludes(SLACK_PERSONA, "The voice never replaces a lookup");
+  const h = harness([answer("📋 There are 3 open requests.")], {
+    execute: (name) => { h.executed.push(name); return Promise.resolve({ data: { open_total: 3 }, source: "Live support overview", fallback: "Open requests: 3." }); },
+  });
+  const out = await runAgent(context({ question: "How many open tickets", persona: true }), h.deps);
+  assertEquals(h.executed, ["support_overview"]);
+  assertEquals(h.audited, ["support_overview:succeeded"]);
+  assertStringIncludes(JSON.stringify(h.requests[0]), "open_total");
+  assertEquals(out.sources, ["Live support overview"]);
+  // In a ticket thread the overview tool is not offered, so nothing is prefetched.
+  const bound = harness([answer()]);
+  await runAgent(context({ question: "How many open tickets", ticketId: "bound" }), bound.deps);
+  assertEquals(bound.executed, []);
 });
