@@ -6,6 +6,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/useTenant";
 import { useUserRole } from "@/hooks/useUserRole";
 import {
+  resolveTenantSendingReadiness,
+  toSenderDomainStatus,
+} from "@/lib/crm/senderSeverity";
+import {
   getIntegrationSeeds,
   type IntegrationDefinition,
 } from "@/components/integrations/integrationsHubConfig";
@@ -262,7 +266,7 @@ export function useIntegrationsHubData() {
           ? supabase
               .from("email_domains")
               .select(
-                "id, domain, status, created_at, updated_at, entri_provider, is_entri_managed",
+                "id, domain, status, created_at, updated_at, entri_provider, is_entri_managed, default_from_email, default_from_name, verified_at, manual_pause, investigation_mode, resend_status",
               )
               .eq("tenant_id", tenant.id)
               .order("created_at", { ascending: false })
@@ -436,9 +440,18 @@ export function useIntegrationsHubData() {
         }
       }
 
-      const managedDomain = emailDomains.find((domain) =>
-        ["active", "warming_up"].includes(domain.status),
-      );
+      // Connected means campaigns can actually send: the same readiness rule
+      // the send path and Bloom use (resolveTenantSendingReadiness).
+      const sendingReadiness = resolveTenantSendingReadiness({
+        domains: emailDomains.map((domain) => ({
+          ...domain,
+          status: toSenderDomainStatus(domain.status),
+        })),
+        defaultDomainId: tenant?.default_from_email_domain_id ?? null,
+      });
+      const managedDomain = sendingReadiness.canSend
+        ? (emailDomains.find((domain) => domain.id === sendingReadiness.domainId) ?? null)
+        : null;
       const latestDomain = managedDomain ?? emailDomains[0] ?? null;
       if (latestDomain) {
         items = withPatchedItem(items, "email-infrastructure", {

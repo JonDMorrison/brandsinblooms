@@ -11,6 +11,23 @@ export type SenderDomainStatus =
   | "failed"
   | "error";
 
+const SENDER_DOMAIN_STATUSES: readonly SenderDomainStatus[] = [
+  "pending",
+  "pending_dns",
+  "verifying",
+  "warming_up",
+  "active",
+  "paused",
+  "blocked",
+  "failed",
+  "error",
+];
+
+/** email_domains.status is text; an unknown value fails closed as "error". */
+export function toSenderDomainStatus(value: string): SenderDomainStatus {
+  return SENDER_DOMAIN_STATUSES.find((status) => status === value) ?? "error";
+}
+
 /** The fields of an email_domains row the sender check reads. */
 export interface SenderDomainLike {
   domain: string;
@@ -203,4 +220,126 @@ export function classifySender({
       };
     }
   }
+}
+
+/** The email_domains fields the tenant sending-readiness check reads. */
+export interface SendingDomainRow extends SenderDomainLike {
+  id: string;
+  default_from_name?: string | null;
+  verified_at?: string | null;
+  manual_pause?: boolean | null;
+  investigation_mode?: boolean | null;
+  /** email_domains.resend_status: provider verification and DNS flags. */
+  resend_status?: unknown;
+}
+
+export type TenantSendingBlocker =
+  | "NO_DOMAIN"
+  | "DOMAIN_PAUSED"
+  | "DOMAIN_NOT_VERIFIED";
+
+export type TenantSendingReadiness =
+  | {
+      canSend: true;
+      domainId: string;
+      domain: string;
+      /** The From address a campaign sends from when it names none. */
+      fromEmail: string;
+      fromName: string | null;
+    }
+  | {
+      canSend: false;
+      reason: TenantSendingBlocker;
+      message: string;
+      domain: string | null;
+    };
+
+const READINESS_MESSAGES: Record<TenantSendingBlocker, string> = {
+  NO_DOMAIN:
+    "No sending domain is set up yet. Add and verify your domain in Settings, then Sender/Domain.",
+  DOMAIN_PAUSED:
+    "Your sending domain is paused. Sending will not go out until it is resumed.",
+  DOMAIN_NOT_VERIFIED:
+    "Your sending domain is not fully verified yet (SPF, DKIM and return-path). Finish DNS setup in Settings, then Sender/Domain.",
+};
+
+const flag = (record: unknown, key: string): boolean =>
+  typeof record === "object" &&
+  record !== null &&
+  (record as Record<string, unknown>)[key] === true;
+
+const providerStatus = (record: unknown): string => {
+  if (typeof record !== "object" || record === null) return "";
+  const value = (record as Record<string, unknown>).status;
+  return typeof value === "string" ? value.toLowerCase() : "";
+};
+
+/** Same rules as public.check_send_quota's domain authentication gate. */
+export function isDomainSendReady(domain: SendingDomainRow): boolean {
+  return (
+    (domain.status === "active" || domain.status === "warming_up") &&
+    !domain.manual_pause &&
+    !domain.investigation_mode &&
+    Boolean(domain.verified_at) &&
+    providerStatus(domain.resend_status) === "verified" &&
+    flag(domain.resend_status, "spf_verified") &&
+    flag(domain.resend_status, "dkim_verified") &&
+    flag(domain.resend_status, "return_path_verified")
+  );
+}
+
+/**
+ * Can this tenant send campaign email, and from which address?
+ *
+ * One answer for every surface (Settings, Bloom, Review & Send). It mirrors
+ * the send path: send-email-campaign uses the tenant's default domain (or
+ * any send-ready one) and check_send_quota's From address, which is the
+ * domain's default_from_email or mail@<domain> — not the draft's own field.
+ */
+export function resolveTenantSendingReadiness(input: {
+  domains: SendingDomainRow[];
+  defaultDomainId: string | null;
+}): TenantSendingReadiness {
+  const { domains, defaultDomainId } = input;
+  if (domains.length === 0) {
+    return {
+      canSend: false,
+      reason: "NO_DOMAIN",
+      message: READINESS_MESSAGES.NO_DOMAIN,
+      domain: null,
+    };
+  }
+
+  const ordered = [
+    ...domains.filter((d) => d.id === defaultDomainId),
+    ...domains.filter((d) => d.id !== defaultDomainId),
+  ];
+  const ready = ordered.find(isDomainSendReady);
+  if (ready) {
+    const fromEmail =
+      (ready.default_from_email ?? "").trim() || `mail@${ready.domain}`;
+    return {
+      canSend: true,
+      domainId: ready.id,
+      domain: ready.domain,
+      fromEmail,
+      fromName: (ready.default_from_name ?? "").trim() || null,
+    };
+  }
+
+  const primary = ordered[0];
+  const paused =
+    primary.manual_pause ||
+    primary.investigation_mode ||
+    primary.status === "paused" ||
+    primary.status === "blocked";
+  const reason: TenantSendingBlocker = paused
+    ? "DOMAIN_PAUSED"
+    : "DOMAIN_NOT_VERIFIED";
+  return {
+    canSend: false,
+    reason,
+    message: READINESS_MESSAGES[reason],
+    domain: primary.domain,
+  };
 }
