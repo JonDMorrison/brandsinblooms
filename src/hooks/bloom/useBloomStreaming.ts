@@ -1542,6 +1542,8 @@ export function useBloomStreaming(handlers: BloomStreamingHandlers = {}) {
     connectionState === "done" && researchSteps.size > 0;
 
   return {
+    /** True once a signed-in user and an organization are loaded, so a send can succeed. */
+    canSend: Boolean(tenantId && userId && session?.access_token),
     startStream,
     cancelStream,
     isStreaming:
