@@ -286,3 +286,53 @@ describe("named account library and outline", () => {
     );
   });
 });
+
+describe("Website Links: look and alignment are separate", () => {
+  const nav = (fields: Partial<StudioBlock> = {}) => ({
+    ...createStudioBlock("navigation"),
+    links: [{ id: "a", label: "Shop", url: "https://example.com" }],
+    ...fields,
+  }) as StudioBlock;
+
+  it("turns pills off again", () => {
+    const update = vi.fn();
+    render(<ExtendedBlockProperties block={nav({ buttonStyle: "outlined", layoutPreset: "nav-pills" })} update={update} />);
+    const look = screen.getByLabelText("How the links look") as HTMLSelectElement;
+    expect(look.value).toBe("pills");
+    fireEvent.change(look, { target: { value: "links" } });
+    expect(update).toHaveBeenCalledWith("buttonStyle", "link");
+    expect(update).not.toHaveBeenCalledWith("textAlign", expect.anything());
+  });
+
+  it("moves the links without changing how they look", () => {
+    const update = vi.fn();
+    render(<ExtendedBlockProperties block={nav({ buttonStyle: "outlined", layoutPreset: "nav-pills", textAlign: "center" })} update={update} />);
+    fireEvent.click(within(screen.getByRole("group", { name: "Link alignment" })).getByRole("button", { name: "Right" }));
+    expect(update).toHaveBeenCalledWith("textAlign", "right");
+    expect(update).toHaveBeenCalledWith("layoutPreset", "nav-right");
+    expect(update).not.toHaveBeenCalledWith("buttonStyle", expect.anything());
+  });
+
+  it("has no Full width choice for links", () => {
+    render(<ExtendedBlockProperties block={nav()} update={vi.fn()} />);
+    expect(within(screen.getByRole("group", { name: "Link alignment" })).queryByRole("button", { name: "Full width" })).toBeNull();
+  });
+});
+
+describe("coupon barcode type", () => {
+  it("offers the five formats and explains a six-digit code", () => {
+    const update = vi.fn();
+    render(<ExtendedBlockProperties block={{ ...createStudioBlock("coupon"), couponBarcode: "123456" }} update={update} />);
+    const type = screen.getByLabelText("Barcode type") as HTMLSelectElement;
+    expect([...type.options].map((option) => option.value)).toEqual(["upc-a", "upc-e", "ean-13", "ean-8", "code-128"]);
+    expect(screen.getByText(/UPC-A needs 12 digits/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create printable barcode" })).toBeDisabled();
+    fireEvent.change(type, { target: { value: "code-128" } });
+    expect(update).toHaveBeenCalledWith("couponBarcodeFormat", "code-128");
+  });
+
+  it("allows a six-digit code as Code 128", () => {
+    render(<ExtendedBlockProperties block={{ ...createStudioBlock("coupon"), couponBarcode: "123456", couponBarcodeFormat: "code-128" }} update={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "Create printable barcode" })).toBeEnabled();
+  });
+});

@@ -1949,7 +1949,6 @@ function PanelContent({
     heroPresets,
     graphicHeroPresets,
     fullWidthImagePresets,
-    navigationPresets,
     newsletterHeaderPresets,
     imageTextPresets,
     plainTextPresets,
@@ -2064,17 +2063,11 @@ function PanelContent({
     [allLookPresets, block, designSystem, onUpdateBlockField, onUpdateBlockFields],
   );
 
+  // Website Links has two plain controls (how the links look, where they sit)
+  // in place of look presets. The presets mixed the two, and picking Left,
+  // Centred or Right after Pills left the pill styling behind.
   if (block.type === "navigation") {
-    return (
-      <Stack spacing={0.75} sx={{ width: "100%", maxWidth: "100%", minWidth: 0 }}>
-        <LayoutPresetPicker
-          presets={navigationPresets}
-          selectedKey={block.layoutPreset}
-          onSelect={selectPreset}
-        />
-        <ExtendedBlockProperties block={block} update={updateField} />
-      </Stack>
-    );
+    return <ExtendedBlockProperties block={block} update={updateField} />;
   }
 
   if (
@@ -4526,17 +4519,7 @@ function PanelContent({
                         }
                       />
                     ) : null}
-                    <StudioSliderField
-                      label="Vertical Padding"
-                      min={12}
-                      max={48}
-                      step={4}
-                      defaultValue={20}
-                      value={block.verticalPadding ?? 20}
-                      onChange={(value) =>
-                        updateField("verticalPadding", value)
-                      }
-                    />
+                    {/* Vertical padding lives in Block spacing (More options). It starts from this header's saved padding. */}
                   </>
                 ),
               },
@@ -4688,15 +4671,7 @@ function PanelContent({
                         onChange={(value) => updateField("quoteMarkSize", value)}
                       />
                     )}
-                    <StudioSliderField
-                      label="Content Padding"
-                      min={16}
-                      max={48}
-                      step={4}
-                      defaultValue={32}
-                      value={block.contentPadding ?? 32}
-                      onChange={(value) => updateField("contentPadding", value)}
-                    />
+                    {/* Content padding lives in Block spacing (More options). It starts from this quote's saved padding. */}
                   </>
                 ),
               },

@@ -448,6 +448,24 @@ function textRolesForBlock(block: StudioBlock): TextRole[] | undefined {
   }
 }
 
+/**
+ * Blocks whose own vertical padding control was folded into Block spacing.
+ * Returns what the block draws while no Block spacing has been entered.
+ */
+export function legacyBlockPadding(block?: StudioBlock): EdgeSpacing | undefined {
+  if (!block) return undefined;
+  if (block.type === "newsletter-header") {
+    const fallback = block.layout === "centered" ? 24 : block.layout === "minimal" ? 16 : 20;
+    const vertical = typeof block.verticalPadding === "number" ? block.verticalPadding : fallback;
+    return { top: vertical, right: 24, bottom: vertical, left: 24 };
+  }
+  if (block.type === "quote") {
+    const vertical = typeof block.contentPadding === "number" ? block.contentPadding : 32;
+    return { top: vertical, right: 24, bottom: vertical, left: 24 };
+  }
+  return undefined;
+}
+
 export default function AppearanceControls({
   value = {},
   onChange,
@@ -487,9 +505,15 @@ export default function AppearanceControls({
   const cta = block?.type === "call-to-action" ? block : undefined;
   const inherited = (plain || cta) ? settings?.defaults : undefined;
   const verticalPadding = plain ? plain.contentPadding ?? 28 : cta?.verticalPadding ?? 32;
+  // The padding a block draws before Block spacing is used. Shown as the
+  // starting numbers, so the first edit begins from what is on screen.
+  const ownPadding = legacyBlockPadding(block);
+  const hasEnteredPadding = Object.values(value.padding ?? {}).some((edge) => typeof edge === "number");
   const legacyPadding = (plain || cta) && !inherited?.padding && !value.padding
     ? { top: verticalPadding, right: 24, bottom: verticalPadding, left: 24 }
-    : undefined;
+    : ownPadding && !settings?.defaults?.padding && !hasEnteredPadding
+      ? ownPadding
+      : undefined;
   const legacySize = plain && ({ sm: 14, md: 16, lg: 18 }[plain.fontSize ?? "md"]);
   const inheritedWeight = inherited?.text?.body?.weight ?? (plain?.fontWeightPreset === "medium" ? 500 : 400);
   const type = block?.type;

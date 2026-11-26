@@ -19,6 +19,7 @@ import {
   textCss,
 } from "./settings.ts";
 import { sanitizeEmailHtml } from "./emailHtmlSanitizer.ts";
+import { barcodeFormatName, checkBarcode, couponBarcodeFormat } from "./barcode.ts";
 
 const text = (value: unknown) =>
   formatDraftText(typeof value === "string" ? value : "");
@@ -312,9 +313,13 @@ export function renderCoupon(block: StudioBlock, width: number, editing = false)
       11,
     );
   const barcodeUrl = safeEmailUrl(block.couponBarcodeImageUrl, true);
+  // The picture is shown only while the saved code is valid for its format.
+  // Coupons saved before formats existed are UPC-A.
+  const barcodeFormat = couponBarcodeFormat(block.couponBarcodeFormat);
+  const barcodeCheck = checkBarcode(barcodeFormat, block.couponBarcode || "");
   const barcode =
-    block.couponBarcode && validUpcA(block.couponBarcode) && barcodeUrl
-      ? `<div style="padding-top:16px;text-align:center;"><img data-newsletter-readonly="true" src="${attr(barcodeUrl)}" width="250" alt="UPC ${attr(block.couponBarcode)}" style="max-width:100%;height:auto;" /><div style="font-family:monospace;font-size:13px;">${text(block.couponBarcode)}</div></div>`
+    barcodeCheck.ok && barcodeCheck.code === (block.couponBarcode || "").trim() && barcodeUrl
+      ? `<div style="padding-top:16px;text-align:center;"><img data-newsletter-readonly="true" src="${attr(barcodeUrl)}" width="250" alt="${attr(barcodeFormatName(barcodeFormat))} barcode ${attr(barcodeCheck.code)}" style="max-width:100%;height:auto;" /><div style="font-family:monospace;font-size:13px;">${text(barcodeCheck.code)}</div></div>`
       : "";
   const content =
     badges(block) +
