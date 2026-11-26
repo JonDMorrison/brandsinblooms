@@ -9,6 +9,7 @@ import { useNavigate } from "react-router-dom";
 import { JoyButton } from "@/components/joy/JoyButton";
 import { JoyChip } from "@/components/joy/JoyChip";
 import { JoyEmptyState } from "@/components/joy/JoyEmptyState";
+import { readProductStockLevel } from "@/components/bloom/utils/productStock";
 import {
   JoyTable,
   JoyTableBody,
@@ -282,9 +283,9 @@ function TableCellContent({
     case "number": {
       const numeric = readNumber(value);
       const lowInventory =
-        column.key.toLowerCase().includes("inventory") &&
+        column.key === "inventory_count" &&
         numeric !== null &&
-        numeric < 10;
+        readProductStockLevel(row).isLow;
       return (
         <Typography
           level="body-sm"
