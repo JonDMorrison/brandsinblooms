@@ -21,8 +21,7 @@
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:prebeta": "playwright test --project=prebeta-suite",
     "test:lightspeed": "node --test tests/lightspeed/*.test.cjs",
-    "test:product-guides": "node --test scripts/product-guides/*.test.mjs",
-    "eval:bloom-golden": "node scripts/bloom-evals/golden.mjs"
+    "test:product-guides": "node --test scripts/product-guides/*.test.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
