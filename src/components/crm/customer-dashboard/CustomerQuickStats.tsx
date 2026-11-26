@@ -1,28 +1,21 @@
 import Box from "@mui/joy/Box";
-import CircularProgress from "@mui/joy/CircularProgress";
 import Sheet from "@mui/joy/Sheet";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
 import {
-  Activity,
   Clock3,
   DollarSign,
-  HeartPulse,
   MessageSquare,
   ShoppingBag,
 } from "lucide-react";
 import {
-  clampPercent,
   formatAccountAge,
   formatCompactNumber,
   formatCurrency,
-  getScoreColor,
   humanizeChannel,
 } from "./customerDashboardUtils";
 
 export interface CustomerQuickStatsProps {
-  healthScore?: number | null;
-  engagementScore?: number | null;
   lifetimeValue?: number | null;
   totalOrders?: number | null;
   preferredChannel?: string | null;
@@ -30,42 +23,7 @@ export interface CustomerQuickStatsProps {
   loading?: boolean;
 }
 
-const scoreRing = (label: string, value?: number | null) => {
-  const color = getScoreColor(value);
-
-  return {
-    label,
-    color,
-    renderValue: (
-      <CircularProgress
-        determinate
-        value={clampPercent(value)}
-        color={color}
-        size="lg"
-        sx={{
-          "--CircularProgress-size": "56px",
-          "--CircularProgress-thickness": "5px",
-        }}
-      >
-        <Typography level="body-sm" fontWeight="lg">
-          {value ?? "--"}
-        </Typography>
-      </CircularProgress>
-    ),
-  };
-};
-
 const stats = (props: CustomerQuickStatsProps) => [
-  {
-    icon: HeartPulse,
-    label: "Health Score",
-    value: scoreRing("Health Score", props.healthScore).renderValue,
-  },
-  {
-    icon: Activity,
-    label: "Engagement",
-    value: scoreRing("Engagement", props.engagementScore).renderValue,
-  },
   {
     icon: DollarSign,
     label: "Lifetime Value",
@@ -102,18 +60,18 @@ export function CustomerQuickStats(props: CustomerQuickStatsProps) {
       }}
     >
       {/*
-        A grid, not one forced row: six tiles in a row left each ~200px on a
-        laptop-width window, and a nowrap "Data not available" ran into the
-        next tile. Two columns on phones, three on tablets, six when wide.
+        A grid, not one forced row. Two columns on phones, four when wide.
         The 1px gap over a neutral background draws the dividers.
+        Health and engagement score rings were removed: their source
+        (customer_360_enriched.engagement_overall_score) is never computed
+        and read 0 for every customer.
       */}
       <Box
         sx={{
           display: "grid",
           gridTemplateColumns: {
             xs: "repeat(2, minmax(0, 1fr))",
-            sm: "repeat(3, minmax(0, 1fr))",
-            xl: "repeat(6, minmax(0, 1fr))",
+            lg: "repeat(4, minmax(0, 1fr))",
           },
           gap: "1px",
           bgcolor: "neutral.200",
