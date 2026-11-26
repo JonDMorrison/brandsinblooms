@@ -17,6 +17,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { BloomMarkdown } from "@/components/bloom/BloomMarkdown";
 import { JoyButton } from "@/components/joy/JoyButton";
 import { JoyChip } from "@/components/joy/JoyChip";
 import {
@@ -263,19 +264,9 @@ function CompactTextBlock({ payload }: { payload: unknown }) {
     return <CompactFallbackBlock blockType="text" payload={payload} />;
   }
 
-  return (
-    <Typography
-      level="body-xs"
-      sx={{
-        color: "neutral.700",
-        lineHeight: 1.65,
-        overflowWrap: "anywhere",
-        whiteSpace: "pre-wrap",
-      }}
-    >
-      {text}
-    </Typography>
-  );
+  // Bloom answers in markdown; render it so **bold** and ### headings do not
+  // show as raw symbols in the compact panel.
+  return <BloomMarkdown compact content={text} />;
 }
 
 function CompactDataCardBlock({
