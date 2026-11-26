@@ -262,3 +262,13 @@ Deno.test("the grumpy voice is a staff-Slack setting: it adds tone, never change
   assertEquals(quip("closed", "job-1"), quip("closed", "job-1"));
   assert(quip("no-such-kind", "job-1").length > 0);
 });
+
+Deno.test("with the persona on, a model reply that forgot the voice still opens with a wry line; one that has it is left alone", async () => {
+  const plain = harness([answer("There are 14 open requests.")]);
+  const out = await runAgent(context({ persona: true }), plain.deps);
+  assert(out.text.endsWith("\nThere are 14 open requests.") && /\p{Extended_Pictographic}/u.test(out.text));
+  const voiced = harness([answer("📋 Fourteen. I counted so you don't have to.")]);
+  assertEquals((await runAgent(context({ persona: true }), voiced.deps)).text, "📋 Fourteen. I counted so you don't have to.");
+  const off = harness([answer("There are 14 open requests.")]);
+  assertEquals((await runAgent(context(), off.deps)).text, "There are 14 open requests.");
+});

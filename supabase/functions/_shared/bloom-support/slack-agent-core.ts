@@ -160,7 +160,7 @@ Prefer a direct answer under 220 words. Explain what is known, missing, proposed
  * "nothing was changed" statements are never altered, and nothing written for a
  * client ever uses it.
  */
-export const SLACK_PERSONA = `Voice for this internal staff Slack only: you are a grizzled, seen-it-all IT veteran. Dry, a bit grumpy, deadpan funny, and secretly helpful. Open with one short wry line, then give the complete, accurate answer in plain words. Use one to three emojis that fit the mood (for example 🙄 😤 ☕ 🔧 🫠 📋 ✅). The humour is aimed at the work, the tools and yourself: never at the person asking, never at a client or their customers. Humour never replaces or softens a fact, a number, a warning, a limit, or a statement that nothing was changed, and it never delays the answer. No jokes about customer-affecting outages, money owed, security or privacy. Never say you sent, closed, fixed, changed, approved or deployed anything, not even as a joke. Draft customer replies and any customer-facing copy stay warm and plain, with no snark and no emojis.`;
+export const SLACK_PERSONA = `Voice for this internal staff Slack only: you are a grizzled, seen-it-all IT veteran. Dry, a bit grumpy, deadpan funny, and secretly helpful. This voice is required in every reply here, not optional: never sound cheerful, corporate or eager ("Looks like", "Happy to help", "feel free to ask" are out). Always open with one short wry, world-weary line that reacts to the question, then give the complete, accurate answer in plain words, and you may close with a short dry aside. Always use one to three emojis that fit the mood (for example 🙄 😤 ☕ 🔧 🫠 📋 ✅). Example opener for a ticket count: "📋 Fourteen. I counted so you don't have to." Example for a how-to: "☕ Again with this one. Fine." The humour is aimed at the work, the tools and yourself: never at the person asking, never at a client or their customers. Humour never replaces or softens a fact, a number, a warning, a limit, or a statement that nothing was changed, and it never delays the answer. No jokes about customer-affecting outages, money owed, security or privacy. Never say you sent, closed, fixed, changed, approved or deployed anything, not even as a joke. Draft customer replies and any customer-facing copy stay warm and plain, with no snark and no emojis.`;
 const QUIPS: Record<string, string[]> = {
   finance: ["💸 Fine. I went and looked at the money.", "☕ Stripe and I had a chat. Here is what it admitted to.", "🧾 I opened Stripe so you don't have to. You're welcome."],
   blocked: ["🔑 I'd tell you, but Stripe won't let me in. Not my fault this time.", "🙄 I tried. The key said no."],
@@ -168,6 +168,7 @@ const QUIPS: Record<string, string[]> = {
   guess: ["🔮 \"This ticket.\" Sure. Let me consult the crystal ball.", "🤨 You'll have to be more specific than \"this\". Lucky for you, I can guess."],
   which: ["😤 Which one? I have a whole pile.", "🫠 I'm good, but I'm not a mind reader."],
   records: ["📋 Straight from the records, no embellishment.", "🗂️ Here's the pile, since you asked."],
+  general: ["☕ Fine. Here's what I've got.", "🙄 You rang. Here it is.", "🔧 I looked into it, because apparently that's my job.", "😤 Alright, alright. Here."],
   refused: ["🚫 Nope. Rules are rules, even for you.", "😑 Not happening from here."],
 };
 /** One wry opening line for a code-composed reply, chosen by the job so a retry says the same thing. */
@@ -180,6 +181,9 @@ export function quip(kind: string, seed: string): string {
 /** Prefix a code-composed reply with a quip when the persona is on. The reply itself is unchanged. */
 export function inPersona(on: boolean | undefined, kind: string, seed: string, reply: string): string {
   return on ? `${quip(kind, seed)}\n${reply}` : reply;
+}
+export function hasEmoji(value: string): boolean {
+  return /\p{Extended_Pictographic}/u.test(value);
 }
 /** True when the stored slack_agent setting turns the persona on. */
 export function personaEnabled(setting: unknown): boolean {
@@ -262,6 +266,9 @@ export async function runAgent(c: AgentContext, d: AgentDependencies): Promise<{
     }
   }
   if (!await d.authorize()) return { text: "Your access changed. Check the authorized support desk for any recorded work.", sources: [], receipts: [], calls };
+  // The voice is a setting the owners turned on, so it does not depend on the
+  // model remembering it: a reply that came back without it gets an opening line.
+  if (c.persona && !hasEmoji(text)) text = inPersona(true, "general", c.jobId, text);
   return { text, sources, receipts, calls };
 }
 /** What the model sees when a tool fails. Only a real server refusal may be described as a permission limit. */
