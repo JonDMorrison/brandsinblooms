@@ -17,6 +17,11 @@ import {
 } from "./cache.ts";
 import { buildCorsHeaders, handleCorsPreflight } from "../_shared/cors.ts";
 import { buildContextLayers } from "./context-builder.ts";
+import {
+  generateConversationTitle as generateGroundedConversationTitle,
+  resolveConversationTitleSubject,
+  type ConversationTitleSubject,
+} from "./conversation-title.ts";
 import { prefetchEntitySummary } from "./entity-prefetch.ts";
 import {
   buildNamedEntityContextNote,
@@ -107,7 +112,6 @@ import type {
 const CORS_OPTIONS = { allowMethods: "POST, OPTIONS" };
 const OPENAI_CHAT_COMPLETIONS_URL =
   "https://api.openai.com/v1/chat/completions";
-const TITLE_MODEL = "gpt-4o-mini";
 const OPENAI_MODEL = "gpt-4o";
 const RESEARCH_MAX_TOOL_ITERATIONS = 15;
 const MAX_OUTPUT_TOKENS = 8_000;
@@ -1392,98 +1396,19 @@ function createPreview(content: string): string {
     : preview;
 }
 
-function fallbackTitle(message: string): string {
-  const words = message
-    .replace(/[^a-zA-Z0-9\s'-]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 6);
-
-  if (words.length === 0) {
-    return "New Bloom Chat";
-  }
-
-  return words
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join(" ");
-}
-
-function sanitizeGeneratedTitle(value: string | null, message: string): string {
-  if (!value) {
-    return fallbackTitle(message);
-  }
-
-  const cleaned = value.replace(/["`]/g, "").replace(/\s+/g, " ").trim();
-
-  if (!cleaned) {
-    return fallbackTitle(message);
-  }
-
-  return cleaned.split(" ").slice(0, 6).join(" ").slice(0, 80);
-}
-
-function extractOpenAiTitle(payload: unknown): string | null {
-  if (!isRecord(payload) || !Array.isArray(payload.choices)) {
-    return null;
-  }
-
-  const firstChoice = payload.choices[0];
-  if (!isRecord(firstChoice) || !isRecord(firstChoice.message)) {
-    return null;
-  }
-
-  return typeof firstChoice.message.content === "string"
-    ? firstChoice.message.content
-    : null;
-}
-
-export async function generateConversationTitle(
+export function generateConversationTitle(
   message: string,
   meter: SpendMeter | null = null,
+  subject: ConversationTitleSubject | null = null,
 ): Promise<string> {
-  const openAiApiKey = Deno.env.get("OPENAI_API_KEY");
-  if (!openAiApiKey) {
-    return fallbackTitle(message);
-  }
-
-  try {
-    const response = await meteredModelFetch(meter, "title", OPENAI_CHAT_COMPLETIONS_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${openAiApiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: TITLE_MODEL,
-        temperature: 0.2,
-        max_tokens: 24,
-        messages: [
-          {
-            role: "system",
-            content:
-              "Summarize the user's message as a concise 4-6 word conversation title. Return only the title.",
-          },
-          { role: "user", content: message },
-        ],
-      }),
-    });
-
-    if (!response.ok) {
-      console.error("[bloom-assist] Title generation failed", response.status);
-      return fallbackTitle(message);
-    }
-
-    const payload: unknown = await response.json();
-    return sanitizeGeneratedTitle(extractOpenAiTitle(payload), message);
-  } catch (error) {
-    console.error(
-      "[bloom-assist] Title generation error",
-      toErrorMessage(error),
-    );
-    return fallbackTitle(message);
-  }
+  return generateGroundedConversationTitle({
+    message,
+    subject,
+    meter,
+    openAiApiKey: Deno.env.get("OPENAI_API_KEY") ?? null,
+    onError: (reason) =>
+      console.error("[bloom-assist] Title generation failed", reason),
+  });
 }
 
 async function resolveUserContext(
@@ -1709,13 +1634,18 @@ export async function persistUserMessage(
   sessionType: BloomSessionType = "standard",
   resourceFocus: BloomResourceFocus | null = null,
   titleMeter: SpendMeter | null = null,
+  titleSubject: ConversationTitleSubject | null = null,
 ): Promise<PersistUserMessageResult> {
   let resolvedConversationId = conversationId;
   let title: string | null = null;
   const isNewConversation = !resolvedConversationId;
 
   if (!resolvedConversationId) {
-    title = await generateConversationTitle(message, titleMeter);
+    title = await generateConversationTitle(
+      message,
+      titleMeter,
+      titleSubject,
+    );
 
     const { data, error } = await serviceClient
       .from("bloom_conversations")
@@ -1748,7 +1678,11 @@ export async function persistUserMessage(
       !existingConversation.title &&
       existingConversation.message_count === 0
     ) {
-      title = await generateConversationTitle(message, titleMeter);
+      title = await generateConversationTitle(
+      message,
+      titleMeter,
+      titleSubject,
+    );
 
       const { error: updateError } = await serviceClient
         .from("bloom_conversations")
@@ -2534,6 +2468,10 @@ function createBloomStreamResponse(
             body.session_type,
             body.resource_focus,
             spendMeter,
+            resolveConversationTitleSubject(
+              resolvedEntitySummary,
+              body.message,
+            ),
           );
           conversationId = persisted.conversationId;
           conversationTitle = persisted.title;
@@ -2564,6 +2502,7 @@ function createBloomStreamResponse(
           effectiveBody.session_type,
           effectiveBody.resource_focus,
           spendMeter,
+          resolveConversationTitleSubject(resolvedEntitySummary, body.message),
         );
 
         conversationId = persistedUserMessage.conversationId;
