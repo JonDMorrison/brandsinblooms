@@ -9,7 +9,7 @@ export type DummyBlock = StudioBlock;
 export type CanvasReorderInstruction =
   | {
       kind: "direction";
-      direction: "up" | "down";
+      direction: "up" | "down" | "top" | "bottom";
     }
   | {
       kind: "index";

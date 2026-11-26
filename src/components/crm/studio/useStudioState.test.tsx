@@ -241,3 +241,40 @@ describe("Add all theme blocks (qa2 #6)", () => {
     expect(labels.join(" ")).not.toMatch(/a garden filled/);
   });
 });
+
+describe("move to top and bottom", () => {
+  it("moves a block to the top, and to just above the footer, in one undoable step each", () => {
+    const { result } = renderHook(() => useStudioState({ initialCampaignName: "Campaign", designSystem }));
+    act(() => { result.current.addBlock("headline"); });
+    act(() => { result.current.addBlock("plain-text"); });
+    act(() => { result.current.addBlock("divider"); });
+    const types = () => result.current.blocks.map((block) => block.type);
+    const footerLast = () => expect(types()[types().length - 1]).toBe("footer");
+    const start = types();
+    const divider = result.current.blocks.find((block) => block.type === "divider")!;
+
+    act(() => { result.current.selectBlock(divider.id); });
+    act(() => { result.current.reorderBlock(divider.id, "top"); });
+    expect(types()[0]).toBe("divider");
+    footerLast();
+    expect(result.current.selectedBlockId).toBe(divider.id);
+
+    act(() => { result.current.reorderBlock(divider.id, "bottom"); });
+    expect(types()[types().length - 2]).toBe("divider");
+    footerLast();
+
+    act(() => { result.current.undo(); });
+    expect(types()[0]).toBe("divider");
+    act(() => { result.current.undo(); });
+    expect(types()).toEqual(start);
+  });
+
+  it("never moves the footer", () => {
+    const { result } = renderHook(() => useStudioState({ initialCampaignName: "Campaign", designSystem }));
+    act(() => { result.current.addBlock("headline"); });
+    const footer = result.current.blocks.find((block) => block.type === "footer")!;
+    const before = result.current.blocks.map((block) => block.id);
+    act(() => { result.current.reorderBlock(footer.id, "top"); });
+    expect(result.current.blocks.map((block) => block.id)).toEqual(before);
+  });
+});

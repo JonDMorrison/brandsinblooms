@@ -857,7 +857,7 @@ export function useStudioState({
   );
 
   const reorderBlock = React.useCallback(
-    (blockId: string, direction: "up" | "down") => {
+    (blockId: string, direction: "up" | "down" | "top" | "bottom") => {
       setBlocks((current) => {
         const sourceIndex = current.findIndex((block) => block.id === blockId);
 
@@ -869,10 +869,24 @@ export function useStudioState({
           return current;
         }
 
+        // The footer stays last, so "bottom" is the place just above it.
+        const footerIndex = current.findIndex((block) => block.type === "footer");
+        const lastContentIndex = footerIndex >= 0 ? footerIndex - 1 : current.length - 1;
         const targetIndex =
-          direction === "up" ? sourceIndex - 1 : sourceIndex + 1;
+          direction === "top"
+            ? 0
+            : direction === "bottom"
+              ? lastContentIndex
+              : direction === "up"
+                ? sourceIndex - 1
+                : sourceIndex + 1;
 
-        if (targetIndex < 0 || targetIndex >= current.length) {
+        if (
+          targetIndex < 0 ||
+          targetIndex >= current.length ||
+          targetIndex === sourceIndex ||
+          current[targetIndex]?.type === "footer"
+        ) {
           return current;
         }
 
