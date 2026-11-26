@@ -227,7 +227,9 @@ const readJsonObject = (value: unknown): BloomTaskJsonObject => {
 
   const output: BloomTaskJsonObject = {};
   for (const [key, entry] of Object.entries(value)) {
-    if (entry === undefined || isJsonValue(entry)) {
+    if (entry === undefined) {
+      output[key] = undefined;
+    } else if (isJsonValue(entry)) {
       output[key] = entry;
     }
   }

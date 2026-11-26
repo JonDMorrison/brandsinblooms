@@ -400,7 +400,9 @@ async function patchBundleImage(params: {
     return;
   }
 
-  const nextContent: GeneratedBundle = {
+  // Built from spreads (not annotated with the GeneratedBundle interface) so
+  // the value keeps an object-literal type that satisfies the Json column.
+  const nextContent = {
     ...snapshot.content,
     items: snapshot.content.items.map((item) =>
       item.channel === params.channel
@@ -415,10 +417,10 @@ async function patchBundleImage(params: {
               url: params.imageUrl,
             },
           }
-        : item,
+        : { ...item },
     ),
     thumbnail: snapshot.content.thumbnail || params.imageUrl,
-  };
+  } satisfies GeneratedBundle;
 
   const { error } = await supabase
     .from("draft_snapshots")

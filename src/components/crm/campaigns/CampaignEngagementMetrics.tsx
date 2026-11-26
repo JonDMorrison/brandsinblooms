@@ -5,7 +5,13 @@ import Divider from "@mui/joy/Divider";
 import Sheet from "@mui/joy/Sheet";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
-import { Eye, Flag, MousePointerClick, UserMinus } from "lucide-react";
+import {
+  Eye,
+  Flag,
+  MousePointerClick,
+  UserMinus,
+  type LucideIcon,
+} from "lucide-react";
 
 export interface CampaignEngagementMetricsProps {
   uniqueOpens: number;
@@ -40,7 +46,7 @@ function EngagementCell({
   value,
   color,
 }: {
-  icon: React.ComponentType<{ size?: number }>;
+  icon: LucideIcon;
   label: string;
   value: string;
   color?: "neutral" | "warning" | "danger";

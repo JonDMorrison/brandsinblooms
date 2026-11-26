@@ -38,7 +38,9 @@ export async function generateImageForChannel(
           uploadToStorage: true,
           userId: params.userId,
         },
-        signal: params.signal,
+        // @supabase/functions-js 2.4.4 has no `signal` invoke option (it was
+        // silently ignored at runtime), so this request is not cancellable until
+        // the Supabase client is upgraded.
       },
     );
 

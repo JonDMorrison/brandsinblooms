@@ -26,6 +26,7 @@ import {
   toAskBloomActionCard,
   toAskBloomBlockType,
   toDataRecord,
+  toSuggestionChipsData,
 } from "@/utils/askBloomBlocks";
 
 type BloomConversationRow =
@@ -261,7 +262,7 @@ const parseBlocks = (
 
   if (isRecord(blockData) && Array.isArray(blockData.blocks)) {
     const parsed = blockData.blocks
-      .filter(isRecord)
+      .flatMap((block) => (isRecord(block) ? [block] : []))
       .map((block): AskBloomBlock => {
         const payload = toDataRecord(block.payload);
         const blockType = toAskBloomBlockType(
@@ -313,6 +314,14 @@ const parseBlocks = (
           };
         }
 
+        if (safeBlockType === "suggestion_chips") {
+          return {
+            type: safeBlockType,
+            content,
+            data: toSuggestionChipsData(payload),
+          };
+        }
+
         return {
           type: safeBlockType,
           content,
@@ -352,7 +361,9 @@ const parseToolCalls = (row: BloomMessageRow): AskBloomToolCall[] => {
       ? row.metadata.toolCalls
       : [];
 
-  return toolCalls.filter(isRecord).map((toolCall, index): AskBloomToolCall => {
+  return toolCalls
+    .flatMap((toolCall) => (isRecord(toolCall) ? [toolCall] : []))
+    .map((toolCall, index): AskBloomToolCall => {
     const argumentsValue = isRecord(toolCall.arguments)
       ? toolCall.arguments
       : isRecord(toolCall.tool_input)
@@ -382,7 +393,9 @@ const toAskBloomConversation = (
   metadata: row.metadata,
   messageCount: row.message_count,
   lastMessagePreview: row.last_message_preview,
-  sessionType: row.session_type,
+  // bloom_conversations_session_type_check limits the column to these values.
+  sessionType:
+    row.session_type === "resource_focused" ? "resource_focused" : "standard",
   resourceType: row.resource_type as AskBloomResourceType | null,
   resourceId: row.resource_id,
   createdAt: row.created_at,

@@ -9,8 +9,14 @@ import {
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 
-import { buildIntegrationDetailModel } from "@/components/integrations/integrationDetailModel";
-import { getIntegrationSeed } from "@/components/integrations/integrationsHubConfig";
+import {
+  buildIntegrationDetailModel,
+  type IntegrationDetailModelInput,
+} from "@/components/integrations/integrationDetailModel";
+import {
+  getIntegrationSeed,
+  type IntegrationDefinition,
+} from "@/components/integrations/integrationsHubConfig";
 import { supabase } from "@/integrations/supabase/client";
 import { useIntegrationDetailData } from "@/hooks/useIntegrationDetailData";
 import { useMailchimpImportProgress } from "@/hooks/useMailchimpImportProgress";
@@ -102,6 +108,86 @@ vi.mock(
 );
 
 const mockedUseIntegrationDetailData = vi.mocked(useIntegrationDetailData);
+
+type IntegrationDetailState = ReturnType<typeof useIntegrationDetailData>;
+
+/** Fills every field of the hook result so each fixture only states what it tests. */
+function withIntegrationDetailDefaults(
+  state: Partial<IntegrationDetailState>,
+): IntegrationDetailState {
+  return {
+    isValidSlug: true,
+    item: null,
+    model: null,
+    comingSoonDetail: null,
+    shopifyConnection: null,
+    shopifyDashboard: null,
+    squareDetail: null,
+    squareDashboard: null,
+    cloverDetail: null,
+    cloverDashboard: null,
+    lightspeedDetail: null,
+    lightspeedDashboard: null,
+    metaDetail: null,
+    ga4Detail: null,
+    marketingImportDetail: null,
+    emailInfrastructureDetail: null,
+    targetPath: undefined,
+    requestPath: undefined,
+    canUseActions: false,
+    canAccessLightspeedAdminFeatures: false,
+    canDisconnect: false,
+    isLoading: false,
+    isFetching: false,
+    isError: false,
+    error: null,
+    refetch: vi.fn(),
+    submitComingSoonInterest: vi.fn(),
+    isSubmittingComingSoonInterest: false,
+    runEmailInfrastructureHealthCheck: vi.fn(),
+    isRunningEmailInfrastructureHealthCheck: false,
+    triggerSquareSync: vi.fn(),
+    isSquareSyncing: false,
+    triggerShopifySync: vi.fn(),
+    isShopifySyncing: false,
+    verifySquareWebhooks: vi.fn(),
+    isVerifyingSquareWebhooks: false,
+    verifyShopifyWebhooks: vi.fn(),
+    isVerifyingShopifyWebhooks: false,
+    triggerCloverSync: vi.fn(),
+    isCloverSyncing: false,
+    runCloverConnectionTest: vi.fn(),
+    isCloverConnectionTesting: false,
+    shopifySyncJobs: [],
+    shopifyActiveJobIds: [],
+    shopifySyncState: "idle",
+    lightspeedSyncJobs: [],
+    lightspeedActiveJobIds: [],
+    lightspeedTrackedJobIds: [],
+    lightspeedRealtimeActive: false,
+    lightspeedSyncState: "idle",
+    verifyLightspeedWebhooks: vi.fn(),
+    isVerifyingLightspeedWebhooks: false,
+    lightspeedHasStaleJobs: false,
+    triggerLightspeedSync: vi.fn(),
+    isLightspeedSyncing: false,
+    resetLightspeedData: vi.fn(),
+    isResettingLightspeedData: false,
+    triggerMetaReauthorization: vi.fn(),
+    isMetaReauthorizing: false,
+    refreshMetaAssets: vi.fn(),
+    isRefreshingMetaAssets: false,
+    triggerGa4ConnectionTest: vi.fn(),
+    isGa4ConnectionTesting: false,
+    triggerGa4Reauthorization: vi.fn(),
+    isGa4Reauthorizing: false,
+    validateMarketingImportConnection: vi.fn(),
+    isValidatingMarketingImportConnection: false,
+    disconnect: vi.fn(),
+    isDisconnecting: false,
+    ...state,
+  };
+}
 const mockedUseMailchimpImportProgress = vi.mocked(useMailchimpImportProgress);
 const mockedUseMailchimpSyncLogs = vi.mocked(useMailchimpSyncLogs);
 const mockedUseMailchimpImportedDataSummary = vi.mocked(
@@ -379,8 +465,9 @@ function buildMailchimpImportedComplianceState(
 
 function buildBaseState(
   slug: string,
-  itemOverrides: Record<string, unknown>,
-  modelOverrides: Record<string, unknown>,
+  itemOverrides: Partial<IntegrationDefinition> &
+    Pick<IntegrationDefinition, "status">,
+  modelOverrides: Partial<IntegrationDetailModelInput>,
 ) {
   const seed = getIntegrationSeed(slug);
 
@@ -407,7 +494,7 @@ function buildBaseState(
     ...modelOverrides,
   });
 
-  return {
+  return withIntegrationDetailDefaults({
     isValidSlug: true,
     item,
     model,
@@ -459,7 +546,7 @@ function buildBaseState(
     isValidatingMarketingImportConnection: false,
     disconnect: vi.fn().mockResolvedValue(undefined),
     isDisconnecting: false,
-  };
+  });
 }
 
 function buildGa4State() {

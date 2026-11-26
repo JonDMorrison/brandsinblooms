@@ -11,6 +11,7 @@ import {
   type FooterCompanyProfile,
 } from "@/lib/studio/footerCompliance";
 import type { StudioBlock } from "@/types/studioBlocks";
+import { toJsonValue } from "@/utils/jsonValue";
 import {
   escapeHtml,
   formatDraftRichText,
@@ -557,7 +558,7 @@ function buildCampaignMetadata(
   existingMetadata: Record<string, unknown>,
   input: PersistCampaignRecordInput,
 ) {
-  return {
+  return toJsonValue({
     ...existingMetadata,
     ...(input.metadata ?? {}),
     campaignType: input.campaignType,
@@ -568,7 +569,7 @@ function buildCampaignMetadata(
     sourceSegmentId: input.sourceSegmentId,
     sourcePersonaId: input.sourcePersonaId,
     contentBlocks: input.contentBlocks,
-  } satisfies Record<string, unknown>;
+  } satisfies Record<string, unknown>);
 }
 
 export function buildCampaignBlockRows(
@@ -576,7 +577,7 @@ export function buildCampaignBlockRows(
   contentBlocks: StudioBlock[],
 ): Database["public"]["Tables"]["campaign_blocks"]["Insert"][] {
   return contentBlocks.map((block, index) => {
-    const record = block as Record<string, unknown>;
+    const record: Record<string, unknown> = { ...block };
     const headline =
       typeof record.headline === "string"
         ? record.headline
@@ -615,7 +616,7 @@ export function buildCampaignBlockRows(
     return {
       campaign_id: campaignId,
       block_type: block.type,
-      content: toJsonSafe(record),
+      content: toJsonValue(record),
       headline,
       image_url: imageUrl,
       cta_text: ctaText,
@@ -1025,7 +1026,7 @@ export async function writeCampaignDraftSnapshot(params: {
     doc_type: "newsletter",
     doc_id: params.campaignId,
     version: nextVersion,
-    content: snapshotContent,
+    content: toJsonValue(snapshotContent),
   });
 
   if (insertError) {

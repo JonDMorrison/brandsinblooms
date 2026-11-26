@@ -691,7 +691,7 @@ export function CampaignLockedView({
           sendImmediately: true,
           sendAt: null,
         });
-        if (!result.success) {
+        if (result.success === false) {
           throw new Error(result.error.description || result.error.title);
         }
         toast.success("Campaign queued");

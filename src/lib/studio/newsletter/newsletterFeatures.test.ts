@@ -737,7 +737,7 @@ describe("Arts Nursery November 15 Design Studio regressions", () => {
   it("renders saved feature product galleries beside their details in outgoing email", () => {
     const output = renderNewsletterBlock(block("product-gallery", {
       layout: "feature-product", gridColumns: 3,
-      galleryProducts: [{ id: "maple", name: "Japanese maple", imageUrl: "https://example.com/maple.jpg" }],
+      galleryProducts: [{ id: "maple", name: "Japanese maple", imageUrl: "https://example.com/maple.jpg", price: "" }],
     }));
     const doc = new DOMParser().parseFromString(output, "text/html");
     const imageCell = doc.querySelector('img[src="https://example.com/maple.jpg"]')!.closest("td")!;
@@ -1016,14 +1016,14 @@ describe("empty blocks (#2)", () => {
     const { ensureFooterBlockCompliance } = await import("../footerCompliance");
     const blocks = ensureFooterBlockCompliance([filled, emptyText, emptyImage, footer]);
     expect(blocks.find((b) => b.type === "footer")?.newsletterSettings?.emptyBlocks).toBe("skip");
-    const out = generateEmailHtml({ blocks, subject: "S", previewText: "P" });
+    const out = generateEmailHtml({ blocks, subject: "S", previewText: "P", footer: null });
     expect(out.match(/class="email-block email-block-plain-text"/g)).toHaveLength(1);
     expect(out).not.toContain("email-block-full-width-image");
     expect(out).not.toContain('class="email-block-gap"');
   });
 
   it("re-renders campaigns without the flag exactly as before", () => {
-    const out = generateEmailHtml({ blocks: [filled, emptyText, footer], subject: "S", previewText: "P" });
+    const out = generateEmailHtml({ blocks: [filled, emptyText, footer], subject: "S", previewText: "P", footer: null });
     expect(out.match(/class="email-block email-block-plain-text"/g)).toHaveLength(2);
     expect(out).toContain('class="email-block-gap"');
   });
@@ -1058,7 +1058,7 @@ describe("blank canvas brand defaults (#14)", () => {
       .find((block) => block.type === "footer")!;
     expect(footer.backgroundColor).toBe("#2f6b3a");
     expect(footer.logoUrl).toBe("https://cdn.test/logo.png");
-    const html = generateEmailHtml({ blocks: [footer], subject: "S", previewText: "P", designSystem: ds });
+    const html = generateEmailHtml({ blocks: [footer], subject: "S", previewText: "P", footer: null, designSystem: ds });
     expect(html).toContain("mail@northfieldgardens.ca");
   });
 
@@ -1373,14 +1373,14 @@ describe("phone photo height (#25)", () => {
   const legacyFooter = { ...createStudioBlock("footer"), newsletterSettings: undefined };
 
   it("keeps the 240px phone crop for campaigns without the flag", () => {
-    const html = generateEmailHtml({ blocks: [photo, legacyFooter], subject: "S", previewText: "P" });
+    const html = generateEmailHtml({ blocks: [photo, legacyFooter], subject: "S", previewText: "P", footer: null });
     expect(html).toContain(".responsive-crop-image { height:240px !important; }");
     expect(html).toContain(".image-text-image img.responsive-crop-image { height:240px !important; }");
   });
 
   it("shows natural height on phones for drafts that opted in", () => {
     const footer = { ...legacyFooter, newsletterSettings: { version: 1 as const, mobileImageHeight: "natural" as const } };
-    const html = generateEmailHtml({ blocks: [photo, footer], subject: "S", previewText: "P" });
+    const html = generateEmailHtml({ blocks: [photo, footer], subject: "S", previewText: "P", footer: null });
     expect(html).toContain(".responsive-crop-image { height:auto !important; }");
     expect(html).not.toContain("height:240px !important");
   });

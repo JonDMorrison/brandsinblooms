@@ -720,12 +720,8 @@ function CampaignStudioPageContent() {
   const savedFingerprintRef = React.useRef(savedFingerprint);
   const propertiesPanelScrollPositionRef = React.useRef(0);
   const preservedBlockIdRef = React.useRef<string | null>(null);
-  const aiStudioOpenTimerRef = React.useRef<ReturnType<
-    typeof window.setTimeout
-  > | null>(null);
-  const aiStudioCleanupTimerRef = React.useRef<ReturnType<
-    typeof window.setTimeout
-  > | null>(null);
+  const aiStudioOpenTimerRef = React.useRef<number | null>(null);
+  const aiStudioCleanupTimerRef = React.useRef<number | null>(null);
   const pendingExitAfterAICloseRef = React.useRef(false);
   const isRestoringPropertiesPanelRef = React.useRef(false);
 
@@ -1891,7 +1887,7 @@ function CampaignStudioPageContent() {
     }
 
     let isDisposed = false;
-    let connectTimerId: ReturnType<typeof window.setTimeout> | null = null;
+    let connectTimerId: number | null = null;
 
     const subscribeToCampaignChanges = () => {
       if (isDisposed || channelRef.current) {

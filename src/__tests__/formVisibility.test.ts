@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { sanitizeFormSubmissionData } from "../../supabase/functions/_shared/formVisibility.ts";
+import {
+  sanitizeFormSubmissionData,
+  type FormVisibilityOperator,
+} from "../../supabase/functions/_shared/formVisibility.ts";
+
+const equalsOperator: FormVisibilityOperator = "equals";
 
 describe("sanitizeFormSubmissionData", () => {
   const fields = [
@@ -27,7 +32,7 @@ describe("sanitizeFormSubmissionData", () => {
       visibility_rules: [
         {
           field_id: "updates",
-          operator: "equals",
+          operator: equalsOperator,
           value: "true",
         },
       ],

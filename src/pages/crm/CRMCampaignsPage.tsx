@@ -366,6 +366,13 @@ function isActivelySendingStatus(status: CampaignCatalogItem["status"]) {
   return ACTIVELY_SENDING_STATUSES.includes(status);
 }
 
+const SENDING_FILTER_STATUSES: ReadonlyArray<CampaignCatalogItem["status"]> = [
+  CAMPAIGN_STATUS.QUEUED,
+  CAMPAIGN_STATUS.PARTIALLY_QUEUED,
+  CAMPAIGN_STATUS.SENDING,
+  CAMPAIGN_STATUS.PAUSED,
+];
+
 function matchesStatusFilter(
   campaign: CampaignCatalogItem,
   filter: StatusFilter,
@@ -374,12 +381,7 @@ function matchesStatusFilter(
     case "all":
       return true;
     case "sending":
-      return [
-        CAMPAIGN_STATUS.QUEUED,
-        CAMPAIGN_STATUS.PARTIALLY_QUEUED,
-        CAMPAIGN_STATUS.SENDING,
-        CAMPAIGN_STATUS.PAUSED,
-      ].includes(campaign.status);
+      return SENDING_FILTER_STATUSES.includes(campaign.status);
     case "scheduled":
       return campaign.status === CAMPAIGN_STATUS.SCHEDULED;
     case "draft":

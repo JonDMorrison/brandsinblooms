@@ -7,13 +7,17 @@ const invoke = vi.hoisted(() => vi.fn());
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: { functions: { invoke } },
 }));
-const blocks = [
+const blocks: StudioBlock[] = [
   {
-    type: "hero",
+    id: "hero-1",
+    type: "email-safe-hero",
+    label: "Hero",
+    order: 0,
+    visible: true,
     headline: "Winter wreath workshops",
     body: "Join us November 14.",
   },
-] as StudioBlock[];
+];
 describe("NewsletterInboxReview", () => {
   it("fills only empty fields from the actual content", async () => {
     const onChange = vi.fn();

@@ -23,7 +23,7 @@ export default function GuidePage() {
             </Button>
           </Link>
           <Box>
-            <Typography level="title-xl" fontWeight="xl">Clover Integration Guide</Typography>
+            <Typography level="h3" fontWeight="xl">Clover Integration Guide</Typography>
             <Typography level="body-sm" textColor="text.tertiary">
               Learn how to connect and use your Clover POS integration
             </Typography>

@@ -806,7 +806,7 @@ function App() {
               path="/crm/connected-content"
               element={renderProtectedSidebarLazyPage(
                 <ConnectedContentPage />,
-                "full",
+                "default",
                 "campaigns.write",
               )}
             />
@@ -815,7 +815,7 @@ function App() {
               element={import.meta.env["VITE_CARE_GUIDE_STUDIO_ENABLED"] === "true"
                 ? renderProtectedSidebarLazyPage(
                     <CareGuideStudioPage />,
-                    "full",
+                    "default",
                     "campaigns.write",
                   )
                 : <Navigate to="/crm/campaigns" replace />}

@@ -747,7 +747,9 @@ export const CRMAutomationBuilder = () => {
             automationId={automationId}
             initialFlowState={flowState}
             onSave={setFlowState}
-            onLaunch={() => handlePersist(true)}
+            onLaunch={async () => {
+              await handlePersist(true);
+            }}
             automationName={automationName}
             selectedPersonas={selectedPersonas}
             selectedSegments={selectedSegments}

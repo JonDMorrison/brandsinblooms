@@ -1,5 +1,5 @@
 import React, { memo } from "react";
-import { Handle, Position, type NodeProps } from "@xyflow/react";
+import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import Box from "@mui/joy/Box";
 import Typography from "@mui/joy/Typography";
 import { AutomationNodeShell } from "@/components/automation/flow/nodes/AutomationNodeShell";
@@ -9,7 +9,7 @@ import type {
 } from "@/components/automation/flow/automationBuilderTypes";
 import { getAutomationNodeVisual } from "@/components/automation/flow/automationNodeVisuals";
 
-type SplitNodeProps = NodeProps<SplitNodeData> & {
+type SplitNodeProps = NodeProps<Node<SplitNodeData, "split">> & {
   onEdit?: AutomationNodeEditorHandler;
   onDelete?: (nodeId: string) => void;
 };

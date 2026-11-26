@@ -24,6 +24,7 @@ import Button from "@mui/joy/Button";
 import Card from "@mui/joy/Card";
 import Checkbox from "@mui/joy/Checkbox";
 import Chip from "@mui/joy/Chip";
+import ChipDelete from "@mui/joy/ChipDelete";
 import Divider from "@mui/joy/Divider";
 import DialogActions from "@mui/joy/DialogActions";
 import DialogContent from "@mui/joy/DialogContent";
@@ -155,8 +156,8 @@ type AudienceExpansionMode = "all-customers" | "add-customers";
 type AudienceCustomerRecord = {
   id: string;
   email: string | null;
-  first_name: string | null;
-  last_name: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
   customer_segments?: Array<{ segment_id: string }> | null;
 };
 
@@ -309,39 +310,39 @@ function CampaignEditorLoadingSkeleton() {
           <Stack spacing={0.75} sx={{ minWidth: 0 }}>
             <Skeleton variant="text" width={280} height={40} />
             <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
-              <Skeleton variant="rounded" width={64} height={24} />
-              <Skeleton variant="rounded" width={54} height={24} />
-              <Skeleton variant="rounded" width={96} height={24} />
+              <Skeleton variant="rectangular" width={64} height={24} />
+              <Skeleton variant="rectangular" width={54} height={24} />
+              <Skeleton variant="rectangular" width={96} height={24} />
               <Skeleton variant="text" width={118} />
             </Stack>
           </Stack>
 
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-            <Skeleton variant="rounded" width={118} height={40} />
-            <Skeleton variant="rounded" width={150} height={40} />
+            <Skeleton variant="rectangular" width={118} height={40} />
+            <Skeleton variant="rectangular" width={150} height={40} />
           </Stack>
         </Stack>
       </Stack>
 
       <LoadingSectionCard
-        endDecorator={<Skeleton variant="rounded" width={104} height={28} />}
+        endDecorator={<Skeleton variant="rectangular" width={104} height={28} />}
       >
         <Stack spacing={2}>
-          <Skeleton variant="rounded" height={44} />
-          <Skeleton variant="rounded" height={44} />
-          <Skeleton variant="rounded" height={76} />
+          <Skeleton variant="rectangular" height={44} />
+          <Skeleton variant="rectangular" height={44} />
+          <Skeleton variant="rectangular" height={76} />
           <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-            <Skeleton variant="rounded" height={44} sx={{ flex: 1 }} />
-            <Skeleton variant="rounded" height={44} sx={{ flex: 1 }} />
+            <Skeleton variant="rectangular" height={44} sx={{ flex: 1 }} />
+            <Skeleton variant="rectangular" height={44} sx={{ flex: 1 }} />
           </Stack>
-          <Skeleton variant="rounded" height={44} />
+          <Skeleton variant="rectangular" height={44} />
         </Stack>
       </LoadingSectionCard>
 
       <LoadingSectionCard>
         <Stack spacing={2}>
-          <Skeleton variant="rounded" height={44} />
-          <Skeleton variant="rounded" height={44} />
+          <Skeleton variant="rectangular" height={44} />
+          <Skeleton variant="rectangular" height={44} />
           <Card variant="soft" sx={{ borderRadius: "lg", p: 2 }}>
             <Stack spacing={0.5}>
               <Skeleton variant="text" width="28%" />
@@ -352,7 +353,7 @@ function CampaignEditorLoadingSkeleton() {
       </LoadingSectionCard>
 
       <LoadingSectionCard
-        endDecorator={<Skeleton variant="rounded" width={112} height={28} />}
+        endDecorator={<Skeleton variant="rectangular" width={112} height={28} />}
       >
         <Stack spacing={3}>
           <Stack spacing={2.25}>
@@ -394,8 +395,8 @@ function CampaignEditorLoadingSkeleton() {
                     useFlexGap
                     flexWrap="wrap"
                   >
-                    <Skeleton variant="rounded" width={60} height={20} />
-                    <Skeleton variant="rounded" width={70} height={20} />
+                    <Skeleton variant="rectangular" width={60} height={20} />
+                    <Skeleton variant="rectangular" width={70} height={20} />
                   </Stack>
                 </Card>
               ))}
@@ -428,12 +429,12 @@ function CampaignEditorLoadingSkeleton() {
                   useFlexGap
                   flexWrap="wrap"
                 >
-                  <Skeleton variant="rounded" width={86} height={24} />
-                  <Skeleton variant="rounded" width={112} height={24} />
-                  <Skeleton variant="rounded" width={96} height={24} />
+                  <Skeleton variant="rectangular" width={86} height={24} />
+                  <Skeleton variant="rectangular" width={112} height={24} />
+                  <Skeleton variant="rectangular" width={96} height={24} />
                 </Stack>
               </Stack>
-              <Skeleton variant="rounded" width={170} height={40} />
+              <Skeleton variant="rectangular" width={170} height={40} />
             </Stack>
 
             <Box sx={{ p: 2, backgroundColor: "neutral.100" }}>
@@ -451,9 +452,9 @@ function CampaignEditorLoadingSkeleton() {
       <LoadingSectionCard
         endDecorator={
           <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
-            <Skeleton variant="rounded" width={84} height={24} />
-            <Skeleton variant="rounded" width={90} height={24} />
-            <Skeleton variant="rounded" width={96} height={24} />
+            <Skeleton variant="rectangular" width={84} height={24} />
+            <Skeleton variant="rectangular" width={90} height={24} />
+            <Skeleton variant="rectangular" width={96} height={24} />
           </Stack>
         }
       >
@@ -1832,7 +1833,7 @@ function CampaignEditorScreen() {
             <SenderConfigSummary
               senderDisplayName={senderName}
               senderEmail={senderEmail}
-              isVerified={senderClassification.status === "ready"}
+              isVerified={false}
               isLocked={isLocked}
               onEdit={() => navigate("/crm/settings/email-sending")}
             />
@@ -2216,12 +2217,12 @@ function CampaignEditorScreen() {
                             flexWrap="wrap"
                           >
                             <Skeleton
-                              variant="rounded"
+                              variant="rectangular"
                               width={176}
                               height={28}
                             />
                             <Skeleton
-                              variant="rounded"
+                              variant="rectangular"
                               width={188}
                               height={28}
                             />
@@ -2238,13 +2239,17 @@ function CampaignEditorScreen() {
                                 key={customer.id}
                                 variant="soft"
                                 color="neutral"
-                                onDelete={
-                                  isLocked
-                                    ? undefined
-                                    : () =>
+                                endDecorator={
+                                  isLocked ? undefined : (
+                                    <ChipDelete
+                                      aria-label={`Remove ${customer.name}`}
+                                      onDelete={() =>
                                         handleRemoveAdditionalCustomer(
                                           customer.id,
                                         )
+                                      }
+                                    />
+                                  )
                                 }
                                 sx={{ maxWidth: "100%" }}
                               >
@@ -2646,9 +2651,9 @@ function CampaignEditorScreen() {
                 >
                   {audienceCustomersLoading ? (
                     <Stack spacing={1.25} sx={{ p: 2 }}>
-                      <Skeleton variant="rounded" height={42} />
-                      <Skeleton variant="rounded" height={42} />
-                      <Skeleton variant="rounded" height={42} />
+                      <Skeleton variant="rectangular" height={42} />
+                      <Skeleton variant="rectangular" height={42} />
+                      <Skeleton variant="rectangular" height={42} />
                     </Stack>
                   ) : audienceCustomerOptions.length > 0 ? (
                     <>

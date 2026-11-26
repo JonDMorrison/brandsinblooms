@@ -666,7 +666,7 @@ function pageContextSuggestions(
   }
 
   return pageContext.suggestions
-    .map((prompt, index) => {
+    .map((prompt, index): SuggestionCandidate | null => {
       const normalizedPrompt = readString(prompt) ?? prompt.trim();
       if (!normalizedPrompt) {
         return null;
