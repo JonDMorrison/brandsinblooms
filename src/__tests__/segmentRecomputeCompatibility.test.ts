@@ -173,4 +173,52 @@ describe("segment recompute compatibility", () => {
     }
     expect(customers.filter((customer) => evaluateSegmentRule(reloadedGroup, customer)).map((c) => c.id)).toEqual(["old"]);
   });
+
+  it("reads engagement_score from the computed score and never treats no score as 0", async () => {
+    const {
+      evaluateSegmentRule: clientEvaluate,
+      getCustomerEngagementScore,
+      normalizeSegmentRuleGroup: clientNormalize,
+    } = await import("@/lib/segmentFields");
+    const rule = (operatorId: string, value: number) =>
+      normalizeSegmentRuleGroup({
+        kind: "group",
+        operator: "AND",
+        children: [{ kind: "rule", fieldId: "engagement_score", operatorId, value }],
+      });
+    const customers = [
+      { id: "engaged", engagement: { overall_score: 72.5 } },
+      { id: "quiet", engagement: [{ overall_score: 12 }] },
+      { id: "unknown", engagement: { overall_score: null } },
+      // The stored crm_customers column is 0 for everyone; it is not a score.
+      { id: "unscored", engagement: null, email_engagement_score: 0 },
+    ];
+
+    expect(customers.map((customer) => getCustomerEngagementScore(customer))).toEqual([72.5, 12, null, null]);
+
+    const high = rule("greater_than", 60);
+    const low = rule("less_than", 40);
+    const matches = (group: ReturnType<typeof rule>) =>
+      customers.filter((customer) => evaluateSegmentRule(group, customer)).map((c) => c.id);
+    expect(matches(high)).toEqual(["engaged"]);
+    expect(matches(low)).toEqual(["quiet"]);
+    const clientHigh = clientNormalize(high);
+    const clientLow = clientNormalize(low);
+    for (const customer of customers) {
+      expect(clientEvaluate(clientHigh, customer as never)).toBe(evaluateSegmentRule(high, customer));
+      expect(clientEvaluate(clientLow, customer as never)).toBe(evaluateSegmentRule(low, customer));
+    }
+  });
+
+  it("loads the computed engagement score wherever segments are evaluated", () => {
+    for (const path of [
+      "supabase/functions/recompute-segment-memberships/index.ts",
+      "supabase/functions/bloom-assist/tools/implementations/segment-audience.ts",
+      "src/hooks/useSegmentPreview.ts",
+    ]) {
+      const source = readFileSync(resolve(process.cwd(), path), "utf8");
+      expect(source).toContain("engagement:customer_engagement_scores(overall_score)");
+      expect(source).not.toContain("email_engagement_score");
+    }
+  });
 });

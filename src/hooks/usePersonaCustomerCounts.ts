@@ -18,7 +18,8 @@ interface PersonaCounts {
 export interface PersonaRollup {
   customerCount: number;
   customerIds: string[];
-  averageEngagement: number;
+  /** Average computed engagement of customers that have a score; null when none do. */
+  averageEngagement: number | null;
   averageValue: number;
   totalValue: number;
   topChannel: string | null;
@@ -74,7 +75,7 @@ export const usePersonaCustomerCounts = (
           total_spent,
           lifetime_value,
           preferred_channel,
-          email_engagement_score,
+          engagement:customer_engagement_scores(overall_score),
           total_emails_opened,
           total_emails_clicked,
           total_emails_sent,
@@ -117,7 +118,7 @@ export const usePersonaCustomerCounts = (
           result[persona.id] = {
             customerCount,
             customerIds: [],
-            averageEngagement: 0,
+            averageEngagement: null,
             averageValue: 0,
             totalValue: 0,
             topChannel: null,
@@ -156,6 +157,7 @@ export const usePersonaCustomerCounts = (
       {
         customerIds: Set<string>;
         engagementTotal: number;
+        engagementCount: number;
         valueTotal: number;
         channelCounts: Map<string, number>;
       }
@@ -166,6 +168,7 @@ export const usePersonaCustomerCounts = (
       rollupMap.set(persona.id, {
         customerIds: new Set<string>(),
         engagementTotal: 0,
+        engagementCount: 0,
         valueTotal: 0,
         channelCounts: new Map<string, number>(),
       });
@@ -189,12 +192,16 @@ export const usePersonaCustomerCounts = (
         const current = rollupMap.get(personaId) ?? {
           customerIds: new Set<string>(),
           engagementTotal: 0,
+          engagementCount: 0,
           valueTotal: 0,
           channelCounts: new Map<string, number>(),
         };
 
         current.customerIds.add(customer.id);
-        current.engagementTotal += metrics.engagementScore;
+        if (metrics.engagementScore !== null) {
+          current.engagementTotal += metrics.engagementScore;
+          current.engagementCount += 1;
+        }
         current.valueTotal += metrics.value;
 
         if (metrics.preferredChannel) {
@@ -223,9 +230,9 @@ export const usePersonaCustomerCounts = (
           customerCount,
           customerIds: Array.from(rollup?.customerIds ?? []),
           averageEngagement:
-            customerCount > 0
-              ? Math.round((rollup?.engagementTotal ?? 0) / customerCount)
-              : 0,
+            rollup && rollup.engagementCount > 0
+              ? Math.round(rollup.engagementTotal / rollup.engagementCount)
+              : null,
           averageValue:
             customerCount > 0
               ? Math.round((rollup?.valueTotal ?? 0) / customerCount)

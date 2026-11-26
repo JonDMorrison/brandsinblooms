@@ -60,7 +60,7 @@ export const useCRMCustomers = () => {
           lifetime_value,
           last_purchase_date,
           preferred_channel,
-          email_engagement_score,
+          engagement:customer_engagement_scores(overall_score),
           total_emails_opened,
           total_emails_clicked,
           total_emails_sent,

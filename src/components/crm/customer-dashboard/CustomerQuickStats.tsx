@@ -1,21 +1,27 @@
 import Box from "@mui/joy/Box";
+import CircularProgress from "@mui/joy/CircularProgress";
 import Sheet from "@mui/joy/Sheet";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
 import {
+  Activity,
   Clock3,
   DollarSign,
   MessageSquare,
   ShoppingBag,
 } from "lucide-react";
 import {
+  clampPercent,
   formatAccountAge,
   formatCompactNumber,
   formatCurrency,
+  getScoreColor,
   humanizeChannel,
 } from "./customerDashboardUtils";
 
 export interface CustomerQuickStatsProps {
+  /** Computed engagement score 0-100; null when there is no signal yet. */
+  engagementScore?: number | null;
   lifetimeValue?: number | null;
   totalOrders?: number | null;
   preferredChannel?: string | null;
@@ -23,7 +29,36 @@ export interface CustomerQuickStatsProps {
   loading?: boolean;
 }
 
+const engagementValue = (score?: number | null) => {
+  if (score === null || score === undefined || Number.isNaN(score)) {
+    return "Not enough data";
+  }
+
+  return (
+    <CircularProgress
+      determinate
+      value={clampPercent(score)}
+      color={getScoreColor(score)}
+      size="lg"
+      aria-label={`Engagement ${Math.round(score)} out of 100`}
+      sx={{
+        "--CircularProgress-size": "56px",
+        "--CircularProgress-thickness": "5px",
+      }}
+    >
+      <Typography level="body-sm" fontWeight="lg">
+        {Math.round(score)}
+      </Typography>
+    </CircularProgress>
+  );
+};
+
 const stats = (props: CustomerQuickStatsProps) => [
+  {
+    icon: Activity,
+    label: "Engagement",
+    value: engagementValue(props.engagementScore),
+  },
   {
     icon: DollarSign,
     label: "Lifetime Value",
@@ -60,18 +95,19 @@ export function CustomerQuickStats(props: CustomerQuickStatsProps) {
       }}
     >
       {/*
-        A grid, not one forced row. Two columns on phones, four when wide.
-        The 1px gap over a neutral background draws the dividers.
-        Health and engagement score rings were removed: their source
-        (customer_360_enriched.engagement_overall_score) is never computed
-        and read 0 for every customer.
+        A grid, not one forced row. Two columns on phones, three on
+        tablets, five when wide. The 1px gap over a neutral background
+        draws the dividers. Engagement reads the computed score
+        (customer_engagement_scores); a customer without one shows
+        "Not enough data", never 0.
       */}
       <Box
         sx={{
           display: "grid",
           gridTemplateColumns: {
             xs: "repeat(2, minmax(0, 1fr))",
-            lg: "repeat(4, minmax(0, 1fr))",
+            sm: "repeat(3, minmax(0, 1fr))",
+            xl: "repeat(5, minmax(0, 1fr))",
           },
           gap: "1px",
           bgcolor: "neutral.200",

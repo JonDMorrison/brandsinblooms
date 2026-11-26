@@ -218,7 +218,7 @@ export function useSegmentPreview({
                 total_emails_clicked,
                 total_emails_sent,
                 email_click_rate,
-                email_engagement_score,
+                engagement:customer_engagement_scores(overall_score),
                 first_purchase_date,
                 last_purchase_date,
                 lifetime_value,
@@ -333,6 +333,7 @@ export function useSegmentPreview({
     const engagementBreakdown = buildBreakdown(
       matchedCustomers.map((customer) => {
         const score = getCustomerEngagementScore(customer);
+        if (score === null) return "Not enough data";
         if (score >= 70) return "High";
         if (score >= 40) return "Medium";
         return "Low";

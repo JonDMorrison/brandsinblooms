@@ -160,17 +160,20 @@ function getCustomerLifecycleStage(customer: Record<string, unknown>) {
   return "Dormant";
 }
 
+/**
+ * The computed engagement score (0-100) embedded from
+ * customer_engagement_scores as `engagement`, or null when the customer has
+ * no engagement signal yet. Unknown is never reported as 0.
+ */
 function getCustomerEngagementScore(customer: Record<string, unknown>) {
-  const stored = toNumber(customer.email_engagement_score);
-  if (stored !== null) {
-    return Math.max(0, Math.min(100, stored));
-  }
-
-  const opens = toNumber(customer.total_emails_opened) ?? 0;
-  const clicks = toNumber(customer.total_emails_clicked) ?? 0;
-  const sent = Math.max(toNumber(customer.total_emails_sent) ?? 0, 1);
-  const score = ((opens * 0.6 + clicks * 1.4) / sent) * 100;
-  return Math.max(0, Math.min(100, Math.round(score)));
+  const embed = Array.isArray(customer.engagement)
+    ? customer.engagement[0]
+    : customer.engagement;
+  const score =
+    embed && typeof embed === "object"
+      ? toNumber((embed as Record<string, unknown>).overall_score)
+      : null;
+  return score === null ? null : Math.max(0, Math.min(100, score));
 }
 
 function getCustomerRiskScore(customer: Record<string, unknown>) {
@@ -200,15 +203,13 @@ function getCustomerHealthScore(customer: Record<string, unknown>) {
     ),
   );
 
-  return Math.max(
-    0,
-    Math.min(
-      100,
-      Math.round(
-        engagementScore * 0.45 + spendScore * 0.35 + (100 - riskScore) * 0.2,
-      ),
-    ),
-  );
+  // Without an engagement score, blend only the parts that are known.
+  const blended =
+    engagementScore === null
+      ? (spendScore * 0.35 + (100 - riskScore) * 0.2) / 0.55
+      : engagementScore * 0.45 + spendScore * 0.35 + (100 - riskScore) * 0.2;
+
+  return Math.max(0, Math.min(100, Math.round(blended)));
 }
 
 function getCustomerComparableValue(

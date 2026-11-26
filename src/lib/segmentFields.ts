@@ -22,7 +22,21 @@ import {
 } from "date-fns";
 import type { Database, Json } from "@/integrations/supabase/types";
 
-type CustomerRow = Database["public"]["Tables"]["crm_customers"]["Row"];
+/**
+ * The customer's computed engagement score, embedded from
+ * customer_engagement_scores (one row per customer, NULL score = no signal).
+ * Loaders that evaluate engagement add
+ * "engagement:customer_engagement_scores(overall_score)" to their
+ * crm_customers select.
+ */
+export type CustomerEngagementEmbed = Pick<
+  Database["public"]["Tables"]["customer_engagement_scores"]["Row"],
+  "overall_score"
+>;
+
+type CustomerRow = Database["public"]["Tables"]["crm_customers"]["Row"] & {
+  engagement?: CustomerEngagementEmbed | CustomerEngagementEmbed[] | null;
+};
 
 export type SegmentBooleanValue = boolean | null;
 export type SegmentRelativeDateValue = {
@@ -957,17 +971,21 @@ export function getCustomerLifecycleStage(customer: CustomerRow) {
   return "Dormant";
 }
 
-export function getCustomerEngagementScore(customer: CustomerRow) {
-  if (typeof customer.email_engagement_score === "number") {
-    return Math.max(0, Math.min(100, customer.email_engagement_score));
+/**
+ * The computed engagement score (0-100), or null when the customer has no
+ * engagement signal yet. Unknown is never reported as 0.
+ */
+export function getCustomerEngagementScore(
+  customer: Pick<CustomerRow, "engagement">,
+): number | null {
+  const embed = Array.isArray(customer.engagement)
+    ? customer.engagement[0]
+    : customer.engagement;
+  const score = embed?.overall_score;
+  if (typeof score !== "number" || !Number.isFinite(score)) {
+    return null;
   }
-
-  const opens = customer.total_emails_opened ?? 0;
-  const clicks = customer.total_emails_clicked ?? 0;
-  const sent = Math.max(customer.total_emails_sent ?? 0, 1);
-
-  const score = ((opens * 0.6 + clicks * 1.4) / sent) * 100;
-  return Math.max(0, Math.min(100, Math.round(score)));
+  return Math.max(0, Math.min(100, score));
 }
 
 export function getCustomerRiskScore(customer: CustomerRow) {
@@ -996,15 +1014,13 @@ export function getCustomerHealthScore(customer: CustomerRow) {
     Math.round((customer.total_spent ?? customer.lifetime_value ?? 0) / 10),
   );
 
-  return Math.max(
-    0,
-    Math.min(
-      100,
-      Math.round(
-        engagementScore * 0.45 + spendScore * 0.35 + (100 - riskScore) * 0.2,
-      ),
-    ),
-  );
+  // Without an engagement score, blend only the parts that are known.
+  const blended =
+    engagementScore === null
+      ? (spendScore * 0.35 + (100 - riskScore) * 0.2) / 0.55
+      : engagementScore * 0.45 + spendScore * 0.35 + (100 - riskScore) * 0.2;
+
+  return Math.max(0, Math.min(100, Math.round(blended)));
 }
 
 export function getCustomerComparableValue(

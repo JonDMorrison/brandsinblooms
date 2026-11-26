@@ -181,8 +181,9 @@ serve(async (req) => {
       .maybeSingle();
 
     // Determine if we have sufficient data
+    // A computed score of 0 is data; only a missing (NULL) score is not.
     const hasSufficientData = !!(
-      enriched?.engagement_overall_score ||
+      enriched?.engagement_overall_score != null ||
       crossChannel ||
       purchaseMetrics?.lifetime_value ||
       (enriched?.email_total_sent && enriched.email_total_sent > 0) ||
@@ -204,11 +205,11 @@ serve(async (req) => {
 - Lifecycle stage: ${lifecycleMetrics?.lifecycle_stage || "Unknown"}
 
 **Engagement Metrics:**
-- Overall engagement score: ${enriched?.engagement_overall_score || "N/A"}
-- Email engagement score: ${enriched?.engagement_email_score || "N/A"}
-- SMS engagement score: ${enriched?.engagement_sms_score || "N/A"}
-- Purchase engagement score: ${enriched?.engagement_purchase_score || "N/A"}
-- Engagement tier: ${enriched?.engagement_tier || "N/A"}
+- Overall engagement score: ${enriched?.engagement_overall_score ?? "N/A"}
+- Email engagement score: ${enriched?.engagement_email_score ?? "N/A"}
+- SMS engagement score: ${enriched?.engagement_sms_score ?? "N/A"}
+- Purchase engagement score: ${enriched?.engagement_purchase_score ?? "N/A"}
+- Engagement tier: ${enriched?.engagement_tier ?? "N/A"}
 
 **Email Performance:**
 - Total sent: ${enriched?.email_total_sent || 0}

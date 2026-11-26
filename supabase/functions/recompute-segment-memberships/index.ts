@@ -166,7 +166,7 @@ serve(async (req) => {
     // 2. Load target customers (paginate to get all)
     const allCustomers: any[] = [];
     const selectFields =
-      "id, email, email_opt_in, sms_opt_in, first_name, last_name, phone, total_spent, lifetime_value, pos_order_count, first_purchase_date, last_purchase_date, last_visit_date, loyalty_member, loyalty_rewards_balance, email_consent, sms_consent, tags, product_tags, persona, persona_id, preferred_channel, last_open_at, last_email_clicked_at, total_emails_opened, total_emails_clicked, total_emails_sent, email_click_rate, email_engagement_score, suppressed, opt_out, is_vip, pos_source, custom_fields, created_at, updated_at";
+      "id, email, email_opt_in, sms_opt_in, first_name, last_name, phone, total_spent, lifetime_value, pos_order_count, first_purchase_date, last_purchase_date, last_visit_date, loyalty_member, loyalty_rewards_balance, email_consent, sms_consent, tags, product_tags, persona, persona_id, preferred_channel, last_open_at, last_email_clicked_at, total_emails_opened, total_emails_clicked, total_emails_sent, email_click_rate, suppressed, opt_out, is_vip, pos_source, custom_fields, created_at, updated_at, engagement:customer_engagement_scores(overall_score)";
 
     if (customer_ids?.length > 0) {
       // Targeted: load specific customers in chunks

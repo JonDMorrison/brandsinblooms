@@ -19,7 +19,7 @@ export interface PersonaCustomerLike {
   total_spent?: number | null;
   lifetime_value?: number | null;
   preferred_channel?: string | null;
-  email_engagement_score?: number | null;
+  engagement?: { overall_score: number | null } | { overall_score: number | null }[] | null;
   total_emails_opened?: number | null;
   total_emails_clicked?: number | null;
   total_emails_sent?: number | null;
@@ -96,7 +96,7 @@ export function getCustomerDisplayName(customer: PersonaCustomerLike) {
 
 export function getCustomerPersonaMetrics(customer: PersonaCustomerLike) {
   return {
-    engagementScore: getCustomerEngagementScore(customer as never),
+    engagementScore: getCustomerEngagementScore(customer),
     value: getCustomerLifetimeValue(customer),
     preferredChannel: getPreferredChannel(customer),
   };

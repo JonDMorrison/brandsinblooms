@@ -111,6 +111,7 @@ type Customer360Row = Pick<
   Database["public"]["Views"]["customer_360_enriched"]["Row"],
   | "engagement_overall_score"
   | "engagement_tier"
+  | "engagement_recency_score"
   | "engagement_email_score"
   | "engagement_sms_score"
   | "engagement_purchase_score"
@@ -173,6 +174,7 @@ const CUSTOMER_DETAIL_SELECT = `
 const CUSTOMER_360_SELECT = `
   engagement_overall_score,
   engagement_tier,
+  engagement_recency_score,
   engagement_email_score,
   engagement_sms_score,
   engagement_purchase_score,
@@ -498,6 +500,7 @@ function mapEngagementSummary(row: Customer360Row | null): JsonObject {
     email_score: row?.engagement_email_score ?? null,
     sms_score: row?.engagement_sms_score ?? null,
     purchase_score: row?.engagement_purchase_score ?? null,
+    recency_score: row?.engagement_recency_score ?? null,
     last_calculated_at: row?.engagement_last_calculated_at ?? null,
     email: {
       total_sent: row?.email_total_sent ?? null,

@@ -37,7 +37,7 @@ interface EngagementHealthOverviewProps {
 const summaryTiles = (metrics: EngagementMetrics) => [
   {
     label: "Engagement Score",
-    value: metrics.engagementScore,
+    value: metrics.engagementScore ?? "Not enough data",
     helper: metrics.engagementTrend
       ? "Based on timeline trend"
       : "Trend data not yet available",

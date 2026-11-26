@@ -609,6 +609,7 @@ const CustomerDashboardPage: React.FC = () => {
           {/* Raw POS report reconciliation is an admin diagnostic, not customer-facing copy. */}
           {isMasterAdmin&&displayCustomer.id===customerId&&customer?.id===customerId&&displayCustomer.tenant_id===customer.tenant_id&&<CustomerIdealEvidenceCard tenantId={displayCustomer.tenant_id} customerId={displayCustomer.id} />}
           <CustomerQuickStats
+            engagementScore={engagementMetrics.engagementScore}
             lifetimeValue={purchaseSummary.lifetimeValue}
             totalOrders={purchaseSummary.orderCount}
             preferredChannel={snapshotMetrics.preferredChannel}
