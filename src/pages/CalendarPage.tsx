@@ -184,7 +184,6 @@ const CalendarPage = () => {
     <>
       <PageContainer sx={{ px: { xs: 2, md: 3 }, py: { xs: 2, md: 3 } }}>
         <Stack spacing={2.5}>
-          <MarketingCalendarImport onImported={() => void refetch()} />
           <CalendarView
             campaignOverview={campaignOverview}
             headerSupplement={
@@ -212,6 +211,9 @@ const CalendarPage = () => {
             showWeeklyThemesModal={showWeeklyThemesModal}
             onCloseWeeklyThemesModal={() => setShowWeeklyThemesModal(false)}
           />
+          {/* An occasional setup action: it sits below the calendar so the
+              page opens on its title and the month, not on an import panel. */}
+          <MarketingCalendarImport onImported={() => void refetch()} />
         </Stack>
       </PageContainer>
 
