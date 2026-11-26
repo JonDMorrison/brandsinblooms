@@ -18,6 +18,15 @@ const segmentSearchFilter = createFilterOptions<CampaignSegmentSummary>({
   stringify: (option) => option.name,
 });
 
+/**
+ * Shown under the audience picker. Backed by the send pipeline: customer IDs
+ * are de-duplicated across segments, `email_messages` is unique per campaign
+ * and customer, and records sharing one address are reduced to one copy
+ * (`supabase/functions/_shared/recipientEmailDedup.ts`).
+ */
+export const AUDIENCE_ONE_COPY_NOTE =
+  "Contacts belonging to multiple selected segments will only receive one copy of this campaign.";
+
 export type SegmentsAudienceChange = {
   selectedSegments?: CampaignSegmentSummary[];
   includeAllCustomers?: boolean;
@@ -85,119 +94,132 @@ export function SegmentsAudienceSelect({
   );
 
   return (
-    <JoyAutocomplete<CampaignSegmentSummary, true, false, false>
-      multiple
-      label="Segments"
-      disabled={disabled}
-      loading={loading}
-      options={options}
-      value={value}
-      placeholder={
-        includeAllCustomers ? "All contacts selected" : "Choose an audience"
-      }
-      getOptionLabel={(option) => option.name}
-      isOptionEqualToValue={(option, candidate) => option.id === candidate.id}
-      filterOptions={(opts, state) => {
-        const filtered = segmentSearchFilter(
-          opts.filter((option) => !isAllContactsSegmentOption(option)),
-          state,
-        );
-        return [ALL_CONTACTS_SEGMENT_OPTION, ...filtered];
-      }}
-      renderOption={(optionProps, option) => {
-        const { key, ...liProps } =
-          optionProps as Omit<React.HTMLAttributes<HTMLLIElement>, "color"> & {
+    <>
+      <JoyAutocomplete<CampaignSegmentSummary, true, false, false>
+        multiple
+        label="Segments"
+        disabled={disabled}
+        loading={loading}
+        options={options}
+        value={value}
+        placeholder={
+          includeAllCustomers ? "All contacts selected" : "Choose an audience"
+        }
+        getOptionLabel={(option) => option.name}
+        isOptionEqualToValue={(option, candidate) => option.id === candidate.id}
+        filterOptions={(opts, state) => {
+          const filtered = segmentSearchFilter(
+            opts.filter((option) => !isAllContactsSegmentOption(option)),
+            state,
+          );
+          return [ALL_CONTACTS_SEGMENT_OPTION, ...filtered];
+        }}
+        renderOption={(optionProps, option) => {
+          const { key, ...liProps } = optionProps as Omit<
+            React.HTMLAttributes<HTMLLIElement>,
+            "color"
+          > & {
             key?: React.Key;
           };
-        if (isAllContactsSegmentOption(option)) {
+          if (isAllContactsSegmentOption(option)) {
+            return (
+              <AutocompleteOption
+                {...liProps}
+                key={key ?? option.id}
+                data-testid="segment-option-all-contacts"
+                sx={{
+                  backgroundColor: "primary.50",
+                  borderRadius: "var(--joy-radius-md)",
+                  "&:hover": { backgroundColor: "primary.100" },
+                  "&[aria-selected='true']": {
+                    backgroundColor: "primary.100",
+                  },
+                }}
+              >
+                <ListItemDecorator sx={{ color: "primary.600" }}>
+                  <Users size={16} />
+                </ListItemDecorator>
+                <ListItemContent>
+                  <Typography
+                    level="body-sm"
+                    fontWeight="lg"
+                    sx={{ color: "primary.700" }}
+                  >
+                    All Contacts
+                  </Typography>
+                  <Typography level="body-xs" sx={{ color: "neutral.600" }}>
+                    Send to every customer in this tenant
+                  </Typography>
+                </ListItemContent>
+              </AutocompleteOption>
+            );
+          }
           return (
-            <AutocompleteOption
-              {...liProps}
-              key={key ?? option.id}
-              data-testid="segment-option-all-contacts"
-              sx={{
-                backgroundColor: "primary.50",
-                borderRadius: "var(--joy-radius-md)",
-                "&:hover": { backgroundColor: "primary.100" },
-                "&[aria-selected='true']": {
-                  backgroundColor: "primary.100",
-                },
-              }}
-            >
-              <ListItemDecorator sx={{ color: "primary.600" }}>
-                <Users size={16} />
-              </ListItemDecorator>
-              <ListItemContent>
-                <Typography
-                  level="body-sm"
-                  fontWeight="lg"
-                  sx={{ color: "primary.700" }}
-                >
-                  All Contacts
-                </Typography>
-                <Typography level="body-xs" sx={{ color: "neutral.600" }}>
-                  Send to every customer in this tenant
-                </Typography>
-              </ListItemContent>
+            <AutocompleteOption {...liProps} key={key ?? option.id}>
+              {option.name}
             </AutocompleteOption>
           );
+        }}
+        renderTags={(tagValue, getTagProps) =>
+          tagValue.map((option, index) => {
+            const tagProps = getTagProps({ index }) as {
+              key?: React.Key;
+              onClick?: (event: React.SyntheticEvent) => void;
+              "data-tag-index"?: number;
+              tabIndex?: number;
+              disabled?: boolean;
+              size?: "sm" | "md" | "lg";
+            };
+            const { key, onClick, ...deleteAttrs } = tagProps;
+            const removeLabel = isAllContactsSegmentOption(option)
+              ? "Remove All Contacts"
+              : `Remove ${option.name}`;
+            return (
+              <Chip
+                key={key ?? option.id}
+                variant={isAllContactsSegmentOption(option) ? "solid" : "soft"}
+                color="primary"
+                size="sm"
+                data-testid={
+                  isAllContactsSegmentOption(option)
+                    ? "segment-pill-all-contacts"
+                    : `segment-pill-${option.id}`
+                }
+                startDecorator={
+                  isAllContactsSegmentOption(option) ? (
+                    <Users size={12} />
+                  ) : null
+                }
+                endDecorator={
+                  <ChipDelete
+                    {...deleteAttrs}
+                    aria-label={removeLabel}
+                    variant={
+                      isAllContactsSegmentOption(option) ? "solid" : "plain"
+                    }
+                    color="primary"
+                    onClick={onClick}
+                  >
+                    <X size={12} />
+                  </ChipDelete>
+                }
+              >
+                {isAllContactsSegmentOption(option)
+                  ? "All Contacts"
+                  : option.name}
+              </Chip>
+            );
+          })
         }
-        return (
-          <AutocompleteOption {...liProps} key={key ?? option.id}>
-            {option.name}
-          </AutocompleteOption>
-        );
-      }}
-      renderTags={(tagValue, getTagProps) =>
-        tagValue.map((option, index) => {
-          const tagProps = getTagProps({ index }) as {
-            key?: React.Key;
-            onClick?: (event: React.SyntheticEvent) => void;
-            "data-tag-index"?: number;
-            tabIndex?: number;
-            disabled?: boolean;
-            size?: "sm" | "md" | "lg";
-          };
-          const { key, onClick, ...deleteAttrs } = tagProps;
-          const removeLabel = isAllContactsSegmentOption(option)
-            ? "Remove All Contacts"
-            : `Remove ${option.name}`;
-          return (
-            <Chip
-              key={key ?? option.id}
-              variant={isAllContactsSegmentOption(option) ? "solid" : "soft"}
-              color="primary"
-              size="sm"
-              data-testid={
-                isAllContactsSegmentOption(option)
-                  ? "segment-pill-all-contacts"
-                  : `segment-pill-${option.id}`
-              }
-              startDecorator={
-                isAllContactsSegmentOption(option) ? <Users size={12} /> : null
-              }
-              endDecorator={
-                <ChipDelete
-                  {...deleteAttrs}
-                  aria-label={removeLabel}
-                  variant={
-                    isAllContactsSegmentOption(option) ? "solid" : "plain"
-                  }
-                  color="primary"
-                  onClick={onClick}
-                >
-                  <X size={12} />
-                </ChipDelete>
-              }
-            >
-              {isAllContactsSegmentOption(option)
-                ? "All Contacts"
-                : option.name}
-            </Chip>
-          );
-        })
-      }
-      onValueChange={handleChange}
-    />
+        onValueChange={handleChange}
+      />
+      <Typography
+        level="body-xs"
+        data-testid="audience-one-copy-note"
+        sx={{ color: "neutral.600", mt: 0.75 }}
+      >
+        {AUDIENCE_ONE_COPY_NOTE}
+      </Typography>
+    </>
   );
 }
