@@ -410,3 +410,15 @@ Deno.test("when the model's ticket list cannot be shown, the open requests are l
     return standard(url, body);
   });
 });
+
+Deno.test("with the persona on, a Stripe answer gains one wry line and keeps every figure", async () => {
+  await fixture(async () => {
+    const result = await answerWithSlackAgent({ ...context, route: "finance" }, "when is the next payout", "job") ?? "";
+    assertStringIncludes(result, "89.40 CAD (1 payout)");
+    assertStringIncludes(result, "*Stripe payouts*");
+    assert(result.indexOf("*Stripe payouts*") > 5, "a quip comes first");
+  }, (url, body) => {
+    if (url.endsWith("bloom_support_rpc") && body.p_fn === "setting" && (body.p as Record<string, unknown>).key === "slack_agent") return { enabled: true, persona: "grumpy_it_vet" };
+    return stripeReply(url) ?? standard(url, body);
+  }, { BLOOM_SUPPORT_STRIPE_READONLY_KEY: "rk_test_placeholder" });
+});

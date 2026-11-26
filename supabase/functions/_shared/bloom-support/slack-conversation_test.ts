@@ -305,3 +305,11 @@ Deno.test("the digest lists the questions Bloom did not answer, once each, and s
   assertEquals(digest.text.includes("<@"),false);
   assertEquals(digest.text.includes("How many open tickets"),false);
 });
+
+Deno.test("with the persona on, a close confirmation gains one wry line and still states what the client receives",async()=>{
+  const result=await privacyFixture("close #1028",closeRespond((url,body)=>url.endsWith("bloom_support_rpc")&&body.p_fn==="setting"?{enabled:true,persona:"grumpy_it_vet"}:undefined),{...privacyContext,ticket_id:null} as typeof privacyContext);
+  assertStringIncludes(result.answer,"Closed request #1028");
+  assertStringIncludes(result.answer,"resolved notice");
+  assertEquals(result.answer.startsWith("Closed request"),false);
+  assertEquals(result.calls.filter(c=>c.body.p_fn==="update_ticket").length,1);
+});

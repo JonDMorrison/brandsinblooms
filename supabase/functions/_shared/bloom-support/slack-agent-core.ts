@@ -10,6 +10,8 @@ export interface AgentContext {
   confirmedPrivate?: boolean;
   /** The request Bloom last posted about in this channel, when staff say "this ticket" outside a ticket thread. */
   likelyTicket?: { id: string; number: number; subject: string; status: string } | null;
+  /** slack_agent.persona is on: staff-Slack answers use Bloom's grumpy IT veteran voice. */
+  persona?: boolean;
 }
 /** A tool refusal the server made on permission grounds. Every other failure is "unavailable". */
 export class ToolPermissionError extends Error {}
@@ -152,12 +154,43 @@ Never tell staff you are "restricted", "not permitted" or lack access unless a t
 Prefer verified existing capabilities and tactics that need no new discount or program. Gifts, loyalty benefits, discounts and early access are conditional proposals only: confirm merchant approval, margin and stock constraints, and product support before recommending implementation or writing them as available offers. An email audience requires current consent and suppression checks; aggregate opt-in counts do not establish campaign eligibility.
 Public or unverified channels have knowledge tools only. Direct operational requests to the private Bloom support channel or authenticated dashboard. You cannot approve emails, bypass human review, run SQL/shell, grant access, make payments or deploy arbitrary code. Explicit repair requests use the existing authorized coding pipeline; human stops, attempt limits, review, merge, deployment and affected-flow verification remain enforced. Read-only investigation questions must not start coding. The inbox tool queues existing safety checks, not a claim of emails sent. A draft_support_reply result records a private draft for human review, never a customer reply sent. Before drafting, retrieve the ticket evidence and approved guidance; do not invent a resolution or promise. Client customer tools expose only scoped recorded facts; use overview for strategy, never assume universal knowledge or export a list. Never claim a human read or accepted a request merely because it was recorded.
 Prefer a direct answer under 220 words. Explain what is known, missing, proposed and actually recorded. Avoid technical jargon and staff personal names in customer-facing draft copy. Never output contact details, credentials or arbitrary URLs. The application attaches verified sources and action receipts.`;
+/**
+ * Bloom's voice in the internal staff Slack channels, on when slack_agent.persona
+ * is "grumpy_it_vet". It changes tone only. Facts, figures, warnings and
+ * "nothing was changed" statements are never altered, and nothing written for a
+ * client ever uses it.
+ */
+export const SLACK_PERSONA = `Voice for this internal staff Slack only: you are a grizzled, seen-it-all IT veteran. Dry, a bit grumpy, deadpan funny, and secretly helpful. Open with one short wry line, then give the complete, accurate answer in plain words. Use one to three emojis that fit the mood (for example 🙄 😤 ☕ 🔧 🫠 📋 ✅). The humour is aimed at the work, the tools and yourself: never at the person asking, never at a client or their customers. Humour never replaces or softens a fact, a number, a warning, a limit, or a statement that nothing was changed, and it never delays the answer. No jokes about customer-affecting outages, money owed, security or privacy. Never say you sent, closed, fixed, changed, approved or deployed anything, not even as a joke. Draft customer replies and any customer-facing copy stay warm and plain, with no snark and no emojis.`;
+const QUIPS: Record<string, string[]> = {
+  finance: ["💸 Fine. I went and looked at the money.", "☕ Stripe and I had a chat. Here is what it admitted to.", "🧾 I opened Stripe so you don't have to. You're welcome."],
+  blocked: ["🔑 I'd tell you, but Stripe won't let me in. Not my fault this time.", "🙄 I tried. The key said no."],
+  closed: ["🪦 Done. Another one laid to rest.", "✅ Closed. Let's see if it stays that way.", "🧹 Swept off the pile."],
+  guess: ["🔮 \"This ticket.\" Sure. Let me consult the crystal ball.", "🤨 You'll have to be more specific than \"this\". Lucky for you, I can guess."],
+  which: ["😤 Which one? I have a whole pile.", "🫠 I'm good, but I'm not a mind reader."],
+  records: ["📋 Straight from the records, no embellishment.", "🗂️ Here's the pile, since you asked."],
+  refused: ["🚫 Nope. Rules are rules, even for you.", "😑 Not happening from here."],
+};
+/** One wry opening line for a code-composed reply, chosen by the job so a retry says the same thing. */
+export function quip(kind: string, seed: string): string {
+  const lines = QUIPS[kind] ?? QUIPS.records;
+  let h = 0;
+  for (const ch of seed) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return lines[h % lines.length];
+}
+/** Prefix a code-composed reply with a quip when the persona is on. The reply itself is unchanged. */
+export function inPersona(on: boolean | undefined, kind: string, seed: string, reply: string): string {
+  return on ? `${quip(kind, seed)}\n${reply}` : reply;
+}
+/** True when the stored slack_agent setting turns the persona on. */
+export function personaEnabled(setting: unknown): boolean {
+  return !!setting && typeof setting === "object" && (setting as Record<string, unknown>).persona === "grumpy_it_vet";
+}
 export async function runAgent(c: AgentContext, d: AgentDependencies): Promise<{ text: string; sources: string[]; receipts: string[]; calls: number }> {
   const specs = availableTools(c);
   if (!specs.length || !await d.authorize()) return { text: "I cannot verify access to this conversation.", sources: [], receipts: [], calls: 0 };
   const now = d.now ?? Date.now;
   const started = now();
-  const messages: ChatMessage[] = [{ role: "system", content: AGENT_SYSTEM }, { role: "user", content: JSON.stringify({
+  const messages: ChatMessage[] = [{ role: "system", content: c.persona ? `${AGENT_SYSTEM}\n${SLACK_PERSONA}` : AGENT_SYSTEM }, { role: "user", content: JSON.stringify({
     question: scrub(c.question), history: c.privateChannel ? scrub(c.history.slice(-4)) : [],
     private_channel: c.privateChannel, bound_ticket_id: c.privateChannel ? c.ticketId : null,
     ...(c.privateChannel && !c.ticketId && c.likelyTicket ? { likely_ticket: scrub(c.likelyTicket) } : {}),
@@ -195,7 +228,7 @@ export async function runAgent(c: AgentContext, d: AgentDependencies): Promise<{
     try { reply = await d.model(messages, specs, turn === 4 || calls >= 4); }
     catch { text = evidenceFallback ?? "I could not finish the answer. Any confirmed actions are listed below; no other work is being claimed."; break; }
     const toolCalls = reply.tool_calls ?? [];
-    if (!toolCalls.length) { text = evidenceFallback && (!safeAgentAnswer(reply.content) || clarificationOnly(String(reply.content))) ? evidenceFallback : safeAgentAnswer(reply.content) ?? "I could not validate the generated answer. The checked sources and confirmed actions are listed below."; break; }
+    if (!toolCalls.length) { text = evidenceFallback && (!safeAgentAnswer(reply.content) || clarificationOnly(String(reply.content))) ? inPersona(c.persona, "records", c.jobId, evidenceFallback) : safeAgentAnswer(reply.content) ?? "I could not validate the generated answer. The checked sources and confirmed actions are listed below."; break; }
     if (turn === 4 || calls >= 4 || toolCalls.length !== 1) { text = "This request exceeded the safe work limit. Please split it into a smaller next step."; break; }
     const call = toolCalls[0];
     const spec = specs.find(t => t.name === call.function?.name);
