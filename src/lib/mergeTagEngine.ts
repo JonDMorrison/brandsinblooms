@@ -1,3 +1,4 @@
+import { getMergeTagByKey } from '@/lib/mergeTagDefinitions';
 /**
  * Unified Merge Tag Engine for BloomSuite
  * 
@@ -221,6 +222,20 @@ export function containsMergeTags(template: string): boolean {
   if (!template) return false;
   MERGE_TAG_REGEX.lastIndex = 0; // Reset regex state
   return MERGE_TAG_REGEX.test(template);
+}
+
+/**
+ * Replace merge tags with readable placeholders for display outside the
+ * editor, e.g. "Spring has arrived, {{ first_name }}" becomes
+ * "Spring has arrived, [First Name]". Unknown tags use their key.
+ */
+export function describeMergeTags(template: string): string {
+  if (!template) return template;
+  const regex = new RegExp(MERGE_TAG_REGEX.source, 'g');
+  return template.replace(regex, (_match, fieldPath: string) => {
+    const label = getMergeTagByKey(fieldPath)?.label ?? fieldPath.replace(/[._]/g, ' ');
+    return `[${label}]`;
+  });
 }
 
 /**
