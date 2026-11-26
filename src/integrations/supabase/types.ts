@@ -23714,6 +23714,28 @@ export type Database = {
         Args: { p_tenant_id?: string; p_user_id?: string };
         Returns: Json;
       };
+      get_campaign_approval: {
+        Args: { p_campaign_id: string };
+        Returns: Json;
+      };
+      get_campaign_approval_setting: { Args: never; Returns: Json };
+      submit_campaign_for_approval: {
+        Args: { p_campaign_id: string; p_note?: string };
+        Returns: Json;
+      };
+      decide_campaign_approval: {
+        Args: {
+          p_campaign_id: string;
+          p_decision: string;
+          p_reviewed_fingerprint: string;
+          p_note?: string;
+        };
+        Returns: Json;
+      };
+      set_campaign_approval_required: {
+        Args: { p_required: boolean };
+        Returns: Json;
+      };
       get_current_crm_access: { Args: never; Returns: Json };
       get_customer_activity_heatmap: {
         Args: { p_channel?: string; p_customer_id: string };

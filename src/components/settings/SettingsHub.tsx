@@ -18,6 +18,7 @@ import { DebugSettings } from "./DebugSettings";
 import { useAdmin } from "@/contexts/AdminContext";
 import { SupportSettings } from "./SupportSettings";
 import { OrganizationAccessSettings } from "./OrganizationAccessSettings";
+import { CampaignApprovalSetting } from "./CampaignApprovalSetting";
 import { usePOSConnection } from "@/hooks/usePOSConnection";
 import { useSenderConfiguration } from "@/hooks/useSenderConfiguration";
 import { useDomains } from "@/hooks/useDomains";
@@ -386,7 +387,10 @@ export const SettingsHub = () => {
         </TabPanel>
 
         <TabPanel value="organization" sx={{ p: 0, pt: 2.5 }}>
-          <OrganizationAccessSettings />
+          <Stack spacing={3}>
+            <OrganizationAccessSettings />
+            <CampaignApprovalSetting />
+          </Stack>
         </TabPanel>
 
         <TabPanel value="compliance" sx={{ p: 0, pt: 2.5 }}>

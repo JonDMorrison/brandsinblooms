@@ -1,3 +1,6 @@
+import { CampaignApprovalPanel } from "@/components/crm/campaign-editor/CampaignApprovalPanel";
+import { useCampaignApproval } from "@/hooks/useCampaignApproval";
+import { approvalBlocksSending } from "@/lib/crm/campaignApproval";
 import * as React from "react";
 import { deriveCampaignDisplayName, isUnsetCampaignName } from "@/lib/crm/campaignDisplayName";
 import Box from "@mui/joy/Box";
@@ -1355,8 +1358,13 @@ export function CampaignSendConfirmation({
     : "primary";
   const requiresPlaceholderAck =
     placeholderWarnings.length > 0 && !placeholderAcknowledged;
+  // Approval (only for organisations that turned it on). The database
+  // refuses an unapproved send; this keeps the button honest about it.
+  const { approval: campaignApproval, error: campaignApprovalError } = useCampaignApproval(campaignId, open);
+  const approvalBlocked = approvalBlocksSending(campaignApproval) || Boolean(campaignApprovalError);
   const primaryActionDisabled =
     !canSendCampaign ||
+    approvalBlocked ||
     isBusy ||
     hasBuilderBlockers ||
     requiresPlaceholderAck ||
@@ -1863,6 +1871,7 @@ export function CampaignSendConfirmation({
                 </Sheet>
               ) : null}
 
+              <CampaignApprovalPanel campaignId={campaignId} enabled={open} />
               {inlineError ? (
                 <Sheet
                   variant="soft"
@@ -1910,7 +1919,7 @@ export function CampaignSendConfirmation({
                   <JoyButton
                     variant="outlined"
                     color="neutral"
-                    disabled={isBusy}
+                    disabled={isBusy || approvalBlocked}
                     onClick={onSchedule}
                   >
                     Choose send time

@@ -15,6 +15,7 @@ export const CRM_PERMISSIONS = [
   "campaigns.read",
   "campaigns.write",
   "campaigns.send",
+  "campaigns.approve",
   "segments.manage",
   "automations.manage",
   "loyalty.read",
