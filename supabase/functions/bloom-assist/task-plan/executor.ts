@@ -114,6 +114,12 @@ function mergeEditedFields(params: JsonObject, edits: JsonObject): JsonObject {
   return merged;
 }
 
+/** Edits the approval card did not offer; the approved preview binds them. */
+function lockedEditedFields(task: TaskPlanItem, edits: JsonObject): string[] {
+  const editable = Array.isArray(task.editable_fields) ? task.editable_fields : [];
+  return Object.keys(edits).filter((field) => !editable.includes(field));
+}
+
 function validateEditedParams(
   task: TaskPlanItem,
   params: JsonObject,
@@ -353,10 +359,20 @@ export function preparePlanForApproval(
       return task;
     }
 
-    const editedParams = mergeEditedFields(
-      task.tool_params,
-      editedFields[task.task_id] ?? {},
-    );
+    const edits = editedFields[task.task_id] ?? {};
+    // Only fields the approval card offered for editing may change. Anything
+    // else (ids, send_mode, deletion_mode, ...) is bound to what was previewed,
+    // and the original parameters are kept so a retry cannot run the edit.
+    const lockedEdits = lockedEditedFields(task, edits);
+    if (task.tool_name !== "export_data" && lockedEdits.length > 0) {
+      return {
+        ...task,
+        status: "failed" as const,
+        error_message: `These fields cannot change after preview: ${lockedEdits.join(", ")}. Ask Bloom for a new approval.`,
+      };
+    }
+
+    const editedParams = mergeEditedFields(task.tool_params, edits);
     const validationError = validateEditedParams(task, editedParams);
     if (validationError) {
       return {
