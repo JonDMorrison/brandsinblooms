@@ -649,11 +649,12 @@ const CustomerDashboardPage: React.FC = () => {
                 </JoyTabsList>
               </JoyTabs>
 
-              <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+              <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }}>
                 {RANGE_OPTIONS.map((range) => (
                   <JoyButton
                     key={range}
                     size="sm"
+                    sx={{ whiteSpace: "nowrap" }}
                     variant={timeRange === range ? "solid" : "plain"}
                     color={timeRange === range ? "primary" : "neutral"}
                     onClick={() => updateSearchParam({ range })}
@@ -746,20 +747,9 @@ const CustomerDashboardPage: React.FC = () => {
                 sx={{ borderRadius: "xl", p: 2, borderColor: "neutral.200" }}
               >
                 <Stack spacing={1.5}>
+                  {/* The period is set by the picker beside the tabs; it is
+                      the same range parameter, so it is not repeated here. */}
                   <Typography level="title-sm">Activity filters</Typography>
-                  <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-                    {RANGE_OPTIONS.map((range) => (
-                      <JoyButton
-                        key={`activity-${range}`}
-                        size="sm"
-                        variant={timeRange === range ? "solid" : "plain"}
-                        color={timeRange === range ? "primary" : "neutral"}
-                        onClick={() => updateSearchParam({ range })}
-                      >
-                        {range === "all" ? "All time" : range.toUpperCase()}
-                      </JoyButton>
-                    ))}
-                  </Stack>
 
                   <Box
                     sx={{
