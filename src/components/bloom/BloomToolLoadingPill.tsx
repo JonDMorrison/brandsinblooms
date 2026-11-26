@@ -9,7 +9,7 @@ import {
   getRenderingMessage,
   getStreamingMessage,
 } from "@/components/bloom/utils/streamingMessages";
-import type { BloomStreamingConnectionState } from "@/hooks/bloom/useBloomStreaming";
+import type { BloomStreamingConnectionState } from "@/hooks/askBloom/useAskBloomStreaming";
 
 export interface BloomToolLoadingPillProps {
   toolName: string;
