@@ -16,6 +16,7 @@ import {
   parseListQueryParams,
   sanitizePostgrestSearch,
 } from "./shared.ts";
+import { emptyNameSearchResult } from "../../named-entity-lookup.ts";
 
 type SegmentRow = Pick<
   Database["public"]["Tables"]["crm_segments"]["Row"],
@@ -144,6 +145,9 @@ export const querySegments: ToolImplementation = async (
     throw error;
   }
 
+  if ((data ?? []).length === 0 && queryParams.search && queryParams.filters.length === 0 && queryParams.page === 1) {
+    return emptyNameSearchResult(context.dataClient ?? context.serviceClient, context.tenantId, "segment", queryParams.search);
+  }
   const items = ((data ?? []) as SegmentRow[]).map(
     (row) => mapSegment(row) as JsonValue,
   );
