@@ -257,10 +257,13 @@ export const CRMCustomersPage: React.FC = () => {
       },
       {
         label: "Total Spent",
+        // Large totals use compact notation (CA$23.1M) so the value fits the card.
         value: new Intl.NumberFormat("en-US", {
           style: "currency",
           currency: tenantCurrency,
-          maximumFractionDigits: 0,
+          ...((customerHeaderStats?.totalSpent ?? 0) >= 100_000
+            ? { notation: "compact" as const, maximumFractionDigits: 1 }
+            : { maximumFractionDigits: 0 }),
         }).format(customerHeaderStats?.totalSpent ?? 0),
         icon: <DollarSign size={18} />,
       },
