@@ -32,6 +32,10 @@ import { useBloomMessageMutations } from "@/hooks/bloom/useBloomMessageMutations
 import { useBloomModelPreference } from "@/hooks/bloom/useBloomModelPreference";
 import { useBloomProfile } from "@/hooks/bloom/useBloomProfile";
 import {
+  bloomPageDraftKey,
+  useComposerDrafts,
+} from "@/hooks/bloom/useComposerDrafts";
+import {
   useAskBloomStreaming,
   type BloomActiveToolCall,
   type BloomResearchPlan,
@@ -78,7 +82,9 @@ export interface BloomPlanDecision {
 
 interface BloomContextType {
   activeConversationId: string | null;
+  /** The composer draft for the active conversation (or the new-chat view). */
   composerDraft: string;
+  /** Sets the draft of the conversation that was active when it was read. */
   setComposerDraft: React.Dispatch<React.SetStateAction<string>>;
   conversations: BloomConversation[];
   conversationsLoading: boolean;
@@ -231,7 +237,18 @@ export const BloomProvider = ({ children }: { children?: React.ReactNode }) => {
   const activeConversationId = routeConversationId ?? lastActiveConversationId;
   const [activeMode, setActiveModeState] =
     React.useState<BloomMode>("standard");
-  const [composerDraft, setComposerDraft] = React.useState("");
+  // Drafts belong to their conversation: switching conversations, or starting
+  // a new one, never carries another conversation's draft or prompt along.
+  const composerDrafts = useComposerDrafts();
+  const composerDraftKey = bloomPageDraftKey(activeConversationId);
+  const composerDraft = composerDrafts.getDraft(composerDraftKey);
+  const { setDraft: setKeyedComposerDraft } = composerDrafts;
+  const setComposerDraft = React.useCallback<
+    React.Dispatch<React.SetStateAction<string>>
+  >(
+    (value) => setKeyedComposerDraft(composerDraftKey, value),
+    [composerDraftKey, setKeyedComposerDraft],
+  );
   const [imageModePulseKey, setImageModePulseKey] = React.useState(0);
   const [activePlan, setActivePlan] = React.useState<BloomTaskPlan | null>(
     null,
@@ -797,7 +814,7 @@ export const BloomProvider = ({ children }: { children?: React.ReactNode }) => {
       setComposerDraft(value);
       composerControllerRef.current?.setValue(value, options);
     },
-    [],
+    [setComposerDraft],
   );
 
   const focusComposer = React.useCallback(
@@ -999,6 +1016,7 @@ export const BloomProvider = ({ children }: { children?: React.ReactNode }) => {
       activePlan,
       activeToolCall,
       composerDraft,
+      setComposerDraft,
       approveTaskPlan,
       cancelStream,
       connectionState,

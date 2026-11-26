@@ -225,6 +225,13 @@ function FatalState({ onRetry }: { onRetry: () => Promise<void> | void }) {
   );
 }
 
+/**
+ * The "Ask Bloom why" prompt opens /bloom, which has no customer on screen, so
+ * the prompt names the customer instead of saying "this customer".
+ */
+const customerPurchaseBehaviorPrompt = (customerName: string) =>
+  `Explain the purchase behavior of customer ${customerName} using Customer Intelligence. Focus on value, strongest categories and departments, purchase momentum, and any meaningful opportunity or risk. Show the evidence behind your conclusions.`;
+
 const CustomerDashboardPage: React.FC = () => {
   const { customerId } = useParams<{ customerId: string }>();
   const navigate = useNavigate();
@@ -837,7 +844,7 @@ const CustomerDashboardPage: React.FC = () => {
               {(!isIdealProfile||customerIntelligence?.last_line_item_purchase_at)&&<CustomerIntelligenceStory
                 intelligence={customerIntelligence}
                 lifetimeValue={purchaseSummary.lifetimeValue}
-                onAskBloom={() => navigate("/bloom?prompt=" + encodeURIComponent("Explain this customer's purchase behavior using Customer Intelligence. Focus on value, strongest categories and departments, purchase momentum, and any meaningful opportunity or risk. Show the evidence behind your conclusions."))}
+                onAskBloom={() => navigate("/bloom?prompt=" + encodeURIComponent(customerPurchaseBehaviorPrompt(customerName)))}
               />
               }
               {receiptMetricsUnavailable ? <Typography level="body-md">Receipt-based spending, lifetime value, orders and frequency are not available. {isIdealProfile ? 'Use the imported report-period spending above; missing receipt history is not zero spending.' : 'Missing receipt history is not zero spending.'}</Typography> : <PurchaseValueBehavior

@@ -285,7 +285,11 @@ function BloomPageParamHandler() {
   return null;
 }
 
-/** Offer a clear exit while keeping Intelligence return destinations allow-listed. */
+/**
+ * Offer a clear exit while keeping Intelligence return destinations
+ * allow-listed. The control is its own row in the page's column, above the
+ * conversation, so it can never sit on top of the greeting or a message.
+ */
 function BloomReturnControl() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
@@ -293,7 +297,17 @@ function BloomReturnControl() {
   const returnView = intelligenceView(params.get("returnView"));
   return (
     <Box
-      sx={{ position: "absolute", left: { xs: 8, md: 20 }, top: 12, zIndex: 4 }}
+      component="nav"
+      aria-label="Leave Bloom"
+      data-testid="bloom-return-control"
+      sx={{
+        flexShrink: 0,
+        display: "flex",
+        alignItems: "center",
+        px: { xs: 1, md: 2.5 },
+        pt: { xs: 1, md: 1.5 },
+        backgroundColor: "neutral.50",
+      }}
     >
       <Button
         size="sm"
@@ -320,13 +334,12 @@ export default function BloomPage() {
   return (
     <>
       <BloomPageParamHandler />
-      {/* Single relative stage that holds the conversation and the floating
-          composer. The conversation area fills the full height, so its dotted
-          grid backdrop now spans the entire page — including the space behind
+      {/* The page is a column: the return control row, then the stage that
+          holds the conversation and the floating composer. The conversation
+          fills the stage, so its dotted grid backdrop spans the space behind
           and around the floating input. */}
       <Box
         sx={{
-          position: "relative",
           flex: 1,
           minHeight: 0,
           display: "flex",
@@ -334,26 +347,39 @@ export default function BloomPage() {
         }}
       >
         <BloomReturnControl />
-        <BloomConversationArea prioritizePageContext={prioritizePageContext} />
-        {/* Floating composer: absolutely anchored to the bottom so it hovers
+        <Box
+          data-testid="bloom-conversation-stage"
+          sx={{
+            position: "relative",
+            flex: 1,
+            minHeight: 0,
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          <BloomConversationArea
+            prioritizePageContext={prioritizePageContext}
+          />
+          {/* Floating composer: absolutely anchored to the bottom so it hovers
             over the conversation rather than sitting in a flat bar. The wrapper
             is click-through (`pointerEvents: none`) so messages behind the dead
             space around the composer stay scrollable/selectable; the composer,
             approval bar, and creation-form card re-enable pointer events
             themselves. The creation form renders as its own rounded card above
             the composer, so no shared full-width surface lives here. */}
-        <Box
-          sx={{
-            position: "absolute",
-            left: 0,
-            right: 0,
-            bottom: 0,
-            zIndex: 2,
-            pointerEvents: "none",
-          }}
-        >
-          <BloomApprovalBar />
-          <BloomPageComposer />
+          <Box
+            sx={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: 2,
+              pointerEvents: "none",
+            }}
+          >
+            <BloomApprovalBar />
+            <BloomPageComposer />
+          </Box>
         </Box>
       </Box>
     </>

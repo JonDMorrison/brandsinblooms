@@ -114,3 +114,36 @@ describe("Bloom return path from Intelligence", () => {
     );
   });
 });
+
+describe("Bloom page layout", () => {
+  it("puts the return control in its own row above the conversation, never over it", () => {
+    mount("/bloom");
+    const returnRow = screen.getByTestId("bloom-return-control");
+    const stage = screen.getByTestId("bloom-conversation-stage");
+    const conversation = screen.getByTestId("bloom-conversation");
+
+    // The control is a sibling before the stage, not a layer inside it.
+    expect(returnRow.parentElement).toBe(stage.parentElement);
+    expect(returnRow.nextElementSibling).toBe(stage);
+    expect(stage).toContainElement(conversation);
+    expect(stage).not.toContainElement(returnRow);
+    expect(returnRow).toContainElement(
+      screen.getByRole("button", { name: "Back to Dashboard" }),
+    );
+    // In normal flow at every width: no absolute or fixed positioning.
+    expect(getComputedStyle(returnRow).position).not.toBe("absolute");
+    expect(getComputedStyle(returnRow).position).not.toBe("fixed");
+    expect(getComputedStyle(returnRow).flexShrink).toBe("0");
+  });
+
+  it("prefills a ?prompt= link once and removes it from the address", async () => {
+    mount("/bloom?prompt=" + encodeURIComponent("Draft the spring newsletter"));
+    await waitFor(() =>
+      expect(mocks.setComposerDraft).toHaveBeenCalledWith(
+        "Draft the spring newsletter",
+      ),
+    );
+    expect(mocks.setComposerDraft).toHaveBeenCalledTimes(1);
+    expect(mocks.sendMessage).not.toHaveBeenCalled();
+  });
+});

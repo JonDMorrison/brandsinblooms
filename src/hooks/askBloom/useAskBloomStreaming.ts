@@ -89,6 +89,8 @@ import { bloomChatClientContext } from "@/lib/bloomSupport/api";
 
 const TOKEN_FLUSH_INTERVAL_MS = 50;
 const TOKEN_FLUSH_COUNT = 5;
+/** How often a stream that outlived its caller writes its reply to the cache. */
+const DETACHED_CACHE_WRITE_INTERVAL_MS = 250;
 const MAX_CONSECUTIVE_PARSE_ERRORS = 5;
 const STREAM_INTERRUPTED_MESSAGE = "Connection lost. Partial response preserved.";
 
@@ -2567,11 +2569,38 @@ export function useAskBloomStreaming(options: UseAskBloomStreamingOptions) {
 
   React.useEffect(
     () => () => {
+      const replyInFlight =
+        connectionStateRef.current === "connecting" ||
+        connectionStateRef.current === "streaming";
+      if (
+        store === "bloomMessageCache" &&
+        replyInFlight &&
+        activeStreamIdRef.current !== null
+      ) {
+        // The caller left (the user navigated away from /bloom). The reply is
+        // stored in the shared Bloom message cache, which outlives this hook,
+        // so the stream keeps running instead of being cut off: the partial
+        // reply is written into the cache as it arrives, and the persisted
+        // conversation replaces it when the stream is done. Every surface
+        // that reads the conversation (the drawer, /bloom on return) shows it.
+        clearFlushInterval();
+        flushIntervalRef.current = window.setInterval(
+          patchPartialAssistantMessage,
+          DETACHED_CACHE_WRITE_INTERVAL_MS,
+        );
+        return;
+      }
+
       cancelRequestedRef.current = true;
       activeStreamIdRef.current = null;
       abortActiveTransport();
     },
-    [abortActiveTransport],
+    [
+      abortActiveTransport,
+      clearFlushInterval,
+      patchPartialAssistantMessage,
+      store,
+    ],
   );
 
   const resolvedResearchSteps = Array.from(researchSteps.values()).filter(

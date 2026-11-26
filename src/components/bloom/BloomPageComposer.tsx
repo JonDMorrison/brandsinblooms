@@ -10,8 +10,9 @@ import type { BloomJsonArray } from "@/hooks/bloom/types";
 /**
  * /bloom's composer: the same BloomComposer the Ask Bloom drawer uses, laid
  * out for the wider canvas and driven by BloomContext. The draft stays in
- * BloomContext's `composerDraft` so /bloom's keyboard shortcuts and prompt
- * links keep reaching it.
+ * BloomContext's `composerDraft`, kept per conversation, so /bloom's keyboard
+ * shortcuts and prompt links keep reaching it without leaking between
+ * conversations.
  */
 export function BloomPageComposer() {
   const navigate = useNavigate();
