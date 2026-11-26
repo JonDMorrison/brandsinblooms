@@ -175,8 +175,11 @@ describe("segment recompute compatibility", () => {
   });
 
   it("reads engagement_score from the computed score and never treats no score as 0", async () => {
-    const { evaluateSegmentRule: clientEvaluate, getCustomerEngagementScore } =
-      await import("@/lib/segmentFields");
+    const {
+      evaluateSegmentRule: clientEvaluate,
+      getCustomerEngagementScore,
+      normalizeSegmentRuleGroup: clientNormalize,
+    } = await import("@/lib/segmentFields");
     const rule = (operatorId: string, value: number) =>
       normalizeSegmentRuleGroup({
         kind: "group",
@@ -199,9 +202,11 @@ describe("segment recompute compatibility", () => {
       customers.filter((customer) => evaluateSegmentRule(group, customer)).map((c) => c.id);
     expect(matches(high)).toEqual(["engaged"]);
     expect(matches(low)).toEqual(["quiet"]);
+    const clientHigh = clientNormalize(high);
+    const clientLow = clientNormalize(low);
     for (const customer of customers) {
-      expect(clientEvaluate(high, customer as never)).toBe(evaluateSegmentRule(high, customer));
-      expect(clientEvaluate(low, customer as never)).toBe(evaluateSegmentRule(low, customer));
+      expect(clientEvaluate(clientHigh, customer as never)).toBe(evaluateSegmentRule(high, customer));
+      expect(clientEvaluate(clientLow, customer as never)).toBe(evaluateSegmentRule(low, customer));
     }
   });
 
