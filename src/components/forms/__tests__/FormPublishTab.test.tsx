@@ -2,6 +2,7 @@ import "@testing-library/jest-dom";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { ComponentProps } from "react";
 import { MemoryRouter } from "react-router-dom";
 
 import { getCanonicalFormDocumentationPath } from "@/lib/forms/documentation";
@@ -26,15 +27,7 @@ describe("FormPublishTab", () => {
     document.execCommand = vi.fn(() => true);
   });
 
-  const form = {
-    compliance_json: {
-      email_consent_required: false,
-      email_consent_text: "",
-      sms_consent_required: false,
-      sms_consent_text: "",
-      double_opt_in: false,
-      gdpr_compliant: false,
-    },
+  const form: ComponentProps<typeof FormPublishTab>["form"] = {
     embed_key: "9509bb8470ede66441611238b5c068fc",
     fields_json: [
       {
@@ -49,19 +42,7 @@ describe("FormPublishTab", () => {
     ],
     id: "form_123",
     name: "VIP Signup",
-    settings_json: {
-      form_title: "VIP Signup",
-      form_description: "Join the list",
-      success_message: "Thanks for signing up!",
-      success_redirect_url: null,
-      submit_button_text: "Join Now",
-      show_branding: true,
-      theme: {},
-      notification_emails: [],
-      steps: [{ index: 0, title: "Welcome", description: "Main step" }],
-    },
     status: "published",
-    tenant_id: "tenant_123",
   };
 
   function renderComponent(overrides: Partial<typeof form> = {}) {

@@ -64,6 +64,7 @@ export const FirstTimeUserWelcome = ({
           const shouldShowWelcome =
             tasksCount >= 5 &&
             !profile.first_welcome_dismissed &&
+            Boolean(profile.first_content_generated || hasRecentOnboarding);
 
           setIsFirstTime(shouldShowWelcome);
         } else {

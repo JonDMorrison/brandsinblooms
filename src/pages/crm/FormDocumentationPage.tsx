@@ -630,7 +630,7 @@ function FormDocumentationSidebar({
   stepCount: number;
   status: string;
 }) {
-  const [activeSection, setActiveSection] = useState(DOC_SECTIONS[0].id);
+  const [activeSection, setActiveSection] = useState<string>(DOC_SECTIONS[0].id);
 
   useEffect(() => {
     if (typeof IntersectionObserver === "undefined") {

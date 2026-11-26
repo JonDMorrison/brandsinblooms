@@ -1253,12 +1253,12 @@ export default function FormsPage() {
           return true;
         }
 
-        const settings = form.settings_json ?? {};
+        const settings = form.settings_json;
         const haystack = [
           form.name,
-          settings.form_description,
-          settings.form_title,
-          settings.form_headline,
+          settings?.form_description,
+          settings?.form_title,
+          settings?.form_headline,
         ]
           .filter((value): value is string => typeof value === "string" && value.length > 0)
           .join(" ")

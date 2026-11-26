@@ -10,6 +10,8 @@ const baseDomain = (
   domain: "example.com",
   default_from_email: "send@example.com",
   default_from_name: "Example",
+  created_at: "2024-01-01T00:00:00.000Z",
+  updated_at: "2024-01-01T00:00:00.000Z",
   ...overrides,
 });
 

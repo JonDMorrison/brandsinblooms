@@ -156,6 +156,23 @@ const validRanges = new Set<CustomerDashboardTimeRange>([
   "all",
 ]);
 
+// The dashboard query can return `lifetime_value` as a numeric string;
+// Ask Bloom's customer focus expects a number.
+function toCustomerFocusInput(customer: CustomerData) {
+  const { lifetime_value: lifetimeValue } = customer;
+  if (typeof lifetimeValue !== "string") {
+    return { ...customer, lifetime_value: lifetimeValue };
+  }
+
+  const parsedLifetimeValue = Number(lifetimeValue);
+  return {
+    ...customer,
+    lifetime_value: Number.isFinite(parsedLifetimeValue)
+      ? parsedLifetimeValue
+      : null,
+  };
+}
+
 function LoadingShell() {
   return (
     <PageContainer sx={{ py: { xs: 2, md: 3 } }}>
@@ -432,7 +449,7 @@ const CustomerDashboardPage: React.FC = () => {
     }
 
     return buildCustomerFocus(
-      displayCustomer,
+      toCustomerFocusInput(displayCustomer),
       undefined,
       undefined,
       customerFocusSegments,
@@ -464,7 +481,7 @@ const CustomerDashboardPage: React.FC = () => {
           >(["customer-segments", resourceId]) ?? [];
 
         return buildCustomerFocus(
-          cachedCustomer,
+          toCustomerFocusInput(cachedCustomer),
           undefined,
           undefined,
           cachedSegments.map((item) => ({ name: item.segment?.name ?? undefined })),

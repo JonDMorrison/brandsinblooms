@@ -1,5 +1,5 @@
 import React, { memo } from "react";
-import { Handle, Position, type NodeProps } from "@xyflow/react";
+import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import { AutomationNodeShell } from "@/components/automation/flow/nodes/AutomationNodeShell";
 import type {
   AutomationNodeEditorHandler,
@@ -7,7 +7,7 @@ import type {
 } from "@/components/automation/flow/automationBuilderTypes";
 import { getAutomationNodeVisual } from "@/components/automation/flow/automationNodeVisuals";
 
-type SMSNodeProps = NodeProps<SMSNodeData> & {
+type SMSNodeProps = NodeProps<Node<SMSNodeData, "sms">> & {
   onEdit?: AutomationNodeEditorHandler;
   onDelete?: (nodeId: string) => void;
 };

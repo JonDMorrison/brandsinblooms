@@ -2289,7 +2289,7 @@ async function fetchSystemSegmentCustomerIds(
         segment.id,
       ]),
     );
-    const segmentNameById = new Map(
+    const segmentNameById = new Map<string, string>(
       (manualSegments ?? []).map((segment) => [segment.id, segment.name]),
     );
     for (const row of rawMembershipRows) {

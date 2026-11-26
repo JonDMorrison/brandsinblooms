@@ -282,7 +282,14 @@ export function CRMSegmentsPage() {
             p_segments: missingSystemDefinitions.map((segment) => ({
               name: segment.name,
               description: segment.description,
-              conditions: segment.conditions,
+              conditions: {
+                logic: segment.conditions.logic,
+                rules: segment.conditions.rules.map((rule) => ({
+                  field: rule.field,
+                  operator: rule.operator,
+                  value: rule.value,
+                })),
+              },
             })),
           },
         );

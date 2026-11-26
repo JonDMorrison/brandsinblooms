@@ -55,7 +55,7 @@ const getCampaignStatus = (campaign: DeliveryMetrics) => {
   // Bounced and unconfirmed sends are finished, not in progress: only
   // recipients still queued or sending mean the campaign is sending.
   if (campaign.computedPending > 0) {
-    return { label: "Sending", tone: "primary" as const };
+    return { label: "Sending", tone: "info" as const };
   }
 
   return { label: "Completed", tone: "success" as const };

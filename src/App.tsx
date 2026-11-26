@@ -239,9 +239,6 @@ const CRMCampaignRecipientsPage = lazyRetry(
 const CRMCampaignRecipientDetailPage = lazyRetry(
   () => import("@/pages/crm/CRMCampaignRecipientDetailPage"),
 );
-const CRMSegmentsBetaPage = lazyRetry(
-  () => import("@/pages/crm/CRMSegmentsBetaPage"),
-);
 const CRMSegmentsPage = lazyNamed(
   () => import("@/pages/crm/CRMSegmentsPage"),
   "CRMSegmentsPage",
@@ -806,7 +803,7 @@ function App() {
               path="/crm/connected-content"
               element={renderProtectedSidebarLazyPage(
                 <ConnectedContentPage />,
-                "full",
+                "default",
                 "campaigns.write",
               )}
             />
@@ -815,7 +812,7 @@ function App() {
               element={import.meta.env["VITE_CARE_GUIDE_STUDIO_ENABLED"] === "true"
                 ? renderProtectedSidebarLazyPage(
                     <CareGuideStudioPage />,
-                    "full",
+                    "default",
                     "campaigns.write",
                   )
                 : <Navigate to="/crm/campaigns" replace />}

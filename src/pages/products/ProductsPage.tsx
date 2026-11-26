@@ -219,8 +219,8 @@ export default function ProductsPage() {
     setCurrentPage(1);
   };
 
-  const handlePageSizeChange = (value: string) => {
-    setPageSize(Number(value));
+  const handlePageSizeChange = (nextPageSize: number) => {
+    setPageSize(nextPageSize);
     setCurrentPage(1);
   };
 

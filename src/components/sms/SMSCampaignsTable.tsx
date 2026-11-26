@@ -183,7 +183,7 @@ export const SMSCampaignsTable: React.FC<SMSCampaignsTableProps> = ({
         </Stack>
         <Button
           onClick={onCreateCampaign}
-          variant="outline"
+          variant="outlined"
           color="neutral"
           size="sm"
           startDecorator={<Plus size={15} />}

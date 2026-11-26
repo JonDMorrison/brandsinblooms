@@ -13,6 +13,7 @@ import Textarea from "@mui/joy/Textarea";
 import Tooltip from "@mui/joy/Tooltip";
 import Typography from "@mui/joy/Typography";
 import { AlertTriangle, Info, Mail } from "lucide-react";
+import ChipDelete from "@mui/joy/ChipDelete";
 import { JoyChip } from "@/components/joy/JoyChip";
 import { JoyInput } from "@/components/joy/JoyInput";
 import { isValidEmail } from "@/lib/sendTestEmail";
@@ -431,12 +432,17 @@ export function FormComplianceTab({
                   size="sm"
                   variant="outlined"
                   color="neutral"
-                  onDelete={() =>
-                    onNotificationEmailsChange(
-                      notificationEmails.filter(
-                        (recipient) => recipient !== email,
-                      ),
-                    )
+                  endDecorator={
+                    <ChipDelete
+                      aria-label={`Remove ${email}`}
+                      onDelete={() =>
+                        onNotificationEmailsChange(
+                          notificationEmails.filter(
+                            (recipient) => recipient !== email,
+                          ),
+                        )
+                      }
+                    />
                   }
                 >
                   {email}

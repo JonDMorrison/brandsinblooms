@@ -20,6 +20,7 @@ import { Progress } from "@/components/ui-legacy/progress";
 import { Alert, AlertDescription } from "@/components/ui-legacy/alert";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { toJsonValue } from "@/utils/jsonValue";
 import {
   Upload,
   CheckCircle,
@@ -446,7 +447,10 @@ export const EnhancedSegmentImportDialog: React.FC<
         async (rows) => {
           const { data, error } = await supabase.rpc(
             "import_crm_customer_batch",
-            { p_customers: rows, p_attestation_id: beginImport.attestationId },
+            {
+              p_customers: toJsonValue(rows),
+              p_attestation_id: beginImport.attestationId,
+            },
           );
           if (error) throw error;
           return data as unknown as CustomerImportBatchResponse;

@@ -12,6 +12,7 @@ import {
   MinusCircle,
   Clock3,
   XCircle,
+  type LucideIcon,
 } from "lucide-react";
 
 export interface CampaignDeliverySummaryProps {
@@ -35,7 +36,7 @@ function DeliveryCell({
   detail,
   valueColor,
 }: {
-  icon: React.ComponentType<{ size?: number }>;
+  icon: LucideIcon;
   label: string;
   value: string;
   detail?: string;

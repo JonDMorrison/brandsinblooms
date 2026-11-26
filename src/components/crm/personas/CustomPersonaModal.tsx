@@ -5,7 +5,7 @@ import Sheet from "@mui/joy/Sheet";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, type UseFormReturn } from "react-hook-form";
 import { z } from "zod";
 import {
   createEmptyPersonaMetadata,
@@ -72,7 +72,9 @@ const personaSchema = z.object({
   avoidTopics: z.array(z.string()).default([]),
 });
 
-type PersonaFormValues = z.infer<typeof personaSchema>;
+type PersonaFormInput = z.input<typeof personaSchema>;
+type PersonaFormValues = z.output<typeof personaSchema>;
+type PersonaForm = UseFormReturn<PersonaFormInput, unknown, PersonaFormValues>;
 
 export interface PersonaFormInitialValue {
   name: string;
@@ -167,9 +169,9 @@ function PersonaFormBody({
   watch,
   isSubmitting,
 }: {
-  control: ReturnType<typeof useForm<PersonaFormValues>>["control"];
-  register: ReturnType<typeof useForm<PersonaFormValues>>["register"];
-  watch: ReturnType<typeof useForm<PersonaFormValues>>["watch"];
+  control: PersonaForm["control"];
+  register: PersonaForm["register"];
+  watch: PersonaForm["watch"];
   isSubmitting: boolean;
 }) {
   const selectedAccent = watch("color");
@@ -648,7 +650,7 @@ export const CustomPersonaModal: React.FC<CustomPersonaModalProps> = ({
   const isMobile = useIsMobile();
   const [isSaving, setIsSaving] = React.useState(false);
   const { control, handleSubmit, register, reset, watch } =
-    useForm<PersonaFormValues>({
+    useForm<PersonaFormInput, unknown, PersonaFormValues>({
       resolver: zodResolver(personaSchema),
       defaultValues: toFormValues(initialValue),
     });

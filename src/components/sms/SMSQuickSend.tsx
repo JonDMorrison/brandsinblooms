@@ -327,7 +327,7 @@ export const SMSQuickSend: React.FC<SMSQuickSendProps> = ({ onSent }) => {
             placeholder="Enter your test message..."
             value={message}
             onChange={(event) => setMessage(event.target.value)}
-            maxLength={maxLength}
+            slotProps={{ textarea: { maxLength } }}
             minRows={5}
             helperText={
               characterCount > 140

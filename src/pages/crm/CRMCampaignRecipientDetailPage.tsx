@@ -671,7 +671,7 @@ function DiagnosticsPanel({
       <JoyCard variant="outlined">
         <JoyCardContent sx={{ p: 2.5 }}>
           <Typography
-            level="title-xs"
+            level="body-xs"
             fontWeight="lg"
             sx={{
               mb: 1.5,
@@ -707,7 +707,7 @@ function DiagnosticsPanel({
       <JoyCard variant="outlined">
         <JoyCardContent sx={{ p: 2.5 }}>
           <Typography
-            level="title-xs"
+            level="body-xs"
             fontWeight="lg"
             sx={{
               mb: 1.5,
@@ -750,7 +750,7 @@ function DiagnosticsPanel({
         <JoyCard variant="outlined">
           <JoyCardContent sx={{ p: 2.5 }}>
             <Typography
-              level="title-xs"
+              level="body-xs"
               fontWeight="lg"
               sx={{
                 mb: 1.5,
@@ -774,7 +774,7 @@ function DiagnosticsPanel({
         <JoyCard variant="outlined">
           <JoyCardContent sx={{ p: 2.5 }}>
             <Typography
-              level="title-xs"
+              level="body-xs"
               fontWeight="lg"
               sx={{
                 mb: 1.5,
@@ -801,7 +801,7 @@ function DiagnosticsPanel({
       <JoyCard variant="outlined">
         <JoyCardContent sx={{ p: 2.5 }}>
           <Typography
-            level="title-xs"
+            level="body-xs"
             fontWeight="lg"
             sx={{
               mb: 1.5,

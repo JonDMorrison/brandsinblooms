@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { toJsonValue } from "@/utils/jsonValue";
 
 export interface AnalyticsEvent {
   event_type:
@@ -43,10 +44,12 @@ export class AnalyticsTracker {
 
       if (!userRecord?.tenant_id) return false;
 
+      const { payload, ...eventFields } = event;
       const { error } = await supabase.from("analytics_events").insert({
         tenant_id: userRecord.tenant_id,
         user_id: user.id,
-        ...event,
+        ...eventFields,
+        ...(payload !== undefined ? { payload: toJsonValue(payload) } : {}),
       });
 
       if (error) {

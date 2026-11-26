@@ -20,7 +20,7 @@ import {
   subMonths,
   subWeeks,
 } from "date-fns";
-import type { Database } from "@/integrations/supabase/types";
+import type { Database, Json } from "@/integrations/supabase/types";
 
 /**
  * The customer's computed engagement score, embedded from
@@ -110,20 +110,23 @@ export interface SegmentField {
   customFieldKey?: string;
 }
 
-export interface SegmentRuleCondition {
+// Rule nodes are declared as type aliases (not interfaces) so a rule tree is
+// structurally assignable to the Supabase `Json` column type it is stored in
+// (crm_segments.conditions).
+export type SegmentRuleCondition = {
   id: string;
   kind: "rule";
   fieldId: string | null;
   operatorId: SegmentOperatorId | null;
   value: SegmentRuleValue;
-}
+};
 
-export interface SegmentRuleGroup {
+export type SegmentRuleGroup = {
   id: string;
   kind: "group";
   operator: "AND" | "OR";
   children: SegmentRuleNode[];
-}
+};
 
 export type SegmentRuleNode = SegmentRuleCondition | SegmentRuleGroup;
 
@@ -144,9 +147,9 @@ export interface PreviewUsageItem {
   status?: string | null;
 }
 
-export interface SegmentPreviewCustomer extends CustomerRow {
-  custom_fields: Record<string, unknown> | null;
-}
+// The preview loads crm_customers rows as-is; custom_fields keeps its column
+// type (Json) so a preview customer stays a valid CustomerRow for evaluation.
+export type SegmentPreviewCustomer = CustomerRow;
 
 export interface SegmentTemplate {
   id: string;
@@ -804,7 +807,9 @@ export function hasIncompleteRules(
 }
 
 export function deriveCustomSegmentFields(
-  customFieldObjects: Array<Record<string, unknown> | null | undefined>,
+  customFieldObjects: ReadonlyArray<
+    Json | Record<string, unknown> | null | undefined
+  >,
 ) {
   const fieldRegistry = new Map<string, unknown[]>();
 

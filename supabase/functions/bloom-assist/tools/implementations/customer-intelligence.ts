@@ -1,4 +1,5 @@
 import type {ToolImplementation} from '../types.ts';
+import type {JsonObject} from '../../types.ts';
 import {rankCustomerPopulation, type RankingRow} from '../../../_shared/customer-intelligence/customer-ranking.ts';
 import {finiteNumber} from '../../../_shared/customer-intelligence/purchase-exploration.ts';
 import {readAllPages} from '../../../_shared/customer-intelligence/query-pages.ts';
@@ -60,7 +61,7 @@ export const rankCustomersByIntelligence: ToolImplementation = async (params,con
   const value=typeof params.dimension_value==='string'?params.dimension_value.trim():'';
   if(population.length>0&&params.weights===undefined&&report.eligible_customers===0&&report.dimension!=='overall'&&value&&(params.bucket===undefined||params.bucket==='ranked')){
     const fallback=await exploreCustomerPurchases({scope:set?'saved_result':String(scope),...(set?{set_id:set.id}:{}),label:`Top ${value} shoppers`.slice(0,180),criteria:{mode:'purchased',[report.dimension==='category'?'category':'department']:value},...(set?{}:{top_n:typeof params.limit==='number'?params.limit:100})},context,set?{limit:typeof params.limit==='number'?params.limit:100}:undefined);
-    const data=fallback.data as Record<string,unknown>|null;
+    const data=fallback.data as JsonObject|null;
     return {...fallback,data:data?{...data,ranking_basis:report.dimension==='category'?'reported_category_spend':'reported_department_spend',
       note:set?'Read-only ranking by matched spending from the available source periods. Missing measurements remain unknown; the saved customer group is unchanged.': 'Customers are ordered by matched spending from available source periods. 50 per page; use inspect_customer_set for more.'}:data,
       message:`${fallback.message} Ordered by reported spending in ${value}, largest first.`};
@@ -69,7 +70,7 @@ export const rankCustomersByIntelligence: ToolImplementation = async (params,con
   if(population.length>0&&params.weights===undefined&&report.eligible_customers===0&&report.dimension==='overall'&&(params.bucket===undefined||params.bucket==='ranked')){
     try{
       const fallback=await exploreCustomerReportedSpending({scope:set?'saved_result':String(scope),...(set?{set_id:set.id}:{}),label:'Top customers by reported spending',currency:'CAD',...(set?{}:{top_n:typeof params.limit==='number'?params.limit:100})},context,set?{limit:typeof params.limit==='number'?params.limit:100}:undefined);
-      const data=fallback.data as Record<string,unknown>|null;
+      const data=fallback.data as JsonObject|null;
       return {...fallback,data:data?{...data,ranking_basis:'reported_period_spend'}:data,
         message:`${fallback.message} Ordered by reported spending for the report period, largest first.`};
     }catch(error){

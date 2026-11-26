@@ -9,7 +9,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { ToastAction } from "@/components/ui-legacy/toast";
 import { useToast } from "@/hooks/use-toast";
-import { useForm } from "@/hooks/useForms";
+import { normalizeFormStatus, useForm } from "@/hooks/useForms";
 import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
 import { Database, Json } from "@/integrations/supabase/types";
@@ -91,6 +91,7 @@ function normalizeFields(value: unknown): FormField[] {
 function mapFormRow(row: FormRow): Form {
   return {
     ...row,
+    status: normalizeFormStatus(row.status),
     fields_json: normalizeFields(row.fields_json),
     settings_json: normalizeSettings(row.settings_json),
     compliance_json: normalizeCompliance(row.compliance_json),

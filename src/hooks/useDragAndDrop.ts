@@ -6,6 +6,13 @@ import { toast } from "@/utils/toast";
 import { format } from "date-fns";
 import { UnifiedCalendarEvent } from "./useUnifiedCalendarData";
 import { applyTenantUserScope } from "@/utils/tenantScope";
+import type { TablesUpdate } from "@/integrations/supabase/types";
+import type { PostgrestError } from "@supabase/supabase-js";
+
+type ScopedRecordUpdate =
+  | { table: "content_tasks"; values: TablesUpdate<"content_tasks"> }
+  | { table: "crm_campaigns"; values: TablesUpdate<"crm_campaigns"> }
+  | { table: "campaigns"; values: TablesUpdate<"campaigns"> };
 
 interface Task {
   id: string;
@@ -27,21 +34,48 @@ export const useDragAndDrop = (onTaskUpdate: () => void) => {
   >(null);
 
   const updateScopedRecord = async (
-    table: "content_tasks" | "scheduled_posts" | "crm_campaigns" | "campaigns",
-    values: Record<string, string>,
+    update: ScopedRecordUpdate,
     recordId: string,
   ) => {
     if (!user) {
       throw new Error("Not authenticated");
     }
 
-    let query = supabase.from(table).update(values).eq("id", recordId);
-    query = applyTenantUserScope(query, {
-      tenantId: tenant?.id,
-      userId: user.id,
-    });
+    const scope = { tenantId: tenant?.id, userId: user.id };
 
-    const { error } = await query;
+    // One literal table per branch keeps the Supabase query types concrete
+    // (a union table name makes their instantiation unbounded).
+    let error: PostgrestError | null = null;
+    switch (update.table) {
+      case "content_tasks": {
+        let query = supabase
+          .from("content_tasks")
+          .update(update.values)
+          .eq("id", recordId);
+        query = applyTenantUserScope(query, scope);
+        ({ error } = await query);
+        break;
+      }
+      case "crm_campaigns": {
+        let query = supabase
+          .from("crm_campaigns")
+          .update(update.values)
+          .eq("id", recordId);
+        query = applyTenantUserScope(query, scope);
+        ({ error } = await query);
+        break;
+      }
+      case "campaigns": {
+        let query = supabase
+          .from("campaigns")
+          .update(update.values)
+          .eq("id", recordId);
+        query = applyTenantUserScope(query, scope);
+        ({ error } = await query);
+        break;
+      }
+    }
+
     if (error) {
       throw error;
     }
@@ -77,25 +111,7 @@ export const useDragAndDrop = (onTaskUpdate: () => void) => {
         switch (event.type) {
           case "task":
             await updateScopedRecord(
-              "content_tasks",
-              { scheduled_date: newDateString },
-              event.id,
-            );
-            break;
-
-          case "scheduled_post":
-            // Update publish_at while preserving time
-            const currentDate = new Date(event.meta.publish_at);
-            const targetDateTime = new Date(targetDate);
-            targetDateTime.setHours(
-              currentDate.getHours(),
-              currentDate.getMinutes(),
-              currentDate.getSeconds(),
-            );
-
-            await updateScopedRecord(
-              "scheduled_posts",
-              { publish_at: targetDateTime.toISOString() },
+              { table: "content_tasks", values: { scheduled_date: newDateString } },
               event.id,
             );
             break;
@@ -103,8 +119,7 @@ export const useDragAndDrop = (onTaskUpdate: () => void) => {
           case "newsletter":
             // Update scheduled_at for newsletters
             await updateScopedRecord(
-              "crm_campaigns",
-              { scheduled_at: newDateString },
+              { table: "crm_campaigns", values: { scheduled_at: newDateString } },
               event.id,
             );
             break;
@@ -112,8 +127,7 @@ export const useDragAndDrop = (onTaskUpdate: () => void) => {
           case "event":
             // Update campaign start_date
             await updateScopedRecord(
-              "campaigns",
-              { start_date: newDateString },
+              { table: "campaigns", values: { start_date: newDateString } },
               event.id,
             );
             break;
@@ -138,8 +152,7 @@ export const useDragAndDrop = (onTaskUpdate: () => void) => {
         }
 
         await updateScopedRecord(
-          "content_tasks",
-          { scheduled_date: newDateString },
+          { table: "content_tasks", values: { scheduled_date: newDateString } },
           task.id,
         );
 

@@ -194,7 +194,7 @@ export async function loadObservedJournalPeriod(client:PersistenceClient,tenantI
   const lines:JournalLine[]=[];
   for(let i=0;i<keys.length;i+=100){
     const batch=keys.slice(i,i+100);
-    const items=await readAllPages<JournalLine>((from,to)=>client.from('customer_purchase_line_items').select('id,tenant_id,import_id,source,customer_id,external_customer_code,external_transaction_id,external_line_id,purchased_at,created_at,currency,net_amount'+(capture?.productCode?',product_code,quantity':'')+(capture?.productCode||source.report_type==='journal_partial'?',raw_data':'')).eq('tenant_id',tenantId).eq('import_id',source.id).eq('source','ideal').in('external_transaction_id',batch).lte('created_at',cutoff).order('id').range(from,to),100000);
+    const items=await readAllPages<JournalLine>((from,to)=>client.from('customer_purchase_line_items').select<string,JournalLine>('id,tenant_id,import_id,source,customer_id,external_customer_code,external_transaction_id,external_line_id,purchased_at,created_at,currency,net_amount'+(capture?.productCode?',product_code,quantity':'')+(capture?.productCode||source.report_type==='journal_partial'?',raw_data':'')).eq('tenant_id',tenantId).eq('import_id',source.id).eq('source','ideal').in('external_transaction_id',batch).lte('created_at',cutoff).order('id').range(from,to),100000);
     if(items.some(l=>!batch.includes(l.external_transaction_id))||new Set(items.map(l=>l.external_transaction_id)).size!==batch.length)throw Error('Journal receipt evidence changed during the read. No partial totals were returned.');
     if(lines.length+items.length>100000)throw Error('Journal period exceeds the 100,000-line review limit. Choose a narrower period.');
     lines.push(...items);

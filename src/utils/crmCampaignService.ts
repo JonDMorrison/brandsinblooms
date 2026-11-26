@@ -7,7 +7,10 @@ import {
   getCampaignStatusLabel,
   isLockedCampaignStatus,
 } from "@/constants/campaignStatuses";
-import { persistCampaignRecord } from "@/lib/crm/campaignDraftPersistence";
+import {
+  normalizeInputBlocks,
+  persistCampaignRecord,
+} from "@/lib/crm/campaignDraftPersistence";
 
 // FIX: [issue #62] - TODO: Replace console.log statements with a proper logging service for production
 
@@ -67,14 +70,14 @@ function isBackgroundImageBlock(type: string) {
 export const saveCampaignAsDraft = async (campaignData: CampaignData) => {
   try {
     const contentBlocks = (campaignData.content_blocks ?? []).flatMap(
-      (block, index) => {
+      (block, index): Array<Record<string, unknown>> => {
         if (!block || typeof block !== "object") {
-          return [] as ContentBlock[];
+          return [];
         }
 
         const candidate = block as Record<string, unknown>;
         if (typeof candidate.type === "string") {
-          return [candidate as ContentBlock];
+          return [candidate];
         }
 
         if (typeof candidate.block_type === "string") {
@@ -117,7 +120,7 @@ export const saveCampaignAsDraft = async (campaignData: CampaignData) => {
           ];
         }
 
-        return [] as ContentBlock[];
+        return [];
       },
     );
 
@@ -133,7 +136,7 @@ export const saveCampaignAsDraft = async (campaignData: CampaignData) => {
       senderEmail: campaignData.sender_email,
       fromEmailDomainId: campaignData.from_email_domain_id ?? null,
       replyTo: campaignData.sender_email,
-      contentBlocks,
+      contentBlocks: normalizeInputBlocks(contentBlocks),
       smsMessage: "",
       sendImmediately: campaignData.schedule.type === "immediate",
       sendAt: campaignData.schedule.send_at ?? null,

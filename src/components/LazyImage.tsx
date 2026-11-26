@@ -54,7 +54,7 @@ export const LazyImage: React.FC<LazyImageProps> = ({
       optimizedImageService
         .getCachedImage(caption, context)
         .then((image) => {
-          const url = image?.url || fallbackSrc || null;
+          const url = image?.download_url || fallbackSrc || null;
           setImageUrl(url);
           onImageLoad?.(url);
         })

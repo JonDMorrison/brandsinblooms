@@ -34,7 +34,10 @@ import type {
 } from "@/components/automation/flow/automationBuilderTypes";
 import { getTriggerById } from "@/lib/automation/triggerCatalog";
 
-type ReviewAutomation = Omit<AutomationLaunchPayload, "compilation"> & {
+type ReviewAutomation = Omit<
+  AutomationLaunchPayload,
+  "compilation" | "workflowSteps" | "flowState"
+> & {
   compilation?: AutomationLaunchPayload["compilation"] | null;
   validation?: FlowValidationSummary;
 };
@@ -323,7 +326,7 @@ export const ReviewLaunchModal: React.FC<ReviewLaunchModalProps> = ({
               <MetricTile
                 label="Trigger"
                 value={triggerMeta?.label ?? automation.triggerType}
-                detail={triggerMeta?.category ?? "Automation entry point"}
+                detail="Automation entry point"
                 icon={<Play size={16} />}
               />
               <MetricTile
@@ -501,7 +504,7 @@ export const ReviewLaunchModal: React.FC<ReviewLaunchModalProps> = ({
                         color="neutral"
                         size="sm"
                       >
-                        {persona.persona_name ?? persona.name}
+                        {persona.persona_name}
                       </Chip>
                     ))}
                   </Stack>
@@ -581,7 +584,7 @@ export const ReviewLaunchModal: React.FC<ReviewLaunchModalProps> = ({
                 <Stack spacing={0.5}>
                   {compiledSteps.map((step, index) => (
                     <Stack
-                      key={`${step.stepIndex ?? index}-${step.type ?? "step"}`}
+                      key={`${index}-${step.type ?? "step"}`}
                       direction="row"
                       spacing={1.25}
                       alignItems="stretch"

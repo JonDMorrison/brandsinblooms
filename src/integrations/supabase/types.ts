@@ -10,19 +10,11 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "12.2.3 (519615d)";
+    PostgrestVersion: "14.5";
   };
   public: {
     Tables: {
-      crm_saved_blocks: {
-        Row: { id: string; tenant_id: string; created_by: string; name: string; block_data: Json; created_at: string; updated_at: string; save_schema_version: number };
-        Insert: { id?: string; tenant_id: string; created_by: string; name: string; block_data: Json; created_at?: string; updated_at?: string; save_schema_version: number };
-        Update: { name?: string; block_data?: Json; updated_at?: string };
-        Relationships: [];
-      };
-
       admin_audit_log: {
-        deleted_at: string | null;
         Row: {
           action_details: Json | null;
           action_type: string;
@@ -30,7 +22,6 @@ export type Database = {
           created_at: string | null;
           id: string;
           ip_address: string | null;
-          status: string;
           target_tenant_id: string | null;
           target_user_id: string | null;
         };
@@ -40,7 +31,6 @@ export type Database = {
           admin_user_id: string;
           created_at?: string | null;
           id?: string;
-          deleted_at?: string | null;
           ip_address?: string | null;
           target_tenant_id?: string | null;
           target_user_id?: string | null;
@@ -48,7 +38,6 @@ export type Database = {
         Update: {
           action_details?: Json | null;
           action_type?: string;
-          status?: string;
           admin_user_id?: string;
           created_at?: string | null;
           id?: string;
@@ -58,7 +47,6 @@ export type Database = {
         };
         Relationships: [
           {
-            deleted_at?: string | null;
             foreignKeyName: "admin_audit_log_target_tenant_id_fkey";
             columns: ["target_tenant_id"];
             isOneToOne: false;
@@ -66,7 +54,6 @@ export type Database = {
             referencedColumns: ["tenant_id"];
           },
           {
-            status?: string;
             foreignKeyName: "admin_audit_log_target_tenant_id_fkey";
             columns: ["target_tenant_id"];
             isOneToOne: false;
@@ -572,6 +559,695 @@ export type Database = {
         };
         Relationships: [];
       };
+      automation_email_executions: {
+        Row: {
+          automation_id: string;
+          automation_node_id: string;
+          created_at: string | null;
+          customer_id: string | null;
+          email: string;
+          error: string | null;
+          id: string;
+          outbox_id: string | null;
+          reason: string | null;
+          resend_message_id: string | null;
+          status: string;
+          tenant_id: string;
+        };
+        Insert: {
+          automation_id: string;
+          automation_node_id: string;
+          created_at?: string | null;
+          customer_id?: string | null;
+          email: string;
+          error?: string | null;
+          id?: string;
+          outbox_id?: string | null;
+          reason?: string | null;
+          resend_message_id?: string | null;
+          status: string;
+          tenant_id: string;
+        };
+        Update: {
+          automation_id?: string;
+          automation_node_id?: string;
+          created_at?: string | null;
+          customer_id?: string | null;
+          email?: string;
+          error?: string | null;
+          id?: string;
+          outbox_id?: string | null;
+          reason?: string | null;
+          resend_message_id?: string | null;
+          status?: string;
+          tenant_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "automation_email_executions_automation_id_fkey";
+            columns: ["automation_id"];
+            isOneToOne: false;
+            referencedRelation: "crm_automations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "automation_email_executions_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "crm_customers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "automation_email_executions_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_360_enriched";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "automation_email_executions_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
+          },
+          {
+            foreignKeyName: "automation_email_executions_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "automation_email_executions_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      automation_events: {
+        Row: {
+          automation_id: string | null;
+          branch_id: string | null;
+          created_at: string | null;
+          customer_id: string | null;
+          event_type: string;
+          id: string;
+          is_test: boolean | null;
+          message_id: string | null;
+          metadata: Json | null;
+          order_id: string | null;
+          revenue_amount: number | null;
+        };
+        Insert: {
+          automation_id?: string | null;
+          branch_id?: string | null;
+          created_at?: string | null;
+          customer_id?: string | null;
+          event_type: string;
+          id?: string;
+          is_test?: boolean | null;
+          message_id?: string | null;
+          metadata?: Json | null;
+          order_id?: string | null;
+          revenue_amount?: number | null;
+        };
+        Update: {
+          automation_id?: string | null;
+          branch_id?: string | null;
+          created_at?: string | null;
+          customer_id?: string | null;
+          event_type?: string;
+          id?: string;
+          is_test?: boolean | null;
+          message_id?: string | null;
+          metadata?: Json | null;
+          order_id?: string | null;
+          revenue_amount?: number | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "automation_events_automation_id_fkey";
+            columns: ["automation_id"];
+            isOneToOne: false;
+            referencedRelation: "crm_automations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "automation_events_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "crm_customers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "automation_events_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_360_enriched";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "automation_events_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
+          },
+        ];
+      };
+      automation_personas: {
+        Row: {
+          automation_id: string;
+          created_at: string | null;
+          id: string;
+          persona_id: string;
+        };
+        Insert: {
+          automation_id: string;
+          created_at?: string | null;
+          id?: string;
+          persona_id: string;
+        };
+        Update: {
+          automation_id?: string;
+          created_at?: string | null;
+          id?: string;
+          persona_id?: string;
+        };
+        Relationships: [];
+      };
+      automation_recovery_batches: {
+        Row: {
+          created_at: string;
+          cutoff_at: string;
+          expired_outbox_count: number;
+          expired_outbox_ids: string[];
+          failed_run_count: number;
+          failed_run_ids: string[];
+          id: string;
+          reason: string;
+        };
+        Insert: {
+          created_at?: string;
+          cutoff_at: string;
+          expired_outbox_count?: number;
+          expired_outbox_ids?: string[];
+          failed_run_count?: number;
+          failed_run_ids?: string[];
+          id?: string;
+          reason: string;
+        };
+        Update: {
+          created_at?: string;
+          cutoff_at?: string;
+          expired_outbox_count?: number;
+          expired_outbox_ids?: string[];
+          failed_run_count?: number;
+          failed_run_ids?: string[];
+          id?: string;
+          reason?: string;
+        };
+        Relationships: [];
+      };
+      automation_runs: {
+        Row: {
+          automation_id: string;
+          channel_availability: Json | null;
+          completed_at: string | null;
+          created_at: string;
+          current_step_index: number;
+          customer_id: string;
+          error_message: string | null;
+          id: string;
+          metadata: Json | null;
+          next_step_scheduled_at: string | null;
+          run_sequence: number;
+          started_at: string;
+          status: string;
+          tenant_id: string;
+          total_steps: number;
+          trigger_data: Json | null;
+          updated_at: string;
+        };
+        Insert: {
+          automation_id: string;
+          channel_availability?: Json | null;
+          completed_at?: string | null;
+          created_at?: string;
+          current_step_index?: number;
+          customer_id: string;
+          error_message?: string | null;
+          id?: string;
+          metadata?: Json | null;
+          next_step_scheduled_at?: string | null;
+          run_sequence?: number;
+          started_at?: string;
+          status?: string;
+          tenant_id: string;
+          total_steps?: number;
+          trigger_data?: Json | null;
+          updated_at?: string;
+        };
+        Update: {
+          automation_id?: string;
+          channel_availability?: Json | null;
+          completed_at?: string | null;
+          created_at?: string;
+          current_step_index?: number;
+          customer_id?: string;
+          error_message?: string | null;
+          id?: string;
+          metadata?: Json | null;
+          next_step_scheduled_at?: string | null;
+          run_sequence?: number;
+          started_at?: string;
+          status?: string;
+          tenant_id?: string;
+          total_steps?: number;
+          trigger_data?: Json | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "automation_runs_automation_id_fkey";
+            columns: ["automation_id"];
+            isOneToOne: false;
+            referencedRelation: "crm_automations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "automation_runs_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "crm_customers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "automation_runs_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_360_enriched";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "automation_runs_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
+          },
+          {
+            foreignKeyName: "automation_runs_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "automation_runs_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      automation_templates: {
+        Row: {
+          category: string;
+          created_at: string | null;
+          description: string | null;
+          flow_data: Json;
+          id: string;
+          is_active: boolean | null;
+          kpi_data: Json | null;
+          name: string;
+          updated_at: string | null;
+        };
+        Insert: {
+          category: string;
+          created_at?: string | null;
+          description?: string | null;
+          flow_data: Json;
+          id?: string;
+          is_active?: boolean | null;
+          kpi_data?: Json | null;
+          name: string;
+          updated_at?: string | null;
+        };
+        Update: {
+          category?: string;
+          created_at?: string | null;
+          description?: string | null;
+          flow_data?: Json;
+          id?: string;
+          is_active?: boolean | null;
+          kpi_data?: Json | null;
+          name?: string;
+          updated_at?: string | null;
+        };
+        Relationships: [];
+      };
+      automation_trigger_events: {
+        Row: {
+          automation_id: string | null;
+          claimed_at: string | null;
+          claimed_by: string | null;
+          created_at: string | null;
+          customer_id: string | null;
+          error_message: string | null;
+          event_type: string;
+          form_id: string | null;
+          id: string;
+          last_error_at: string | null;
+          max_retries: number | null;
+          metadata: Json | null;
+          persona_id: string | null;
+          processed_at: string | null;
+          queued_until: string | null;
+          retry_count: number | null;
+          segment_id: string | null;
+          source_event_key: string | null;
+          submission_id: string | null;
+          tenant_id: string;
+        };
+        Insert: {
+          automation_id?: string | null;
+          claimed_at?: string | null;
+          claimed_by?: string | null;
+          created_at?: string | null;
+          customer_id?: string | null;
+          error_message?: string | null;
+          event_type: string;
+          form_id?: string | null;
+          id?: string;
+          last_error_at?: string | null;
+          max_retries?: number | null;
+          metadata?: Json | null;
+          persona_id?: string | null;
+          processed_at?: string | null;
+          queued_until?: string | null;
+          retry_count?: number | null;
+          segment_id?: string | null;
+          source_event_key?: string | null;
+          submission_id?: string | null;
+          tenant_id: string;
+        };
+        Update: {
+          automation_id?: string | null;
+          claimed_at?: string | null;
+          claimed_by?: string | null;
+          created_at?: string | null;
+          customer_id?: string | null;
+          error_message?: string | null;
+          event_type?: string;
+          form_id?: string | null;
+          id?: string;
+          last_error_at?: string | null;
+          max_retries?: number | null;
+          metadata?: Json | null;
+          persona_id?: string | null;
+          processed_at?: string | null;
+          queued_until?: string | null;
+          retry_count?: number | null;
+          segment_id?: string | null;
+          source_event_key?: string | null;
+          submission_id?: string | null;
+          tenant_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "automation_trigger_events_automation_id_fkey";
+            columns: ["automation_id"];
+            isOneToOne: false;
+            referencedRelation: "crm_automations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "automation_trigger_events_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "crm_customers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "automation_trigger_events_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_360_enriched";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "automation_trigger_events_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
+          },
+          {
+            foreignKeyName: "automation_trigger_events_form_id_fkey";
+            columns: ["form_id"];
+            isOneToOne: false;
+            referencedRelation: "forms";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "automation_trigger_events_persona_id_fkey";
+            columns: ["persona_id"];
+            isOneToOne: false;
+            referencedRelation: "personas";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "automation_trigger_events_segment_id_fkey";
+            columns: ["segment_id"];
+            isOneToOne: false;
+            referencedRelation: "crm_segments";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "automation_trigger_events_submission_id_fkey";
+            columns: ["submission_id"];
+            isOneToOne: false;
+            referencedRelation: "form_submissions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "automation_trigger_events_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "automation_trigger_events_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      automation_versions: {
+        Row: {
+          author_user_id: string;
+          automation_id: string | null;
+          created_at: string | null;
+          diff_data: Json;
+          id: string;
+          version_number: number;
+        };
+        Insert: {
+          author_user_id: string;
+          automation_id?: string | null;
+          created_at?: string | null;
+          diff_data: Json;
+          id?: string;
+          version_number: number;
+        };
+        Update: {
+          author_user_id?: string;
+          automation_id?: string | null;
+          created_at?: string | null;
+          diff_data?: Json;
+          id?: string;
+          version_number?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "automation_versions_automation_id_fkey";
+            columns: ["automation_id"];
+            isOneToOne: false;
+            referencedRelation: "crm_automations";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      available_fonts: {
+        Row: {
+          created_at: string | null;
+          display_name: string;
+          font_family_css: string;
+          google_fonts_url: string;
+          id: string;
+          is_active: boolean | null;
+          name: string;
+          sort_order: number | null;
+          updated_at: string | null;
+        };
+        Insert: {
+          created_at?: string | null;
+          display_name: string;
+          font_family_css: string;
+          google_fonts_url: string;
+          id?: string;
+          is_active?: boolean | null;
+          name: string;
+          sort_order?: number | null;
+          updated_at?: string | null;
+        };
+        Update: {
+          created_at?: string | null;
+          display_name?: string;
+          font_family_css?: string;
+          google_fonts_url?: string;
+          id?: string;
+          is_active?: boolean | null;
+          name?: string;
+          sort_order?: number | null;
+          updated_at?: string | null;
+        };
+        Relationships: [];
+      };
+      bloom_action_claims: {
+        Row: {
+          conversation_id: string;
+          created_at: string;
+          finished_at: string | null;
+          message_id: string;
+          mutation_id: string;
+          result: string | null;
+          status: string;
+          tenant_id: string;
+          tool_name: string;
+          user_id: string;
+        };
+        Insert: {
+          conversation_id: string;
+          created_at?: string;
+          finished_at?: string | null;
+          message_id: string;
+          mutation_id: string;
+          result?: string | null;
+          status?: string;
+          tenant_id: string;
+          tool_name: string;
+          user_id: string;
+        };
+        Update: {
+          conversation_id?: string;
+          created_at?: string;
+          finished_at?: string | null;
+          message_id?: string;
+          mutation_id?: string;
+          result?: string | null;
+          status?: string;
+          tenant_id?: string;
+          tool_name?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "bloom_action_claims_conversation_id_fkey";
+            columns: ["conversation_id"];
+            isOneToOne: false;
+            referencedRelation: "bloom_conversations";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      bloom_analytical_audiences: {
+        Row: {
+          claimed_generation: number | null;
+          excluded_ids: string[];
+          id: string;
+          last_error: string | null;
+          lease_until: string | null;
+          mode: string;
+          name: string;
+          next_refresh_at: string;
+          refresh_generation: number;
+          refreshed_at: string;
+          snapshot: Json;
+          source_set_id: string;
+          tenant_id: string;
+          user_id: string;
+          version: number;
+          worker_token: string | null;
+        };
+        Insert: {
+          claimed_generation?: number | null;
+          excluded_ids?: string[];
+          id?: string;
+          last_error?: string | null;
+          lease_until?: string | null;
+          mode: string;
+          name: string;
+          next_refresh_at?: string;
+          refresh_generation?: number;
+          refreshed_at?: string;
+          snapshot: Json;
+          source_set_id: string;
+          tenant_id: string;
+          user_id: string;
+          version?: number;
+          worker_token?: string | null;
+        };
+        Update: {
+          claimed_generation?: number | null;
+          excluded_ids?: string[];
+          id?: string;
+          last_error?: string | null;
+          lease_until?: string | null;
+          mode?: string;
+          name?: string;
+          next_refresh_at?: string;
+          refresh_generation?: number;
+          refreshed_at?: string;
+          snapshot?: Json;
+          source_set_id?: string;
+          tenant_id?: string;
+          user_id?: string;
+          version?: number;
+          worker_token?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "bloom_analytical_audiences_source_set_id_fkey";
+            columns: ["source_set_id"];
+            isOneToOne: false;
+            referencedRelation: "bloom_customer_sets";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "bloom_analytical_audiences_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "bloom_analytical_audiences_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       bloom_audit_log: {
         Row: {
           conversation_id: string | null;
@@ -646,6 +1322,61 @@ export type Database = {
           },
         ];
       };
+      bloom_conversation_exports: {
+        Row: {
+          content: string;
+          conversation_id: string;
+          exported_at: string;
+          id: string;
+          resource_id: string | null;
+          resource_type: string | null;
+          tenant_id: string;
+          user_id: string;
+        };
+        Insert: {
+          content: string;
+          conversation_id: string;
+          exported_at?: string;
+          id?: string;
+          resource_id?: string | null;
+          resource_type?: string | null;
+          tenant_id: string;
+          user_id: string;
+        };
+        Update: {
+          content?: string;
+          conversation_id?: string;
+          exported_at?: string;
+          id?: string;
+          resource_id?: string | null;
+          resource_type?: string | null;
+          tenant_id?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "bloom_conversation_exports_conversation_id_fkey";
+            columns: ["conversation_id"];
+            isOneToOne: false;
+            referencedRelation: "bloom_conversations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "bloom_conversation_exports_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "bloom_conversation_exports_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       bloom_conversations: {
         Row: {
           created_at: string;
@@ -712,54 +1443,185 @@ export type Database = {
           },
         ];
       };
-      bloom_conversation_exports: {
+      bloom_customer_sets: {
         Row: {
-          content: string;
           conversation_id: string;
-          exported_at: string;
+          created_at: string;
           id: string;
-          resource_id: string | null;
-          resource_type: string | null;
+          label: string;
+          parent_id: string | null;
+          payload: Json;
           tenant_id: string;
           user_id: string;
         };
         Insert: {
-          content: string;
           conversation_id: string;
-          exported_at?: string;
+          created_at?: string;
           id?: string;
-          resource_id?: string | null;
-          resource_type?: string | null;
+          label: string;
+          parent_id?: string | null;
+          payload: Json;
           tenant_id: string;
           user_id: string;
         };
         Update: {
-          content?: string;
           conversation_id?: string;
-          exported_at?: string;
+          created_at?: string;
           id?: string;
-          resource_id?: string | null;
-          resource_type?: string | null;
+          label?: string;
+          parent_id?: string | null;
+          payload?: Json;
           tenant_id?: string;
           user_id?: string;
         };
         Relationships: [
           {
-            foreignKeyName: "bloom_conversation_exports_conversation_id_fkey";
+            foreignKeyName: "bloom_customer_sets_conversation_id_fkey";
             columns: ["conversation_id"];
             isOneToOne: false;
             referencedRelation: "bloom_conversations";
             referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "bloom_conversation_exports_tenant_id_fkey";
+            foreignKeyName: "bloom_customer_sets_parent_id_fkey";
+            columns: ["parent_id"];
+            isOneToOne: false;
+            referencedRelation: "bloom_customer_sets";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "bloom_customer_sets_tenant_id_fkey";
             columns: ["tenant_id"];
             isOneToOne: false;
             referencedRelation: "admin_tenant_overview";
             referencedColumns: ["tenant_id"];
           },
           {
-            foreignKeyName: "bloom_conversation_exports_tenant_id_fkey";
+            foreignKeyName: "bloom_customer_sets_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      bloom_knowledge_chunks: {
+        Row: {
+          chunk_index: number;
+          content: string;
+          created_at: string;
+          document_id: string;
+          embedding: string;
+          id: string;
+          metadata: Json;
+          tenant_id: string;
+        };
+        Insert: {
+          chunk_index: number;
+          content: string;
+          created_at?: string;
+          document_id: string;
+          embedding: string;
+          id?: string;
+          metadata?: Json;
+          tenant_id: string;
+        };
+        Update: {
+          chunk_index?: number;
+          content?: string;
+          created_at?: string;
+          document_id?: string;
+          embedding?: string;
+          id?: string;
+          metadata?: Json;
+          tenant_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "bloom_knowledge_chunks_document_id_fkey";
+            columns: ["document_id"];
+            isOneToOne: false;
+            referencedRelation: "bloom_knowledge_documents";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "bloom_knowledge_chunks_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "bloom_knowledge_chunks_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      bloom_knowledge_documents: {
+        Row: {
+          chunk_count: number;
+          content: string | null;
+          created_at: string;
+          error_message: string | null;
+          file_type: string;
+          id: string;
+          metadata: Json;
+          processed_at: string | null;
+          processing_progress: number;
+          source_file: string;
+          status: string;
+          tenant_id: string;
+          title: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          chunk_count?: number;
+          content?: string | null;
+          created_at?: string;
+          error_message?: string | null;
+          file_type: string;
+          id?: string;
+          metadata?: Json;
+          processed_at?: string | null;
+          processing_progress?: number;
+          source_file: string;
+          status?: string;
+          tenant_id: string;
+          title: string;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          chunk_count?: number;
+          content?: string | null;
+          created_at?: string;
+          error_message?: string | null;
+          file_type?: string;
+          id?: string;
+          metadata?: Json;
+          processed_at?: string | null;
+          processing_progress?: number;
+          source_file?: string;
+          status?: string;
+          tenant_id?: string;
+          title?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "bloom_knowledge_documents_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "bloom_knowledge_documents_tenant_id_fkey";
             columns: ["tenant_id"];
             isOneToOne: false;
             referencedRelation: "tenants";
@@ -1040,507 +1902,115 @@ export type Database = {
           },
         ];
       };
-      automation_email_executions: {
+      calendar_import_batches: {
         Row: {
-          automation_id: string;
-          automation_node_id: string;
-          created_at: string | null;
-          customer_id: string | null;
-          email: string;
-          error: string | null;
-          id: string;
-          outbox_id: string | null;
-          reason: string | null;
-          resend_message_id: string | null;
-          status: string;
-          tenant_id: string;
-        };
-        Insert: {
-          automation_id: string;
-          automation_node_id: string;
-          created_at?: string | null;
-          customer_id?: string | null;
-          email: string;
-          error?: string | null;
-          id?: string;
-          outbox_id?: string | null;
-          reason?: string | null;
-          resend_message_id?: string | null;
-          status: string;
-          tenant_id: string;
-        };
-        Update: {
-          automation_id?: string;
-          automation_node_id?: string;
-          created_at?: string | null;
-          customer_id?: string | null;
-          email?: string;
-          error?: string | null;
-          id?: string;
-          outbox_id?: string | null;
-          reason?: string | null;
-          resend_message_id?: string | null;
-          status?: string;
-          tenant_id?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "automation_email_executions_automation_id_fkey";
-            columns: ["automation_id"];
-            isOneToOne: false;
-            referencedRelation: "crm_automations";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "automation_email_executions_customer_id_fkey";
-            columns: ["customer_id"];
-            isOneToOne: false;
-            referencedRelation: "crm_customers";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "automation_email_executions_customer_id_fkey";
-            columns: ["customer_id"];
-            isOneToOne: false;
-            referencedRelation: "customer_360_enriched";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "automation_email_executions_tenant_id_fkey";
-            columns: ["tenant_id"];
-            isOneToOne: false;
-            referencedRelation: "admin_tenant_overview";
-            referencedColumns: ["tenant_id"];
-          },
-          {
-            foreignKeyName: "automation_email_executions_tenant_id_fkey";
-            columns: ["tenant_id"];
-            isOneToOne: false;
-            referencedRelation: "tenants";
-            referencedColumns: ["id"];
-          },
-        ];
-      };
-      automation_events: {
-        Row: {
-          automation_id: string | null;
-          branch_id: string | null;
-          created_at: string | null;
-          customer_id: string | null;
-          event_type: string;
-          id: string;
-          is_test: boolean | null;
-          message_id: string | null;
-          metadata: Json | null;
-          order_id: string | null;
-          revenue_amount: number | null;
-        };
-        Insert: {
-          automation_id?: string | null;
-          branch_id?: string | null;
-          created_at?: string | null;
-          customer_id?: string | null;
-          event_type: string;
-          id?: string;
-          is_test?: boolean | null;
-          message_id?: string | null;
-          metadata?: Json | null;
-          order_id?: string | null;
-          revenue_amount?: number | null;
-        };
-        Update: {
-          automation_id?: string | null;
-          branch_id?: string | null;
-          created_at?: string | null;
-          customer_id?: string | null;
-          event_type?: string;
-          id?: string;
-          is_test?: boolean | null;
-          message_id?: string | null;
-          metadata?: Json | null;
-          order_id?: string | null;
-          revenue_amount?: number | null;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "automation_events_automation_id_fkey";
-            columns: ["automation_id"];
-            isOneToOne: false;
-            referencedRelation: "crm_automations";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "automation_events_customer_id_fkey";
-            columns: ["customer_id"];
-            isOneToOne: false;
-            referencedRelation: "crm_customers";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "automation_events_customer_id_fkey";
-            columns: ["customer_id"];
-            isOneToOne: false;
-            referencedRelation: "customer_360_enriched";
-            referencedColumns: ["id"];
-          },
-        ];
-      };
-      automation_personas: {
-        Row: {
-          automation_id: string;
-          created_at: string | null;
-          id: string;
-          persona_id: string;
-        };
-        Insert: {
-          automation_id: string;
-          created_at?: string | null;
-          id?: string;
-          persona_id: string;
-        };
-        Update: {
-          automation_id?: string;
-          created_at?: string | null;
-          id?: string;
-          persona_id?: string;
-        };
-        Relationships: [];
-      };
-      automation_runs: {
-        Row: {
-          automation_id: string;
-          channel_availability: Json | null;
-          completed_at: string | null;
           created_at: string;
-          current_step_index: number;
-          customer_id: string;
-          error_message: string | null;
+          created_by: string;
           id: string;
-          metadata: Json | null;
-          next_step_scheduled_at: string | null;
-          run_sequence: number;
-          started_at: string;
-          status: string;
+          name: string;
+          preview_id: string;
+          result: Json;
           tenant_id: string;
-          total_steps: number;
-          trigger_data: Json | null;
-          updated_at: string;
+          timezone: string;
         };
         Insert: {
-          automation_id: string;
-          channel_availability?: Json | null;
-          completed_at?: string | null;
           created_at?: string;
-          current_step_index?: number;
-          customer_id: string;
-          error_message?: string | null;
+          created_by: string;
           id?: string;
-          metadata?: Json | null;
-          next_step_scheduled_at?: string | null;
-          run_sequence?: number;
-          started_at?: string;
-          status?: string;
+          name: string;
+          preview_id: string;
+          result: Json;
           tenant_id: string;
-          total_steps?: number;
-          trigger_data?: Json | null;
-          updated_at?: string;
+          timezone: string;
         };
         Update: {
-          automation_id?: string;
-          channel_availability?: Json | null;
-          completed_at?: string | null;
           created_at?: string;
-          current_step_index?: number;
-          customer_id?: string;
-          error_message?: string | null;
+          created_by?: string;
           id?: string;
-          metadata?: Json | null;
-          next_step_scheduled_at?: string | null;
-          run_sequence?: number;
-          started_at?: string;
-          status?: string;
+          name?: string;
+          preview_id?: string;
+          result?: Json;
           tenant_id?: string;
-          total_steps?: number;
-          trigger_data?: Json | null;
-          updated_at?: string;
+          timezone?: string;
         };
         Relationships: [
           {
-            foreignKeyName: "automation_runs_automation_id_fkey";
-            columns: ["automation_id"];
-            isOneToOne: false;
-            referencedRelation: "crm_automations";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "automation_runs_customer_id_fkey";
-            columns: ["customer_id"];
-            isOneToOne: false;
-            referencedRelation: "crm_customers";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "automation_runs_customer_id_fkey";
-            columns: ["customer_id"];
-            isOneToOne: false;
-            referencedRelation: "customer_360_enriched";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "automation_runs_tenant_id_fkey";
+            foreignKeyName: "calendar_import_batches_tenant_id_fkey";
             columns: ["tenant_id"];
             isOneToOne: false;
             referencedRelation: "admin_tenant_overview";
             referencedColumns: ["tenant_id"];
           },
           {
-            foreignKeyName: "automation_runs_tenant_id_fkey";
+            foreignKeyName: "calendar_import_batches_tenant_id_fkey";
             columns: ["tenant_id"];
             isOneToOne: false;
             referencedRelation: "tenants";
             referencedColumns: ["id"];
           },
+          {
+            foreignKeyName: "calendar_import_batches_tenant_id_preview_id_fkey";
+            columns: ["tenant_id", "preview_id"];
+            isOneToOne: false;
+            referencedRelation: "loyalty_operation_previews";
+            referencedColumns: ["tenant_id", "id"];
+          },
         ];
       };
-      automation_templates: {
+      calendar_import_rows: {
         Row: {
-          category: string;
-          created_at: string | null;
-          description: string | null;
-          flow_data: Json;
+          batch_id: string;
+          campaign_id: string;
+          fingerprint: string;
           id: string;
-          is_active: boolean | null;
-          kpi_data: Json | null;
-          name: string;
-          updated_at: string | null;
-        };
-        Insert: {
-          category: string;
-          created_at?: string | null;
-          description?: string | null;
-          flow_data: Json;
-          id?: string;
-          is_active?: boolean | null;
-          kpi_data?: Json | null;
-          name: string;
-          updated_at?: string | null;
-        };
-        Update: {
-          category?: string;
-          created_at?: string | null;
-          description?: string | null;
-          flow_data?: Json;
-          id?: string;
-          is_active?: boolean | null;
-          kpi_data?: Json | null;
-          name?: string;
-          updated_at?: string | null;
-        };
-        Relationships: [];
-      };
-      automation_trigger_events: {
-        Row: {
-          automation_id: string | null;
-          claimed_at: string | null;
-          claimed_by: string | null;
-          created_at: string | null;
-          customer_id: string | null;
-          error_message: string | null;
-          event_type: string;
-          form_id: string | null;
-          id: string;
-          last_error_at: string | null;
-          max_retries: number | null;
-          metadata: Json | null;
-          persona_id: string | null;
-          processed_at: string | null;
-          queued_until: string | null;
-          retry_count: number | null;
-          segment_id: string | null;
-          source_event_key: string | null;
-          submission_id: string | null;
+          original_row: Json;
+          source_row: number;
+          task_id: string;
           tenant_id: string;
         };
         Insert: {
-          automation_id?: string | null;
-          claimed_at?: string | null;
-          claimed_by?: string | null;
-          created_at?: string | null;
-          customer_id?: string | null;
-          error_message?: string | null;
-          event_type: string;
-          form_id?: string | null;
+          batch_id: string;
+          campaign_id: string;
+          fingerprint: string;
           id?: string;
-          last_error_at?: string | null;
-          max_retries?: number | null;
-          metadata?: Json | null;
-          persona_id?: string | null;
-          processed_at?: string | null;
-          queued_until?: string | null;
-          retry_count?: number | null;
-          segment_id?: string | null;
-          source_event_key?: string | null;
-          submission_id?: string | null;
+          original_row: Json;
+          source_row: number;
+          task_id: string;
           tenant_id: string;
         };
         Update: {
-          automation_id?: string | null;
-          claimed_at?: string | null;
-          claimed_by?: string | null;
-          created_at?: string | null;
-          customer_id?: string | null;
-          error_message?: string | null;
-          event_type?: string;
-          form_id?: string | null;
+          batch_id?: string;
+          campaign_id?: string;
+          fingerprint?: string;
           id?: string;
-          last_error_at?: string | null;
-          max_retries?: number | null;
-          metadata?: Json | null;
-          persona_id?: string | null;
-          processed_at?: string | null;
-          queued_until?: string | null;
-          retry_count?: number | null;
-          segment_id?: string | null;
-          source_event_key?: string | null;
-          submission_id?: string | null;
+          original_row?: Json;
+          source_row?: number;
+          task_id?: string;
           tenant_id?: string;
         };
         Relationships: [
           {
-            foreignKeyName: "automation_trigger_events_automation_id_fkey";
-            columns: ["automation_id"];
+            foreignKeyName: "calendar_import_rows_campaign_id_fkey";
+            columns: ["campaign_id"];
             isOneToOne: false;
-            referencedRelation: "crm_automations";
+            referencedRelation: "campaigns";
             referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "automation_trigger_events_customer_id_fkey";
-            columns: ["customer_id"];
+            foreignKeyName: "calendar_import_rows_task_id_fkey";
+            columns: ["task_id"];
             isOneToOne: false;
-            referencedRelation: "crm_customers";
+            referencedRelation: "content_tasks";
             referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "automation_trigger_events_customer_id_fkey";
-            columns: ["customer_id"];
+            foreignKeyName: "calendar_import_rows_tenant_id_batch_id_fkey";
+            columns: ["tenant_id", "batch_id"];
             isOneToOne: false;
-            referencedRelation: "customer_360_enriched";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "automation_trigger_events_form_id_fkey";
-            columns: ["form_id"];
-            isOneToOne: false;
-            referencedRelation: "forms";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "automation_trigger_events_persona_id_fkey";
-            columns: ["persona_id"];
-            isOneToOne: false;
-            referencedRelation: "personas";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "automation_trigger_events_segment_id_fkey";
-            columns: ["segment_id"];
-            isOneToOne: false;
-            referencedRelation: "crm_segments";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "automation_trigger_events_submission_id_fkey";
-            columns: ["submission_id"];
-            isOneToOne: false;
-            referencedRelation: "form_submissions";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "automation_trigger_events_tenant_id_fkey";
-            columns: ["tenant_id"];
-            isOneToOne: false;
-            referencedRelation: "admin_tenant_overview";
-            referencedColumns: ["tenant_id"];
-          },
-          {
-            foreignKeyName: "automation_trigger_events_tenant_id_fkey";
-            columns: ["tenant_id"];
-            isOneToOne: false;
-            referencedRelation: "tenants";
-            referencedColumns: ["id"];
+            referencedRelation: "calendar_import_batches";
+            referencedColumns: ["tenant_id", "id"];
           },
         ];
-      };
-      automation_versions: {
-        Row: {
-          author_user_id: string;
-          automation_id: string | null;
-          created_at: string | null;
-          diff_data: Json;
-          id: string;
-          version_number: number;
-        };
-        Insert: {
-          author_user_id: string;
-          automation_id?: string | null;
-          created_at?: string | null;
-          diff_data: Json;
-          id?: string;
-          version_number: number;
-        };
-        Update: {
-          author_user_id?: string;
-          automation_id?: string | null;
-          created_at?: string | null;
-          diff_data?: Json;
-          id?: string;
-          version_number?: number;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "automation_versions_automation_id_fkey";
-            columns: ["automation_id"];
-            isOneToOne: false;
-            referencedRelation: "crm_automations";
-            referencedColumns: ["id"];
-          },
-        ];
-      };
-      available_fonts: {
-        Row: {
-          created_at: string | null;
-          display_name: string;
-          font_family_css: string;
-          google_fonts_url: string;
-          id: string;
-          is_active: boolean | null;
-          name: string;
-          sort_order: number | null;
-          updated_at: string | null;
-        };
-        Insert: {
-          created_at?: string | null;
-          display_name: string;
-          font_family_css: string;
-          google_fonts_url: string;
-          id?: string;
-          is_active?: boolean | null;
-          name: string;
-          sort_order?: number | null;
-          updated_at?: string | null;
-        };
-        Update: {
-          created_at?: string | null;
-          display_name?: string;
-          font_family_css?: string;
-          google_fonts_url?: string;
-          id?: string;
-          is_active?: boolean | null;
-          name?: string;
-          sort_order?: number | null;
-          updated_at?: string | null;
-        };
-        Relationships: [];
       };
       campaign_attribution: {
         Row: {
@@ -1686,6 +2156,46 @@ export type Database = {
         };
         Relationships: [];
       };
+      campaign_colours: {
+        Row: {
+          campaign_id: string;
+          colour: string;
+          tenant_id: string;
+        };
+        Insert: {
+          campaign_id: string;
+          colour: string;
+          tenant_id: string;
+        };
+        Update: {
+          campaign_id?: string;
+          colour?: string;
+          tenant_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "campaign_colours_campaign_id_fkey";
+            columns: ["campaign_id"];
+            isOneToOne: true;
+            referencedRelation: "crm_campaigns";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "campaign_colours_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "campaign_colours_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       campaign_content_classification: {
         Row: {
           ai_classification_reason: string | null;
@@ -1778,6 +2288,141 @@ export type Database = {
           },
         ];
       };
+      campaign_group_memberships: {
+        Row: {
+          campaign_id: string;
+          group_id: string;
+          tenant_id: string;
+        };
+        Insert: {
+          campaign_id: string;
+          group_id: string;
+          tenant_id: string;
+        };
+        Update: {
+          campaign_id?: string;
+          group_id?: string;
+          tenant_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "campaign_group_memberships_campaign_id_fkey";
+            columns: ["campaign_id"];
+            isOneToOne: false;
+            referencedRelation: "crm_campaigns";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "campaign_group_memberships_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "campaign_group_memberships_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "campaign_group_memberships_tenant_id_group_id_fkey";
+            columns: ["tenant_id", "group_id"];
+            isOneToOne: false;
+            referencedRelation: "campaign_groups";
+            referencedColumns: ["tenant_id", "id"];
+          },
+        ];
+      };
+      campaign_groups: {
+        Row: {
+          colour: string;
+          id: string;
+          name: string;
+          tenant_id: string;
+        };
+        Insert: {
+          colour?: string;
+          id?: string;
+          name: string;
+          tenant_id: string;
+        };
+        Update: {
+          colour?: string;
+          id?: string;
+          name?: string;
+          tenant_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "campaign_groups_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "campaign_groups_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      campaign_health_events: {
+        Row: {
+          campaign_id: string | null;
+          created_at: string;
+          event_type: string;
+          id: string;
+          message: string | null;
+          metadata: Json;
+          tenant_id: string | null;
+        };
+        Insert: {
+          campaign_id?: string | null;
+          created_at?: string;
+          event_type: string;
+          id?: string;
+          message?: string | null;
+          metadata?: Json;
+          tenant_id?: string | null;
+        };
+        Update: {
+          campaign_id?: string | null;
+          created_at?: string;
+          event_type?: string;
+          id?: string;
+          message?: string | null;
+          metadata?: Json;
+          tenant_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "campaign_health_events_campaign_id_fkey";
+            columns: ["campaign_id"];
+            isOneToOne: false;
+            referencedRelation: "crm_campaigns";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "campaign_health_events_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "campaign_health_events_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       campaign_hygiene_reports: {
         Row: {
           audience_total: number;
@@ -1854,6 +2499,56 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "tenants";
             referencedColumns: ["id"];
+          },
+        ];
+      };
+      campaign_location_targets: {
+        Row: {
+          campaign_id: string;
+          created_at: string;
+          location_id: string;
+          tenant_id: string;
+        };
+        Insert: {
+          campaign_id: string;
+          created_at?: string;
+          location_id: string;
+          tenant_id: string;
+        };
+        Update: {
+          campaign_id?: string;
+          created_at?: string;
+          location_id?: string;
+          tenant_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "campaign_location_targets_tenant_id_campaign_id_fkey";
+            columns: ["tenant_id", "campaign_id"];
+            isOneToOne: false;
+            referencedRelation: "crm_campaigns";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "campaign_location_targets_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "campaign_location_targets_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "campaign_location_targets_tenant_id_location_id_fkey";
+            columns: ["tenant_id", "location_id"];
+            isOneToOne: false;
+            referencedRelation: "tenant_locations";
+            referencedColumns: ["tenant_id", "id"];
           },
         ];
       };
@@ -1956,6 +2651,13 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "customer_360_enriched";
             referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "campaign_revenue_attributions_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
           },
           {
             foreignKeyName: "campaign_revenue_attributions_email_campaign_id_fkey";
@@ -2145,6 +2847,87 @@ export type Database = {
             columns: ["content_task_id"];
             isOneToOne: false;
             referencedRelation: "content_tasks";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      care_guide_design_versions: {
+        Row: {
+          design: Json;
+          published_at: string;
+          published_by: string;
+          tenant_id: string;
+          version: number;
+        };
+        Insert: {
+          design: Json;
+          published_at?: string;
+          published_by: string;
+          tenant_id: string;
+          version: number;
+        };
+        Update: {
+          design?: Json;
+          published_at?: string;
+          published_by?: string;
+          tenant_id?: string;
+          version?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "care_guide_design_versions_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "care_guide_design_versions_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      care_guide_designs: {
+        Row: {
+          draft: Json;
+          published: Json | null;
+          published_at: string | null;
+          published_version: number;
+          tenant_id: string;
+          updated_at: string;
+        };
+        Insert: {
+          draft?: Json;
+          published?: Json | null;
+          published_at?: string | null;
+          published_version?: number;
+          tenant_id: string;
+          updated_at?: string;
+        };
+        Update: {
+          draft?: Json;
+          published?: Json | null;
+          published_at?: string | null;
+          published_version?: number;
+          tenant_id?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "care_guide_designs_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: true;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "care_guide_designs_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: true;
+            referencedRelation: "tenants";
             referencedColumns: ["id"];
           },
         ];
@@ -2648,6 +3431,57 @@ export type Database = {
         };
         Relationships: [];
       };
+      consent_attestations: {
+        Row: {
+          attestation_type: string;
+          attestation_wording: string;
+          attested_by_user_id: string;
+          contact_count: number;
+          created_at: string;
+          id: string;
+          import_batch_id: string | null;
+          source: string;
+          tenant_id: string;
+        };
+        Insert: {
+          attestation_type: string;
+          attestation_wording: string;
+          attested_by_user_id: string;
+          contact_count: number;
+          created_at?: string;
+          id?: string;
+          import_batch_id?: string | null;
+          source?: string;
+          tenant_id: string;
+        };
+        Update: {
+          attestation_type?: string;
+          attestation_wording?: string;
+          attested_by_user_id?: string;
+          contact_count?: number;
+          created_at?: string;
+          id?: string;
+          import_batch_id?: string | null;
+          source?: string;
+          tenant_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "consent_attestations_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "consent_attestations_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       content_assets: {
         Row: {
           created_at: string;
@@ -2824,6 +3658,13 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "content_interaction_events_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
+          },
+          {
             foreignKeyName: "content_interaction_events_tenant_id_fkey";
             columns: ["tenant_id"];
             isOneToOne: false;
@@ -2943,6 +3784,13 @@ export type Database = {
           user_id?: string | null;
         };
         Relationships: [
+          {
+            foreignKeyName: "content_tasks_assigned_user_id_fkey";
+            columns: ["assigned_user_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["primary_contact_user_id"];
+          },
           {
             foreignKeyName: "content_tasks_assigned_user_id_fkey";
             columns: ["assigned_user_id"];
@@ -3102,6 +3950,104 @@ export type Database = {
         };
         Relationships: [];
       };
+      crm_access_audit: {
+        Row: {
+          actor_user_id: string;
+          after_state: Json;
+          before_state: Json;
+          created_at: string;
+          event_type: string;
+          id: string;
+          location_id: string | null;
+          new_location_ids: string[];
+          new_role: string | null;
+          old_location_ids: string[];
+          old_role: string | null;
+          target_user_id: string | null;
+          tenant_id: string;
+        };
+        Insert: {
+          actor_user_id: string;
+          after_state?: Json;
+          before_state?: Json;
+          created_at?: string;
+          event_type: string;
+          id?: string;
+          location_id?: string | null;
+          new_location_ids?: string[];
+          new_role?: string | null;
+          old_location_ids?: string[];
+          old_role?: string | null;
+          target_user_id?: string | null;
+          tenant_id: string;
+        };
+        Update: {
+          actor_user_id?: string;
+          after_state?: Json;
+          before_state?: Json;
+          created_at?: string;
+          event_type?: string;
+          id?: string;
+          location_id?: string | null;
+          new_location_ids?: string[];
+          new_role?: string | null;
+          old_location_ids?: string[];
+          old_role?: string | null;
+          target_user_id?: string | null;
+          tenant_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "crm_access_audit_actor_user_id_fkey";
+            columns: ["actor_user_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["primary_contact_user_id"];
+          },
+          {
+            foreignKeyName: "crm_access_audit_actor_user_id_fkey";
+            columns: ["actor_user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "crm_access_audit_location_fkey";
+            columns: ["tenant_id", "location_id"];
+            isOneToOne: false;
+            referencedRelation: "tenant_locations";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "crm_access_audit_target_user_id_fkey";
+            columns: ["target_user_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["primary_contact_user_id"];
+          },
+          {
+            foreignKeyName: "crm_access_audit_target_user_id_fkey";
+            columns: ["target_user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "crm_access_audit_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "crm_access_audit_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       crm_activity_events: {
         Row: {
           activity_type: string;
@@ -3174,6 +4120,13 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "customer_360_enriched";
             referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "crm_activity_events_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
           },
         ];
       };
@@ -3283,23 +4236,26 @@ export type Database = {
           content: string | null;
           created_at: string | null;
           delivery_method: string | null;
+          estimated_completion_at: string | null;
           failure_reason: string | null;
           from_email_domain_id: string | null;
           id: string;
           include_all_customers: boolean;
+          location_scope: string;
+          messages_failed: number;
+          messages_sent: number;
+          messages_skipped: number;
           metadata: Json | null;
           metrics: Json | null;
           metrics_parity_snapshot: Json | null;
           name: string;
-          messages_failed: number;
-          messages_sent: number;
-          messages_skipped: number;
           open_rate: number | null;
           origin: string | null;
           persona_ids: string[] | null;
           predicted_segment_ids: string[] | null;
           preheader: string | null;
           preheader_text: string | null;
+          primary_location_id: string | null;
           projected_recipient_count: number | null;
           queue_completed_at: string | null;
           queue_started_at: string | null;
@@ -3309,8 +4265,8 @@ export type Database = {
           segment_id: string | null;
           send_attempts: number | null;
           send_blocked_reason: string | null;
-          send_error: string | null;
           send_completed_at: string | null;
+          send_error: string | null;
           send_reasoning: string | null;
           send_started_at: string | null;
           sender_display_name: string | null;
@@ -3325,7 +4281,7 @@ export type Database = {
           subject_line: string | null;
           synced_from: string | null;
           template_id: string | null;
-          tenant_id: string | null;
+          tenant_id: string;
           total_batches: number | null;
           total_clicks: number | null;
           total_opens: number | null;
@@ -3334,7 +4290,6 @@ export type Database = {
           updated_at: string | null;
           user_id: string | null;
           worker_heartbeat_at: string | null;
-          estimated_completion_at: string | null;
         };
         Insert: {
           actual_sender_email?: string | null;
@@ -3345,23 +4300,26 @@ export type Database = {
           content?: string | null;
           created_at?: string | null;
           delivery_method?: string | null;
+          estimated_completion_at?: string | null;
           failure_reason?: string | null;
           from_email_domain_id?: string | null;
           id?: string;
           include_all_customers?: boolean;
+          location_scope?: string;
+          messages_failed?: number;
+          messages_sent?: number;
+          messages_skipped?: number;
           metadata?: Json | null;
           metrics?: Json | null;
           metrics_parity_snapshot?: Json | null;
           name: string;
-          messages_failed?: number;
-          messages_sent?: number;
-          messages_skipped?: number;
           open_rate?: number | null;
           origin?: string | null;
           persona_ids?: string[] | null;
           predicted_segment_ids?: string[] | null;
           preheader?: string | null;
           preheader_text?: string | null;
+          primary_location_id?: string | null;
           projected_recipient_count?: number | null;
           queue_completed_at?: string | null;
           queue_started_at?: string | null;
@@ -3371,8 +4329,8 @@ export type Database = {
           segment_id?: string | null;
           send_attempts?: number | null;
           send_blocked_reason?: string | null;
-          send_error?: string | null;
           send_completed_at?: string | null;
+          send_error?: string | null;
           send_reasoning?: string | null;
           send_started_at?: string | null;
           sender_display_name?: string | null;
@@ -3387,7 +4345,7 @@ export type Database = {
           subject_line?: string | null;
           synced_from?: string | null;
           template_id?: string | null;
-          tenant_id?: string | null;
+          tenant_id: string;
           total_batches?: number | null;
           total_clicks?: number | null;
           total_opens?: number | null;
@@ -3396,7 +4354,6 @@ export type Database = {
           updated_at?: string | null;
           user_id?: string | null;
           worker_heartbeat_at?: string | null;
-          estimated_completion_at?: string | null;
         };
         Update: {
           actual_sender_email?: string | null;
@@ -3407,23 +4364,26 @@ export type Database = {
           content?: string | null;
           created_at?: string | null;
           delivery_method?: string | null;
+          estimated_completion_at?: string | null;
           failure_reason?: string | null;
           from_email_domain_id?: string | null;
           id?: string;
           include_all_customers?: boolean;
+          location_scope?: string;
+          messages_failed?: number;
+          messages_sent?: number;
+          messages_skipped?: number;
           metadata?: Json | null;
           metrics?: Json | null;
           metrics_parity_snapshot?: Json | null;
           name?: string;
-          messages_failed?: number;
-          messages_sent?: number;
-          messages_skipped?: number;
           open_rate?: number | null;
           origin?: string | null;
           persona_ids?: string[] | null;
           predicted_segment_ids?: string[] | null;
           preheader?: string | null;
           preheader_text?: string | null;
+          primary_location_id?: string | null;
           projected_recipient_count?: number | null;
           queue_completed_at?: string | null;
           queue_started_at?: string | null;
@@ -3433,8 +4393,8 @@ export type Database = {
           segment_id?: string | null;
           send_attempts?: number | null;
           send_blocked_reason?: string | null;
-          send_error?: string | null;
           send_completed_at?: string | null;
+          send_error?: string | null;
           send_reasoning?: string | null;
           send_started_at?: string | null;
           sender_display_name?: string | null;
@@ -3449,7 +4409,7 @@ export type Database = {
           subject_line?: string | null;
           synced_from?: string | null;
           template_id?: string | null;
-          tenant_id?: string | null;
+          tenant_id?: string;
           total_batches?: number | null;
           total_clicks?: number | null;
           total_opens?: number | null;
@@ -3458,7 +4418,6 @@ export type Database = {
           updated_at?: string | null;
           user_id?: string | null;
           worker_heartbeat_at?: string | null;
-          estimated_completion_at?: string | null;
         };
         Relationships: [
           {
@@ -3481,6 +4440,13 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "email_domains";
             referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "crm_campaigns_primary_location_tenant_fkey";
+            columns: ["tenant_id", "primary_location_id"];
+            isOneToOne: false;
+            referencedRelation: "tenant_locations";
+            referencedColumns: ["tenant_id", "id"];
           },
           {
             foreignKeyName: "crm_campaigns_segment_id_fkey";
@@ -3556,7 +4522,485 @@ export type Database = {
           status?: string;
           tenant_id?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "crm_connected_websites_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "crm_connected_websites_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      crm_customer_identity_events: {
+        Row: {
+          created_at: string;
+          crm_customer_id: string | null;
+          details: Json;
+          event_type: string;
+          external_id: string | null;
+          id: string;
+          identity_link_id: string | null;
+          provider: string;
+          tenant_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          crm_customer_id?: string | null;
+          details?: Json;
+          event_type: string;
+          external_id?: string | null;
+          id?: string;
+          identity_link_id?: string | null;
+          provider: string;
+          tenant_id: string;
+        };
+        Update: {
+          created_at?: string;
+          crm_customer_id?: string | null;
+          details?: Json;
+          event_type?: string;
+          external_id?: string | null;
+          id?: string;
+          identity_link_id?: string | null;
+          provider?: string;
+          tenant_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "crm_customer_identity_events_crm_customer_id_fkey";
+            columns: ["crm_customer_id"];
+            isOneToOne: false;
+            referencedRelation: "crm_customers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "crm_customer_identity_events_crm_customer_id_fkey";
+            columns: ["crm_customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_360_enriched";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "crm_customer_identity_events_crm_customer_id_fkey";
+            columns: ["crm_customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
+          },
+          {
+            foreignKeyName: "crm_customer_identity_events_identity_link_id_fkey";
+            columns: ["identity_link_id"];
+            isOneToOne: false;
+            referencedRelation: "crm_customer_identity_links";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "crm_customer_identity_events_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "crm_customer_identity_events_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      crm_customer_identity_failures: {
+        Row: {
+          created_at: string;
+          error_message: string;
+          external_id: string | null;
+          id: string;
+          pos_connection_id: string | null;
+          pos_customer_id: string | null;
+          provider: string | null;
+          resolved_at: string | null;
+          source_payload: Json;
+          tenant_id: string | null;
+        };
+        Insert: {
+          created_at?: string;
+          error_message: string;
+          external_id?: string | null;
+          id?: string;
+          pos_connection_id?: string | null;
+          pos_customer_id?: string | null;
+          provider?: string | null;
+          resolved_at?: string | null;
+          source_payload?: Json;
+          tenant_id?: string | null;
+        };
+        Update: {
+          created_at?: string;
+          error_message?: string;
+          external_id?: string | null;
+          id?: string;
+          pos_connection_id?: string | null;
+          pos_customer_id?: string | null;
+          provider?: string | null;
+          resolved_at?: string | null;
+          source_payload?: Json;
+          tenant_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "crm_customer_identity_failures_pos_connection_id_fkey";
+            columns: ["pos_connection_id"];
+            isOneToOne: false;
+            referencedRelation: "pos_connections";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "crm_customer_identity_failures_pos_customer_id_fkey";
+            columns: ["pos_customer_id"];
+            isOneToOne: false;
+            referencedRelation: "pos_customers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "crm_customer_identity_failures_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "crm_customer_identity_failures_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      crm_customer_identity_links: {
+        Row: {
+          confidence_score: number;
+          created_at: string;
+          crm_customer_id: string;
+          external_id: string;
+          first_seen_at: string;
+          id: string;
+          last_seen_at: string;
+          link_method: string;
+          normalized_email: string | null;
+          normalized_phone: string | null;
+          pos_connection_id: string | null;
+          pos_customer_id: string | null;
+          provider: string;
+          source_payload: Json;
+          tenant_id: string;
+          updated_at: string;
+        };
+        Insert: {
+          confidence_score: number;
+          created_at?: string;
+          crm_customer_id: string;
+          external_id: string;
+          first_seen_at?: string;
+          id?: string;
+          last_seen_at?: string;
+          link_method: string;
+          normalized_email?: string | null;
+          normalized_phone?: string | null;
+          pos_connection_id?: string | null;
+          pos_customer_id?: string | null;
+          provider: string;
+          source_payload?: Json;
+          tenant_id: string;
+          updated_at?: string;
+        };
+        Update: {
+          confidence_score?: number;
+          created_at?: string;
+          crm_customer_id?: string;
+          external_id?: string;
+          first_seen_at?: string;
+          id?: string;
+          last_seen_at?: string;
+          link_method?: string;
+          normalized_email?: string | null;
+          normalized_phone?: string | null;
+          pos_connection_id?: string | null;
+          pos_customer_id?: string | null;
+          provider?: string;
+          source_payload?: Json;
+          tenant_id?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "crm_customer_identity_links_crm_customer_id_fkey";
+            columns: ["crm_customer_id"];
+            isOneToOne: false;
+            referencedRelation: "crm_customers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "crm_customer_identity_links_crm_customer_id_fkey";
+            columns: ["crm_customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_360_enriched";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "crm_customer_identity_links_crm_customer_id_fkey";
+            columns: ["crm_customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
+          },
+          {
+            foreignKeyName: "crm_customer_identity_links_pos_connection_id_fkey";
+            columns: ["pos_connection_id"];
+            isOneToOne: false;
+            referencedRelation: "pos_connections";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "crm_customer_identity_links_pos_customer_id_fkey";
+            columns: ["pos_customer_id"];
+            isOneToOne: false;
+            referencedRelation: "pos_customers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "crm_customer_identity_links_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "crm_customer_identity_links_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      crm_customer_merge_history: {
+        Row: {
+          created_at: string;
+          duplicate_before: Json;
+          duplicate_customer_id: string;
+          id: string;
+          moved_reference_count: number;
+          moved_references: Json;
+          performed_by: string | null;
+          reason: string;
+          removed_duplicate_row_count: number;
+          removed_duplicate_rows: Json;
+          rollback_reason: string | null;
+          rolled_back_at: string | null;
+          rolled_back_by: string | null;
+          staged_provider_references: Json | null;
+          status: string;
+          suggestion_id: string | null;
+          survivor_before: Json;
+          survivor_customer_id: string;
+          tenant_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          duplicate_before: Json;
+          duplicate_customer_id: string;
+          id?: string;
+          moved_reference_count?: number;
+          moved_references?: Json;
+          performed_by?: string | null;
+          reason: string;
+          removed_duplicate_row_count?: number;
+          removed_duplicate_rows?: Json;
+          rollback_reason?: string | null;
+          rolled_back_at?: string | null;
+          rolled_back_by?: string | null;
+          staged_provider_references?: Json | null;
+          status?: string;
+          suggestion_id?: string | null;
+          survivor_before: Json;
+          survivor_customer_id: string;
+          tenant_id: string;
+        };
+        Update: {
+          created_at?: string;
+          duplicate_before?: Json;
+          duplicate_customer_id?: string;
+          id?: string;
+          moved_reference_count?: number;
+          moved_references?: Json;
+          performed_by?: string | null;
+          reason?: string;
+          removed_duplicate_row_count?: number;
+          removed_duplicate_rows?: Json;
+          rollback_reason?: string | null;
+          rolled_back_at?: string | null;
+          rolled_back_by?: string | null;
+          staged_provider_references?: Json | null;
+          status?: string;
+          suggestion_id?: string | null;
+          survivor_before?: Json;
+          survivor_customer_id?: string;
+          tenant_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "crm_customer_merge_history_duplicate_customer_id_fkey";
+            columns: ["duplicate_customer_id"];
+            isOneToOne: false;
+            referencedRelation: "crm_customers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "crm_customer_merge_history_duplicate_customer_id_fkey";
+            columns: ["duplicate_customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_360_enriched";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "crm_customer_merge_history_duplicate_customer_id_fkey";
+            columns: ["duplicate_customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
+          },
+          {
+            foreignKeyName: "crm_customer_merge_history_suggestion_id_fkey";
+            columns: ["suggestion_id"];
+            isOneToOne: false;
+            referencedRelation: "crm_customer_merge_suggestions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "crm_customer_merge_history_survivor_customer_id_fkey";
+            columns: ["survivor_customer_id"];
+            isOneToOne: false;
+            referencedRelation: "crm_customers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "crm_customer_merge_history_survivor_customer_id_fkey";
+            columns: ["survivor_customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_360_enriched";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "crm_customer_merge_history_survivor_customer_id_fkey";
+            columns: ["survivor_customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
+          },
+          {
+            foreignKeyName: "crm_customer_merge_history_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "crm_customer_merge_history_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      crm_customer_merge_suggestions: {
+        Row: {
+          candidate_customer_ids: string[];
+          created_at: string;
+          external_id: string | null;
+          fingerprint: string;
+          id: string;
+          normalized_email: string | null;
+          normalized_phone: string | null;
+          pos_connection_id: string | null;
+          provider: string;
+          reason: string;
+          resolution: Json | null;
+          resolved_at: string | null;
+          resolved_by: string | null;
+          status: string;
+          tenant_id: string;
+          updated_at: string;
+        };
+        Insert: {
+          candidate_customer_ids: string[];
+          created_at?: string;
+          external_id?: string | null;
+          fingerprint: string;
+          id?: string;
+          normalized_email?: string | null;
+          normalized_phone?: string | null;
+          pos_connection_id?: string | null;
+          provider: string;
+          reason: string;
+          resolution?: Json | null;
+          resolved_at?: string | null;
+          resolved_by?: string | null;
+          status?: string;
+          tenant_id: string;
+          updated_at?: string;
+        };
+        Update: {
+          candidate_customer_ids?: string[];
+          created_at?: string;
+          external_id?: string | null;
+          fingerprint?: string;
+          id?: string;
+          normalized_email?: string | null;
+          normalized_phone?: string | null;
+          pos_connection_id?: string | null;
+          provider?: string;
+          reason?: string;
+          resolution?: Json | null;
+          resolved_at?: string | null;
+          resolved_by?: string | null;
+          status?: string;
+          tenant_id?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "crm_customer_merge_suggestions_pos_connection_id_fkey";
+            columns: ["pos_connection_id"];
+            isOneToOne: false;
+            referencedRelation: "pos_connections";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "crm_customer_merge_suggestions_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "crm_customer_merge_suggestions_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       crm_customers: {
         Row: {
@@ -3572,6 +5016,7 @@ export type Database = {
           email: string;
           email_bounce_rate: number | null;
           email_click_rate: number | null;
+          email_consent: boolean | null;
           email_consent_details: Json | null;
           email_consent_ip: string | null;
           email_consent_method: string | null;
@@ -3582,6 +5027,7 @@ export type Database = {
           email_opt_in: boolean | null;
           email_opt_in_at: string | null;
           email_opt_out_at: string | null;
+          external_id: string | null;
           first_name: string | null;
           first_purchase_date: string | null;
           footer_last_sent_at: string | null;
@@ -3594,9 +5040,13 @@ export type Database = {
           last_name: string | null;
           last_open_at: string | null;
           last_purchase_date: string | null;
+          last_visit_date: string | null;
           lat: number | null;
           lifetime_value: number | null;
           lon: number | null;
+          loyalty_member: boolean | null;
+          loyalty_rewards_balance: number | null;
+          merged_into_customer_id: string | null;
           opt_out: boolean | null;
           order_history: Json | null;
           persona: string | null;
@@ -3609,10 +5059,12 @@ export type Database = {
           pos_total_spent: number | null;
           postal_code: string | null;
           preferred_channel: string | null;
+          primary_location_id: string | null;
           product_tags: string[] | null;
           signup_campaign: string | null;
           signup_referrer_id: string | null;
           signup_source: string | null;
+          sms_consent: boolean | null;
           sms_consent_details: Json | null;
           sms_consent_ip: string | null;
           sms_consent_method: string | null;
@@ -3630,7 +5082,7 @@ export type Database = {
           suppressed_at: string | null;
           suppressed_reason: string | null;
           tags: string[] | null;
-          tenant_id: string | null;
+          tenant_id: string;
           timezone: string | null;
           total_emails_bounced: number | null;
           total_emails_clicked: number | null;
@@ -3657,6 +5109,7 @@ export type Database = {
           email: string;
           email_bounce_rate?: number | null;
           email_click_rate?: number | null;
+          email_consent?: boolean | null;
           email_consent_details?: Json | null;
           email_consent_ip?: string | null;
           email_consent_method?: string | null;
@@ -3667,6 +5120,7 @@ export type Database = {
           email_opt_in?: boolean | null;
           email_opt_in_at?: string | null;
           email_opt_out_at?: string | null;
+          external_id?: string | null;
           first_name?: string | null;
           first_purchase_date?: string | null;
           footer_last_sent_at?: string | null;
@@ -3679,9 +5133,13 @@ export type Database = {
           last_name?: string | null;
           last_open_at?: string | null;
           last_purchase_date?: string | null;
+          last_visit_date?: string | null;
           lat?: number | null;
           lifetime_value?: number | null;
           lon?: number | null;
+          loyalty_member?: boolean | null;
+          loyalty_rewards_balance?: number | null;
+          merged_into_customer_id?: string | null;
           opt_out?: boolean | null;
           order_history?: Json | null;
           persona?: string | null;
@@ -3694,10 +5152,12 @@ export type Database = {
           pos_total_spent?: number | null;
           postal_code?: string | null;
           preferred_channel?: string | null;
+          primary_location_id?: string | null;
           product_tags?: string[] | null;
           signup_campaign?: string | null;
           signup_referrer_id?: string | null;
           signup_source?: string | null;
+          sms_consent?: boolean | null;
           sms_consent_details?: Json | null;
           sms_consent_ip?: string | null;
           sms_consent_method?: string | null;
@@ -3715,7 +5175,7 @@ export type Database = {
           suppressed_at?: string | null;
           suppressed_reason?: string | null;
           tags?: string[] | null;
-          tenant_id?: string | null;
+          tenant_id: string;
           timezone?: string | null;
           total_emails_bounced?: number | null;
           total_emails_clicked?: number | null;
@@ -3742,6 +5202,7 @@ export type Database = {
           email?: string;
           email_bounce_rate?: number | null;
           email_click_rate?: number | null;
+          email_consent?: boolean | null;
           email_consent_details?: Json | null;
           email_consent_ip?: string | null;
           email_consent_method?: string | null;
@@ -3752,6 +5213,7 @@ export type Database = {
           email_opt_in?: boolean | null;
           email_opt_in_at?: string | null;
           email_opt_out_at?: string | null;
+          external_id?: string | null;
           first_name?: string | null;
           first_purchase_date?: string | null;
           footer_last_sent_at?: string | null;
@@ -3764,9 +5226,13 @@ export type Database = {
           last_name?: string | null;
           last_open_at?: string | null;
           last_purchase_date?: string | null;
+          last_visit_date?: string | null;
           lat?: number | null;
           lifetime_value?: number | null;
           lon?: number | null;
+          loyalty_member?: boolean | null;
+          loyalty_rewards_balance?: number | null;
+          merged_into_customer_id?: string | null;
           opt_out?: boolean | null;
           order_history?: Json | null;
           persona?: string | null;
@@ -3779,10 +5245,12 @@ export type Database = {
           pos_total_spent?: number | null;
           postal_code?: string | null;
           preferred_channel?: string | null;
+          primary_location_id?: string | null;
           product_tags?: string[] | null;
           signup_campaign?: string | null;
           signup_referrer_id?: string | null;
           signup_source?: string | null;
+          sms_consent?: boolean | null;
           sms_consent_details?: Json | null;
           sms_consent_ip?: string | null;
           sms_consent_method?: string | null;
@@ -3800,7 +5268,7 @@ export type Database = {
           suppressed_at?: string | null;
           suppressed_reason?: string | null;
           tags?: string[] | null;
-          tenant_id?: string | null;
+          tenant_id?: string;
           timezone?: string | null;
           total_emails_bounced?: number | null;
           total_emails_clicked?: number | null;
@@ -3816,11 +5284,39 @@ export type Database = {
         };
         Relationships: [
           {
+            foreignKeyName: "crm_customers_merged_into_customer_id_fkey";
+            columns: ["merged_into_customer_id"];
+            isOneToOne: false;
+            referencedRelation: "crm_customers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "crm_customers_merged_into_customer_id_fkey";
+            columns: ["merged_into_customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_360_enriched";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "crm_customers_merged_into_customer_id_fkey";
+            columns: ["merged_into_customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
+          },
+          {
             foreignKeyName: "crm_customers_persona_id_fkey";
             columns: ["persona_id"];
             isOneToOne: false;
             referencedRelation: "personas";
             referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "crm_customers_primary_location_tenant_fkey";
+            columns: ["tenant_id", "primary_location_id"];
+            isOneToOne: false;
+            referencedRelation: "tenant_locations";
+            referencedColumns: ["tenant_id", "id"];
           },
           {
             foreignKeyName: "crm_customers_signup_referrer_id_fkey";
@@ -3835,6 +5331,13 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "customer_360_enriched";
             referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "crm_customers_signup_referrer_id_fkey";
+            columns: ["signup_referrer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
           },
           {
             foreignKeyName: "crm_customers_tenant_id_fkey";
@@ -3855,12 +5358,13 @@ export type Database = {
       crm_email_consent_events: {
         Row: {
           actor_user_id: string | null;
+          attestation_id: string | null;
           consent_basis: string | null;
           created_at: string;
           customer_id: string;
           email: string;
-          evidence: Json;
           event_type: string;
+          evidence: Json;
           id: string;
           ip_address: string | null;
           source: string;
@@ -3869,12 +5373,13 @@ export type Database = {
         };
         Insert: {
           actor_user_id?: string | null;
+          attestation_id?: string | null;
           consent_basis?: string | null;
           created_at?: string;
           customer_id: string;
           email: string;
-          evidence?: Json;
           event_type: string;
+          evidence?: Json;
           id?: string;
           ip_address?: string | null;
           source: string;
@@ -3883,12 +5388,13 @@ export type Database = {
         };
         Update: {
           actor_user_id?: string | null;
+          attestation_id?: string | null;
           consent_basis?: string | null;
           created_at?: string;
           customer_id?: string;
           email?: string;
-          evidence?: Json;
           event_type?: string;
+          evidence?: Json;
           id?: string;
           ip_address?: string | null;
           source?: string;
@@ -3896,6 +5402,13 @@ export type Database = {
           user_agent?: string | null;
         };
         Relationships: [
+          {
+            foreignKeyName: "crm_email_consent_events_attestation_id_fkey";
+            columns: ["attestation_id"];
+            isOneToOne: false;
+            referencedRelation: "consent_attestations";
+            referencedColumns: ["id"];
+          },
           {
             foreignKeyName: "crm_email_consent_events_customer_id_fkey";
             columns: ["customer_id"];
@@ -3909,6 +5422,13 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "customer_360_enriched";
             referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "crm_email_consent_events_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
           },
           {
             foreignKeyName: "crm_email_consent_events_tenant_id_fkey";
@@ -3971,6 +5491,13 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "customer_360_enriched";
             referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "crm_email_preference_tokens_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
           },
           {
             foreignKeyName: "crm_email_preference_tokens_tenant_id_fkey";
@@ -4043,6 +5570,13 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "customer_360_enriched";
             referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "crm_email_sends_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
           },
         ];
       };
@@ -4268,8 +5802,514 @@ export type Database = {
         };
         Relationships: [];
       };
+      crm_push_bridge_events: {
+        Row: {
+          created_at: string;
+          event_id: string;
+          outcome: Json;
+          payload_sha256: string;
+          storefront_site_id: string;
+          tenant_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          event_id: string;
+          outcome: Json;
+          payload_sha256: string;
+          storefront_site_id: string;
+          tenant_id: string;
+        };
+        Update: {
+          created_at?: string;
+          event_id?: string;
+          outcome?: Json;
+          payload_sha256?: string;
+          storefront_site_id?: string;
+          tenant_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "crm_push_bridge_events_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "crm_push_bridge_events_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      crm_push_campaigns: {
+        Row: {
+          body: string;
+          created_at: string;
+          created_by: string;
+          id: string;
+          open_path: string;
+          queued_count: number;
+          request_key: string;
+          segment_id: string;
+          status: string;
+          tenant_id: string;
+          title: string;
+        };
+        Insert: {
+          body?: string;
+          created_at?: string;
+          created_by: string;
+          id?: string;
+          open_path: string;
+          queued_count?: number;
+          request_key: string;
+          segment_id: string;
+          status?: string;
+          tenant_id: string;
+          title: string;
+        };
+        Update: {
+          body?: string;
+          created_at?: string;
+          created_by?: string;
+          id?: string;
+          open_path?: string;
+          queued_count?: number;
+          request_key?: string;
+          segment_id?: string;
+          status?: string;
+          tenant_id?: string;
+          title?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "crm_push_campaigns_segment_id_fkey";
+            columns: ["segment_id"];
+            isOneToOne: false;
+            referencedRelation: "crm_segments";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "crm_push_campaigns_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "crm_push_campaigns_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      crm_push_events: {
+        Row: {
+          created_at: string;
+          details: Json;
+          event_type: string;
+          id: string;
+          message_id: string;
+          tenant_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          details?: Json;
+          event_type: string;
+          id?: string;
+          message_id: string;
+          tenant_id: string;
+        };
+        Update: {
+          created_at?: string;
+          details?: Json;
+          event_type?: string;
+          id?: string;
+          message_id?: string;
+          tenant_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "crm_push_events_message_id_fkey";
+            columns: ["message_id"];
+            isOneToOne: false;
+            referencedRelation: "crm_push_messages";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "crm_push_events_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "crm_push_events_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      crm_push_messages: {
+        Row: {
+          accepted_at: string | null;
+          attempts: number;
+          available_at: string;
+          body: string;
+          campaign_id: string | null;
+          claimed_at: string | null;
+          click_token: string;
+          created_at: string;
+          crm_customer_id: string;
+          dedupe_key: string;
+          id: string;
+          last_error_code: string | null;
+          open_path: string;
+          push_campaign_id: string | null;
+          status: string;
+          subscription_id: string;
+          tenant_id: string;
+          title: string;
+        };
+        Insert: {
+          accepted_at?: string | null;
+          attempts?: number;
+          available_at?: string;
+          body?: string;
+          campaign_id?: string | null;
+          claimed_at?: string | null;
+          click_token?: string;
+          created_at?: string;
+          crm_customer_id: string;
+          dedupe_key: string;
+          id?: string;
+          last_error_code?: string | null;
+          open_path: string;
+          push_campaign_id?: string | null;
+          status?: string;
+          subscription_id: string;
+          tenant_id: string;
+          title: string;
+        };
+        Update: {
+          accepted_at?: string | null;
+          attempts?: number;
+          available_at?: string;
+          body?: string;
+          campaign_id?: string | null;
+          claimed_at?: string | null;
+          click_token?: string;
+          created_at?: string;
+          crm_customer_id?: string;
+          dedupe_key?: string;
+          id?: string;
+          last_error_code?: string | null;
+          open_path?: string;
+          push_campaign_id?: string | null;
+          status?: string;
+          subscription_id?: string;
+          tenant_id?: string;
+          title?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "crm_push_messages_campaign_id_fkey";
+            columns: ["campaign_id"];
+            isOneToOne: false;
+            referencedRelation: "crm_campaigns";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "crm_push_messages_push_campaign_id_fkey";
+            columns: ["push_campaign_id"];
+            isOneToOne: false;
+            referencedRelation: "crm_push_campaigns";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "crm_push_messages_subscription_id_fkey";
+            columns: ["subscription_id"];
+            isOneToOne: false;
+            referencedRelation: "crm_push_subscriptions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "crm_push_messages_tenant_id_crm_customer_id_fkey";
+            columns: ["tenant_id", "crm_customer_id"];
+            isOneToOne: false;
+            referencedRelation: "crm_customers";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "crm_push_messages_tenant_id_crm_customer_id_fkey";
+            columns: ["tenant_id", "crm_customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_360_enriched";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "crm_push_messages_tenant_id_crm_customer_id_fkey";
+            columns: ["tenant_id", "crm_customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["tenant_id", "customer_id"];
+          },
+          {
+            foreignKeyName: "crm_push_messages_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "crm_push_messages_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      crm_push_preferences: {
+        Row: {
+          crm_customer_id: string;
+          evidence_ref: string;
+          recorded_at: string;
+          status: string;
+          tenant_id: string;
+          updated_at: string;
+        };
+        Insert: {
+          crm_customer_id: string;
+          evidence_ref: string;
+          recorded_at?: string;
+          status: string;
+          tenant_id: string;
+          updated_at?: string;
+        };
+        Update: {
+          crm_customer_id?: string;
+          evidence_ref?: string;
+          recorded_at?: string;
+          status?: string;
+          tenant_id?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "crm_push_preferences_tenant_id_crm_customer_id_fkey";
+            columns: ["tenant_id", "crm_customer_id"];
+            isOneToOne: true;
+            referencedRelation: "crm_customers";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "crm_push_preferences_tenant_id_crm_customer_id_fkey";
+            columns: ["tenant_id", "crm_customer_id"];
+            isOneToOne: true;
+            referencedRelation: "customer_360_enriched";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "crm_push_preferences_tenant_id_crm_customer_id_fkey";
+            columns: ["tenant_id", "crm_customer_id"];
+            isOneToOne: true;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["tenant_id", "customer_id"];
+          },
+        ];
+      };
+      crm_push_subscriptions: {
+        Row: {
+          crm_customer_id: string;
+          customer_link_id: string;
+          endpoint_sha256: string;
+          endpoint_url: string;
+          id: string;
+          invalidated_at: string | null;
+          key_auth: string;
+          key_p256dh: string;
+          last_seen_at: string;
+          revoked_at: string | null;
+          status: string;
+          storefront_site_id: string;
+          subscribed_at: string;
+          tenant_id: string;
+          vapid_key_version: number;
+        };
+        Insert: {
+          crm_customer_id: string;
+          customer_link_id: string;
+          endpoint_sha256: string;
+          endpoint_url: string;
+          id?: string;
+          invalidated_at?: string | null;
+          key_auth: string;
+          key_p256dh: string;
+          last_seen_at?: string;
+          revoked_at?: string | null;
+          status?: string;
+          storefront_site_id: string;
+          subscribed_at?: string;
+          tenant_id: string;
+          vapid_key_version?: number;
+        };
+        Update: {
+          crm_customer_id?: string;
+          customer_link_id?: string;
+          endpoint_sha256?: string;
+          endpoint_url?: string;
+          id?: string;
+          invalidated_at?: string | null;
+          key_auth?: string;
+          key_p256dh?: string;
+          last_seen_at?: string;
+          revoked_at?: string | null;
+          status?: string;
+          storefront_site_id?: string;
+          subscribed_at?: string;
+          tenant_id?: string;
+          vapid_key_version?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "crm_push_subscriptions_customer_link_id_tenant_id_crm_cust_fkey";
+            columns: [
+              "customer_link_id",
+              "tenant_id",
+              "crm_customer_id",
+              "storefront_site_id",
+            ];
+            isOneToOne: false;
+            referencedRelation: "crm_storefront_customer_links";
+            referencedColumns: [
+              "id",
+              "tenant_id",
+              "crm_customer_id",
+              "storefront_site_id",
+            ];
+          },
+          {
+            foreignKeyName: "crm_push_subscriptions_tenant_id_crm_customer_id_fkey";
+            columns: ["tenant_id", "crm_customer_id"];
+            isOneToOne: false;
+            referencedRelation: "crm_push_preferences";
+            referencedColumns: ["tenant_id", "crm_customer_id"];
+          },
+        ];
+      };
+      crm_saved_blocks: {
+        Row: {
+          block_data: Json;
+          created_at: string;
+          created_by: string;
+          id: string;
+          name: string;
+          save_schema_version: number;
+          tenant_id: string;
+          updated_at: string;
+        };
+        Insert: {
+          block_data: Json;
+          created_at?: string;
+          created_by: string;
+          id?: string;
+          name: string;
+          save_schema_version: number;
+          tenant_id: string;
+          updated_at?: string;
+        };
+        Update: {
+          block_data?: Json;
+          created_at?: string;
+          created_by?: string;
+          id?: string;
+          name?: string;
+          save_schema_version?: number;
+          tenant_id?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "crm_saved_blocks_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "crm_saved_blocks_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      crm_segment_recompute_jobs: {
+        Row: {
+          batches_completed: number;
+          claimed_until: string | null;
+          created_at: string;
+          cursor_customer_id: string | null;
+          customers_evaluated: number;
+          cycle_started_at: string | null;
+          last_completed_at: string | null;
+          last_cycle_batches: number | null;
+          last_cycle_customers: number | null;
+          last_error: string | null;
+          next_due_at: string;
+          status: string;
+          tenant_id: string;
+          updated_at: string;
+          worker_token: string | null;
+        };
+        Insert: {
+          batches_completed?: number;
+          claimed_until?: string | null;
+          created_at?: string;
+          cursor_customer_id?: string | null;
+          customers_evaluated?: number;
+          cycle_started_at?: string | null;
+          last_completed_at?: string | null;
+          last_cycle_batches?: number | null;
+          last_cycle_customers?: number | null;
+          last_error?: string | null;
+          next_due_at?: string;
+          status?: string;
+          tenant_id: string;
+          updated_at?: string;
+          worker_token?: string | null;
+        };
+        Update: {
+          batches_completed?: number;
+          claimed_until?: string | null;
+          created_at?: string;
+          cursor_customer_id?: string | null;
+          customers_evaluated?: number;
+          cycle_started_at?: string | null;
+          last_completed_at?: string | null;
+          last_cycle_batches?: number | null;
+          last_cycle_customers?: number | null;
+          last_error?: string | null;
+          next_due_at?: string;
+          status?: string;
+          tenant_id?: string;
+          updated_at?: string;
+          worker_token?: string | null;
+        };
+        Relationships: [];
+      };
       crm_segments: {
         Row: {
+          analysis_provenance: Json;
           auto_update: boolean | null;
           conditions: Json | null;
           created_at: string | null;
@@ -4279,16 +6319,19 @@ export type Database = {
           id: string;
           include_all_customers: boolean;
           is_system_segment: boolean;
+          location_scope: string;
           name: string;
           persona_id: string | null;
+          primary_location_id: string | null;
           source: string | null;
           source_id: string | null;
           status: string;
-          tenant_id: string | null;
+          tenant_id: string;
           updated_at: string | null;
           user_id: string | null;
         };
         Insert: {
+          analysis_provenance?: Json;
           auto_update?: boolean | null;
           conditions?: Json | null;
           created_at?: string | null;
@@ -4298,16 +6341,19 @@ export type Database = {
           id?: string;
           include_all_customers?: boolean;
           is_system_segment?: boolean;
+          location_scope?: string;
           name: string;
           persona_id?: string | null;
+          primary_location_id?: string | null;
           source?: string | null;
           source_id?: string | null;
           status?: string;
-          tenant_id?: string | null;
+          tenant_id: string;
           updated_at?: string | null;
           user_id?: string | null;
         };
         Update: {
+          analysis_provenance?: Json;
           auto_update?: boolean | null;
           conditions?: Json | null;
           created_at?: string | null;
@@ -4317,12 +6363,14 @@ export type Database = {
           id?: string;
           include_all_customers?: boolean;
           is_system_segment?: boolean;
+          location_scope?: string;
           name?: string;
           persona_id?: string | null;
+          primary_location_id?: string | null;
           source?: string | null;
           source_id?: string | null;
           status?: string;
-          tenant_id?: string | null;
+          tenant_id?: string;
           updated_at?: string | null;
           user_id?: string | null;
         };
@@ -4333,6 +6381,13 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "personas";
             referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "crm_segments_primary_location_tenant_fkey";
+            columns: ["tenant_id", "primary_location_id"];
+            isOneToOne: false;
+            referencedRelation: "tenant_locations";
+            referencedColumns: ["tenant_id", "id"];
           },
           {
             foreignKeyName: "crm_segments_tenant_id_fkey";
@@ -4352,6 +6407,8 @@ export type Database = {
       };
       crm_sms_campaigns: {
         Row: {
+          audience_confirmed: boolean;
+          connected_content_sources: Json;
           created_at: string;
           enqueue_claimed_at: string | null;
           enqueue_claimed_by: string | null;
@@ -4384,6 +6441,8 @@ export type Database = {
           user_id: string | null;
         };
         Insert: {
+          audience_confirmed?: boolean;
+          connected_content_sources?: Json;
           created_at?: string;
           enqueue_claimed_at?: string | null;
           enqueue_claimed_by?: string | null;
@@ -4416,6 +6475,8 @@ export type Database = {
           user_id?: string | null;
         };
         Update: {
+          audience_confirmed?: boolean;
+          connected_content_sources?: Json;
           created_at?: string;
           enqueue_claimed_at?: string | null;
           enqueue_claimed_by?: string | null;
@@ -4460,6 +6521,7 @@ export type Database = {
       crm_sms_consent_events: {
         Row: {
           actor_user_id: string | null;
+          attestation_id: string | null;
           consent_basis: string | null;
           created_at: string;
           customer_id: string;
@@ -4474,6 +6536,7 @@ export type Database = {
         };
         Insert: {
           actor_user_id?: string | null;
+          attestation_id?: string | null;
           consent_basis?: string | null;
           created_at?: string;
           customer_id: string;
@@ -4488,6 +6551,7 @@ export type Database = {
         };
         Update: {
           actor_user_id?: string | null;
+          attestation_id?: string | null;
           consent_basis?: string | null;
           created_at?: string;
           customer_id?: string;
@@ -4501,6 +6565,13 @@ export type Database = {
           user_agent?: string | null;
         };
         Relationships: [
+          {
+            foreignKeyName: "crm_sms_consent_events_attestation_id_fkey";
+            columns: ["attestation_id"];
+            isOneToOne: false;
+            referencedRelation: "consent_attestations";
+            referencedColumns: ["id"];
+          },
           {
             foreignKeyName: "crm_sms_consent_events_customer_id_fkey";
             columns: ["customer_id"];
@@ -4516,6 +6587,13 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "crm_sms_consent_events_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
+          },
+          {
             foreignKeyName: "crm_sms_consent_events_tenant_id_fkey";
             columns: ["tenant_id"];
             isOneToOne: false;
@@ -4525,6 +6603,125 @@ export type Database = {
           {
             foreignKeyName: "crm_sms_consent_events_tenant_id_fkey";
             columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      crm_storefront_customer_links: {
+        Row: {
+          created_at: string;
+          crm_customer_id: string | null;
+          evidence_ref: string | null;
+          id: string;
+          reviewed_at: string | null;
+          reviewed_by: string | null;
+          source_email: string | null;
+          source_email_seen_at: string | null;
+          status: string;
+          storefront_site_id: string;
+          storefront_user_id: string;
+          tenant_id: string;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          crm_customer_id?: string | null;
+          evidence_ref?: string | null;
+          id?: string;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          source_email?: string | null;
+          source_email_seen_at?: string | null;
+          status?: string;
+          storefront_site_id: string;
+          storefront_user_id: string;
+          tenant_id: string;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          crm_customer_id?: string | null;
+          evidence_ref?: string | null;
+          id?: string;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          source_email?: string | null;
+          source_email_seen_at?: string | null;
+          status?: string;
+          storefront_site_id?: string;
+          storefront_user_id?: string;
+          tenant_id?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "crm_storefront_customer_links_storefront_site_id_tenant_id_fkey";
+            columns: ["storefront_site_id", "tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "crm_storefront_tenant_links";
+            referencedColumns: ["storefront_site_id", "crm_tenant_id"];
+          },
+          {
+            foreignKeyName: "crm_storefront_customer_links_tenant_id_crm_customer_id_fkey";
+            columns: ["tenant_id", "crm_customer_id"];
+            isOneToOne: false;
+            referencedRelation: "crm_customers";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "crm_storefront_customer_links_tenant_id_crm_customer_id_fkey";
+            columns: ["tenant_id", "crm_customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_360_enriched";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "crm_storefront_customer_links_tenant_id_crm_customer_id_fkey";
+            columns: ["tenant_id", "crm_customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["tenant_id", "customer_id"];
+          },
+        ];
+      };
+      crm_storefront_tenant_links: {
+        Row: {
+          created_at: string;
+          crm_tenant_id: string;
+          enabled: boolean;
+          reviewed_at: string | null;
+          reviewed_by: string | null;
+          storefront_site_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          crm_tenant_id: string;
+          enabled?: boolean;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          storefront_site_id: string;
+        };
+        Update: {
+          created_at?: string;
+          crm_tenant_id?: string;
+          enabled?: boolean;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          storefront_site_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "crm_storefront_tenant_links_crm_tenant_id_fkey";
+            columns: ["crm_tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "crm_storefront_tenant_links_crm_tenant_id_fkey";
+            columns: ["crm_tenant_id"];
             isOneToOne: false;
             referencedRelation: "tenants";
             referencedColumns: ["id"];
@@ -4688,6 +6885,13 @@ export type Database = {
             referencedRelation: "customer_360_enriched";
             referencedColumns: ["id"];
           },
+          {
+            foreignKeyName: "customer_additional_fields_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
+          },
         ];
       };
       customer_ai_insights: {
@@ -4751,6 +6955,13 @@ export type Database = {
             referencedRelation: "customer_360_enriched";
             referencedColumns: ["id"];
           },
+          {
+            foreignKeyName: "customer_ai_insights_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: true;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
+          },
         ];
       };
       customer_consents: {
@@ -4795,6 +7006,13 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "customer_360_enriched";
             referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "customer_consents_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
           },
         ];
       };
@@ -5016,6 +7234,13 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "customer_content_intent_metrics_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: true;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
+          },
+          {
             foreignKeyName: "customer_content_intent_metrics_tenant_id_fkey";
             columns: ["tenant_id"];
             isOneToOne: false;
@@ -5109,6 +7334,13 @@ export type Database = {
             isOneToOne: true;
             referencedRelation: "customer_360_enriched";
             referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "customer_cross_channel_metrics_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: true;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
           },
           {
             foreignKeyName: "customer_cross_channel_metrics_tenant_id_fkey";
@@ -5222,6 +7454,13 @@ export type Database = {
             isOneToOne: true;
             referencedRelation: "customer_360_enriched";
             referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "customer_email_metrics_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: true;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
           },
           {
             foreignKeyName: "customer_email_metrics_tenant_id_fkey";
@@ -5393,6 +7632,13 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "customer_engagement_summary_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: true;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
+          },
+          {
             foreignKeyName: "customer_engagement_summary_tenant_id_fkey";
             columns: ["tenant_id"];
             isOneToOne: false;
@@ -5485,6 +7731,13 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "customer_identity_metrics_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: true;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
+          },
+          {
             foreignKeyName: "customer_identity_metrics_signup_referrer_id_fkey";
             columns: ["signup_referrer_id"];
             isOneToOne: false;
@@ -5499,6 +7752,13 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "customer_identity_metrics_signup_referrer_id_fkey";
+            columns: ["signup_referrer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
+          },
+          {
             foreignKeyName: "customer_identity_metrics_tenant_id_fkey";
             columns: ["tenant_id"];
             isOneToOne: false;
@@ -5510,6 +7770,357 @@ export type Database = {
             columns: ["tenant_id"];
             isOneToOne: false;
             referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      customer_intelligence_imports: {
+        Row: {
+          accepted_row_count: number;
+          completed_at: string | null;
+          created_at: string;
+          created_by: string | null;
+          duplicate_row_count: number;
+          error_summary: Json;
+          id: string;
+          reconciliation: Json;
+          rejected_row_count: number;
+          report_type: string;
+          source: string;
+          source_filename: string | null;
+          source_period_end: string | null;
+          source_period_start: string | null;
+          source_row_count: number;
+          source_sha256: string;
+          started_at: string;
+          status: string;
+          tenant_id: string;
+        };
+        Insert: {
+          accepted_row_count?: number;
+          completed_at?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          duplicate_row_count?: number;
+          error_summary?: Json;
+          id?: string;
+          reconciliation?: Json;
+          rejected_row_count?: number;
+          report_type: string;
+          source: string;
+          source_filename?: string | null;
+          source_period_end?: string | null;
+          source_period_start?: string | null;
+          source_row_count?: number;
+          source_sha256: string;
+          started_at?: string;
+          status?: string;
+          tenant_id: string;
+        };
+        Update: {
+          accepted_row_count?: number;
+          completed_at?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          duplicate_row_count?: number;
+          error_summary?: Json;
+          id?: string;
+          reconciliation?: Json;
+          rejected_row_count?: number;
+          report_type?: string;
+          source?: string;
+          source_filename?: string | null;
+          source_period_end?: string | null;
+          source_period_start?: string | null;
+          source_row_count?: number;
+          source_sha256?: string;
+          started_at?: string;
+          status?: string;
+          tenant_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "customer_intelligence_imports_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "customer_intelligence_imports_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      customer_intelligence_scores: {
+        Row: {
+          created_at: string;
+          created_by: string | null;
+          description: string | null;
+          filters: Json;
+          id: string;
+          is_active: boolean;
+          name: string;
+          tenant_id: string;
+          updated_at: string;
+          weights: Json;
+        };
+        Insert: {
+          created_at?: string;
+          created_by?: string | null;
+          description?: string | null;
+          filters?: Json;
+          id?: string;
+          is_active?: boolean;
+          name: string;
+          tenant_id: string;
+          updated_at?: string;
+          weights?: Json;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string | null;
+          description?: string | null;
+          filters?: Json;
+          id?: string;
+          is_active?: boolean;
+          name?: string;
+          tenant_id?: string;
+          updated_at?: string;
+          weights?: Json;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "customer_intelligence_scores_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "customer_intelligence_scores_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      customer_intelligence_source_events: {
+        Row: {
+          amount: number | null;
+          coupon_code: string | null;
+          created_at: string;
+          customer_id: string | null;
+          event_type: string;
+          expires_at: string | null;
+          external_customer_code: string | null;
+          external_transaction_id: string | null;
+          id: string;
+          import_id: string;
+          occurred_at: string | null;
+          points_delta: number | null;
+          raw_data: Json;
+          source: string;
+          source_fingerprint: string;
+          tenant_id: string;
+        };
+        Insert: {
+          amount?: number | null;
+          coupon_code?: string | null;
+          created_at?: string;
+          customer_id?: string | null;
+          event_type: string;
+          expires_at?: string | null;
+          external_customer_code?: string | null;
+          external_transaction_id?: string | null;
+          id?: string;
+          import_id: string;
+          occurred_at?: string | null;
+          points_delta?: number | null;
+          raw_data?: Json;
+          source: string;
+          source_fingerprint: string;
+          tenant_id: string;
+        };
+        Update: {
+          amount?: number | null;
+          coupon_code?: string | null;
+          created_at?: string;
+          customer_id?: string | null;
+          event_type?: string;
+          expires_at?: string | null;
+          external_customer_code?: string | null;
+          external_transaction_id?: string | null;
+          id?: string;
+          import_id?: string;
+          occurred_at?: string | null;
+          points_delta?: number | null;
+          raw_data?: Json;
+          source?: string;
+          source_fingerprint?: string;
+          tenant_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "customer_intelligence_source_events_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "crm_customers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "customer_intelligence_source_events_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_360_enriched";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "customer_intelligence_source_events_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
+          },
+          {
+            foreignKeyName: "customer_intelligence_source_events_import_id_fkey";
+            columns: ["import_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_intelligence_imports";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "customer_intelligence_source_events_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "customer_intelligence_source_events_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      customer_intelligence_sources: {
+        Row: {
+          activated_at: string | null;
+          capabilities: Json;
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          last_data_at: string | null;
+          last_validated_at: string | null;
+          provider: string;
+          provider_connection_id: string | null;
+          source_type: string;
+          status: string;
+          sync_mode: string;
+          tenant_id: string;
+          updated_at: string;
+          validation_summary: Json;
+        };
+        Insert: {
+          activated_at?: string | null;
+          capabilities?: Json;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          last_data_at?: string | null;
+          last_validated_at?: string | null;
+          provider: string;
+          provider_connection_id?: string | null;
+          source_type: string;
+          status?: string;
+          sync_mode: string;
+          tenant_id: string;
+          updated_at?: string;
+          validation_summary?: Json;
+        };
+        Update: {
+          activated_at?: string | null;
+          capabilities?: Json;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          last_data_at?: string | null;
+          last_validated_at?: string | null;
+          provider?: string;
+          provider_connection_id?: string | null;
+          source_type?: string;
+          status?: string;
+          sync_mode?: string;
+          tenant_id?: string;
+          updated_at?: string;
+          validation_summary?: Json;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "customer_intelligence_sources_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "customer_intelligence_sources_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      customer_intelligence_summary_generations: {
+        Row: {
+          generation: number;
+          scope_key: string;
+          updated_at: string;
+        };
+        Insert: {
+          generation?: number;
+          scope_key: string;
+          updated_at?: string;
+        };
+        Update: {
+          generation?: number;
+          scope_key?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      customer_intelligence_verified_summaries: {
+        Row: {
+          fingerprint: string;
+          import_id: string;
+          tenant_id: string;
+          verified_at: string;
+        };
+        Insert: {
+          fingerprint: string;
+          import_id: string;
+          tenant_id: string;
+          verified_at?: string;
+        };
+        Update: {
+          fingerprint?: string;
+          import_id?: string;
+          tenant_id?: string;
+          verified_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "customer_intelligence_verified_summaries_import_id_fkey";
+            columns: ["import_id"];
+            isOneToOne: true;
+            referencedRelation: "customer_intelligence_imports";
             referencedColumns: ["id"];
           },
         ];
@@ -5574,6 +8185,13 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "customer_360_enriched";
             referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "customer_lifecycle_events_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
           },
           {
             foreignKeyName: "customer_lifecycle_events_tenant_id_fkey";
@@ -5743,6 +8361,13 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "customer_lifecycle_metrics_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: true;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
+          },
+          {
             foreignKeyName: "customer_lifecycle_metrics_tenant_id_fkey";
             columns: ["tenant_id"];
             isOneToOne: false;
@@ -5755,6 +8380,85 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "tenants";
             referencedColumns: ["id"];
+          },
+        ];
+      };
+      customer_location_activity: {
+        Row: {
+          customer_id: string;
+          first_purchase_at: string | null;
+          last_purchase_at: string | null;
+          location_id: string;
+          loyalty_points_earned: number;
+          tenant_id: string;
+          total_spend: number;
+          updated_at: string;
+          visit_count: number;
+        };
+        Insert: {
+          customer_id: string;
+          first_purchase_at?: string | null;
+          last_purchase_at?: string | null;
+          location_id: string;
+          loyalty_points_earned?: number;
+          tenant_id: string;
+          total_spend?: number;
+          updated_at?: string;
+          visit_count?: number;
+        };
+        Update: {
+          customer_id?: string;
+          first_purchase_at?: string | null;
+          last_purchase_at?: string | null;
+          location_id?: string;
+          loyalty_points_earned?: number;
+          tenant_id?: string;
+          total_spend?: number;
+          updated_at?: string;
+          visit_count?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "customer_location_activity_tenant_id_customer_id_fkey";
+            columns: ["tenant_id", "customer_id"];
+            isOneToOne: false;
+            referencedRelation: "crm_customers";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "customer_location_activity_tenant_id_customer_id_fkey";
+            columns: ["tenant_id", "customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_360_enriched";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "customer_location_activity_tenant_id_customer_id_fkey";
+            columns: ["tenant_id", "customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["tenant_id", "customer_id"];
+          },
+          {
+            foreignKeyName: "customer_location_activity_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "customer_location_activity_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "customer_location_activity_tenant_id_location_id_fkey";
+            columns: ["tenant_id", "location_id"];
+            isOneToOne: false;
+            referencedRelation: "tenant_locations";
+            referencedColumns: ["tenant_id", "id"];
           },
         ];
       };
@@ -5886,6 +8590,13 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "customer_loyalty_metrics_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: true;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
+          },
+          {
             foreignKeyName: "customer_loyalty_metrics_tenant_id_fkey";
             columns: ["tenant_id"];
             isOneToOne: false;
@@ -5940,6 +8651,13 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "customer_360_enriched";
             referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "customer_personas_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
           },
         ];
       };
@@ -6074,6 +8792,13 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "customer_post_purchase_metrics_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: true;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
+          },
+          {
             foreignKeyName: "customer_post_purchase_metrics_tenant_id_fkey";
             columns: ["tenant_id"];
             isOneToOne: false;
@@ -6082,6 +8807,137 @@ export type Database = {
           },
           {
             foreignKeyName: "customer_post_purchase_metrics_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      customer_purchase_line_items: {
+        Row: {
+          created_at: string;
+          currency: string;
+          customer_id: string | null;
+          department: string | null;
+          discount_amount: number;
+          external_customer_code: string | null;
+          external_line_id: string | null;
+          external_transaction_id: string | null;
+          gross_amount: number;
+          id: string;
+          import_id: string | null;
+          net_amount: number;
+          order_id: string | null;
+          product_code: string | null;
+          product_name: string | null;
+          purchased_at: string | null;
+          quantity: number;
+          raw_data: Json;
+          sales_category: string | null;
+          source: string;
+          source_fingerprint: string;
+          source_period_end: string | null;
+          source_period_start: string | null;
+          tenant_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          currency?: string;
+          customer_id?: string | null;
+          department?: string | null;
+          discount_amount?: number;
+          external_customer_code?: string | null;
+          external_line_id?: string | null;
+          external_transaction_id?: string | null;
+          gross_amount?: number;
+          id?: string;
+          import_id?: string | null;
+          net_amount?: number;
+          order_id?: string | null;
+          product_code?: string | null;
+          product_name?: string | null;
+          purchased_at?: string | null;
+          quantity?: number;
+          raw_data?: Json;
+          sales_category?: string | null;
+          source: string;
+          source_fingerprint: string;
+          source_period_end?: string | null;
+          source_period_start?: string | null;
+          tenant_id: string;
+        };
+        Update: {
+          created_at?: string;
+          currency?: string;
+          customer_id?: string | null;
+          department?: string | null;
+          discount_amount?: number;
+          external_customer_code?: string | null;
+          external_line_id?: string | null;
+          external_transaction_id?: string | null;
+          gross_amount?: number;
+          id?: string;
+          import_id?: string | null;
+          net_amount?: number;
+          order_id?: string | null;
+          product_code?: string | null;
+          product_name?: string | null;
+          purchased_at?: string | null;
+          quantity?: number;
+          raw_data?: Json;
+          sales_category?: string | null;
+          source?: string;
+          source_fingerprint?: string;
+          source_period_end?: string | null;
+          source_period_start?: string | null;
+          tenant_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "customer_purchase_line_items_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "crm_customers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "customer_purchase_line_items_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_360_enriched";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "customer_purchase_line_items_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
+          },
+          {
+            foreignKeyName: "customer_purchase_line_items_import_id_fkey";
+            columns: ["import_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_intelligence_imports";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "customer_purchase_line_items_order_id_fkey";
+            columns: ["order_id"];
+            isOneToOne: false;
+            referencedRelation: "pos_orders";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "customer_purchase_line_items_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "customer_purchase_line_items_tenant_id_fkey";
             columns: ["tenant_id"];
             isOneToOne: false;
             referencedRelation: "tenants";
@@ -6197,6 +9053,13 @@ export type Database = {
             isOneToOne: true;
             referencedRelation: "customer_360_enriched";
             referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "customer_purchase_metrics_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: true;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
           },
           {
             foreignKeyName: "customer_purchase_metrics_tenant_id_fkey";
@@ -6477,6 +9340,13 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "customer_risk_signals_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: true;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
+          },
+          {
             foreignKeyName: "customer_risk_signals_tenant_id_fkey";
             columns: ["tenant_id"];
             isOneToOne: false;
@@ -6531,6 +9401,13 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "customer_360_enriched";
             referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "fk_customer_segments_customer";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
           },
           {
             foreignKeyName: "fk_customer_segments_segment";
@@ -6630,6 +9507,13 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "customer_sms_metrics_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: true;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
+          },
+          {
             foreignKeyName: "customer_sms_metrics_tenant_id_fkey";
             columns: ["tenant_id"];
             isOneToOne: false;
@@ -6689,6 +9573,13 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "customer_sources_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
+          },
+          {
             foreignKeyName: "customer_sources_tenant_id_fkey";
             columns: ["tenant_id"];
             isOneToOne: false;
@@ -6736,6 +9627,13 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "customer_tags_contact_id_fkey";
+            columns: ["contact_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
+          },
+          {
             foreignKeyName: "customer_tags_tag_id_fkey";
             columns: ["tag_id"];
             isOneToOne: false;
@@ -6755,6 +9653,7 @@ export type Database = {
           metadata: Json | null;
           product_name: string | null;
           purchase_amount: number | null;
+          tenant_id: string;
           updated_at: string | null;
         };
         Insert: {
@@ -6767,6 +9666,7 @@ export type Database = {
           metadata?: Json | null;
           product_name?: string | null;
           purchase_amount?: number | null;
+          tenant_id: string;
           updated_at?: string | null;
         };
         Update: {
@@ -6779,9 +9679,46 @@ export type Database = {
           metadata?: Json | null;
           product_name?: string | null;
           purchase_amount?: number | null;
+          tenant_id?: string;
           updated_at?: string | null;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "customer_timeline_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "customer_timeline_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "fk_customer_timeline_customer";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "crm_customers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "fk_customer_timeline_customer";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_360_enriched";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "fk_customer_timeline_customer";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
+          },
+        ];
       };
       customer_timeline_events: {
         Row: {
@@ -6831,6 +9768,13 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "customer_360_enriched";
             referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "customer_timeline_events_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
           },
         ];
       };
@@ -7353,6 +10297,30 @@ export type Database = {
         };
         Relationships: [];
       };
+      edge_function_errors: {
+        Row: {
+          created_at: string | null;
+          error_message: string | null;
+          function_name: string;
+          id: string;
+          payload: Json | null;
+        };
+        Insert: {
+          created_at?: string | null;
+          error_message?: string | null;
+          function_name: string;
+          id?: string;
+          payload?: Json | null;
+        };
+        Update: {
+          created_at?: string | null;
+          error_message?: string | null;
+          function_name?: string;
+          id?: string;
+          payload?: Json | null;
+        };
+        Relationships: [];
+      };
       email_click_events: {
         Row: {
           clicked_at: string;
@@ -7398,6 +10366,13 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "customer_360_enriched";
             referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "email_click_events_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
           },
           {
             foreignKeyName: "email_click_events_tenant_id_fkey";
@@ -8296,9 +11271,11 @@ export type Database = {
           claim_token: string | null;
           claimed_at: string | null;
           claimed_by: string | null;
+          connected_content_sources: Json | null;
           created_at: string;
           customer_id: string;
           dead_lettered_at: string | null;
+          delivery_reconciliation_required: boolean;
           domain_id: string | null;
           email: string;
           error_message: string | null;
@@ -8320,9 +11297,11 @@ export type Database = {
           claim_token?: string | null;
           claimed_at?: string | null;
           claimed_by?: string | null;
+          connected_content_sources?: Json | null;
           created_at?: string;
           customer_id: string;
           dead_lettered_at?: string | null;
+          delivery_reconciliation_required?: boolean;
           domain_id?: string | null;
           email: string;
           error_message?: string | null;
@@ -8344,9 +11323,11 @@ export type Database = {
           claim_token?: string | null;
           claimed_at?: string | null;
           claimed_by?: string | null;
+          connected_content_sources?: Json | null;
           created_at?: string;
           customer_id?: string;
           dead_lettered_at?: string | null;
+          delivery_reconciliation_required?: boolean;
           domain_id?: string | null;
           email?: string;
           error_message?: string | null;
@@ -8385,6 +11366,13 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "email_messages_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
+          },
+          {
             foreignKeyName: "email_messages_retry_of_message_id_fkey";
             columns: ["retry_of_message_id"];
             isOneToOne: false;
@@ -8392,6 +11380,42 @@ export type Database = {
             referencedColumns: ["id"];
           },
         ];
+      };
+      email_queue_html: {
+        Row: {
+          created_at: string | null;
+          email_type: string;
+          from_address: string;
+          html: string;
+          id: string;
+          notion_page_id: string;
+          recipient_email: string;
+          reply_to: string;
+          subject: string;
+        };
+        Insert: {
+          created_at?: string | null;
+          email_type: string;
+          from_address?: string;
+          html: string;
+          id?: string;
+          notion_page_id: string;
+          recipient_email: string;
+          reply_to?: string;
+          subject: string;
+        };
+        Update: {
+          created_at?: string | null;
+          email_type?: string;
+          from_address?: string;
+          html?: string;
+          id?: string;
+          notion_page_id?: string;
+          recipient_email?: string;
+          reply_to?: string;
+          subject?: string;
+        };
+        Relationships: [];
       };
       email_send_jobs: {
         Row: {
@@ -8526,6 +11550,13 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "customer_360_enriched";
             referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "email_send_skips_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
           },
           {
             foreignKeyName: "email_send_skips_tenant_id_fkey";
@@ -8687,6 +11718,13 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "email_test_sends_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
+          },
+          {
             foreignKeyName: "email_test_sends_tenant_id_fkey";
             columns: ["tenant_id"];
             isOneToOne: false;
@@ -8767,6 +11805,13 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "customer_360_enriched";
             referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "email_tracked_links_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
           },
           {
             foreignKeyName: "email_tracked_links_tenant_id_fkey";
@@ -8886,6 +11931,13 @@ export type Database = {
             referencedRelation: "customer_360_enriched";
             referencedColumns: ["id"];
           },
+          {
+            foreignKeyName: "email_tracking_events_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
+          },
         ];
       };
       form_automation_executions: {
@@ -8994,6 +12046,13 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "form_automation_executions_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
+          },
+          {
             foreignKeyName: "form_automation_executions_tenant_id_fkey";
             columns: ["tenant_id"];
             isOneToOne: false;
@@ -9016,6 +12075,7 @@ export type Database = {
           id: string;
           ip_hash: string;
           tenant_id: string;
+          updated_at: string;
           window_start: string;
         };
         Insert: {
@@ -9024,6 +12084,7 @@ export type Database = {
           id?: string;
           ip_hash: string;
           tenant_id: string;
+          updated_at?: string;
           window_start?: string;
         };
         Update: {
@@ -9032,6 +12093,7 @@ export type Database = {
           id?: string;
           ip_hash?: string;
           tenant_id?: string;
+          updated_at?: string;
           window_start?: string;
         };
         Relationships: [
@@ -9109,6 +12171,13 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "customer_360_enriched";
             referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "form_submissions_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
           },
           {
             foreignKeyName: "form_submissions_form_id_fkey";
@@ -9268,7 +12337,6 @@ export type Database = {
           content_context: string | null;
           content_title: string | null;
           created_at: string;
-          created_by: string;
           dimensions: Json | null;
           file_size_bytes: number | null;
           first_used_at: string | null;
@@ -9281,18 +12349,15 @@ export type Database = {
           public_url: string;
           storage_bucket: string;
           storage_path: string;
-          tenant_id: string;
           total_usage_count: number | null;
           unique_tenant_count: number | null;
           updated_at: string;
-          usage_count: number;
         };
         Insert: {
           channel?: string | null;
           content_context?: string | null;
           content_title?: string | null;
           created_at?: string;
-          created_by: string;
           dimensions?: Json | null;
           file_size_bytes?: number | null;
           first_used_at?: string | null;
@@ -9305,18 +12370,15 @@ export type Database = {
           public_url: string;
           storage_bucket?: string;
           storage_path: string;
-          tenant_id: string;
           total_usage_count?: number | null;
           unique_tenant_count?: number | null;
           updated_at?: string;
-          usage_count?: number;
         };
         Update: {
           channel?: string | null;
           content_context?: string | null;
           content_title?: string | null;
           created_at?: string;
-          created_by?: string;
           dimensions?: Json | null;
           file_size_bytes?: number | null;
           first_used_at?: string | null;
@@ -9329,35 +12391,11 @@ export type Database = {
           public_url?: string;
           storage_bucket?: string;
           storage_path?: string;
-          tenant_id?: string;
           total_usage_count?: number | null;
           unique_tenant_count?: number | null;
           updated_at?: string;
-          usage_count?: number;
         };
-        Relationships: [
-          {
-            foreignKeyName: "global_image_gallery_created_by_fkey";
-            columns: ["created_by"];
-            isOneToOne: false;
-            referencedRelation: "users";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "global_image_gallery_tenant_id_fkey";
-            columns: ["tenant_id"];
-            isOneToOne: false;
-            referencedRelation: "admin_tenant_overview";
-            referencedColumns: ["tenant_id"];
-          },
-          {
-            foreignKeyName: "global_image_gallery_tenant_id_fkey";
-            columns: ["tenant_id"];
-            isOneToOne: false;
-            referencedRelation: "tenants";
-            referencedColumns: ["id"];
-          },
-        ];
+        Relationships: [];
       };
       global_image_tags: {
         Row: {
@@ -9448,6 +12486,30 @@ export type Database = {
           tenant_id?: string | null;
           updated_at?: string;
           user_id?: string;
+        };
+        Relationships: [];
+      };
+      health_scores: {
+        Row: {
+          breakdown: Json | null;
+          calculated_at: string | null;
+          id: string;
+          score: number;
+          status: string;
+        };
+        Insert: {
+          breakdown?: Json | null;
+          calculated_at?: string | null;
+          id?: string;
+          score: number;
+          status: string;
+        };
+        Update: {
+          breakdown?: Json | null;
+          calculated_at?: string | null;
+          id?: string;
+          score?: number;
+          status?: string;
         };
         Relationships: [];
       };
@@ -9689,6 +12751,516 @@ export type Database = {
         };
         Relationships: [];
       };
+      ideal_contact_refresh_audit: {
+        Row: {
+          actor_id: string;
+          after_value: string;
+          before_value: string;
+          committed_at: string;
+          customer_id: string;
+          field_name: string;
+          plan_id: string;
+          source_code: string;
+          source_sha256: string;
+          tenant_id: string;
+        };
+        Insert: {
+          actor_id: string;
+          after_value: string;
+          before_value: string;
+          committed_at?: string;
+          customer_id: string;
+          field_name: string;
+          plan_id: string;
+          source_code: string;
+          source_sha256: string;
+          tenant_id: string;
+        };
+        Update: {
+          actor_id?: string;
+          after_value?: string;
+          before_value?: string;
+          committed_at?: string;
+          customer_id?: string;
+          field_name?: string;
+          plan_id?: string;
+          source_code?: string;
+          source_sha256?: string;
+          tenant_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "ideal_contact_refresh_audit_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "crm_customers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "ideal_contact_refresh_audit_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_360_enriched";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "ideal_contact_refresh_audit_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
+          },
+          {
+            foreignKeyName: "ideal_contact_refresh_audit_plan_id_fkey";
+            columns: ["plan_id"];
+            isOneToOne: false;
+            referencedRelation: "ideal_contact_refresh_plans";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      ideal_contact_refresh_plans: {
+        Row: {
+          actor_id: string;
+          applied_at: string | null;
+          created_at: string;
+          expires_at: string;
+          id: string;
+          payload: Json;
+          plan_digest: string;
+          source_sha256: string;
+          status: string;
+          tenant_id: string;
+        };
+        Insert: {
+          actor_id: string;
+          applied_at?: string | null;
+          created_at?: string;
+          expires_at?: string;
+          id?: string;
+          payload: Json;
+          plan_digest: string;
+          source_sha256: string;
+          status?: string;
+          tenant_id: string;
+        };
+        Update: {
+          actor_id?: string;
+          applied_at?: string | null;
+          created_at?: string;
+          expires_at?: string;
+          id?: string;
+          payload?: Json;
+          plan_digest?: string;
+          source_sha256?: string;
+          status?: string;
+          tenant_id?: string;
+        };
+        Relationships: [];
+      };
+      ideal_customer_code_map: {
+        Row: {
+          built_at: string;
+          customer_id: string;
+          external_id: string;
+          matches: number;
+          tenant_id: string;
+        };
+        Insert: {
+          built_at?: string;
+          customer_id: string;
+          external_id: string;
+          matches: number;
+          tenant_id: string;
+        };
+        Update: {
+          built_at?: string;
+          customer_id?: string;
+          external_id?: string;
+          matches?: number;
+          tenant_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "ideal_customer_code_map_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "ideal_customer_code_map_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      ideal_journal_progress: {
+        Row: {
+          batch_id: string;
+          done_at: string;
+          result: Json | null;
+          unit: string;
+        };
+        Insert: {
+          batch_id: string;
+          done_at?: string;
+          result?: Json | null;
+          unit: string;
+        };
+        Update: {
+          batch_id?: string;
+          done_at?: string;
+          result?: Json | null;
+          unit?: string;
+        };
+        Relationships: [];
+      };
+      ideal_journal_staging: {
+        Row: {
+          batch_id: string;
+          created_at: string;
+          created_by: string;
+          payload: string;
+          payload_sha256: string;
+          seq: number;
+          tenant_id: string;
+        };
+        Insert: {
+          batch_id: string;
+          created_at?: string;
+          created_by: string;
+          payload: string;
+          payload_sha256: string;
+          seq: number;
+          tenant_id: string;
+        };
+        Update: {
+          batch_id?: string;
+          created_at?: string;
+          created_by?: string;
+          payload?: string;
+          payload_sha256?: string;
+          seq?: number;
+          tenant_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "ideal_journal_staging_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "ideal_journal_staging_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      ideal_manual_master_audit: {
+        Row: {
+          batch_index: number;
+          committed_at: string;
+          customer_id: string;
+          fingerprint: string;
+          job_id: string;
+          payload: Json;
+          tenant_id: string;
+        };
+        Insert: {
+          batch_index: number;
+          committed_at?: string;
+          customer_id: string;
+          fingerprint: string;
+          job_id: string;
+          payload: Json;
+          tenant_id: string;
+        };
+        Update: {
+          batch_index?: number;
+          committed_at?: string;
+          customer_id?: string;
+          fingerprint?: string;
+          job_id?: string;
+          payload?: Json;
+          tenant_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "ideal_manual_master_audit_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "crm_customers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "ideal_manual_master_audit_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_360_enriched";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "ideal_manual_master_audit_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
+          },
+          {
+            foreignKeyName: "ideal_manual_master_audit_tenant_id_job_id_batch_index_fkey";
+            columns: ["tenant_id", "job_id", "batch_index"];
+            isOneToOne: false;
+            referencedRelation: "ideal_manual_sync_batches";
+            referencedColumns: ["tenant_id", "job_id", "batch_index"];
+          },
+        ];
+      };
+      ideal_manual_sync_batches: {
+        Row: {
+          batch_index: number;
+          job_id: string;
+          payload: Json;
+          payload_sha256: string;
+          tenant_id: string;
+        };
+        Insert: {
+          batch_index: number;
+          job_id: string;
+          payload: Json;
+          payload_sha256: string;
+          tenant_id: string;
+        };
+        Update: {
+          batch_index?: number;
+          job_id?: string;
+          payload?: Json;
+          payload_sha256?: string;
+          tenant_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "ideal_manual_sync_batches_tenant_id_job_id_fkey";
+            columns: ["tenant_id", "job_id"];
+            isOneToOne: false;
+            referencedRelation: "ideal_manual_sync_jobs";
+            referencedColumns: ["tenant_id", "id"];
+          },
+        ];
+      };
+      ideal_manual_sync_jobs: {
+        Row: {
+          approval_sha256: string | null;
+          approved_at: string | null;
+          approved_by: string | null;
+          batch_count: number;
+          committed_batches: number;
+          created_at: string;
+          created_by: string;
+          encoding: string;
+          id: string;
+          identity_sha256: string | null;
+          import_id: string | null;
+          last_error: string | null;
+          lease_generation: number;
+          lease_token: string | null;
+          lease_until: string | null;
+          manifest_sha256: string | null;
+          plan_scope: Json | null;
+          plan_sha256: string | null;
+          report_family: string;
+          review_summary: Json | null;
+          source_bytes: number;
+          source_filename: string;
+          source_path: string;
+          source_sha256: string;
+          status: string;
+          tenant_id: string;
+          updated_at: string;
+        };
+        Insert: {
+          approval_sha256?: string | null;
+          approved_at?: string | null;
+          approved_by?: string | null;
+          batch_count?: number;
+          committed_batches?: number;
+          created_at?: string;
+          created_by: string;
+          encoding: string;
+          id?: string;
+          identity_sha256?: string | null;
+          import_id?: string | null;
+          last_error?: string | null;
+          lease_generation?: number;
+          lease_token?: string | null;
+          lease_until?: string | null;
+          manifest_sha256?: string | null;
+          plan_scope?: Json | null;
+          plan_sha256?: string | null;
+          report_family: string;
+          review_summary?: Json | null;
+          source_bytes: number;
+          source_filename: string;
+          source_path: string;
+          source_sha256: string;
+          status?: string;
+          tenant_id: string;
+          updated_at?: string;
+        };
+        Update: {
+          approval_sha256?: string | null;
+          approved_at?: string | null;
+          approved_by?: string | null;
+          batch_count?: number;
+          committed_batches?: number;
+          created_at?: string;
+          created_by?: string;
+          encoding?: string;
+          id?: string;
+          identity_sha256?: string | null;
+          import_id?: string | null;
+          last_error?: string | null;
+          lease_generation?: number;
+          lease_token?: string | null;
+          lease_until?: string | null;
+          manifest_sha256?: string | null;
+          plan_scope?: Json | null;
+          plan_sha256?: string | null;
+          report_family?: string;
+          review_summary?: Json | null;
+          source_bytes?: number;
+          source_filename?: string;
+          source_path?: string;
+          source_sha256?: string;
+          status?: string;
+          tenant_id?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "ideal_manual_sync_jobs_import_id_fkey";
+            columns: ["import_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_intelligence_imports";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "ideal_manual_sync_jobs_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "ideal_manual_sync_jobs_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      ideal_manual_sync_receipts: {
+        Row: {
+          batch_index: number;
+          committed_at: string;
+          job_id: string;
+          payload_sha256: string;
+          tenant_id: string;
+        };
+        Insert: {
+          batch_index: number;
+          committed_at?: string;
+          job_id: string;
+          payload_sha256: string;
+          tenant_id: string;
+        };
+        Update: {
+          batch_index?: number;
+          committed_at?: string;
+          job_id?: string;
+          payload_sha256?: string;
+          tenant_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "ideal_manual_sync_receipts_tenant_id_job_id_batch_index_fkey";
+            columns: ["tenant_id", "job_id", "batch_index"];
+            isOneToOne: true;
+            referencedRelation: "ideal_manual_sync_batches";
+            referencedColumns: ["tenant_id", "job_id", "batch_index"];
+          },
+        ];
+      };
+      ideal_product_department_map: {
+        Row: {
+          built_at: string;
+          department: string;
+          product_code: string;
+          tenant_id: string;
+        };
+        Insert: {
+          built_at?: string;
+          department: string;
+          product_code: string;
+          tenant_id: string;
+        };
+        Update: {
+          built_at?: string;
+          department?: string;
+          product_code?: string;
+          tenant_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "ideal_product_department_map_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "ideal_product_department_map_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      idempotency_log: {
+        Row: {
+          created_at: string | null;
+          expires_at: string | null;
+          function_name: string;
+          id: string;
+          idempotency_key: string;
+          result: Json | null;
+        };
+        Insert: {
+          created_at?: string | null;
+          expires_at?: string | null;
+          function_name: string;
+          id?: string;
+          idempotency_key: string;
+          result?: Json | null;
+        };
+        Update: {
+          created_at?: string | null;
+          expires_at?: string | null;
+          function_name?: string;
+          id?: string;
+          idempotency_key?: string;
+          result?: Json | null;
+        };
+        Relationships: [];
+      };
       image_assets: {
         Row: {
           alt_text: string | null;
@@ -9835,7 +13407,6 @@ export type Database = {
         Row: {
           block_id: string | null;
           campaign_id: string | null;
-          content_id: string | null;
           created_at: string;
           first_used_at: string | null;
           id: string;
@@ -9844,13 +13415,12 @@ export type Database = {
           tenant_id: string;
           updated_at: string;
           usage_count: number | null;
-          usage_context: string | null;
+          used_in_context: string | null;
           user_id: string;
         };
         Insert: {
           block_id?: string | null;
           campaign_id?: string | null;
-          content_id?: string | null;
           created_at?: string;
           first_used_at?: string | null;
           id?: string;
@@ -9859,13 +13429,12 @@ export type Database = {
           tenant_id: string;
           updated_at?: string;
           usage_count?: number | null;
-          usage_context?: string | null;
+          used_in_context?: string | null;
           user_id: string;
         };
         Update: {
           block_id?: string | null;
           campaign_id?: string | null;
-          content_id?: string | null;
           created_at?: string;
           first_used_at?: string | null;
           id?: string;
@@ -9874,7 +13443,7 @@ export type Database = {
           tenant_id?: string;
           updated_at?: string;
           usage_count?: number | null;
-          usage_context?: string | null;
+          used_in_context?: string | null;
           user_id?: string;
         };
         Relationships: [
@@ -9890,13 +13459,6 @@ export type Database = {
             columns: ["campaign_id"];
             isOneToOne: false;
             referencedRelation: "crm_campaigns";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "image_tenant_usage_content_id_fkey";
-            columns: ["content_id"];
-            isOneToOne: false;
-            referencedRelation: "content_tasks";
             referencedColumns: ["id"];
           },
           {
@@ -10147,6 +13709,13 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "incentive_tracking_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
+          },
+          {
             foreignKeyName: "incentive_tracking_tenant_id_fkey";
             columns: ["tenant_id"];
             isOneToOne: false;
@@ -10204,6 +13773,13 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "tenants";
             referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "integration_interest_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["primary_contact_user_id"];
           },
           {
             foreignKeyName: "integration_interest_user_id_fkey";
@@ -10459,6 +14035,13 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "lightspeed_customers_contact_id_fkey";
+            columns: ["contact_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
+          },
+          {
             foreignKeyName: "lightspeed_customers_tenant_id_fkey";
             columns: ["tenant_id"];
             isOneToOne: false;
@@ -10476,6 +14059,7 @@ export type Database = {
       };
       lightspeed_products: {
         Row: {
+          brand: string | null;
           category: string | null;
           created_at: string | null;
           description: string | null;
@@ -10484,14 +14068,18 @@ export type Database = {
           lightspeed_product_id: string;
           name: string;
           price: number | null;
+          product_type: string | null;
           raw_data: Json | null;
           sku: string | null;
+          stock_count: number | null;
+          supply_price: number | null;
           synced_at: string | null;
           tags: Json | null;
           tenant_id: string;
           updated_at: string | null;
         };
         Insert: {
+          brand?: string | null;
           category?: string | null;
           created_at?: string | null;
           description?: string | null;
@@ -10500,14 +14088,18 @@ export type Database = {
           lightspeed_product_id: string;
           name: string;
           price?: number | null;
+          product_type?: string | null;
           raw_data?: Json | null;
           sku?: string | null;
+          stock_count?: number | null;
+          supply_price?: number | null;
           synced_at?: string | null;
           tags?: Json | null;
           tenant_id: string;
           updated_at?: string | null;
         };
         Update: {
+          brand?: string | null;
           category?: string | null;
           created_at?: string | null;
           description?: string | null;
@@ -10516,8 +14108,11 @@ export type Database = {
           lightspeed_product_id?: string;
           name?: string;
           price?: number | null;
+          product_type?: string | null;
           raw_data?: Json | null;
           sku?: string | null;
+          stock_count?: number | null;
+          supply_price?: number | null;
           synced_at?: string | null;
           tags?: Json | null;
           tenant_id?: string;
@@ -10605,6 +14200,13 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "lightspeed_sales_contact_id_fkey";
+            columns: ["contact_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
+          },
+          {
             foreignKeyName: "lightspeed_sales_tenant_id_fkey";
             columns: ["tenant_id"];
             isOneToOne: false;
@@ -10613,6 +14215,635 @@ export type Database = {
           },
           {
             foreignKeyName: "lightspeed_sales_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      lightspeed_storefront_grants: {
+        Row: {
+          code_hash: string | null;
+          created_at: string;
+          currency: string | null;
+          edition: string;
+          expires_at: string;
+          id: string;
+          lease_expires_at: string | null;
+          lease_id: string | null;
+          prefix: string;
+          public_key: Json;
+          receipt_ciphertext: string | null;
+          receipt_hash: string | null;
+          retailer_id: string | null;
+          site_id: string;
+          state_hash: string;
+          status: string;
+          token_ciphertext: string | null;
+          token_expires_at: string | null;
+          updated_at: string;
+          version: number;
+        };
+        Insert: {
+          code_hash?: string | null;
+          created_at?: string;
+          currency?: string | null;
+          edition?: string;
+          expires_at: string;
+          id?: string;
+          lease_expires_at?: string | null;
+          lease_id?: string | null;
+          prefix: string;
+          public_key: Json;
+          receipt_ciphertext?: string | null;
+          receipt_hash?: string | null;
+          retailer_id?: string | null;
+          site_id: string;
+          state_hash: string;
+          status?: string;
+          token_ciphertext?: string | null;
+          token_expires_at?: string | null;
+          updated_at?: string;
+          version?: number;
+        };
+        Update: {
+          code_hash?: string | null;
+          created_at?: string;
+          currency?: string | null;
+          edition?: string;
+          expires_at?: string;
+          id?: string;
+          lease_expires_at?: string | null;
+          lease_id?: string | null;
+          prefix?: string;
+          public_key?: Json;
+          receipt_ciphertext?: string | null;
+          receipt_hash?: string | null;
+          retailer_id?: string | null;
+          site_id?: string;
+          state_hash?: string;
+          status?: string;
+          token_ciphertext?: string | null;
+          token_expires_at?: string | null;
+          updated_at?: string;
+          version?: number;
+        };
+        Relationships: [];
+      };
+      lightspeed_storefront_nonces: {
+        Row: {
+          grant_id: string;
+          nonce_hash: string;
+          valid_until: string;
+        };
+        Insert: {
+          grant_id: string;
+          nonce_hash: string;
+          valid_until: string;
+        };
+        Update: {
+          grant_id?: string;
+          nonce_hash?: string;
+          valid_until?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "lightspeed_storefront_nonces_grant_id_fkey";
+            columns: ["grant_id"];
+            isOneToOne: false;
+            referencedRelation: "lightspeed_storefront_grants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      lightspeed_storefront_sale_exports: {
+        Row: {
+          attempted_at: string;
+          finished_at: string | null;
+          grant_id: string;
+          provider_sale_id: string | null;
+          site_id: string;
+          source_order_id: string;
+          status: string;
+        };
+        Insert: {
+          attempted_at?: string;
+          finished_at?: string | null;
+          grant_id: string;
+          provider_sale_id?: string | null;
+          site_id: string;
+          source_order_id: string;
+          status?: string;
+        };
+        Update: {
+          attempted_at?: string;
+          finished_at?: string | null;
+          grant_id?: string;
+          provider_sale_id?: string | null;
+          site_id?: string;
+          source_order_id?: string;
+          status?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "lightspeed_storefront_sale_exports_grant_id_fkey";
+            columns: ["grant_id"];
+            isOneToOne: false;
+            referencedRelation: "lightspeed_storefront_grants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      loyalty_automation_event_runs: {
+        Row: {
+          automation_id: string;
+          created_at: string;
+          customer_id: string;
+          event_id: string;
+          run_id: string;
+          tenant_id: string;
+          workflow_snapshot: Json;
+        };
+        Insert: {
+          automation_id: string;
+          created_at?: string;
+          customer_id: string;
+          event_id: string;
+          run_id: string;
+          tenant_id: string;
+          workflow_snapshot: Json;
+        };
+        Update: {
+          automation_id?: string;
+          created_at?: string;
+          customer_id?: string;
+          event_id?: string;
+          run_id?: string;
+          tenant_id?: string;
+          workflow_snapshot?: Json;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "loyalty_automation_event_runs_automation_id_fkey";
+            columns: ["automation_id"];
+            isOneToOne: false;
+            referencedRelation: "crm_automations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "loyalty_automation_event_runs_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "crm_customers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "loyalty_automation_event_runs_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_360_enriched";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "loyalty_automation_event_runs_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
+          },
+          {
+            foreignKeyName: "loyalty_automation_event_runs_event_id_fkey";
+            columns: ["event_id"];
+            isOneToOne: true;
+            referencedRelation: "automation_trigger_events";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "loyalty_automation_event_runs_run_id_fkey";
+            columns: ["run_id"];
+            isOneToOne: true;
+            referencedRelation: "automation_runs";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "loyalty_automation_event_runs_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "loyalty_automation_event_runs_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      loyalty_operation_previews: {
+        Row: {
+          created_at: string;
+          digest: string;
+          expires_at: string;
+          id: string;
+          kind: string;
+          payload: Json;
+          programme_version_id: string | null;
+          tenant_id: string;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          digest: string;
+          expires_at?: string;
+          id?: string;
+          kind: string;
+          payload: Json;
+          programme_version_id?: string | null;
+          tenant_id: string;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          digest?: string;
+          expires_at?: string;
+          id?: string;
+          kind?: string;
+          payload?: Json;
+          programme_version_id?: string | null;
+          tenant_id?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "loyalty_operation_previews_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "loyalty_operation_previews_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "loyalty_operation_previews_tenant_id_programme_version_id_fkey";
+            columns: ["tenant_id", "programme_version_id"];
+            isOneToOne: false;
+            referencedRelation: "loyalty_programme_versions";
+            referencedColumns: ["tenant_id", "id"];
+          },
+        ];
+      };
+      loyalty_points_transactions: {
+        Row: {
+          created_at: string | null;
+          customer_id: string;
+          description: string | null;
+          external_transaction_id: string | null;
+          id: string;
+          order_id: string | null;
+          order_total: number | null;
+          points_amount: number;
+          points_balance_after: number | null;
+          redemption_value: number | null;
+          source_id: string | null;
+          source_type: string;
+          tenant_id: string;
+          transaction_type: string;
+        };
+        Insert: {
+          created_at?: string | null;
+          customer_id: string;
+          description?: string | null;
+          external_transaction_id?: string | null;
+          id?: string;
+          order_id?: string | null;
+          order_total?: number | null;
+          points_amount: number;
+          points_balance_after?: number | null;
+          redemption_value?: number | null;
+          source_id?: string | null;
+          source_type: string;
+          tenant_id: string;
+          transaction_type: string;
+        };
+        Update: {
+          created_at?: string | null;
+          customer_id?: string;
+          description?: string | null;
+          external_transaction_id?: string | null;
+          id?: string;
+          order_id?: string | null;
+          order_total?: number | null;
+          points_amount?: number;
+          points_balance_after?: number | null;
+          redemption_value?: number | null;
+          source_id?: string | null;
+          source_type?: string;
+          tenant_id?: string;
+          transaction_type?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "loyalty_points_transactions_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "crm_customers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "loyalty_points_transactions_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_360_enriched";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "loyalty_points_transactions_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
+          },
+          {
+            foreignKeyName: "loyalty_points_transactions_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "loyalty_points_transactions_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      loyalty_programme_baselines: {
+        Row: {
+          audience: Json;
+          created_at: string;
+          created_by: string;
+          id: string;
+          preview_id: string;
+          programme_id: string;
+          programme_version_id: string;
+          snapshot: Json;
+          source_cutoff: string;
+          tenant_id: string;
+        };
+        Insert: {
+          audience: Json;
+          created_at?: string;
+          created_by: string;
+          id?: string;
+          preview_id: string;
+          programme_id: string;
+          programme_version_id: string;
+          snapshot: Json;
+          source_cutoff: string;
+          tenant_id: string;
+        };
+        Update: {
+          audience?: Json;
+          created_at?: string;
+          created_by?: string;
+          id?: string;
+          preview_id?: string;
+          programme_id?: string;
+          programme_version_id?: string;
+          snapshot?: Json;
+          source_cutoff?: string;
+          tenant_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "loyalty_programme_baselines_tenant_id_preview_id_fkey";
+            columns: ["tenant_id", "preview_id"];
+            isOneToOne: false;
+            referencedRelation: "loyalty_operation_previews";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "loyalty_programme_baselines_tenant_id_programme_id_fkey";
+            columns: ["tenant_id", "programme_id"];
+            isOneToOne: false;
+            referencedRelation: "loyalty_programmes";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "loyalty_programme_baselines_tenant_id_programme_version_id_fkey";
+            columns: ["tenant_id", "programme_version_id"];
+            isOneToOne: false;
+            referencedRelation: "loyalty_programme_versions";
+            referencedColumns: ["tenant_id", "id"];
+          },
+        ];
+      };
+      loyalty_programme_publications: {
+        Row: {
+          baseline_id: string;
+          created_at: string;
+          created_by: string;
+          id: string;
+          payload: Json;
+          programme_version_id: string;
+          request_key: string;
+          response: Json | null;
+          status: string;
+          target: string;
+          tenant_id: string;
+          updated_at: string;
+        };
+        Insert: {
+          baseline_id: string;
+          created_at?: string;
+          created_by: string;
+          id?: string;
+          payload: Json;
+          programme_version_id: string;
+          request_key: string;
+          response?: Json | null;
+          status?: string;
+          target: string;
+          tenant_id: string;
+          updated_at?: string;
+        };
+        Update: {
+          baseline_id?: string;
+          created_at?: string;
+          created_by?: string;
+          id?: string;
+          payload?: Json;
+          programme_version_id?: string;
+          request_key?: string;
+          response?: Json | null;
+          status?: string;
+          target?: string;
+          tenant_id?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "loyalty_programme_publication_tenant_id_programme_version__fkey";
+            columns: ["tenant_id", "programme_version_id"];
+            isOneToOne: false;
+            referencedRelation: "loyalty_programme_versions";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "loyalty_programme_publications_tenant_id_baseline_id_fkey";
+            columns: ["tenant_id", "baseline_id"];
+            isOneToOne: false;
+            referencedRelation: "loyalty_programme_baselines";
+            referencedColumns: ["tenant_id", "id"];
+          },
+        ];
+      };
+      loyalty_programme_runs: {
+        Row: {
+          baseline_id: string;
+          campaign_id: string | null;
+          created_at: string;
+          created_by: string;
+          id: string;
+          period_snapshot: Json;
+          request_key: string;
+          result: Json;
+          tenant_id: string;
+        };
+        Insert: {
+          baseline_id: string;
+          campaign_id?: string | null;
+          created_at?: string;
+          created_by: string;
+          id?: string;
+          period_snapshot: Json;
+          request_key: string;
+          result: Json;
+          tenant_id: string;
+        };
+        Update: {
+          baseline_id?: string;
+          campaign_id?: string | null;
+          created_at?: string;
+          created_by?: string;
+          id?: string;
+          period_snapshot?: Json;
+          request_key?: string;
+          result?: Json;
+          tenant_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "loyalty_programme_runs_tenant_id_baseline_id_fkey";
+            columns: ["tenant_id", "baseline_id"];
+            isOneToOne: false;
+            referencedRelation: "loyalty_programme_baselines";
+            referencedColumns: ["tenant_id", "id"];
+          },
+        ];
+      };
+      loyalty_programme_versions: {
+        Row: {
+          created_at: string;
+          created_by: string;
+          definition: Json;
+          definition_hash: string;
+          id: string;
+          programme_id: string;
+          request_key: string;
+          tenant_id: string;
+          version_number: number;
+        };
+        Insert: {
+          created_at?: string;
+          created_by: string;
+          definition: Json;
+          definition_hash: string;
+          id?: string;
+          programme_id: string;
+          request_key: string;
+          tenant_id: string;
+          version_number: number;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string;
+          definition?: Json;
+          definition_hash?: string;
+          id?: string;
+          programme_id?: string;
+          request_key?: string;
+          tenant_id?: string;
+          version_number?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "loyalty_programme_versions_tenant_id_programme_id_fkey";
+            columns: ["tenant_id", "programme_id"];
+            isOneToOne: false;
+            referencedRelation: "loyalty_programmes";
+            referencedColumns: ["tenant_id", "id"];
+          },
+        ];
+      };
+      loyalty_programmes: {
+        Row: {
+          created_at: string;
+          created_by: string;
+          current_version_id: string | null;
+          id: string;
+          name: string;
+          status: string;
+          tenant_id: string;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          created_by: string;
+          current_version_id?: string | null;
+          id?: string;
+          name: string;
+          status?: string;
+          tenant_id: string;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string;
+          current_version_id?: string | null;
+          id?: string;
+          name?: string;
+          status?: string;
+          tenant_id?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "loyalty_programme_current_version";
+            columns: ["tenant_id", "id", "current_version_id"];
+            isOneToOne: false;
+            referencedRelation: "loyalty_programme_versions";
+            referencedColumns: ["tenant_id", "programme_id", "id"];
+          },
+          {
+            foreignKeyName: "loyalty_programmes_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "loyalty_programmes_tenant_id_fkey";
             columns: ["tenant_id"];
             isOneToOne: false;
             referencedRelation: "tenants";
@@ -10691,6 +14922,13 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "loyalty_provider_accounts_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
+          },
+          {
             foreignKeyName: "loyalty_provider_accounts_tenant_id_fkey";
             columns: ["tenant_id"];
             isOneToOne: false;
@@ -10706,79 +14944,81 @@ export type Database = {
           },
         ];
       };
-      loyalty_points_transactions: {
+      loyalty_provider_balance_snapshots: {
         Row: {
-          created_at: string | null;
+          account_id: string;
+          balance: number;
+          balance_unit: string;
+          created_at: string;
+          currency: string | null;
           customer_id: string;
-          description: string | null;
-          external_transaction_id: string | null;
           id: string;
-          order_id: string | null;
-          order_total: number | null;
-          points_amount: number;
-          points_balance_after: number | null;
-          redemption_value: number | null;
-          source_id: string | null;
-          source_type: string;
+          lifetime_value: number;
+          observed_at: string;
           tenant_id: string;
-          transaction_type: string;
         };
         Insert: {
-          created_at?: string | null;
+          account_id: string;
+          balance: number;
+          balance_unit: string;
+          created_at?: string;
+          currency?: string | null;
           customer_id: string;
-          description?: string | null;
-          external_transaction_id?: string | null;
           id?: string;
-          order_id?: string | null;
-          order_total?: number | null;
-          points_amount: number;
-          points_balance_after?: number | null;
-          redemption_value?: number | null;
-          source_id?: string | null;
-          source_type: string;
+          lifetime_value: number;
+          observed_at: string;
           tenant_id: string;
-          transaction_type: string;
         };
         Update: {
-          created_at?: string | null;
+          account_id?: string;
+          balance?: number;
+          balance_unit?: string;
+          created_at?: string;
+          currency?: string | null;
           customer_id?: string;
-          description?: string | null;
-          external_transaction_id?: string | null;
           id?: string;
-          order_id?: string | null;
-          order_total?: number | null;
-          points_amount?: number;
-          points_balance_after?: number | null;
-          redemption_value?: number | null;
-          source_id?: string | null;
-          source_type?: string;
+          lifetime_value?: number;
+          observed_at?: string;
           tenant_id?: string;
-          transaction_type?: string;
         };
         Relationships: [
           {
-            foreignKeyName: "loyalty_points_transactions_customer_id_fkey";
+            foreignKeyName: "loyalty_provider_balance_snapshots_account_id_fkey";
+            columns: ["account_id"];
+            isOneToOne: false;
+            referencedRelation: "loyalty_provider_accounts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "loyalty_provider_balance_snapshots_customer_id_fkey";
             columns: ["customer_id"];
             isOneToOne: false;
             referencedRelation: "crm_customers";
             referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "loyalty_points_transactions_customer_id_fkey";
+            foreignKeyName: "loyalty_provider_balance_snapshots_customer_id_fkey";
             columns: ["customer_id"];
             isOneToOne: false;
             referencedRelation: "customer_360_enriched";
             referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "loyalty_points_transactions_tenant_id_fkey";
+            foreignKeyName: "loyalty_provider_balance_snapshots_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
+          },
+          {
+            foreignKeyName: "loyalty_provider_balance_snapshots_tenant_id_fkey";
             columns: ["tenant_id"];
             isOneToOne: false;
             referencedRelation: "admin_tenant_overview";
             referencedColumns: ["tenant_id"];
           },
           {
-            foreignKeyName: "loyalty_points_transactions_tenant_id_fkey";
+            foreignKeyName: "loyalty_provider_balance_snapshots_tenant_id_fkey";
             columns: ["tenant_id"];
             isOneToOne: false;
             referencedRelation: "tenants";
@@ -11053,6 +15293,13 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "negative_behavior_events_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
+          },
+          {
             foreignKeyName: "negative_behavior_events_tenant_id_fkey";
             columns: ["tenant_id"];
             isOneToOne: false;
@@ -11061,6 +15308,45 @@ export type Database = {
           },
           {
             foreignKeyName: "negative_behavior_events_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      newsletter_storefront_connections: {
+        Row: {
+          created_at: string;
+          origin: string;
+          owner_id: string;
+          site_id: string;
+          tenant_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          origin: string;
+          owner_id: string;
+          site_id: string;
+          tenant_id: string;
+        };
+        Update: {
+          created_at?: string;
+          origin?: string;
+          owner_id?: string;
+          site_id?: string;
+          tenant_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "newsletter_storefront_connections_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "newsletter_storefront_connections_tenant_id_fkey";
             columns: ["tenant_id"];
             isOneToOne: false;
             referencedRelation: "tenants";
@@ -11338,6 +15624,13 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "perks_enrollment_events_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
+          },
+          {
             foreignKeyName: "perks_enrollment_events_tenant_id_fkey";
             columns: ["tenant_id"];
             isOneToOne: false;
@@ -11475,6 +15768,13 @@ export type Database = {
       };
       pos_connections: {
         Row: {
+          backfill_completed_at: string | null;
+          backfill_current_page: number | null;
+          backfill_end_date: string | null;
+          backfill_mode: boolean;
+          backfill_receipts_processed: number | null;
+          backfill_start_date: string | null;
+          backfill_started_at: string | null;
           created_at: string;
           credentials_encrypted: string | null;
           id: string;
@@ -11490,6 +15790,13 @@ export type Database = {
           user_id: string;
         };
         Insert: {
+          backfill_completed_at?: string | null;
+          backfill_current_page?: number | null;
+          backfill_end_date?: string | null;
+          backfill_mode?: boolean;
+          backfill_receipts_processed?: number | null;
+          backfill_start_date?: string | null;
+          backfill_started_at?: string | null;
           created_at?: string;
           credentials_encrypted?: string | null;
           id?: string;
@@ -11505,6 +15812,13 @@ export type Database = {
           user_id: string;
         };
         Update: {
+          backfill_completed_at?: string | null;
+          backfill_current_page?: number | null;
+          backfill_end_date?: string | null;
+          backfill_mode?: boolean;
+          backfill_receipts_processed?: number | null;
+          backfill_start_date?: string | null;
+          backfill_started_at?: string | null;
           created_at?: string;
           credentials_encrypted?: string | null;
           id?: string;
@@ -11577,70 +15891,257 @@ export type Database = {
       pos_orders: {
         Row: {
           created_at: string;
+          crm_customer_id: string | null;
           currency: string | null;
+          customer_resolution_reason: string | null;
+          customer_resolution_status: string | null;
           external_customer_id: string | null;
           external_id: string;
+          external_location_id: string | null;
           fulfillment_state: string | null;
           fulfillment_type: string | null;
           id: string;
           items: Json;
+          location_id: string | null;
           order_date: string;
           pos_connection_id: string;
           pos_customer_id: string | null;
+          provider: string | null;
           raw_data: Json | null;
           refund_amount: number | null;
           refund_reason: string | null;
           refunded_at: string | null;
           status: string | null;
+          tenant_id: string | null;
           total_amount: number | null;
           updated_at: string;
         };
         Insert: {
           created_at?: string;
+          crm_customer_id?: string | null;
           currency?: string | null;
+          customer_resolution_reason?: string | null;
+          customer_resolution_status?: string | null;
           external_customer_id?: string | null;
           external_id: string;
+          external_location_id?: string | null;
           fulfillment_state?: string | null;
           fulfillment_type?: string | null;
           id?: string;
           items?: Json;
+          location_id?: string | null;
           order_date: string;
           pos_connection_id: string;
           pos_customer_id?: string | null;
+          provider?: string | null;
           raw_data?: Json | null;
           refund_amount?: number | null;
           refund_reason?: string | null;
           refunded_at?: string | null;
           status?: string | null;
+          tenant_id?: string | null;
           total_amount?: number | null;
           updated_at?: string;
         };
         Update: {
           created_at?: string;
+          crm_customer_id?: string | null;
           currency?: string | null;
+          customer_resolution_reason?: string | null;
+          customer_resolution_status?: string | null;
           external_customer_id?: string | null;
           external_id?: string;
+          external_location_id?: string | null;
           fulfillment_state?: string | null;
           fulfillment_type?: string | null;
           id?: string;
           items?: Json;
+          location_id?: string | null;
           order_date?: string;
           pos_connection_id?: string;
           pos_customer_id?: string | null;
+          provider?: string | null;
           raw_data?: Json | null;
           refund_amount?: number | null;
           refund_reason?: string | null;
           refunded_at?: string | null;
           status?: string | null;
+          tenant_id?: string | null;
           total_amount?: number | null;
           updated_at?: string;
         };
         Relationships: [
           {
+            foreignKeyName: "pos_orders_crm_customer_id_fkey";
+            columns: ["crm_customer_id"];
+            isOneToOne: false;
+            referencedRelation: "crm_customers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "pos_orders_crm_customer_id_fkey";
+            columns: ["crm_customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_360_enriched";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "pos_orders_crm_customer_id_fkey";
+            columns: ["crm_customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
+          },
+          {
+            foreignKeyName: "pos_orders_location_tenant_fkey";
+            columns: ["tenant_id", "location_id"];
+            isOneToOne: false;
+            referencedRelation: "tenant_locations";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
             foreignKeyName: "pos_orders_pos_customer_id_fkey";
             columns: ["pos_customer_id"];
             isOneToOne: false;
             referencedRelation: "pos_customers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "pos_orders_tenant_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "pos_orders_tenant_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      pos_receipts: {
+        Row: {
+          division_id: string | null;
+          external_customer_id: string | null;
+          external_receipt_id: string;
+          id: string;
+          imported_at: string | null;
+          line_items: Json | null;
+          location_id: string | null;
+          pos_connection_id: string;
+          post_date: string | null;
+          raw_payload: Json | null;
+          subtotal: number | null;
+          tax: number | null;
+          tenant_id: string;
+          total: number | null;
+        };
+        Insert: {
+          division_id?: string | null;
+          external_customer_id?: string | null;
+          external_receipt_id: string;
+          id?: string;
+          imported_at?: string | null;
+          line_items?: Json | null;
+          location_id?: string | null;
+          pos_connection_id: string;
+          post_date?: string | null;
+          raw_payload?: Json | null;
+          subtotal?: number | null;
+          tax?: number | null;
+          tenant_id: string;
+          total?: number | null;
+        };
+        Update: {
+          division_id?: string | null;
+          external_customer_id?: string | null;
+          external_receipt_id?: string;
+          id?: string;
+          imported_at?: string | null;
+          line_items?: Json | null;
+          location_id?: string | null;
+          pos_connection_id?: string;
+          post_date?: string | null;
+          raw_payload?: Json | null;
+          subtotal?: number | null;
+          tax?: number | null;
+          tenant_id?: string;
+          total?: number | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "pos_receipts_location_tenant_fkey";
+            columns: ["tenant_id", "location_id"];
+            isOneToOne: false;
+            referencedRelation: "tenant_locations";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "pos_receipts_pos_connection_id_fkey";
+            columns: ["pos_connection_id"];
+            isOneToOne: false;
+            referencedRelation: "pos_connections";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      pos_sms_checkout_policies: {
+        Row: {
+          attestation_id: string;
+          attested_by_user_id: string;
+          created_at: string;
+          deactivated_at: string | null;
+          effective_at: string;
+          id: string;
+          is_active: boolean;
+          provider: string;
+          tenant_id: string;
+        };
+        Insert: {
+          attestation_id: string;
+          attested_by_user_id: string;
+          created_at?: string;
+          deactivated_at?: string | null;
+          effective_at?: string;
+          id?: string;
+          is_active?: boolean;
+          provider: string;
+          tenant_id: string;
+        };
+        Update: {
+          attestation_id?: string;
+          attested_by_user_id?: string;
+          created_at?: string;
+          deactivated_at?: string | null;
+          effective_at?: string;
+          id?: string;
+          is_active?: boolean;
+          provider?: string;
+          tenant_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "pos_sms_checkout_policies_attestation_id_fkey";
+            columns: ["attestation_id"];
+            isOneToOne: false;
+            referencedRelation: "consent_attestations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "pos_sms_checkout_policies_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "pos_sms_checkout_policies_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
             referencedColumns: ["id"];
           },
         ];
@@ -11974,6 +16475,69 @@ export type Database = {
           },
         ];
       };
+      pos_webhook_events: {
+        Row: {
+          attempt_count: number;
+          connection_id: string;
+          created_at: string;
+          error_message: string | null;
+          event_id: string;
+          event_type: string;
+          id: string;
+          last_attempt_at: string | null;
+          payload: Json;
+          processed_at: string | null;
+          provider: string;
+          status: string;
+          tenant_id: string;
+        };
+        Insert: {
+          attempt_count?: number;
+          connection_id: string;
+          created_at?: string;
+          error_message?: string | null;
+          event_id: string;
+          event_type: string;
+          id?: string;
+          last_attempt_at?: string | null;
+          payload?: Json;
+          processed_at?: string | null;
+          provider: string;
+          status?: string;
+          tenant_id: string;
+        };
+        Update: {
+          attempt_count?: number;
+          connection_id?: string;
+          created_at?: string;
+          error_message?: string | null;
+          event_id?: string;
+          event_type?: string;
+          id?: string;
+          last_attempt_at?: string | null;
+          payload?: Json;
+          processed_at?: string | null;
+          provider?: string;
+          status?: string;
+          tenant_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "pos_webhook_events_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "pos_webhook_events_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       post_metrics: {
         Row: {
           collected_at: string | null;
@@ -12219,6 +16783,7 @@ export type Database = {
           slug: string | null;
           source: string;
           status: string;
+          stock_count: number | null;
           subcategory: string | null;
           tags: string[] | null;
           tenant_id: string;
@@ -12249,6 +16814,7 @@ export type Database = {
           slug?: string | null;
           source?: string;
           status?: string;
+          stock_count?: number | null;
           subcategory?: string | null;
           tags?: string[] | null;
           tenant_id: string;
@@ -12279,6 +16845,7 @@ export type Database = {
           slug?: string | null;
           source?: string;
           status?: string;
+          stock_count?: number | null;
           subcategory?: string | null;
           tags?: string[] | null;
           tenant_id?: string;
@@ -12433,6 +17000,42 @@ export type Database = {
           next_allowed_at?: string;
           provider?: string;
           updated_at?: string;
+        };
+        Relationships: [];
+      };
+      reconciliation_log: {
+        Row: {
+          customer_email: string | null;
+          detected_at: string | null;
+          id: string;
+          mismatch_type: string | null;
+          notion_stage: string | null;
+          resolved_at: string | null;
+          resolved_by: string | null;
+          stripe_customer_id: string | null;
+          stripe_status: string | null;
+        };
+        Insert: {
+          customer_email?: string | null;
+          detected_at?: string | null;
+          id?: string;
+          mismatch_type?: string | null;
+          notion_stage?: string | null;
+          resolved_at?: string | null;
+          resolved_by?: string | null;
+          stripe_customer_id?: string | null;
+          stripe_status?: string | null;
+        };
+        Update: {
+          customer_email?: string | null;
+          detected_at?: string | null;
+          id?: string;
+          mismatch_type?: string | null;
+          notion_stage?: string | null;
+          resolved_at?: string | null;
+          resolved_by?: string | null;
+          stripe_customer_id?: string | null;
+          stripe_status?: string | null;
         };
         Relationships: [];
       };
@@ -12659,7 +17262,6 @@ export type Database = {
           content_id: string | null;
           created_at: string | null;
           error_message: string | null;
-          global_image_id: string | null;
           id: string;
           insights_fetched: boolean | null;
           mode: Database["public"]["Enums"]["post_mode"];
@@ -12677,7 +17279,6 @@ export type Database = {
           content_id?: string | null;
           created_at?: string | null;
           error_message?: string | null;
-          global_image_id?: string | null;
           id?: string;
           insights_fetched?: boolean | null;
           mode?: Database["public"]["Enums"]["post_mode"];
@@ -12695,7 +17296,6 @@ export type Database = {
           content_id?: string | null;
           created_at?: string | null;
           error_message?: string | null;
-          global_image_id?: string | null;
           id?: string;
           insights_fetched?: boolean | null;
           mode?: Database["public"]["Enums"]["post_mode"];
@@ -12715,13 +17315,6 @@ export type Database = {
             columns: ["content_id"];
             isOneToOne: false;
             referencedRelation: "generated_content";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "scheduled_posts_global_image_id_fkey";
-            columns: ["global_image_id"];
-            isOneToOne: false;
-            referencedRelation: "global_image_gallery";
             referencedColumns: ["id"];
           },
           {
@@ -12765,6 +17358,56 @@ export type Database = {
           user_id?: string;
         };
         Relationships: [];
+      };
+      segment_location_targets: {
+        Row: {
+          created_at: string;
+          location_id: string;
+          segment_id: string;
+          tenant_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          location_id: string;
+          segment_id: string;
+          tenant_id: string;
+        };
+        Update: {
+          created_at?: string;
+          location_id?: string;
+          segment_id?: string;
+          tenant_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "segment_location_targets_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "segment_location_targets_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "segment_location_targets_tenant_id_location_id_fkey";
+            columns: ["tenant_id", "location_id"];
+            isOneToOne: false;
+            referencedRelation: "tenant_locations";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "segment_location_targets_tenant_id_segment_id_fkey";
+            columns: ["tenant_id", "segment_id"];
+            isOneToOne: false;
+            referencedRelation: "crm_segments";
+            referencedColumns: ["tenant_id", "id"];
+          },
+        ];
       };
       segments: {
         Row: {
@@ -12865,6 +17508,27 @@ export type Database = {
             referencedColumns: ["id"];
           },
         ];
+      };
+      sent_support_emails: {
+        Row: {
+          condition_key: string;
+          id: string;
+          sent_at: string;
+          tenant_id: string;
+        };
+        Insert: {
+          condition_key: string;
+          id?: string;
+          sent_at?: string;
+          tenant_id: string;
+        };
+        Update: {
+          condition_key?: string;
+          id?: string;
+          sent_at?: string;
+          tenant_id?: string;
+        };
+        Relationships: [];
       };
       shopify_connections: {
         Row: {
@@ -13039,6 +17703,13 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "shopify_customers_contact_id_fkey";
+            columns: ["contact_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
+          },
+          {
             foreignKeyName: "shopify_customers_tenant_id_fkey";
             columns: ["tenant_id"];
             isOneToOne: false;
@@ -13141,6 +17812,13 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "customer_360_enriched";
             referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "shopify_orders_contact_id_fkey";
+            columns: ["contact_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
           },
           {
             foreignKeyName: "shopify_orders_tenant_id_fkey";
@@ -13287,6 +17965,13 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "sms_automation_logs_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
+          },
+          {
             foreignKeyName: "sms_automation_logs_message_id_fkey";
             columns: ["message_id"];
             isOneToOne: false;
@@ -13405,6 +18090,13 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "sms_compliance_events_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
+          },
+          {
             foreignKeyName: "sms_compliance_events_tenant_id_fkey";
             columns: ["tenant_id"];
             isOneToOne: false;
@@ -13419,6 +18111,45 @@ export type Database = {
             referencedColumns: ["id"];
           },
         ];
+      };
+      sms_delivery_reconciliation_state: {
+        Row: {
+          cycle_started_at: string | null;
+          last_completed_at: string | null;
+          last_error: string | null;
+          last_run_at: string | null;
+          lock_token: string | null;
+          locked_at: string | null;
+          locked_by: string | null;
+          next_page: number;
+          singleton: boolean;
+          updated_at: string;
+        };
+        Insert: {
+          cycle_started_at?: string | null;
+          last_completed_at?: string | null;
+          last_error?: string | null;
+          last_run_at?: string | null;
+          lock_token?: string | null;
+          locked_at?: string | null;
+          locked_by?: string | null;
+          next_page?: number;
+          singleton?: boolean;
+          updated_at?: string;
+        };
+        Update: {
+          cycle_started_at?: string | null;
+          last_completed_at?: string | null;
+          last_error?: string | null;
+          last_run_at?: string | null;
+          lock_token?: string | null;
+          locked_at?: string | null;
+          locked_by?: string | null;
+          next_page?: number;
+          singleton?: boolean;
+          updated_at?: string;
+        };
+        Relationships: [];
       };
       sms_demo_sends: {
         Row: {
@@ -13459,9 +18190,275 @@ export type Database = {
         };
         Relationships: [];
       };
+      sms_inbound_messages: {
+        Row: {
+          created_at: string;
+          customer_id: string | null;
+          external_id: string | null;
+          from_phone: string;
+          id: string;
+          keyword: string;
+          media_url: string | null;
+          message_content: string;
+          provider: string;
+          provider_reply_id: string;
+          received_at: string;
+          resolution: string;
+          tenant_id: string | null;
+          to_phone: string | null;
+        };
+        Insert: {
+          created_at?: string;
+          customer_id?: string | null;
+          external_id?: string | null;
+          from_phone: string;
+          id?: string;
+          keyword: string;
+          media_url?: string | null;
+          message_content: string;
+          provider?: string;
+          provider_reply_id: string;
+          received_at: string;
+          resolution: string;
+          tenant_id?: string | null;
+          to_phone?: string | null;
+        };
+        Update: {
+          created_at?: string;
+          customer_id?: string | null;
+          external_id?: string | null;
+          from_phone?: string;
+          id?: string;
+          keyword?: string;
+          media_url?: string | null;
+          message_content?: string;
+          provider?: string;
+          provider_reply_id?: string;
+          received_at?: string;
+          resolution?: string;
+          tenant_id?: string | null;
+          to_phone?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "sms_inbound_messages_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "crm_customers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "sms_inbound_messages_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_360_enriched";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "sms_inbound_messages_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
+          },
+          {
+            foreignKeyName: "sms_inbound_messages_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "sms_inbound_messages_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      sms_link_click_events: {
+        Row: {
+          campaign_id: string | null;
+          clicked_at: string;
+          created_at: string;
+          customer_id: string | null;
+          id: string;
+          link_id: string;
+          message_id: string;
+          tenant_id: string;
+          user_agent: string | null;
+        };
+        Insert: {
+          campaign_id?: string | null;
+          clicked_at?: string;
+          created_at?: string;
+          customer_id?: string | null;
+          id?: string;
+          link_id: string;
+          message_id: string;
+          tenant_id: string;
+          user_agent?: string | null;
+        };
+        Update: {
+          campaign_id?: string | null;
+          clicked_at?: string;
+          created_at?: string;
+          customer_id?: string | null;
+          id?: string;
+          link_id?: string;
+          message_id?: string;
+          tenant_id?: string;
+          user_agent?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "sms_link_click_events_campaign_id_fkey";
+            columns: ["campaign_id"];
+            isOneToOne: false;
+            referencedRelation: "crm_sms_campaigns";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "sms_link_click_events_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "crm_customers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "sms_link_click_events_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_360_enriched";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "sms_link_click_events_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
+          },
+          {
+            foreignKeyName: "sms_link_click_events_link_id_fkey";
+            columns: ["link_id"];
+            isOneToOne: false;
+            referencedRelation: "sms_link_clicks";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "sms_link_click_events_message_id_fkey";
+            columns: ["message_id"];
+            isOneToOne: false;
+            referencedRelation: "sms_messages";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "sms_link_click_events_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "sms_link_click_events_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      sms_link_clicks: {
+        Row: {
+          campaign_id: string | null;
+          click_count: number;
+          created_at: string;
+          customer_id: string | null;
+          first_clicked_at: string | null;
+          id: string;
+          last_clicked_at: string | null;
+          last_user_agent: string | null;
+          link_index: number;
+          message_id: string;
+          original_url: string;
+          tenant_id: string;
+          tracking_code: string;
+        };
+        Insert: {
+          campaign_id?: string | null;
+          click_count?: number;
+          created_at?: string;
+          customer_id?: string | null;
+          first_clicked_at?: string | null;
+          id?: string;
+          last_clicked_at?: string | null;
+          last_user_agent?: string | null;
+          link_index: number;
+          message_id: string;
+          original_url: string;
+          tenant_id: string;
+          tracking_code: string;
+        };
+        Update: {
+          campaign_id?: string | null;
+          click_count?: number;
+          created_at?: string;
+          customer_id?: string | null;
+          first_clicked_at?: string | null;
+          id?: string;
+          last_clicked_at?: string | null;
+          last_user_agent?: string | null;
+          link_index?: number;
+          message_id?: string;
+          original_url?: string;
+          tenant_id?: string;
+          tracking_code?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "sms_link_clicks_campaign_id_fkey";
+            columns: ["campaign_id"];
+            isOneToOne: false;
+            referencedRelation: "crm_sms_campaigns";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "sms_link_clicks_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "crm_customers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "sms_link_clicks_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_360_enriched";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "sms_link_clicks_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
+          },
+          {
+            foreignKeyName: "sms_link_clicks_message_id_fkey";
+            columns: ["message_id"];
+            isOneToOne: false;
+            referencedRelation: "sms_messages";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       sms_messages: {
         Row: {
           attempts: number;
+          billable_units: number;
+          billed_at: string | null;
           campaign_id: string | null;
           content: string;
           created_at: string;
@@ -13479,15 +18476,23 @@ export type Database = {
           links_clicked: number;
           media_urls: Json | null;
           phone: string;
+          provider: string;
+          provider_message_id: string | null;
+          provider_status: string | null;
+          provider_status_at: string | null;
+          provider_status_source: string | null;
           scheduled_at: string | null;
           sent_at: string | null;
           status: string | null;
+          tenant_id: string | null;
           twilio_sid: string | null;
           unique_links_clicked: number;
           updated_at: string;
         };
         Insert: {
           attempts?: number;
+          billable_units?: number;
+          billed_at?: string | null;
           campaign_id?: string | null;
           content: string;
           created_at?: string;
@@ -13505,15 +18510,23 @@ export type Database = {
           links_clicked?: number;
           media_urls?: Json | null;
           phone: string;
+          provider?: string;
+          provider_message_id?: string | null;
+          provider_status?: string | null;
+          provider_status_at?: string | null;
+          provider_status_source?: string | null;
           scheduled_at?: string | null;
           sent_at?: string | null;
           status?: string | null;
+          tenant_id?: string | null;
           twilio_sid?: string | null;
           unique_links_clicked?: number;
           updated_at?: string;
         };
         Update: {
           attempts?: number;
+          billable_units?: number;
+          billed_at?: string | null;
           campaign_id?: string | null;
           content?: string;
           created_at?: string;
@@ -13531,9 +18544,15 @@ export type Database = {
           links_clicked?: number;
           media_urls?: Json | null;
           phone?: string;
+          provider?: string;
+          provider_message_id?: string | null;
+          provider_status?: string | null;
+          provider_status_at?: string | null;
+          provider_status_source?: string | null;
           scheduled_at?: string | null;
           sent_at?: string | null;
           status?: string | null;
+          tenant_id?: string | null;
           twilio_sid?: string | null;
           unique_links_clicked?: number;
           updated_at?: string;
@@ -13558,6 +18577,80 @@ export type Database = {
             columns: ["customer_id"];
             isOneToOne: false;
             referencedRelation: "customer_360_enriched";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "sms_messages_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
+          },
+          {
+            foreignKeyName: "sms_messages_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "sms_messages_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      sms_provider_delivery_events: {
+        Row: {
+          carrier: string | null;
+          created_at: string;
+          destination: string | null;
+          external_id: string | null;
+          id: string;
+          occurred_at: string | null;
+          outcome: string;
+          processed_message_id: string | null;
+          provider: string;
+          provider_message_id: string;
+          provider_status: string;
+          source: string;
+        };
+        Insert: {
+          carrier?: string | null;
+          created_at?: string;
+          destination?: string | null;
+          external_id?: string | null;
+          id?: string;
+          occurred_at?: string | null;
+          outcome: string;
+          processed_message_id?: string | null;
+          provider: string;
+          provider_message_id: string;
+          provider_status: string;
+          source: string;
+        };
+        Update: {
+          carrier?: string | null;
+          created_at?: string;
+          destination?: string | null;
+          external_id?: string | null;
+          id?: string;
+          occurred_at?: string | null;
+          outcome?: string;
+          processed_message_id?: string | null;
+          provider?: string;
+          provider_message_id?: string;
+          provider_status?: string;
+          source?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "sms_provider_delivery_events_processed_message_id_fkey";
+            columns: ["processed_message_id"];
+            isOneToOne: false;
+            referencedRelation: "sms_messages";
             referencedColumns: ["id"];
           },
         ];
@@ -13930,6 +19023,93 @@ export type Database = {
           },
         ];
       };
+      stripe_notion_customer_links: {
+        Row: {
+          cms_project_id: string | null;
+          cms_site_id: string | null;
+          cms_tenant_id: string | null;
+          crm_tenant_id: string | null;
+          livemode: boolean;
+          notion_page_id: string;
+          reviewed_at: string;
+          reviewed_by: string;
+          stripe_account_id: string;
+          stripe_customer_id: string;
+        };
+        Insert: {
+          cms_project_id?: string | null;
+          cms_site_id?: string | null;
+          cms_tenant_id?: string | null;
+          crm_tenant_id?: string | null;
+          livemode: boolean;
+          notion_page_id: string;
+          reviewed_at?: string;
+          reviewed_by: string;
+          stripe_account_id: string;
+          stripe_customer_id: string;
+        };
+        Update: {
+          cms_project_id?: string | null;
+          cms_site_id?: string | null;
+          cms_tenant_id?: string | null;
+          crm_tenant_id?: string | null;
+          livemode?: boolean;
+          notion_page_id?: string;
+          reviewed_at?: string;
+          reviewed_by?: string;
+          stripe_account_id?: string;
+          stripe_customer_id?: string;
+        };
+        Relationships: [];
+      };
+      stripe_notion_reconciliation_state: {
+        Row: {
+          customer_email: string | null;
+          detail: string;
+          fingerprint: string;
+          first_seen_at: string;
+          last_seen_at: string;
+          livemode: boolean;
+          mismatch_type: string;
+          notified_fingerprint: string | null;
+          notion_stage: string;
+          resolved_at: string | null;
+          stripe_account_id: string;
+          stripe_customer_id: string;
+          stripe_status: string;
+        };
+        Insert: {
+          customer_email?: string | null;
+          detail: string;
+          fingerprint: string;
+          first_seen_at?: string;
+          last_seen_at?: string;
+          livemode: boolean;
+          mismatch_type: string;
+          notified_fingerprint?: string | null;
+          notion_stage: string;
+          resolved_at?: string | null;
+          stripe_account_id: string;
+          stripe_customer_id: string;
+          stripe_status: string;
+        };
+        Update: {
+          customer_email?: string | null;
+          detail?: string;
+          fingerprint?: string;
+          first_seen_at?: string;
+          last_seen_at?: string;
+          livemode?: boolean;
+          mismatch_type?: string;
+          notified_fingerprint?: string | null;
+          notion_stage?: string;
+          resolved_at?: string | null;
+          stripe_account_id?: string;
+          stripe_customer_id?: string;
+          stripe_status?: string;
+        };
+        Relationships: [];
+      };
       subscriptions: {
         Row: {
           base_token_allowance: number | null;
@@ -13957,6 +19137,7 @@ export type Database = {
           sms_quota: number | null;
           sms_usage: number | null;
           start_date: string;
+          stripe_customer_id: string | null;
           stripe_subscription_item_id: string | null;
           tier: string | null;
           updated_at: string;
@@ -13990,6 +19171,7 @@ export type Database = {
           sms_quota?: number | null;
           sms_usage?: number | null;
           start_date?: string;
+          stripe_customer_id?: string | null;
           stripe_subscription_item_id?: string | null;
           tier?: string | null;
           updated_at?: string;
@@ -14023,12 +19205,70 @@ export type Database = {
           sms_quota?: number | null;
           sms_usage?: number | null;
           start_date?: string;
+          stripe_customer_id?: string | null;
           stripe_subscription_item_id?: string | null;
           tier?: string | null;
           updated_at?: string;
           usage_alert_100_sent_at?: string | null;
           usage_alert_80_sent_at?: string | null;
           user_id?: string;
+        };
+        Relationships: [];
+      };
+      support_activity_notifications: {
+        Row: {
+          created_at: string;
+          evidence: Json;
+          id: string;
+          provider_id: string | null;
+          recipient: string;
+          scope: string;
+          sent_at: string | null;
+          status: string;
+        };
+        Insert: {
+          created_at?: string;
+          evidence: Json;
+          id?: string;
+          provider_id?: string | null;
+          recipient: string;
+          scope: string;
+          sent_at?: string | null;
+          status?: string;
+        };
+        Update: {
+          created_at?: string;
+          evidence?: Json;
+          id?: string;
+          provider_id?: string | null;
+          recipient?: string;
+          scope?: string;
+          sent_at?: string | null;
+          status?: string;
+        };
+        Relationships: [];
+      };
+      support_activity_reconciliation_state: {
+        Row: {
+          evidence: Json;
+          first_seen_at: string;
+          last_seen_at: string;
+          observed_at: string;
+          scope: string;
+        };
+        Insert: {
+          evidence: Json;
+          first_seen_at?: string;
+          last_seen_at?: string;
+          observed_at: string;
+          scope: string;
+        };
+        Update: {
+          evidence?: Json;
+          first_seen_at?: string;
+          last_seen_at?: string;
+          observed_at?: string;
+          scope?: string;
         };
         Relationships: [];
       };
@@ -14222,6 +19462,42 @@ export type Database = {
           },
         ];
       };
+      support_requests: {
+        Row: {
+          created_at: string | null;
+          id: string;
+          message: string;
+          status: string | null;
+          subject: string;
+          tenant_id: string | null;
+          user_email: string | null;
+          user_id: string | null;
+          user_name: string | null;
+        };
+        Insert: {
+          created_at?: string | null;
+          id?: string;
+          message: string;
+          status?: string | null;
+          subject: string;
+          tenant_id?: string | null;
+          user_email?: string | null;
+          user_id?: string | null;
+          user_name?: string | null;
+        };
+        Update: {
+          created_at?: string | null;
+          id?: string;
+          message?: string;
+          status?: string | null;
+          subject?: string;
+          tenant_id?: string | null;
+          user_email?: string | null;
+          user_id?: string | null;
+          user_name?: string | null;
+        };
+        Relationships: [];
+      };
       support_ticket_history: {
         Row: {
           action: string;
@@ -14413,6 +19689,13 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "suppression_list_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
+          },
+          {
             foreignKeyName: "suppression_list_source_event_id_fkey";
             columns: ["source_event_id"];
             isOneToOne: false;
@@ -14555,6 +19838,13 @@ export type Database = {
             foreignKeyName: "tenant_compliance_settings_tenant_id_fkey";
             columns: ["tenant_id"];
             isOneToOne: true;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "tenant_compliance_settings_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: true;
             referencedRelation: "tenants";
             referencedColumns: ["id"];
           },
@@ -14597,6 +19887,106 @@ export type Database = {
             foreignKeyName: "tenant_email_governance_overrides_tenant_id_fkey";
             columns: ["tenant_id"];
             isOneToOne: true;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      tenant_invitations: {
+        Row: {
+          accepted_at: string | null;
+          accepted_user_id: string | null;
+          created_at: string;
+          email: string;
+          expires_at: string;
+          id: string;
+          invited_by: string | null;
+          last_sent_at: string;
+          location_ids: string[];
+          revoked_at: string | null;
+          role: string;
+          send_count: number;
+          status: string;
+          tenant_id: string;
+          token_hash: string;
+          updated_at: string;
+        };
+        Insert: {
+          accepted_at?: string | null;
+          accepted_user_id?: string | null;
+          created_at?: string;
+          email: string;
+          expires_at?: string;
+          id?: string;
+          invited_by?: string | null;
+          last_sent_at?: string;
+          location_ids?: string[];
+          revoked_at?: string | null;
+          role: string;
+          send_count?: number;
+          status?: string;
+          tenant_id: string;
+          token_hash: string;
+          updated_at?: string;
+        };
+        Update: {
+          accepted_at?: string | null;
+          accepted_user_id?: string | null;
+          created_at?: string;
+          email?: string;
+          expires_at?: string;
+          id?: string;
+          invited_by?: string | null;
+          last_sent_at?: string;
+          location_ids?: string[];
+          revoked_at?: string | null;
+          role?: string;
+          send_count?: number;
+          status?: string;
+          tenant_id?: string;
+          token_hash?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "tenant_invitations_accepted_user_id_fkey";
+            columns: ["accepted_user_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["primary_contact_user_id"];
+          },
+          {
+            foreignKeyName: "tenant_invitations_accepted_user_id_fkey";
+            columns: ["accepted_user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "tenant_invitations_invited_by_fkey";
+            columns: ["invited_by"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["primary_contact_user_id"];
+          },
+          {
+            foreignKeyName: "tenant_invitations_invited_by_fkey";
+            columns: ["invited_by"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "tenant_invitations_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "tenant_invitations_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
             referencedRelation: "tenants";
             referencedColumns: ["id"];
           },
@@ -14662,64 +20052,73 @@ export type Database = {
           },
         ];
       };
-      tenant_invitations: {
+      tenant_locations: {
         Row: {
-          accepted_at: string | null;
-          accepted_user_id: string | null;
+          address: Json;
+          code: string | null;
           created_at: string;
-          email: string;
-          expires_at: string;
+          created_by: string | null;
+          external_location_id: string | null;
           id: string;
-          invited_by: string | null;
-          last_sent_at: string;
-          location_ids: string[];
-          revoked_at: string | null;
-          role: string;
-          send_count: number;
-          status: string;
+          is_active: boolean;
+          name: string;
+          source_system: string;
           tenant_id: string;
-          token_hash: string;
+          timezone: string;
           updated_at: string;
         };
         Insert: {
-          accepted_at?: string | null;
-          accepted_user_id?: string | null;
+          address?: Json;
+          code?: string | null;
           created_at?: string;
-          email: string;
-          expires_at?: string;
+          created_by?: string | null;
+          external_location_id?: string | null;
           id?: string;
-          invited_by?: string | null;
-          last_sent_at?: string;
-          location_ids?: string[];
-          revoked_at?: string | null;
-          role: string;
-          send_count?: number;
-          status?: string;
+          is_active?: boolean;
+          name: string;
+          source_system?: string;
           tenant_id: string;
-          token_hash: string;
+          timezone?: string;
           updated_at?: string;
         };
         Update: {
-          accepted_at?: string | null;
-          accepted_user_id?: string | null;
+          address?: Json;
+          code?: string | null;
           created_at?: string;
-          email?: string;
-          expires_at?: string;
+          created_by?: string | null;
+          external_location_id?: string | null;
           id?: string;
-          invited_by?: string | null;
-          last_sent_at?: string;
-          location_ids?: string[];
-          revoked_at?: string | null;
-          role?: string;
-          send_count?: number;
-          status?: string;
+          is_active?: boolean;
+          name?: string;
+          source_system?: string;
           tenant_id?: string;
-          token_hash?: string;
+          timezone?: string;
           updated_at?: string;
         };
         Relationships: [
           {
-            foreignKeyName: "tenant_invitations_tenant_id_fkey";
+            foreignKeyName: "tenant_locations_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["primary_contact_user_id"];
+          },
+          {
+            foreignKeyName: "tenant_locations_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "tenant_locations_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "tenant_locations_tenant_id_fkey";
             columns: ["tenant_id"];
             isOneToOne: false;
             referencedRelation: "tenants";
@@ -15218,6 +20617,162 @@ export type Database = {
         };
         Relationships: [];
       };
+      user_location_access: {
+        Row: {
+          assigned_by: string | null;
+          created_at: string;
+          location_id: string;
+          tenant_id: string;
+          user_id: string;
+        };
+        Insert: {
+          assigned_by?: string | null;
+          created_at?: string;
+          location_id: string;
+          tenant_id: string;
+          user_id: string;
+        };
+        Update: {
+          assigned_by?: string | null;
+          created_at?: string;
+          location_id?: string;
+          tenant_id?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "user_location_access_assigned_by_fkey";
+            columns: ["assigned_by"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["primary_contact_user_id"];
+          },
+          {
+            foreignKeyName: "user_location_access_assigned_by_fkey";
+            columns: ["assigned_by"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "user_location_access_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "user_location_access_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "user_location_access_tenant_id_location_id_fkey";
+            columns: ["tenant_id", "location_id"];
+            isOneToOne: false;
+            referencedRelation: "tenant_locations";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "user_location_access_tenant_id_user_id_fkey";
+            columns: ["tenant_id", "user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "user_location_access_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["primary_contact_user_id"];
+          },
+          {
+            foreignKeyName: "user_location_access_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      user_recent_items: {
+        Row: {
+          category_icon: string;
+          created_at: string;
+          entity_id: string;
+          entity_type: string;
+          group_key: string;
+          icon: string | null;
+          id: string;
+          keywords: string[];
+          metadata: string | null;
+          route: string;
+          subtitle: string | null;
+          tenant_id: string;
+          title: string;
+          updated_at: string;
+          user_id: string;
+          visit_count: number;
+          visited_at: string;
+        };
+        Insert: {
+          category_icon: string;
+          created_at?: string;
+          entity_id: string;
+          entity_type: string;
+          group_key: string;
+          icon?: string | null;
+          id?: string;
+          keywords?: string[];
+          metadata?: string | null;
+          route: string;
+          subtitle?: string | null;
+          tenant_id: string;
+          title: string;
+          updated_at?: string;
+          user_id: string;
+          visit_count?: number;
+          visited_at?: string;
+        };
+        Update: {
+          category_icon?: string;
+          created_at?: string;
+          entity_id?: string;
+          entity_type?: string;
+          group_key?: string;
+          icon?: string | null;
+          id?: string;
+          keywords?: string[];
+          metadata?: string | null;
+          route?: string;
+          subtitle?: string | null;
+          tenant_id?: string;
+          title?: string;
+          updated_at?: string;
+          user_id?: string;
+          visit_count?: number;
+          visited_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "user_recent_items_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["primary_contact_user_id"];
+          },
+          {
+            foreignKeyName: "user_recent_items_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       user_roles: {
         Row: {
           created_at: string | null;
@@ -15241,6 +20796,60 @@ export type Database = {
           user_id?: string;
         };
         Relationships: [];
+      };
+      user_search_history: {
+        Row: {
+          created_at: string;
+          id: string;
+          normalized_query: string;
+          query: string;
+          searched_at: string;
+          selected_result_title: string | null;
+          tenant_id: string;
+          updated_at: string;
+          usage_count: number;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          normalized_query: string;
+          query: string;
+          searched_at?: string;
+          selected_result_title?: string | null;
+          tenant_id: string;
+          updated_at?: string;
+          usage_count?: number;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          normalized_query?: string;
+          query?: string;
+          searched_at?: string;
+          selected_result_title?: string | null;
+          tenant_id?: string;
+          updated_at?: string;
+          usage_count?: number;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "user_search_history_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["primary_contact_user_id"];
+          },
+          {
+            foreignKeyName: "user_search_history_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       user_segment_preferences: {
         Row: {
@@ -15431,6 +21040,69 @@ export type Database = {
         };
         Relationships: [];
       };
+      website_newsletter_receipts: {
+        Row: {
+          created_at: string;
+          customer_id: string | null;
+          event_id: string;
+          payload_hash: string;
+          result: string;
+          tenant_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          customer_id?: string | null;
+          event_id: string;
+          payload_hash: string;
+          result: string;
+          tenant_id: string;
+        };
+        Update: {
+          created_at?: string;
+          customer_id?: string | null;
+          event_id?: string;
+          payload_hash?: string;
+          result?: string;
+          tenant_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "website_newsletter_receipts_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "crm_customers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "website_newsletter_receipts_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_360_enriched";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "website_newsletter_receipts_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_purchase_intelligence";
+            referencedColumns: ["customer_id"];
+          },
+          {
+            foreignKeyName: "website_newsletter_receipts_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "website_newsletter_receipts_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       website_waitlist: {
         Row: {
           created_at: string;
@@ -15464,15 +21136,19 @@ export type Database = {
           company_name: string | null;
           country: string | null;
           current_period_end: string | null;
+          health_score: number | null;
           is_active: boolean | null;
           is_paid_active: boolean | null;
           is_trialing: boolean | null;
           last_activity_at: string | null;
           onboarding_completed_at: string | null;
+          onboarding_steps_done: number | null;
+          onboarding_steps_total: number | null;
           plan: Database["public"]["Enums"]["subscription_plan"] | null;
           primary_contact_email: string | null;
           primary_contact_last_login: string | null;
           primary_contact_name: string | null;
+          primary_contact_user_id: string | null;
           region: string | null;
           subscription_status: string | null;
           tenant_created_at: string | null;
@@ -15491,11 +21167,7 @@ export type Database = {
           channels: Json | null;
           created_at: string | null;
           deleted_at: string | null;
-          generation_error: string | null;
-          generation_status: string | null;
-          has_mixed_carousel: boolean | null;
           mode: string | null;
-          preview_title: string | null;
           recommended_images: Json | null;
           snapshot_id: string | null;
           source_label: string | null;
@@ -15512,11 +21184,7 @@ export type Database = {
           channels?: never;
           created_at?: string | null;
           deleted_at?: string | null;
-          generation_error?: never;
-          generation_status?: never;
-          has_mixed_carousel?: never;
           mode?: never;
-          preview_title?: never;
           recommended_images?: never;
           snapshot_id?: string | null;
           source_label?: never;
@@ -15533,11 +21201,7 @@ export type Database = {
           channels?: never;
           created_at?: string | null;
           deleted_at?: string | null;
-          generation_error?: never;
-          generation_status?: never;
-          has_mixed_carousel?: never;
           mode?: never;
-          preview_title?: never;
           recommended_images?: never;
           snapshot_id?: string | null;
           source_label?: never;
@@ -15626,6 +21290,83 @@ export type Database = {
           },
         ];
       };
+      customer_intelligence_source_health: {
+        Row: {
+          accepted_rows: number | null;
+          activated_at: string | null;
+          capabilities: Json | null;
+          completed_imports: number | null;
+          duplicate_rows: number | null;
+          id: string | null;
+          last_data_at: string | null;
+          last_validated_at: string | null;
+          provider: string | null;
+          rejected_rows: number | null;
+          source_type: string | null;
+          status: string | null;
+          sync_mode: string | null;
+          tenant_id: string | null;
+          validation_summary: Json | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "customer_intelligence_sources_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "customer_intelligence_sources_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      customer_purchase_intelligence: {
+        Row: {
+          average_order_value: number | null;
+          categories_shopped: number | null;
+          category_quantity: Json | null;
+          category_spend: Json | null;
+          customer_id: string | null;
+          customer_tier: string | null;
+          days_since_last_purchase: number | null;
+          department_quantity: Json | null;
+          department_spend: Json | null;
+          departments_shopped: number | null;
+          email: string | null;
+          favorite_products: string[] | null;
+          first_name: string | null;
+          last_line_item_purchase_at: string | null;
+          last_name: string | null;
+          lifetime_value: number | null;
+          purchase_frequency: number | null;
+          purchase_velocity: number | null;
+          tenant_id: string | null;
+          top_product_categories: string[] | null;
+          total_purchases: number | null;
+          total_quantity: number | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "crm_customers_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "crm_customers_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       deliverability_summary_30d: {
         Row: {
           bounce_rate: number | null;
@@ -15675,43 +21416,51 @@ export type Database = {
       };
     };
     Functions: {
-      set_weekly_theme_images: {
-        Args: { p_campaign_id: string; p_images: Json };
+      _email_campaign_reporting_snapshot: {
+        Args: { p_campaign_id: string };
         Returns: Json;
       };
-      email_reachability_summary: {
-        Args: { p_tenant_id: string; p_customer_ids?: string[] };
-        Returns: {
-          total: number;
-          reachable: number;
-          waiting: number;
-          stopped: number;
-          unsendable: number;
-          asked_to_stop: number;
-          never_opted_in: number;
-        }[];
+      _email_campaign_stats_with_rollup_fallback: {
+        Args: { p_campaign_id: string; p_snapshot: Json };
+        Returns: Json;
       };
-      begin_customer_csv_import: {
+      accept_bloomsuite_pos_before_marketing: {
+        Args: { p_envelope: Json; p_key: string };
+        Returns: Json;
+      };
+      accept_bloomsuite_pos_before_membership: {
+        Args: { p_envelope: Json; p_key: string };
+        Returns: Json;
+      };
+      accept_bloomsuite_pos_event: {
+        Args: { p_envelope: Json; p_key: string };
+        Returns: Json;
+      };
+      accept_storefront_push_v1: {
         Args: {
-          p_attestation_type: string;
-          p_contact_count: number;
-          p_import_batch_id: string;
-          p_attestation_wording: string;
+          p_action: string;
+          p_auth: string;
+          p_endpoint: string;
+          p_endpoint_hash: string;
+          p_event_id: string;
+          p_p256dh: string;
+          p_payload_hash: string;
+          p_site_id: string;
+          p_source_email: string;
+          p_user_id: string;
+          p_vapid_version: number;
         };
         Returns: Json;
       };
-      crm_has_permission: {
-        Args: {
-          p_location_id?: string | null;
-          p_permission: string;
-          p_tenant_id?: string | null;
-        };
-        Returns: boolean;
+      accept_website_newsletter: {
+        Args: { p_body: string; p_signature: string; p_timestamp: number };
+        Returns: Json;
       };
       acquire_provider_send_slot: {
         Args: { p_min_interval_ms?: number; p_provider: string };
         Returns: number;
       };
+      admin_active_tenant_id: { Args: never; Returns: string };
       admin_add_global_email_suppression: {
         Args: { p_email: string; p_expires_at?: string; p_reason?: string };
         Returns: Json;
@@ -15742,6 +21491,15 @@ export type Database = {
         Args: {
           p_reason?: string;
           p_suppression_ids: string[];
+          p_tenant_id: string;
+        };
+        Returns: Json;
+      };
+      admin_change_tenant_plan: {
+        Args: {
+          p_end_date: string;
+          p_plan: string;
+          p_reason: string;
           p_tenant_id: string;
         };
         Returns: Json;
@@ -15882,18 +21640,22 @@ export type Database = {
           company_name: string;
           country: string;
           current_period_end: string;
+          health_score: number;
           is_active: boolean;
           is_paid_active: boolean;
           is_trialing: boolean;
           last_activity_at: string;
           onboarding_completed_at: string;
+          onboarding_steps_done: number;
+          onboarding_steps_total: number;
           plan: string;
           primary_contact_email: string;
           primary_contact_last_login: string;
           primary_contact_name: string;
+          primary_contact_user_id: string;
           region: string;
-          site_domain: string | null;
-          site_domain_status: string | null;
+          site_domain: string;
+          site_domain_status: string;
           subscription_status: string;
           tenant_created_at: string;
           tenant_id: string;
@@ -16050,6 +21812,16 @@ export type Database = {
         Args: { p_next_scheduled_at?: string; p_run_id: string };
         Returns: boolean;
       };
+      advance_loyalty_automation_step: {
+        Args: {
+          p_event_id: string;
+          p_next_scheduled_at?: string;
+          p_run_id: string;
+          p_step_index: number;
+          p_worker_id: string;
+        };
+        Returns: Json;
+      };
       apply_email_send_results: {
         Args: {
           p_claim_token: string;
@@ -16062,13 +21834,576 @@ export type Database = {
           updated_sent: number;
         }[];
       };
+      apply_form_channel_consent: {
+        Args: {
+          p_channel: string;
+          p_consent_at: string;
+          p_customer_id: string;
+          p_details: Json;
+          p_source: string;
+          p_tenant_id: string;
+        };
+        Returns: string;
+      };
+      apply_ideal_contact_refresh: {
+        Args: { p_digest: string; p_plan_id: string; p_tenant: string };
+        Returns: Json;
+      };
+      apply_ideal_manual_batch: {
+        Args: {
+          p_approval: string;
+          p_generation: number;
+          p_index: number;
+          p_job: string;
+          p_lease: string;
+          p_plan: string;
+          p_tenant: string;
+        };
+        Returns: string;
+      };
+      apply_ideal_master_batch: {
+        Args: {
+          p_approval: string;
+          p_generation: number;
+          p_index: number;
+          p_job: string;
+          p_lease: string;
+          p_plan: string;
+          p_tenant: string;
+        };
+        Returns: string;
+      };
+      apply_mta_inbound_sms: { Args: { p_reply: Json }; Returns: Json };
+      apply_sms_delivery_status_batch: {
+        Args: { p_deliveries: Json; p_source?: string };
+        Returns: Json;
+      };
+      assert_tenant_access: {
+        Args: { p_tenant_id: string };
+        Returns: undefined;
+      };
+      assert_user_access: { Args: { p_user_id: string }; Returns: undefined };
+      assign_single_verified_default_sender: {
+        Args: { p_tenant_id: string };
+        Returns: boolean;
+      };
+      audit_client_grant_gaps: {
+        Args: never;
+        Returns: {
+          can_insert: boolean;
+          can_update: boolean;
+          column_name: string;
+          grantee: string;
+          table_name: string;
+        }[];
+      };
+      automation_flow_from_legacy: {
+        Args: {
+          p_name?: string;
+          p_trigger_conditions: Json;
+          p_trigger_type: string;
+          p_workflow_steps: Json;
+        };
+        Returns: Json;
+      };
+      automation_flow_has_trigger: {
+        Args: { p_flow_state: Json };
+        Returns: boolean;
+      };
       backfill_customer_purchase_data_from_pos: {
         Args: { p_tenant_id: string };
         Returns: Json;
       };
+      begin_automation_run: {
+        Args: {
+          p_automation_id: string;
+          p_channel_availability?: Json;
+          p_cooldown_minutes?: number;
+          p_customer_id: string;
+          p_metadata?: Json;
+          p_total_steps: number;
+          p_trigger_data?: Json;
+        };
+        Returns: Json;
+      };
+      begin_customer_csv_import: {
+        Args: {
+          p_attestation_type: string;
+          p_attestation_wording: string;
+          p_contact_count: number;
+          p_import_batch_id: string;
+        };
+        Returns: Json;
+      };
+      begin_loyalty_automation_run: {
+        Args: {
+          p_channel_availability?: Json;
+          p_event_id: string;
+          p_metadata?: Json;
+          p_total_steps: number;
+          p_trigger_data?: Json;
+          p_worker_id: string;
+        };
+        Returns: Json;
+      };
+      bill_sms_message: {
+        Args: {
+          p_billable_units?: number;
+          p_message_id: string;
+          p_tenant_id: string;
+        };
+        Returns: boolean;
+      };
+      bloom_can_access_tenant: {
+        Args: { p_tenant_id: string };
+        Returns: boolean;
+      };
+      bloom_can_access_tenant_folder: {
+        Args: { p_folder: string };
+        Returns: boolean;
+      };
+      bloom_chat_plan_rpc: { Args: { p?: Json; p_fn: string }; Returns: Json };
+      bloom_chat_spend_overview: { Args: { p_actor: string }; Returns: Json };
+      bloom_chat_spend_reserve: {
+        Args: {
+          p_estimate_micros: number;
+          p_feature: string;
+          p_model: string;
+          p_tenant_id: string;
+          p_user_id: string;
+        };
+        Returns: Json;
+      };
+      bloom_chat_spend_set_cap: {
+        Args: {
+          p_actor: string;
+          p_cap_usd: number;
+          p_note?: string;
+          p_tenant_id: string;
+        };
+        Returns: Json;
+      };
+      bloom_chat_spend_settle: {
+        Args: {
+          p_cost_micros: number;
+          p_input_tokens: number;
+          p_output_tokens: number;
+          p_reservation_id: string;
+        };
+        Returns: Json;
+      };
+      bloom_chat_spend_status: { Args: { p_tenant_id: string }; Returns: Json };
+      bloom_live_customer_ids: {
+        Args: { p_cutoff: string; p_tenant_id: string };
+        Returns: string[];
+      };
+      bloom_summary_evidence_scope: {
+        Args: { p_cutoff: string; p_imports: Json; p_tenant_id: string };
+        Returns: Json;
+      };
+      bloom_summary_product_candidates: {
+        Args: {
+          p_cutoff: string;
+          p_import_ids: string[];
+          p_tenant_id: string;
+          p_terms: string[];
+        };
+        Returns: Json;
+      };
+      bloom_summary_search_page: {
+        Args: {
+          p_after: string;
+          p_cutoff: string;
+          p_import_id: string;
+          p_tenant_id: string;
+          p_term: string;
+        };
+        Returns: Json;
+      };
+      bloom_support_apply_slack_repair: {
+        Args: {
+          p_channel: string;
+          p_choice: string;
+          p_decision: string;
+          p_message_ts: string;
+          p_user_id: string;
+        };
+        Returns: Json;
+      };
+      bloom_support_bind_slack_repair: {
+        Args: { p_decision: string; p_message_ts: string; p_root_ts: string };
+        Returns: undefined;
+      };
+      bloom_support_bootstrap_admin: {
+        Args: { p_principal: string };
+        Returns: boolean;
+      };
+      bloom_support_claim_feature_shipment_email: {
+        Args: { p_email: string };
+        Returns: boolean;
+      };
+      bloom_support_claim_operation_undo: {
+        Args: { p_actor: string; p_operation: string };
+        Returns: Json;
+      };
+      bloom_support_claim_slack_reply: {
+        Args: { p_job: string };
+        Returns: Json;
+      };
+      bloom_support_client_suite_read: {
+        Args: { p_account: string; p_actor: string; p_kind: string };
+        Returns: Json;
+      };
+      bloom_support_configure_trusted_bug: {
+        Args: {
+          p_actor: string;
+          p_expected_policy: Json;
+          p_github_issue: number;
+          p_issue_id: string;
+          p_ticket_ids: string[];
+        };
+        Returns: Json;
+      };
+      bloom_support_confirm_attachment: {
+        Args: {
+          p_actor: string;
+          p_content_type: string;
+          p_file_name: string;
+          p_message_id: string;
+          p_sha256: string;
+          p_size_bytes: number;
+          p_storage_path: string;
+          p_ticket: string;
+          p_visibility: string;
+        };
+        Returns: Json;
+      };
+      bloom_support_consume_email_usage: {
+        Args: {
+          p_bucket: string;
+          p_event: string;
+          p_limit: number;
+          p_provider: string;
+          p_subject: string;
+        };
+        Returns: boolean;
+      };
+      bloom_support_deliver_feature_shipment: {
+        Args: {
+          p_actor: string;
+          p_body: string;
+          p_generation: number;
+          p_subscription: string;
+        };
+        Returns: Json;
+      };
+      bloom_support_digest_report: { Args: { p_since: string }; Returns: Json };
+      bloom_support_enqueue_engineering_recoveries: {
+        Args: { p_actor: string };
+        Returns: number;
+      };
+      bloom_support_enqueue_github_engineering: {
+        Args: {
+          p_delivery: string;
+          p_deployment?: boolean;
+          p_pr: number;
+          p_repository: string;
+          p_sha: string;
+        };
+        Returns: number;
+      };
+      bloom_support_enqueue_slack_conversation: {
+        Args: {
+          p_channel: string;
+          p_event_id: string;
+          p_is_mention: boolean;
+          p_message_ts: string;
+          p_question: string;
+          p_root_ts: string;
+          p_user_id: string;
+        };
+        Returns: Json;
+      };
+      bloom_support_enqueue_slack_external: {
+        Args: {
+          p_event_id: string;
+          p_kind: string;
+          p_project_id?: string;
+          p_source: string;
+          p_url?: string;
+        };
+        Returns: Json;
+      };
+      bloom_support_enqueue_slack_github: {
+        Args: {
+          p_category?: string;
+          p_event_id: string;
+          p_kind: string;
+          p_url?: string;
+        };
+        Returns: Json;
+      };
+      bloom_support_enqueue_slack_question: {
+        Args: {
+          p_channel: string;
+          p_event_id: string;
+          p_question: string;
+          p_thread_ts: string;
+          p_user_id: string;
+        };
+        Returns: Json;
+      };
+      bloom_support_enqueue_slack_ticket_question: {
+        Args: {
+          p_channel: string;
+          p_event_id: string;
+          p_question: string;
+          p_root_ts: string;
+          p_user_id: string;
+        };
+        Returns: Json;
+      };
+      bloom_support_escalation_context: {
+        Args: { p_actor: string; p_escalation: string };
+        Returns: Json;
+      };
+      bloom_support_fail_operation_undo: {
+        Args: { p_actor: string; p_error: string; p_operation: string };
+        Returns: Json;
+      };
+      bloom_support_fetch_approval_entry: {
+        Args: { p_entry_id: string };
+        Returns: Json;
+      };
+      bloom_support_insert_approval_queue_entry: {
+        Args: {
+          p_hold_reason: string;
+          p_html_body: string;
+          p_idempotency_key: string;
+          p_message_id: string;
+          p_original_job_id: string;
+          p_subject: string;
+          p_text_body: string;
+          p_ticket_id: string;
+          p_to_email: string;
+        };
+        Returns: Json;
+      };
+      bloom_support_list_approval_queue: {
+        Args: { p_actor: string; p_status?: string };
+        Returns: Json;
+      };
+      bloom_support_mark_approval_sent: {
+        Args: { p_entry_id: string };
+        Returns: undefined;
+      };
+      bloom_support_mark_feature_shipment_in_product_only: {
+        Args: { p_message: string };
+        Returns: boolean;
+      };
+      bloom_support_mark_operation_reconciliation: {
+        Args: { p_action: string; p_actor: string; p_operation: string };
+        Returns: Json;
+      };
+      bloom_support_mark_slack_reply_unknown: {
+        Args: { p_job: string };
+        Returns: boolean;
+      };
+      bloom_support_mcp_claim_operation: {
+        Args: {
+          p_action: string;
+          p_actor: string;
+          p_arguments_hash: string;
+          p_operation: string;
+          p_request_key: string;
+          p_tool: string;
+        };
+        Returns: Json;
+      };
+      bloom_support_mcp_close_session: {
+        Args: { p_actor: string; p_session: string };
+        Returns: undefined;
+      };
+      bloom_support_mcp_complete_operation: {
+        Args: {
+          p_actor: string;
+          p_arguments_hash: string;
+          p_operation: string;
+          p_request_key: string;
+          p_result: Json;
+          p_tool: string;
+        };
+        Returns: undefined;
+      };
+      bloom_support_mcp_mutation: {
+        Args: {
+          p: Json;
+          p_actor: string;
+          p_arguments_hash: string;
+          p_fn: string;
+          p_request_key: string;
+          p_tool: string;
+        };
+        Returns: Json;
+      };
+      bloom_support_mcp_open_session: {
+        Args: { p_actor: string; p_session: string };
+        Returns: undefined;
+      };
+      bloom_support_mcp_touch_session: {
+        Args: { p_actor: string; p_session: string };
+        Returns: boolean;
+      };
+      bloom_support_ops_rpc: {
+        Args: { p?: Json; p_fn: string };
+        Returns: Json;
+      };
+      bloom_support_prepare_slack_reply: {
+        Args: { p_body: string; p_job: string };
+        Returns: Json;
+      };
+      bloom_support_product_client_action: {
+        Args: {
+          p_account: string;
+          p_action: string;
+          p_actor: string;
+          p_fingerprint: string;
+          p_idempotency_key: string;
+          p_message: string;
+          p_product: string;
+          p_ticket_number: number;
+        };
+        Returns: Json;
+      };
+      bloom_support_public_knowledge: {
+        Args: { p_product?: string };
+        Returns: Json;
+      };
+      bloom_support_reconcile_external_response: {
+        Args: { p_actor: string; p_request: Json; p_ticket: string };
+        Returns: Json;
+      };
+      bloom_support_reconcile_ticket_links: {
+        Args: { p_actor: string; p_request: Json; p_ticket: string };
+        Returns: Json;
+      };
+      bloom_support_record_slack_reply: {
+        Args: { p_answer?: string; p_job: string; p_reply_ts: string };
+        Returns: Json;
+      };
+      bloom_support_resume_release: {
+        Args: { p_actor: string; p_issue: string; p_version: number };
+        Returns: Json;
+      };
+      bloom_support_review_queued_reply: {
+        Args: {
+          p_action: string;
+          p_actor: string;
+          p_entry_id: string;
+          p_reason?: string;
+        };
+        Returns: Json;
+      };
+      bloom_support_rpc: { Args: { p?: Json; p_fn: string }; Returns: Json };
+      bloom_support_save_escalation_plain: {
+        Args: { p_actor: string; p_escalation: string; p_plain: Json };
+        Returns: Json;
+      };
+      bloom_support_send_and_solve: {
+        Args: { p_actor: string; p_request: Json; p_ticket: string };
+        Returns: Json;
+      };
+      bloom_support_slack_alert_context: {
+        Args: { p_job_id: string };
+        Returns: Json;
+      };
+      bloom_support_slack_client_intelligence: {
+        Args: {
+          p_account: string;
+          p_customer?: string;
+          p_job: string;
+          p_kind: string;
+          p_query?: string;
+        };
+        Returns: Json;
+      };
+      bloom_support_slack_conversation_context: {
+        Args: { p_job: string };
+        Returns: Json;
+      };
+      bloom_support_slack_feature_summary: { Args: never; Returns: Json };
+      bloom_support_slack_process_inbox: {
+        Args: { p_job: string };
+        Returns: Json;
+      };
+      bloom_support_slack_release_evidence: {
+        Args: { p_job: string };
+        Returns: Json;
+      };
+      bloom_support_slack_repair_snapshot: {
+        Args: { p_job: string; p_ticket: string };
+        Returns: Json;
+      };
+      bloom_support_slack_request_repair: {
+        Args: { p_job: string; p_resume?: boolean };
+        Returns: Json;
+      };
+      bloom_support_slack_revenue_by_client: {
+        Args: {
+          p_category?: string;
+          p_from?: string;
+          p_job: string;
+          p_to?: string;
+        };
+        Returns: Json;
+      };
+      bloom_support_slack_staff_actor: {
+        Args: { p_slack_user_id: string };
+        Returns: Json;
+      };
+      bloom_support_slack_ticket_actor: {
+        Args: { p_slack_user_id: string };
+        Returns: Json;
+      };
+      bloom_support_slack_ticket_thread: {
+        Args: { p_root_ts?: string; p_ticket: string };
+        Returns: Json;
+      };
+      bloom_support_ticket_flow_context: {
+        Args: {
+          p_actor: string;
+          p_head_sha: string;
+          p_issue_id: string;
+          p_version: number;
+        };
+        Returns: Json;
+      };
+      bloom_support_track: {
+        Args: { p?: Json; p_hash: string; p_op: string };
+        Returns: Json;
+      };
+      bloomsuite_pos_connection: { Args: { p_key: string }; Returns: Json };
+      bloomsuite_pos_marketing_workspace: { Args: never; Returns: Json };
+      bloomsuite_pos_purchase_health: {
+        Args: { p_expected_tenant: string };
+        Returns: {
+          connection_id: string;
+          connection_name: string;
+          latest_receipt_at: string;
+          missing_original_sales: number;
+          missing_sale_references: Json;
+          oldest_received_at: string;
+          orphan_returns: number;
+          orphan_voids: number;
+        }[];
+      };
       bulk_sms_opt_in: {
         Args: { p_batch_size?: number; p_tenant_id: string };
         Returns: number;
+      };
+      bump_customer_intelligence_generation: {
+        Args: { p_keys: string[] };
+        Returns: undefined;
       };
       bundle_approved_counts: { Args: { j: Json }; Returns: Json };
       bundle_channels: { Args: { j: Json }; Returns: string[] };
@@ -16084,6 +22419,19 @@ export type Database = {
       calculate_tenant_perks_enrollment_rate: {
         Args: { p_tenant_id: string };
         Returns: number;
+      };
+      campaign_health_check: {
+        Args: {
+          p_stale_queue_minutes?: number;
+          p_stale_worker_minutes?: number;
+        };
+        Returns: {
+          events_logged: number;
+          orphaned_jobs_released: number;
+          partially_queued_campaigns: number;
+          stale_messages_reset: number;
+          stalled_campaigns: number;
+        }[];
       };
       can_run_automation: { Args: { p_tenant_id: string }; Returns: string };
       can_run_sync:
@@ -16107,6 +22455,14 @@ export type Database = {
         Returns: string;
       };
       cancel_pos_sync_job: { Args: { p_job_id: string }; Returns: boolean };
+      care_followup_delivery_guard: {
+        Args: { p_campaign: string; p_recipients: Json };
+        Returns: Json;
+      };
+      care_website_candidates: {
+        Args: { p_ids?: string[]; p_site: string; p_tenant: string };
+        Returns: Json;
+      };
       check_email_exists: {
         Args: { email_to_check: string };
         Returns: boolean;
@@ -16116,6 +22472,14 @@ export type Database = {
         Returns: Json;
       };
       check_send_quota: {
+        Args: {
+          p_domain_id: string;
+          p_recipient_count: number;
+          p_tenant_id: string;
+        };
+        Returns: Json;
+      };
+      check_send_quota_with_legacy_domain_policy: {
         Args: {
           p_domain_id?: string;
           p_recipient_count?: number;
@@ -16127,7 +22491,42 @@ export type Database = {
         Args: { p_estimated_units: number; p_tenant_id: string };
         Returns: Json;
       };
+      check_sms_send_eligibility: {
+        Args: {
+          p_customer_id: string;
+          p_recipient: string;
+          p_tenant_id: string;
+        };
+        Returns: Json;
+      };
       check_trial_expiration_emails: { Args: never; Returns: number };
+      claim_bloom_audience_refresh: {
+        Args: { p_token: string };
+        Returns: {
+          claimed_generation: number | null;
+          excluded_ids: string[];
+          id: string;
+          last_error: string | null;
+          lease_until: string | null;
+          mode: string;
+          name: string;
+          next_refresh_at: string;
+          refresh_generation: number;
+          refreshed_at: string;
+          snapshot: Json;
+          source_set_id: string;
+          tenant_id: string;
+          user_id: string;
+          version: number;
+          worker_token: string | null;
+        }[];
+        SetofOptions: {
+          from: "*";
+          to: "bloom_analytical_audiences";
+          isOneToOne: false;
+          isSetofReturn: true;
+        };
+      };
       claim_campaign_for_send: {
         Args: { campaign_id: string };
         Returns: {
@@ -16135,6 +22534,35 @@ export type Database = {
           previous_status: string;
           success: boolean;
         }[];
+      };
+      claim_crm_push_messages: {
+        Args: { p_limit?: number };
+        Returns: {
+          accepted_at: string | null;
+          attempts: number;
+          available_at: string;
+          body: string;
+          campaign_id: string | null;
+          claimed_at: string | null;
+          click_token: string;
+          created_at: string;
+          crm_customer_id: string;
+          dedupe_key: string;
+          id: string;
+          last_error_code: string | null;
+          open_path: string;
+          push_campaign_id: string | null;
+          status: string;
+          subscription_id: string;
+          tenant_id: string;
+          title: string;
+        }[];
+        SetofOptions: {
+          from: "*";
+          to: "crm_push_messages";
+          isOneToOne: false;
+          isSetofReturn: true;
+        };
       };
       claim_domain_crisis_notifications: {
         Args: {
@@ -16152,6 +22580,45 @@ export type Database = {
           subject: string;
           tenant_id: string;
         }[];
+      };
+      claim_due_automation_trigger_events: {
+        Args: {
+          p_limit?: number;
+          p_stale_after_minutes?: number;
+          p_worker_id?: string;
+        };
+        Returns: {
+          automation_id: string | null;
+          claimed_at: string | null;
+          claimed_by: string | null;
+          created_at: string | null;
+          customer_id: string | null;
+          error_message: string | null;
+          event_type: string;
+          form_id: string | null;
+          id: string;
+          last_error_at: string | null;
+          max_retries: number | null;
+          metadata: Json | null;
+          persona_id: string | null;
+          processed_at: string | null;
+          queued_until: string | null;
+          retry_count: number | null;
+          segment_id: string | null;
+          source_event_key: string | null;
+          submission_id: string | null;
+          tenant_id: string;
+        }[];
+        SetofOptions: {
+          from: "*";
+          to: "automation_trigger_events";
+          isOneToOne: false;
+          isSetofReturn: true;
+        };
+      };
+      claim_due_sms_campaign_for_enqueue: {
+        Args: { p_max_lateness?: string; p_worker_id: string };
+        Returns: string;
       };
       claim_email_send_job_ids: {
         Args: {
@@ -16196,6 +22663,44 @@ export type Database = {
           to: "email_send_jobs";
           isOneToOne: false;
           isSetofReturn: true;
+        };
+      };
+      claim_ideal_manual_job: {
+        Args: { p_job: string; p_tenant: string };
+        Returns: {
+          approval_sha256: string | null;
+          approved_at: string | null;
+          approved_by: string | null;
+          batch_count: number;
+          committed_batches: number;
+          created_at: string;
+          created_by: string;
+          encoding: string;
+          id: string;
+          identity_sha256: string | null;
+          import_id: string | null;
+          last_error: string | null;
+          lease_generation: number;
+          lease_token: string | null;
+          lease_until: string | null;
+          manifest_sha256: string | null;
+          plan_scope: Json | null;
+          plan_sha256: string | null;
+          report_family: string;
+          review_summary: Json | null;
+          source_bytes: number;
+          source_filename: string;
+          source_path: string;
+          source_sha256: string;
+          status: string;
+          tenant_id: string;
+          updated_at: string;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "ideal_manual_sync_jobs";
+          isOneToOne: true;
+          isSetofReturn: false;
         };
       };
       claim_next_pos_sync_job: {
@@ -16285,33 +22790,59 @@ export type Database = {
           isSetofReturn: true;
         };
       };
+      claim_pos_webhook_event: {
+        Args: {
+          p_connection_id: string;
+          p_event_id: string;
+          p_event_type: string;
+          p_payload: Json;
+          p_provider: string;
+          p_stale_after_minutes?: number;
+          p_tenant_id: string;
+        };
+        Returns: Json;
+      };
       claim_scheduled_campaigns: {
         Args: { batch_size?: number };
         Returns: {
           actual_sender_email: string | null;
+          additional_customer_ids: string[];
           auto_send_enabled: boolean | null;
           claim_token: string | null;
           click_rate: number | null;
           content: string | null;
           created_at: string | null;
           delivery_method: string | null;
+          estimated_completion_at: string | null;
           failure_reason: string | null;
           from_email_domain_id: string | null;
           id: string;
+          include_all_customers: boolean;
+          location_scope: string;
+          messages_failed: number;
+          messages_sent: number;
+          messages_skipped: number;
           metadata: Json | null;
           metrics: Json | null;
           metrics_parity_snapshot: Json | null;
           name: string;
           open_rate: number | null;
+          origin: string | null;
           persona_ids: string[] | null;
           predicted_segment_ids: string[] | null;
           preheader: string | null;
           preheader_text: string | null;
+          primary_location_id: string | null;
+          projected_recipient_count: number | null;
+          queue_completed_at: string | null;
+          queue_started_at: string | null;
+          queued_at: string | null;
           rollup_refreshed_at: string | null;
           scheduled_at: string | null;
           segment_id: string | null;
           send_attempts: number | null;
           send_blocked_reason: string | null;
+          send_completed_at: string | null;
           send_error: string | null;
           send_reasoning: string | null;
           send_started_at: string | null;
@@ -16322,16 +22853,20 @@ export type Database = {
           sent_at: string | null;
           source_campaign_id: string | null;
           source_content_task_id: string | null;
+          stall_count: number;
           status: string | null;
           subject_line: string | null;
           synced_from: string | null;
           template_id: string | null;
-          tenant_id: string | null;
+          tenant_id: string;
+          total_batches: number | null;
           total_clicks: number | null;
           total_opens: number | null;
+          total_recipients: number | null;
           total_sent: number | null;
           updated_at: string | null;
           user_id: string | null;
+          worker_heartbeat_at: string | null;
         }[];
         SetofOptions: {
           from: "*";
@@ -16340,6 +22875,14 @@ export type Database = {
           isSetofReturn: true;
         };
       };
+      claim_segment_recompute_job: {
+        Args: { p_lease_seconds?: number; p_worker_token: string };
+        Returns: {
+          cursor_customer_id: string;
+          tenant_id: string;
+          worker_token: string;
+        }[];
+      };
       claim_sms_campaign_enqueue: {
         Args: {
           p_campaign_id: string;
@@ -16347,6 +22890,53 @@ export type Database = {
           p_worker_id: string;
         };
         Returns: boolean;
+      };
+      claim_sms_delivery_reconciliation: {
+        Args: {
+          p_claim_token: string;
+          p_stale_minutes?: number;
+          p_worker_id: string;
+        };
+        Returns: {
+          claim_token: string;
+          page: number;
+        }[];
+      };
+      claim_sms_send_jobs: {
+        Args: {
+          p_claim_token: string;
+          p_limit: number;
+          p_max_attempts?: number;
+          p_stale_minutes?: number;
+          p_worker_id: string;
+        };
+        Returns: {
+          attempts: number;
+          batch_index: number;
+          campaign_id: string | null;
+          claim_token: string | null;
+          claimed_at: string | null;
+          claimed_by: string | null;
+          created_at: string | null;
+          dead_lettered_at: string | null;
+          error_message: string | null;
+          from_phone: string | null;
+          id: string;
+          messaging_service_sid: string | null;
+          partition_key: string | null;
+          priority: number;
+          recipient_message_ids: string[];
+          scheduled_at: string | null;
+          status: string;
+          tenant_id: string;
+          updated_at: string | null;
+        }[];
+        SetofOptions: {
+          from: "*";
+          to: "sms_send_jobs";
+          isOneToOne: false;
+          isSetofReturn: true;
+        };
       };
       claim_tenant_hard_stop_notifications: {
         Args: {
@@ -16369,6 +22959,7 @@ export type Database = {
         Returns: {
           automation_id: string | null;
           claimed_at: string | null;
+          claimed_by: string | null;
           created_at: string | null;
           customer_id: string | null;
           error_message: string | null;
@@ -16383,6 +22974,7 @@ export type Database = {
           queued_until: string | null;
           retry_count: number | null;
           segment_id: string | null;
+          source_event_key: string | null;
           submission_id: string | null;
           tenant_id: string;
         }[];
@@ -16397,6 +22989,10 @@ export type Database = {
         Args: { p_campaign_id: string };
         Returns: boolean;
       };
+      clean_list_and_recover: {
+        Args: { target_tenant_id: string };
+        Returns: Json;
+      };
       cleanup_expired_email_governance_overrides: {
         Args: {
           p_campaign_id?: string;
@@ -16406,6 +23002,7 @@ export type Database = {
         Returns: Json;
       };
       cleanup_expired_oauth_states: { Args: never; Returns: undefined };
+      cleanup_lightspeed_storefront_auth_v1: { Args: never; Returns: number };
       cleanup_old_oauth_codes: { Args: never; Returns: undefined };
       cleanup_stale_sync_jobs: { Args: never; Returns: number };
       clear_campaign_schedule: {
@@ -16414,6 +23011,25 @@ export type Database = {
           error_message: string;
           success: boolean;
         }[];
+      };
+      clear_user_recent_searches: { Args: never; Returns: undefined };
+      commit_calendar_import_v1: {
+        Args: {
+          p_accept_rejected?: boolean;
+          p_digest: string;
+          p_preview_id: string;
+          p_tenant_id: string;
+          p_user_id: string;
+        };
+        Returns: Json;
+      };
+      complete_automation_trigger_event: {
+        Args: {
+          p_error_message?: string;
+          p_event_id: string;
+          p_worker_id: string;
+        };
+        Returns: boolean;
       };
       complete_campaign_send: {
         Args: {
@@ -16436,27 +23052,197 @@ export type Database = {
         };
         Returns: boolean;
       };
+      complete_pos_webhook_event: {
+        Args: { p_event_id: string };
+        Returns: boolean;
+      };
+      complete_sms_delivery_reconciliation: {
+        Args: {
+          p_claim_token: string;
+          p_cycle_complete?: boolean;
+          p_error?: string;
+          p_next_page: number;
+        };
+        Returns: boolean;
+      };
+      complete_support_activity_notice: {
+        Args: { p_batch: string; p_provider_id: string };
+        Returns: undefined;
+      };
+      compute_campaign_projected_recipient_count: {
+        Args: { p_campaign_id: string };
+        Returns: number;
+      };
       compute_pos_order_revenue_attribution: {
         Args: { p_order_id: string; p_window_days?: number };
+        Returns: Json;
+      };
+      configure_pos_sms_checkout_policy: {
+        Args: { p_provider: string; p_tenant_id: string; p_user_id: string };
+        Returns: {
+          attestation_id: string;
+          effective_at: string;
+          id: string;
+          provider: string;
+        }[];
+      };
+      confirm_loyalty_baseline_v1: {
+        Args: {
+          p_digest: string;
+          p_preview_id: string;
+          p_tenant_id: string;
+          p_user_id: string;
+        };
         Returns: Json;
       };
       copy_master_templates_to_campaigns: {
         Args: { target_user_id?: string };
         Returns: number;
       };
+      copy_segment_members: {
+        Args: { p_source_segment_id: string; p_target_segment_id: string };
+        Returns: number;
+      };
+      copy_segment_members_batch: {
+        Args: {
+          p_after_customer_id?: string;
+          p_limit?: number;
+          p_source_segment_id: string;
+          p_target_segment_id: string;
+        };
+        Returns: Json;
+      };
+      count_sms_campaign_recipients: {
+        Args: { p_campaign_id: string };
+        Returns: number;
+      };
       create_automation_from_draft: {
         Args: { draft_id: string; template_key?: string };
         Returns: string;
       };
+      create_care_followup_draft: {
+        Args: {
+          p_as_of: string;
+          p_confirmed: boolean;
+          p_connection: string;
+          p_days: number;
+          p_digest: string;
+          p_product_name: string;
+          p_request_id: string;
+          p_tenant: string;
+          p_variant: string;
+        };
+        Returns: Json;
+      };
       create_current_user_tenant: {
         Args: { p_name: string };
-        Returns: Database["public"]["Tables"]["tenants"]["Row"][];
+        Returns: {
+          archived_at: string | null;
+          city: string | null;
+          country: string | null;
+          created_at: string;
+          default_from_email_domain_id: string | null;
+          email_under_review: boolean;
+          email_under_review_at: string | null;
+          email_under_review_details: Json;
+          email_under_review_reason: string | null;
+          fallback_from_name: string | null;
+          fallback_sender_created_at: string | null;
+          fallback_sender_email: string | null;
+          id: string;
+          is_active: boolean;
+          last_event_at: string | null;
+          name: string;
+          region: string | null;
+          settings: Json | null;
+          slug: string | null;
+          updated_at: string;
+          website: string | null;
+        }[];
+        SetofOptions: {
+          from: "*";
+          to: "tenants";
+          isOneToOne: false;
+          isSetofReturn: true;
+        };
+      };
+      create_website_care_followup_draft: {
+        Args: {
+          p_actor: string;
+          p_digest: string;
+          p_from: string;
+          p_ids: string[];
+          p_label: string;
+          p_product: string;
+          p_request: string;
+          p_site: string;
+          p_tenant: string;
+          p_until: string;
+        };
+        Returns: Json;
+      };
+      crm_has_permission: {
+        Args: {
+          p_location_id?: string;
+          p_permission: string;
+          p_tenant_id?: string;
+        };
+        Returns: boolean;
+      };
+      crm_push_campaign_overview_v1: {
+        Args: { p_limit?: number; p_tenant_id: string };
+        Returns: {
+          accepted: number;
+          clicks: number;
+          created_at: string;
+          failed: number;
+          id: string;
+          pending: number;
+          queued_count: number;
+          segment_id: string;
+          status: string;
+          title: string;
+        }[];
+      };
+      current_profile_user_id: { Args: never; Returns: string };
+      current_user_can_edit_business_profile: { Args: never; Returns: boolean };
+      customer_intelligence_summary_fingerprint: {
+        Args: { p_import_id: string; p_tenant_id: string };
+        Returns: string;
+      };
+      customer_period_comparison: {
+        Args: {
+          p_baseline_end?: string;
+          p_baseline_start?: string;
+          p_current_end?: string;
+          p_current_start?: string;
+          p_customer_id: string;
+          p_dimension?: string;
+          p_dimension_value?: string;
+        };
+        Returns: Json;
+      };
+      defer_automation_trigger_event: {
+        Args: {
+          p_event_id: string;
+          p_queued_until: string;
+          p_worker_id: string;
+        };
+        Returns: boolean;
       };
       delete_customers_except: {
         Args: { p_keep_email: string; p_tenant_id: string };
         Returns: {
           deleted_count: number;
         }[];
+      };
+      delete_form_submissions: {
+        Args: {
+          p_form_id: string;
+          p_submission_ids: string[];
+          p_tenant_id: string;
+        };
+        Returns: Json;
       };
       delete_nameless_customers: {
         Args: { p_limit?: number; p_tenant_id: string };
@@ -16466,9 +23252,29 @@ export type Database = {
         Args: { p_limit?: number; p_tenant_id: string };
         Returns: number;
       };
+      delete_stale_empty_campaign_drafts: {
+        Args: { p_dry_run?: boolean; p_tenant_id: string };
+        Returns: {
+          draft_id: string;
+          draft_name: string;
+          last_edited_at: string;
+          was_deleted: boolean;
+        }[];
+      };
+      delete_user_recent_search: {
+        Args: { p_normalized_query: string };
+        Returns: undefined;
+      };
       determine_lifecycle_stage: {
         Args: { p_customer_id: string };
         Returns: string;
+      };
+      eligible_crm_push_segment_v1: {
+        Args: { p_segment_id: string; p_tenant_id: string };
+        Returns: {
+          crm_customer_id: string;
+          subscription_id: string;
+        }[];
       };
       email_gov_cfg_int: { Args: { p_path: string[] }; Returns: number };
       email_gov_cfg_interval: { Args: { p_path: string[] }; Returns: string };
@@ -16491,9 +23297,32 @@ export type Database = {
         Returns: Json;
       };
       email_governance_default_config: { Args: never; Returns: Json };
+      email_reachability_summary: {
+        Args: { p_customer_ids?: string[]; p_tenant_id: string };
+        Returns: {
+          asked_to_stop: number;
+          never_opted_in: number;
+          reachable: number;
+          stopped: number;
+          total: number;
+          unsendable: number;
+          waiting: number;
+        }[];
+      };
+      email_reputation_enforcement_enabled: { Args: never; Returns: boolean };
       enable_crm_for_user: {
         Args: { target_user_id: string };
         Returns: boolean;
+      };
+      enqueue_loyalty_automation_step: {
+        Args: {
+          p_event_id: string;
+          p_message: Json;
+          p_run_id: string;
+          p_step_index: number;
+          p_worker_id: string;
+        };
+        Returns: Json;
       };
       enqueue_pos_sync_job: {
         Args: {
@@ -16513,106 +23342,153 @@ export type Database = {
           success: boolean;
         }[];
       };
-      ensure_jobs_for_queued_email_messages: {
-        Args: {
-          p_activate_sending?: boolean;
-          p_batch_size?: number;
-          p_campaign_id: string;
-          p_immediate_job_count?: number;
-          p_jobs_per_minute?: number;
-        };
-        Returns: {
-          jobs_created: number;
-          queued_count: number;
-        }[];
-      };
-      campaign_health_check: {
-        Args: {
-          p_stale_queue_minutes?: number;
-          p_stale_worker_minutes?: number;
-        };
-        Returns: {
-          events_logged: number;
-          orphaned_jobs_released: number;
-          partially_queued_campaigns: number;
-          stale_messages_reset: number;
-          stalled_campaigns: number;
-        }[];
-      };
-      record_campaign_send_progress: {
-        Args: {
-          p_campaign_id: string;
-          p_failed_delta?: number;
-          p_sent_delta?: number;
-          p_skipped_delta?: number;
-          p_worker_heartbeat_at?: string;
-        };
-        Returns: {
-          estimated_completion_at: string | null;
-          messages_failed: number;
-          messages_sent: number;
-          messages_skipped: number;
-          send_started_at: string | null;
-          total_recipients: number | null;
-          worker_heartbeat_at: string | null;
-        }[];
-      };
-      copy_segment_members_batch: {
-        Args: {
-          p_after_customer_id?: string | null;
-          p_limit?: number;
-          p_source_segment_id: string;
-          p_target_segment_id: string;
-        };
-        Returns: Json;
-      };
-      segment_membership_summary: {
+      ensure_jobs_for_queued_email_messages:
+        | {
+            Args: { p_batch_size?: number; p_campaign_id: string };
+            Returns: {
+              jobs_created: number;
+              queued_count: number;
+            }[];
+          }
+        | {
+            Args: {
+              p_activate_sending?: boolean;
+              p_batch_size?: number;
+              p_campaign_id: string;
+              p_immediate_job_count?: number;
+              p_jobs_per_minute?: number;
+            };
+            Returns: {
+              jobs_created: number;
+              queued_count: number;
+            }[];
+          };
+      ensure_org_usage_initialized: {
         Args: { p_tenant_id: string };
-        Returns: Json;
-      };
-      get_sms_audience_estimate: {
-        Args: {
-          p_tenant_id: string;
-          p_segment_id?: string | null;
-          p_persona_ids?: string[] | null;
-          p_customer_ids?: string[] | null;
-        };
-        Returns: Json;
-      };
-      filter_sms_eligible_customer_ids: {
-        Args: { p_tenant_id: string; p_customer_ids: string[] };
-        Returns: string[];
+        Returns: undefined;
       };
       ensure_system_segments: {
         Args: { p_segments: Json; p_tenant_id: string };
         Returns: number;
       };
-      ensure_org_usage_initialized: {
-        Args: { p_tenant_id: string };
-        Returns: undefined;
+      evaluate_campaign_batch_safety: {
+        Args: { p_campaign_id: string };
+        Returns: {
+          bounce_rate: number;
+          bounced_count: number;
+          campaign_id: string;
+          complained_count: number;
+          complaint_rate: number;
+          failed_count: number;
+          failed_delivery_rate: number;
+          pause_reason: string;
+          sent_count: number;
+          should_pause: boolean;
+        }[];
+      };
+      evaluate_tenant_hard_stop: {
+        Args: { p_as_of?: string; p_tenant_id: string };
+        Returns: {
+          bounce_rate: number;
+          complaint_count: number;
+          complaint_rate: number;
+          failed_count: number;
+          failed_delivery_rate: number;
+          hard_bounce_count: number;
+          rejected_count: number;
+          rejected_rate: number;
+          reputation_score: number;
+          sent_count: number;
+          should_enforce: boolean;
+          spam_count: number;
+          spam_rate: number;
+          tenant_id: string;
+          trigger_reasons: string[];
+          window_end: string;
+          window_start: string;
+        }[];
+      };
+      expire_stale_automation_work: {
+        Args: { p_cutoff?: string; p_limit?: number };
+        Returns: Json;
+      };
+      fail_automation_trigger_event: {
+        Args: {
+          p_error_message?: string;
+          p_event_id: string;
+          p_worker_id: string;
+        };
+        Returns: Json;
       };
       fail_pos_sync_job: {
         Args: { p_error: string; p_job_id: string };
         Returns: boolean;
       };
+      fail_pos_webhook_event: {
+        Args: { p_error_message: string; p_event_id: string };
+        Returns: boolean;
+      };
       feature_enabled: { Args: { feature_name: string }; Returns: boolean };
+      filter_sms_eligible_customer_ids: {
+        Args: { p_customer_ids: string[]; p_tenant_id: string };
+        Returns: string[];
+      };
       find_images_by_tags: {
         Args: {
           p_channel?: string;
           p_limit?: number;
           p_min_confidence?: number;
           p_tags: string[];
-          p_tenant_id?: string;
         };
         Returns: {
           image_id: string;
           match_count: number;
-          matched_confidence_total: number;
           matched_tags: string[];
           public_url: string;
           storage_path: string;
           total_usage_count: number;
         }[];
+      };
+      finish_bloom_audience_refresh: {
+        Args: {
+          p_error?: string;
+          p_id: string;
+          p_snapshot: Json;
+          p_token: string;
+          p_version: number;
+        };
+        Returns: boolean;
+      };
+      finish_ideal_manual_job: {
+        Args: {
+          p_generation: number;
+          p_job: string;
+          p_lease: string;
+          p_plan: string;
+          p_tenant: string;
+        };
+        Returns: string;
+      };
+      finish_ideal_master_job: {
+        Args: {
+          p_generation: number;
+          p_job: string;
+          p_lease: string;
+          p_plan: string;
+          p_tenant: string;
+        };
+        Returns: string;
+      };
+      finish_segment_recompute_batch: {
+        Args: {
+          p_customers_evaluated?: number;
+          p_error?: string;
+          p_finished?: boolean;
+          p_last_customer_id?: string;
+          p_tenant_id: string;
+          p_worker_token: string;
+        };
+        Returns: boolean;
       };
       fn_get_newsletter_ideas: { Args: { p_user_id?: string }; Returns: Json };
       generate_campaign_slug: {
@@ -16627,22 +23503,8 @@ export type Database = {
         Args: { p_tenant_id: string };
         Returns: number;
       };
-      get_activity_feed: {
-        Args: {
-          p_activity_types?: string[];
-          p_actor_types?: string[];
-          p_customer_id?: string;
-          p_end?: string;
-          p_integration_names?: string[];
-          p_limit?: number;
-          p_offset?: number;
-          p_persona_ids?: string[];
-          p_search?: string;
-          p_segment_ids?: string[];
-          p_sources?: string[];
-          p_start?: string;
-          p_status?: string[];
-        };
+      get_activity_event: {
+        Args: { p_event_id: string };
         Returns: {
           activity_type: string;
           actor_id: string;
@@ -16661,6 +23523,74 @@ export type Database = {
           title: string;
         }[];
       };
+      get_activity_feed:
+        | {
+            Args: {
+              p_activity_types?: string[];
+              p_actor_types?: string[];
+              p_customer_id?: string;
+              p_end?: string;
+              p_integration_names?: string[];
+              p_limit?: number;
+              p_offset?: number;
+              p_persona_ids?: string[];
+              p_search?: string;
+              p_segment_ids?: string[];
+              p_sources?: string[];
+              p_start?: string;
+              p_status?: string[];
+            };
+            Returns: {
+              activity_type: string;
+              actor_id: string;
+              actor_type: string;
+              customer_id: string;
+              description: Json;
+              error_message: string;
+              id: string;
+              integration_name: string;
+              links: Json;
+              metadata: Json;
+              related_entities: Json;
+              source: string;
+              status: string;
+              timestamp: string;
+              title: string;
+            }[];
+          }
+        | {
+            Args: {
+              p_activity_types?: string[];
+              p_actor_types?: string[];
+              p_customer_id?: string;
+              p_end?: string;
+              p_limit?: number;
+              p_offset?: number;
+              p_persona_ids?: string[];
+              p_search?: string;
+              p_segment_ids?: string[];
+              p_sources?: string[];
+              p_start?: string;
+              p_status?: string[];
+            };
+            Returns: {
+              activity_type: string;
+              actor_id: string;
+              actor_type: string;
+              customer_id: string;
+              description: Json;
+              error_message: string;
+              id: string;
+              integration_name: string;
+              links: Json;
+              metadata: Json;
+              related_entities: Json;
+              source: string;
+              status: string;
+              timestamp: string;
+              title: string;
+            }[];
+          };
       get_admin_user_data: {
         Args: never;
         Returns: {
@@ -16780,6 +23710,11 @@ export type Database = {
           tier: string;
         }[];
       };
+      get_crm_dashboard_snapshot: {
+        Args: { p_tenant_id?: string; p_user_id?: string };
+        Returns: Json;
+      };
+      get_current_crm_access: { Args: never; Returns: Json };
       get_customer_activity_heatmap: {
         Args: { p_channel?: string; p_customer_id: string };
         Returns: {
@@ -16788,6 +23723,7 @@ export type Database = {
           hour_of_day: number;
         }[];
       };
+      get_customer_catalog_stats: { Args: never; Returns: Json };
       get_customer_channel_trend: {
         Args: { p_customer_id: string; p_months?: number };
         Returns: {
@@ -16812,36 +23748,12 @@ export type Database = {
         }[];
       };
       get_customer_export_page: {
-        Args: { p_after_id?: string | null; p_limit?: number };
-        Returns: Json;
-      };
-      get_customer_catalog_stats: {
-        Args: Record<PropertyKey, never>;
+        Args: { p_after_id?: string; p_limit?: number };
         Returns: Json;
       };
       get_customer_merge_review_queue: {
         Args: { p_limit?: number; p_offset?: number };
         Returns: Json;
-      };
-      bloomsuite_pos_purchase_health: {
-        Args: { p_expected_tenant: string };
-        Returns: { connection_id: string; connection_name: string; missing_original_sales: number; orphan_returns: number; orphan_voids: number; oldest_received_at: string | null; latest_receipt_at: string | null; missing_sale_references: Json }[];
-      };
-      get_current_crm_access: {
-        Args: Record<PropertyKey, never>;
-        Returns: Json;
-      };
-      current_profile_user_id: {
-        Args: Record<PropertyKey, never>;
-        Returns: string;
-      };
-      current_user_can_edit_business_profile: {
-        Args: Record<PropertyKey, never>;
-        Returns: boolean;
-      };
-      profile_user_id_for: {
-        Args: { p_user_id: string };
-        Returns: string;
       };
       get_customer_purchase_timeline: {
         Args: { p_customer_id: string; p_months?: number };
@@ -16936,32 +23848,6 @@ export type Database = {
         Args: { p_campaign_id: string };
         Returns: Json;
       };
-      set_customer_marketing_consent: {
-        Args: {
-          p_channel: string;
-          p_consent_basis?: string | null;
-          p_customer_id: string;
-          p_evidence?: string | null;
-          p_ip_address?: string | null;
-          p_opt_in: boolean;
-          p_source: string;
-          p_user_agent?: string | null;
-        };
-        Returns: Json;
-      };
-      set_customer_marketing_consent_authorized: {
-        Args: {
-          p_channel: string;
-          p_consent_basis?: string | null;
-          p_customer_id: string;
-          p_evidence?: string | null;
-          p_ip_address?: string | null;
-          p_opt_in: boolean;
-          p_source: string;
-          p_user_agent?: string | null;
-        };
-        Returns: Json;
-      };
       get_email_consent_stats: {
         Args: { p_tenant_id: string };
         Returns: {
@@ -16972,14 +23858,6 @@ export type Database = {
         }[];
       };
       get_email_governance_config: { Args: never; Returns: Json };
-      delete_form_submissions: {
-        Args: {
-          p_form_id: string;
-          p_submission_ids: string[];
-          p_tenant_id: string;
-        };
-        Returns: Json;
-      };
       get_form_analytics: {
         Args: { p_days?: number; p_form_id: string; p_tenant_id: string };
         Returns: Json;
@@ -17006,16 +23884,31 @@ export type Database = {
       };
       get_forms_with_stats: {
         Args: { p_stats_days?: number; p_tenant_id: string };
-        Returns: (Database["public"]["Tables"]["forms"]["Row"] & {
-          last_submission_at: string | null;
+        Returns: {
+          audience_json: Json;
+          compliance_json: Json;
+          created_at: string;
+          embed_key: string;
+          fields_json: Json;
+          id: string;
+          last_submission_at: string;
+          name: string;
           recent_accepted: number;
           recent_rejected: number;
           recent_submissions: number;
+          settings_json: Json;
+          status: string;
+          tenant_id: string;
           total_submissions: number;
-        })[];
+          updated_at: string;
+        }[];
       };
       get_global_in_progress_count: { Args: never; Returns: number };
       get_jwt_tenant_id: { Args: never; Returns: string };
+      get_marketing_analytics_overview: {
+        Args: { p_days?: number };
+        Returns: Json;
+      };
       get_my_overdue_campaigns: {
         Args: never;
         Returns: {
@@ -17038,6 +23931,28 @@ export type Database = {
           tenant_name: string;
         }[];
       };
+      get_pos_analytics_summary: { Args: { p_days?: number }; Returns: Json };
+      get_recipient_email_delivery_timeline: {
+        Args: {
+          p_customer_id?: string;
+          p_email?: string;
+          p_limit?: number;
+          p_tenant_id: string;
+        };
+        Returns: {
+          campaign_id: string;
+          campaign_name: string;
+          campaign_subject: string;
+          customer_id: string;
+          details: Json;
+          email: string;
+          email_message_id: string;
+          event_at: string;
+          provider_message_id: string;
+          status: string;
+          timeline_type: string;
+        }[];
+      };
       get_remaining_budget: { Args: { p_tenant_id: string }; Returns: Json };
       get_resource_insights: {
         Args: {
@@ -17047,7 +23962,36 @@ export type Database = {
         };
         Returns: Json;
       };
+      get_service_role_key: { Args: never; Returns: string };
+      get_sms_audience_estimate: {
+        Args: {
+          p_customer_ids?: string[];
+          p_persona_ids?: string[];
+          p_segment_id?: string;
+          p_tenant_id: string;
+        };
+        Returns: Json;
+      };
       get_sms_dashboard_stats: { Args: never; Returns: Json };
+      get_sms_persona_recipient_page: {
+        Args: {
+          p_after_customer_id?: string;
+          p_campaign_id: string;
+          p_limit?: number;
+        };
+        Returns: {
+          custom_fields: Json;
+          email: string;
+          first_name: string;
+          id: string;
+          is_vip: boolean;
+          last_name: string;
+          lifetime_value: number;
+          phone: string;
+          tags: string[];
+          total_spent: number;
+        }[];
+      };
       get_sms_warmup_info: {
         Args: { p_messaging_service_sid?: string; p_phone_number?: string };
         Returns: {
@@ -17064,13 +24008,55 @@ export type Database = {
         }[];
       };
       get_sync_queue_status: { Args: never; Returns: Json };
+      get_tenant_access_overview: {
+        Args: { p_tenant_id?: string };
+        Returns: Json;
+      };
       get_tenant_content_intent_stats: {
         Args: { p_tenant_id: string };
         Returns: Json;
       };
+      get_tenant_customer_summary: {
+        Args: { target_tenant_id: string };
+        Returns: {
+          active_customers: number;
+          lifetime_revenue: number;
+          new_customers_30d: number;
+          revenue_30d: number;
+          total_customers: number;
+          total_revenue: number;
+        }[];
+      };
       get_tenant_email_governance_overrides: {
         Args: { p_tenant_id: string };
         Returns: Json;
+      };
+      get_tenant_email_health_dashboard: {
+        Args: { p_as_of?: string; p_tenant_id: string };
+        Returns: {
+          as_of: string;
+          baseline_score_7d: number;
+          bounce_rate_24h: number;
+          bounce_rate_30d: number;
+          bounced_24h: number;
+          bounced_30d: number;
+          complained_24h: number;
+          complained_30d: number;
+          complaint_rate_24h: number;
+          complaint_rate_30d: number;
+          delivered_24h: number;
+          delivered_30d: number;
+          reputation_action: string;
+          reputation_score: number;
+          reputation_tier: string;
+          sent_24h: number;
+          sent_30d: number;
+          tenant_id: string;
+          trend_delta: number;
+          trend_direction: string;
+          unsubscribed_24h: number;
+          unsubscribed_30d: number;
+        }[];
       };
       get_tenant_lifecycle_stats: {
         Args: { p_tenant_id: string };
@@ -17115,6 +24101,33 @@ export type Database = {
           total_usage: number;
         }[];
       };
+      get_user_recent_items: {
+        Args: { p_limit?: number };
+        Returns: {
+          category_icon: string;
+          entity_id: string;
+          entity_type: string;
+          group_key: string;
+          icon: string;
+          keywords: string[];
+          metadata: string;
+          route: string;
+          subtitle: string;
+          title: string;
+          visit_count: number;
+          visited_at: string;
+        }[];
+      };
+      get_user_recent_searches: {
+        Args: { p_limit?: number };
+        Returns: {
+          normalized_query: string;
+          query: string;
+          searched_at: string;
+          selected_result_title: string;
+          usage_count: number;
+        }[];
+      };
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"];
@@ -17130,17 +24143,133 @@ export type Database = {
         };
         Returns: boolean;
       };
-      increment_image_usage: { Args: { asset_id: string }; Returns: undefined };
+      has_tenant_permission: {
+        Args: {
+          p_location_id?: string;
+          p_permission: string;
+          p_tenant_id: string;
+        };
+        Returns: boolean;
+      };
+      heartbeat_ideal_manual_job: {
+        Args: {
+          p_generation: number;
+          p_job: string;
+          p_lease: string;
+          p_tenant: string;
+        };
+        Returns: boolean;
+      };
+      ideal_build_customer_code_map: {
+        Args: { p_tenant_id: string };
+        Returns: number;
+      };
+      ideal_build_department_map: {
+        Args: { p_tenant_id: string };
+        Returns: number;
+      };
+      ideal_journal_apply_chunk: {
+        Args: { p_batch_id: string; p_seq: number };
+        Returns: number;
+      };
+      ideal_journal_apply_slice: {
+        Args: {
+          p_batch_id: string;
+          p_seq: number;
+          p_slice: number;
+          p_slices: number;
+        };
+        Returns: number;
+      };
+      ideal_journal_complete_annual_totals: {
+        Args: { p_journal_import: string };
+        Returns: Json;
+      };
+      ideal_journal_finish: {
+        Args: { p_batch_id: string; p_write_annual_totals: boolean };
+        Returns: Json;
+      };
+      ideal_journal_header: { Args: { p_batch_id: string }; Returns: Json };
+      ideal_journal_next_step: {
+        Args: { p_batches: string[]; p_parts: number; p_slices: number };
+        Returns: string;
+      };
+      ideal_journal_open_import: {
+        Args: { p_batch_id: string };
+        Returns: string;
+      };
+      ideal_journal_refresh_customer_dates: {
+        Args: { p_tenant_id: string };
+        Returns: Json;
+      };
+      ideal_journal_write_annual_totals: {
+        Args: { p_journal_import: string; p_part: number; p_parts: number };
+        Returns: number;
+      };
       import_crm_customer_batch: {
         Args: { p_attestation_id: string; p_customers: Json };
         Returns: Json;
       };
+      increment_image_usage: { Args: { asset_id: string }; Returns: undefined };
       increment_template_usage: {
         Args: { template_id: string };
         Returns: undefined;
       };
+      increment_trigger_event_retry: {
+        Args: { p_error_message?: string; p_event_id: string };
+        Returns: undefined;
+      };
+      internal_function_url: { Args: { p_slug: string }; Returns: string };
+      internal_functions_base_url: { Args: never; Returns: string };
       is_master_admin: { Args: { _user_id: string }; Returns: boolean };
+      is_reserved_email_domain: { Args: { p_email: string }; Returns: boolean };
       is_super_admin: { Args: { user_id: string }; Returns: boolean };
+      lightspeed_authority_create_v1: {
+        Args: { p_context: Json };
+        Returns: Json;
+      };
+      lightspeed_authority_nonce_v1: {
+        Args: {
+          p_grant_id: string;
+          p_nonce_hash: string;
+          p_valid_until: string;
+        };
+        Returns: boolean;
+      };
+      lightspeed_authority_read_v1: {
+        Args: { p_id?: string; p_state_hash?: string };
+        Returns: Json;
+      };
+      lightspeed_authority_sale_claim_v1: {
+        Args: { p_grant_id: string; p_order_id: string; p_site_id: string };
+        Returns: boolean;
+      };
+      lightspeed_authority_sale_finish_v1: {
+        Args: {
+          p_grant_id: string;
+          p_order_id: string;
+          p_provider_sale_id: string;
+          p_status: string;
+        };
+        Returns: undefined;
+      };
+      lightspeed_authority_update_v1: {
+        Args: {
+          p_id: string;
+          p_patch: Json;
+          p_status: string;
+          p_version: number;
+        };
+        Returns: Json;
+      };
+      list_care_followup_products: {
+        Args: { p_tenant: string };
+        Returns: Json;
+      };
+      list_care_followup_websites: {
+        Args: { p_tenant: string };
+        Returns: Json;
+      };
       log_admin_action: {
         Args: {
           p_action_details?: Json;
@@ -17191,6 +24320,24 @@ export type Database = {
         Args: { p_company?: string };
         Returns: undefined;
       };
+      match_bloom_knowledge_chunks: {
+        Args: {
+          p_match_count?: number;
+          p_min_similarity?: number;
+          p_query_embedding: string;
+          p_tenant_id: string;
+        };
+        Returns: {
+          chunk_id: string;
+          chunk_index: number;
+          content: string;
+          document_id: string;
+          document_title: string;
+          metadata: Json;
+          similarity: number;
+          tenant_id: string;
+        }[];
+      };
       maybe_enforce_tenant_abuse_under_review: {
         Args: { p_campaign_id: string; p_source?: string };
         Returns: {
@@ -17205,17 +24352,92 @@ export type Database = {
           was_blocked: boolean;
         }[];
       };
+      merge_crm_customers: {
+        Args: {
+          p_duplicate_customer_id: string;
+          p_performed_by?: string;
+          p_reason: string;
+          p_suggestion_id?: string;
+          p_survivor_customer_id: string;
+          p_tenant_id: string;
+        };
+        Returns: Json;
+      };
       merge_duplicate_accounts: {
         Args: { keep_user_id: string; merge_user_id: string };
         Returns: boolean;
       };
-      optin_perks_members: { Args: never; Returns: number };
+      merge_external_provider_customer_suggestion: {
+        Args: {
+          p_duplicate_customer_id: string;
+          p_performed_by?: string;
+          p_reason: string;
+          p_suggestion_id: string;
+          p_survivor_customer_id: string;
+        };
+        Returns: Json;
+      };
+      native_reward_read_context: {
+        Args: { p_customer: string; p_tenant: string };
+        Returns: Json;
+      };
+      native_reward_read_workspace: { Args: never; Returns: Json };
+      normalize_customer_email: { Args: { p_email: string }; Returns: string };
+      normalize_customer_phone: { Args: { p_phone: string }; Returns: string };
       pause_email_campaign_sending: {
         Args: { p_campaign_id: string };
         Returns: {
           jobs_paused: number;
           messages_paused: number;
         }[];
+      };
+      pos_membership_workspace: { Args: never; Returns: Json };
+      pos_onboarding_binding: { Args: { p_key: string }; Returns: Json };
+      pos_onboarding_snapshot: { Args: { p_key: string }; Returns: Json };
+      preview_care_followup: {
+        Args: {
+          p_as_of?: string;
+          p_connection: string;
+          p_days: number;
+          p_tenant: string;
+          p_variant: string;
+        };
+        Returns: Json;
+      };
+      preview_crm_push_segment_v1: {
+        Args: { p_segment_id: string; p_tenant_id: string };
+        Returns: Json;
+      };
+      profile_user_id_for: { Args: { p_user_id: string }; Returns: string };
+      publish_care_guide_design: {
+        Args: {
+          p_design: Json;
+          p_expected_version: number;
+          p_tenant_id: string;
+        };
+        Returns: number;
+      };
+      queue_crm_push_segment_v1: {
+        Args: {
+          p_body: string;
+          p_created_by: string;
+          p_open_path: string;
+          p_request_key: string;
+          p_segment_id: string;
+          p_tenant_id: string;
+          p_title: string;
+        };
+        Returns: Json;
+      };
+      rebuild_campaign_revenue_attribution: {
+        Args: {
+          p_after_order_id?: string;
+          p_from: string;
+          p_limit?: number;
+          p_to: string;
+          p_window_days?: number;
+        };
+        Returns: Json;
       };
       recalculate_content_intent_metrics: {
         Args: { p_customer_id: string };
@@ -17228,6 +24450,10 @@ export type Database = {
       recalculate_customer_engagement: {
         Args: { p_customer_id: string };
         Returns: undefined;
+      };
+      recalculate_customer_intelligence_after_import: {
+        Args: { p_import_id: string; p_tenant_id: string };
+        Returns: number;
       };
       recalculate_lifecycle_metrics: {
         Args: { p_customer_id: string };
@@ -17257,9 +24483,99 @@ export type Database = {
         Args: { p_campaign_id: string };
         Returns: Json;
       };
+      recompute_customer_rollups: {
+        Args: { p_pos_source?: string; p_tenant_id: string };
+        Returns: number;
+      };
+      recompute_customer_rollups_batch: {
+        Args: {
+          p_external_customer_ids: string[];
+          p_pos_source: string;
+          p_tenant_id: string;
+        };
+        Returns: number;
+      };
+      recompute_recent_campaign_rollups: {
+        Args: { p_max_age_days?: number; p_max_campaigns?: number };
+        Returns: {
+          recomputed: number;
+          skipped: number;
+        }[];
+      };
+      recompute_square_customer_locations: {
+        Args: { p_external_customer_ids?: string[]; p_tenant_id: string };
+        Returns: Json;
+      };
+      recompute_vmx_customer_locations: {
+        Args: { p_external_customer_ids?: string[]; p_tenant_id: string };
+        Returns: Json;
+      };
+      reconcile_campaign_email_rollups: {
+        Args: { p_campaign_id?: string; p_tenant_id?: string };
+        Returns: {
+          campaigns_updated: number;
+        }[];
+      };
+      reconcile_customer_email_rollups: {
+        Args: { p_customer_id?: string; p_tenant_id?: string };
+        Returns: {
+          customers_updated: number;
+        }[];
+      };
+      reconcile_stripe_notion_snapshot: {
+        Args: { p_account: string; p_issues: Json; p_scopes: Json };
+        Returns: {
+          customer_email: string | null;
+          detail: string;
+          fingerprint: string;
+          first_seen_at: string;
+          last_seen_at: string;
+          livemode: boolean;
+          mismatch_type: string;
+          notified_fingerprint: string | null;
+          notion_stage: string;
+          resolved_at: string | null;
+          stripe_account_id: string;
+          stripe_customer_id: string;
+          stripe_status: string;
+        }[];
+        SetofOptions: {
+          from: "*";
+          to: "stripe_notion_reconciliation_state";
+          isOneToOne: false;
+          isSetofReturn: true;
+        };
+      };
+      reconcile_support_activity_snapshot: {
+        Args: {
+          p_observed_at: string;
+          p_recipient: string;
+          p_rows: Json;
+          p_scope: string;
+        };
+        Returns: Json;
+      };
       record_automation_usage: {
         Args: { p_tenant_id: string };
         Returns: boolean;
+      };
+      record_campaign_send_progress: {
+        Args: {
+          p_campaign_id: string;
+          p_failed_delta?: number;
+          p_sent_delta?: number;
+          p_skipped_delta?: number;
+          p_worker_heartbeat_at?: string;
+        };
+        Returns: {
+          estimated_completion_at: string;
+          messages_failed: number;
+          messages_sent: number;
+          messages_skipped: number;
+          send_started_at: string;
+          total_recipients: number;
+          worker_heartbeat_at: string;
+        }[];
       };
       record_contact_import_event: {
         Args: {
@@ -17290,6 +24606,26 @@ export type Database = {
         };
         Returns: undefined;
       };
+      record_sms_content_review: {
+        Args: {
+          p_campaign_id: string;
+          p_decision: string;
+          p_expected_status: string;
+          p_reason: string;
+          p_tenant_id: string;
+        };
+        Returns: boolean;
+      };
+      record_sms_link_click: {
+        Args: { p_tracking_code: string; p_user_agent?: string };
+        Returns: {
+          campaign_id: string;
+          customer_id: string;
+          first_message_click: boolean;
+          message_id: string;
+          original_url: string;
+        }[];
+      };
       record_sms_sends: {
         Args: { p_count?: number; p_tenant_id: string };
         Returns: boolean;
@@ -17304,19 +24640,16 @@ export type Database = {
         };
         Returns: boolean;
       };
+      recover_stuck_pos_sync_jobs: {
+        Args: { p_stuck_after_minutes?: number };
+        Returns: {
+          failed_jobs: number;
+          stalled_connections: number;
+        }[];
+      };
       refill_tokens: {
         Args: { p_tokens?: number; p_user_id: string };
         Returns: boolean;
-      };
-      rebuild_campaign_revenue_attribution: {
-        Args: {
-          p_after_order_id?: string;
-          p_from: string;
-          p_limit?: number;
-          p_to: string;
-          p_window_days?: number;
-        };
-        Returns: Json;
       };
       refresh_all_content_intent_metrics: {
         Args: { p_tenant_id: string };
@@ -17354,6 +24687,10 @@ export type Database = {
         Args: { p_campaign_id: string };
         Returns: undefined;
       };
+      refresh_email_governance_all_tenant_reputation_scores: {
+        Args: { p_as_of?: string };
+        Returns: Json;
+      };
       refresh_email_governance_tenant_reputation_score: {
         Args: { p_as_of?: string; p_tenant_id: string };
         Returns: Json;
@@ -17362,9 +24699,77 @@ export type Database = {
         Args: { p_campaign_id: string };
         Returns: undefined;
       };
+      register_sms_tracking_links: {
+        Args: { p_links: Json; p_message_id: string };
+        Returns: {
+          link_index: number;
+          original_url: string;
+          tracking_code: string;
+        }[];
+      };
       release_stale_claims: {
         Args: { p_stale_threshold_minutes?: number };
         Returns: number;
+      };
+      replace_connected_email_draft: {
+        Args: {
+          p_blocks: Json;
+          p_campaign_id: string;
+          p_content: string;
+          p_expected_updated_at: string;
+          p_tenant_id: string;
+        };
+        Returns: string;
+      };
+      replace_connected_sms_draft: {
+        Args: {
+          p_campaign_id: string;
+          p_expected_updated_at: string;
+          p_message: string;
+          p_name: string;
+          p_sources: Json;
+          p_tenant_id: string;
+        };
+        Returns: Json;
+      };
+      require_claimed_loyalty_event: {
+        Args: { p_event_id: string; p_worker_id: string };
+        Returns: {
+          automation_id: string | null;
+          claimed_at: string | null;
+          claimed_by: string | null;
+          created_at: string | null;
+          customer_id: string | null;
+          error_message: string | null;
+          event_type: string;
+          form_id: string | null;
+          id: string;
+          last_error_at: string | null;
+          max_retries: number | null;
+          metadata: Json | null;
+          persona_id: string | null;
+          processed_at: string | null;
+          queued_until: string | null;
+          retry_count: number | null;
+          segment_id: string | null;
+          source_event_key: string | null;
+          submission_id: string | null;
+          tenant_id: string;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "automation_trigger_events";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
+      reschedule_campaign: {
+        Args: {
+          p_campaign_id: string;
+          p_expected_updated_at: string;
+          p_scheduled_at: string;
+        };
+        Returns: undefined;
       };
       reserve_sms_send_tokens: {
         Args: {
@@ -17380,22 +24785,90 @@ export type Database = {
         Args: { target_user_id: string };
         Returns: boolean;
       };
-      resolve_effective_subscription_tier: {
-        Args: { p_tenant_id: string };
-        Returns: string;
+      resolve_crm_customer_identity: {
+        Args: {
+          p_email?: string;
+          p_external_id: string;
+          p_phone?: string;
+          p_pos_connection_id?: string;
+          p_pos_customer_id?: string;
+          p_profile?: Json;
+          p_provider: string;
+          p_tenant_id: string;
+          p_user_id?: string;
+        };
+        Returns: Json;
       };
       resolve_customer_merge_review: {
         Args: {
           p_action: string;
-          p_duplicate_customer_id: string | null;
+          p_duplicate_customer_id: string;
           p_reason: string;
           p_suggestion_id: string;
-          p_survivor_customer_id: string | null;
+          p_survivor_customer_id: string;
         };
         Returns: Json;
       };
-      scan_current_tenant_customer_duplicates: {
-        Args: { p_limit?: number };
+      resolve_effective_subscription_tier: {
+        Args: { p_tenant_id: string };
+        Returns: string;
+      };
+      resolve_external_provider_customer_identity: {
+        Args: {
+          p_external_id: string;
+          p_provider: string;
+          p_tenant_id: string;
+          p_user_id?: string;
+        };
+        Returns: Json;
+      };
+      resolve_external_provider_customer_identity_batch: {
+        Args: {
+          p_external_ids: Json;
+          p_provider: string;
+          p_tenant_id: string;
+          p_user_id: string;
+        };
+        Returns: Json;
+      };
+      resolve_pos_location: {
+        Args: {
+          p_display_name?: string;
+          p_external_location_id: string;
+          p_provider: string;
+          p_tenant_id: string;
+          p_timezone?: string;
+        };
+        Returns: string;
+      };
+      resolve_provider_customer_identity: {
+        Args: {
+          p_email?: string;
+          p_external_id: string;
+          p_phone?: string;
+          p_profile?: Json;
+          p_provider: string;
+          p_tenant_id: string;
+          p_user_id?: string;
+        };
+        Returns: Json;
+      };
+      resolve_provider_customer_identity_batch: {
+        Args: {
+          p_customers: Json;
+          p_provider: string;
+          p_tenant_id: string;
+          p_user_id: string;
+        };
+        Returns: Json;
+      };
+      resolve_vmx_customer_identity_batch: {
+        Args: {
+          p_connection_id: string;
+          p_customers: Json;
+          p_tenant_id: string;
+          p_user_id: string;
+        };
         Returns: Json;
       };
       restore_user_data: { Args: { target_user_id: string }; Returns: boolean };
@@ -17429,6 +24902,160 @@ export type Database = {
               jobs_created: number;
             }[];
           };
+      review_bloomsuite_pos_marketing: {
+        Args: {
+          p_approve: boolean;
+          p_event: string;
+          p_reason: string;
+          p_withdrawals_reviewed: boolean;
+        };
+        Returns: undefined;
+      };
+      review_pos_membership_request: {
+        Args: {
+          p_reason: string;
+          p_reject: boolean;
+          p_request: string;
+          p_tenant: string;
+          p_user: string;
+        };
+        Returns: undefined;
+      };
+      rollback_crm_customer_merge: {
+        Args: {
+          p_history_id: string;
+          p_performed_by?: string;
+          p_reason: string;
+        };
+        Returns: Json;
+      };
+      run_stale_empty_campaign_draft_cleanup: { Args: never; Returns: number };
+      save_bloom_analytical_audience: {
+        Args: {
+          p_excluded_ids: string[];
+          p_mode: string;
+          p_name: string;
+          p_set_id: string;
+          p_user_id: string;
+        };
+        Returns: Json;
+      };
+      save_bloom_customer_set_segment: {
+        Args: { p_name: string; p_set_id: string; p_user_id: string };
+        Returns: Json;
+      };
+      save_care_guide_design_draft: {
+        Args: { p_draft: Json; p_tenant_id: string };
+        Returns: undefined;
+      };
+      save_connected_sms_draft: {
+        Args: {
+          p_audience: Json;
+          p_campaign_id: string;
+          p_expected_updated_at: string;
+          p_launch: boolean;
+          p_media_urls: Json;
+          p_message: string;
+          p_name: string;
+          p_scheduled_at: string;
+          p_sources: Json;
+          p_tenant_id: string;
+        };
+        Returns: Json;
+      };
+      save_loyalty_programme_v1: {
+        Args: {
+          p_definition: Json;
+          p_expected_version_id?: string;
+          p_programme_id?: string;
+          p_request_key: string;
+          p_tenant_id: string;
+          p_user_id: string;
+        };
+        Returns: Json;
+      };
+      save_loyalty_result_segment_v1: {
+        Args: {
+          p_expected_count: number;
+          p_name: string;
+          p_run_id: string;
+          p_states: string[];
+          p_tenant_id: string;
+          p_user_id: string;
+        };
+        Returns: Json;
+      };
+      save_loyalty_run_v1: {
+        Args: {
+          p_baseline_id: string;
+          p_campaign_id?: string;
+          p_period: Json;
+          p_request_key: string;
+          p_result: Json;
+          p_tenant_id: string;
+          p_user_id: string;
+        };
+        Returns: Json;
+      };
+      save_native_reward_read_mapping: {
+        Args: {
+          p_activation: string;
+          p_enabled: boolean;
+          p_expected_version: number;
+          p_key: string;
+          p_programme_version: string;
+          p_reason: string;
+        };
+        Returns: string;
+      };
+      save_observed_journal_segment_v1: {
+        Args: {
+          p_digest: string;
+          p_ids: string[];
+          p_name: string;
+          p_provenance: Json;
+          p_tenant_id: string;
+          p_user_id: string;
+        };
+        Returns: Json;
+      };
+      save_pos_membership_policy: {
+        Args: {
+          p_authority: string;
+          p_email_statement: string;
+          p_enabled: boolean;
+          p_expected_version: number;
+          p_key: string;
+          p_programme_version: string;
+          p_sms_statement: string;
+          p_store: string;
+          p_terms: string;
+          p_terms_version: string;
+        };
+        Returns: string;
+      };
+      save_tenant_location: {
+        Args: {
+          p_code: string;
+          p_is_active?: boolean;
+          p_location_id: string;
+          p_name: string;
+          p_timezone: string;
+        };
+        Returns: Json;
+      };
+      scan_current_tenant_customer_duplicates: {
+        Args: { p_limit?: number };
+        Returns: Json;
+      };
+      seed_historical_customer_merge_suggestions: {
+        Args: { p_limit?: number; p_tenant_id?: string };
+        Returns: Json;
+      };
+      segment_membership_summary: {
+        Args: { p_tenant_id: string };
+        Returns: Json;
+      };
       server_finalize_onboarding: {
         Args: { p_user_id: string };
         Returns: Json;
@@ -17444,20 +25071,52 @@ export type Database = {
           success: boolean;
         }[];
       };
+      set_customer_marketing_consent: {
+        Args: {
+          p_channel: string;
+          p_consent_basis?: string;
+          p_customer_id: string;
+          p_evidence?: string;
+          p_ip_address?: string;
+          p_opt_in: boolean;
+          p_source: string;
+          p_user_agent?: string;
+        };
+        Returns: Json;
+      };
+      set_customer_marketing_consent_authorized: {
+        Args: {
+          p_channel: string;
+          p_consent_basis?: string;
+          p_customer_id: string;
+          p_evidence?: string;
+          p_ip_address?: string;
+          p_opt_in: boolean;
+          p_source: string;
+          p_user_agent?: string;
+        };
+        Returns: Json;
+      };
       set_tenant_default_from_email_domain: {
         Args: { p_domain_id: string };
         Returns: undefined;
       };
       set_tenant_user_crm_access: {
-        Args: {
-          p_location_ids?: string[];
-          p_role: string;
-          p_user_id: string;
-        };
+        Args: { p_location_ids?: string[]; p_role: string; p_user_id: string };
+        Returns: Json;
+      };
+      set_weekly_theme_images: {
+        Args: { p_campaign_id: string; p_images: Json };
         Returns: Json;
       };
       show_limit: { Args: never; Returns: number };
       show_trgm: { Args: { "": string }; Returns: string[] };
+      sms_eligible_customers: {
+        Args: { p_tenant_id: string };
+        Returns: {
+          customer_id: string;
+        }[];
+      };
       soft_delete_user_data: {
         Args: { target_user_id: string };
         Returns: boolean;
@@ -17472,12 +25131,55 @@ export type Database = {
         };
         Returns: boolean;
       };
+      stage_ideal_contact_refresh: {
+        Args: { p_changes: Json; p_source_sha256: string; p_tenant: string };
+        Returns: Json;
+      };
+      stage_ideal_journal_chunk: {
+        Args: {
+          p_batch_id: string;
+          p_payload: string;
+          p_seq: number;
+          p_sha256: string;
+          p_tenant_id: string;
+        };
+        Returns: Json;
+      };
+      stage_ideal_manual_batch: {
+        Args: {
+          p_generation: number;
+          p_hash: string;
+          p_index: number;
+          p_job: string;
+          p_lease: string;
+          p_payload: Json;
+          p_tenant: string;
+        };
+        Returns: string;
+      };
       stop_email_campaign_sending: {
         Args: { p_campaign_id: string; p_reason?: string };
         Returns: {
           jobs_stopped: number;
           messages_stopped: number;
         }[];
+      };
+      sync_loyalty_account_snapshot: {
+        Args: {
+          p_balance: number;
+          p_balance_unit: string;
+          p_currency: string;
+          p_customer_id: string;
+          p_enrolled_at: string;
+          p_external_account_id: string;
+          p_external_program_id: string;
+          p_lifetime_value: number;
+          p_observed_at?: string;
+          p_program_name: string;
+          p_provider: string;
+          p_tenant_id: string;
+        };
+        Returns: Json;
       };
       sync_subscription_to_org_budget: {
         Args: { p_month?: string; p_plan?: string; p_tenant_id: string };
@@ -17522,10 +25224,9 @@ export type Database = {
         Args: {
           p_block_id?: string;
           p_campaign_id?: string;
-          p_content_id?: string;
+          p_context: string;
           p_image_id: string;
           p_tenant_id: string;
-          p_usage_context: string;
           p_user_id: string;
         };
         Returns: undefined;
@@ -17608,6 +25309,10 @@ export type Database = {
         };
         Returns: string;
       };
+      unsubscribe_customer_by_preference_token: {
+        Args: { p_ip_address?: string; p_token: string; p_user_agent?: string };
+        Returns: Json;
+      };
       unsuppress_incorrectly_flagged_customers: {
         Args: { batch_limit?: number };
         Returns: number;
@@ -17623,6 +25328,17 @@ export type Database = {
       update_customer_email_metrics: {
         Args: { p_customer_id: string };
         Returns: undefined;
+      };
+      update_customer_preference_center: {
+        Args: {
+          p_email_opt_in: boolean;
+          p_gardening_experience?: string;
+          p_ip_address?: string;
+          p_token: string;
+          p_topics?: string[];
+          p_user_agent?: string;
+        };
+        Returns: Json;
       };
       update_customer_purchase_metrics: {
         Args: {
@@ -17680,9 +25396,38 @@ export type Database = {
         };
         Returns: number;
       };
+      upsert_user_recent_item: {
+        Args: {
+          p_category_icon?: string;
+          p_entity_id: string;
+          p_entity_type: string;
+          p_group_key?: string;
+          p_icon?: string;
+          p_keywords?: string[];
+          p_metadata?: string;
+          p_route: string;
+          p_subtitle?: string;
+          p_title: string;
+        };
+        Returns: undefined;
+      };
+      upsert_user_recent_search: {
+        Args: { p_query: string; p_selected_result_title?: string };
+        Returns: undefined;
+      };
       validate_email_governance_config: {
         Args: { p_config: Json };
         Returns: undefined;
+      };
+      validate_ideal_manual_supersession: {
+        Args: {
+          j: Database["public"]["Tables"]["ideal_manual_sync_jobs"]["Row"];
+        };
+        Returns: undefined;
+      };
+      validate_ideal_master_member: {
+        Args: { p_identity: string; p_source: string; x: Json };
+        Returns: boolean;
       };
       verify_campaign_claim: {
         Args: { p_campaign_id: string; p_claim_token: string };

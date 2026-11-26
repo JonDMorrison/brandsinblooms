@@ -536,6 +536,9 @@ function BloomKnowledgeManagementContent() {
     multiple: false,
     onDrop: handleDrop,
   });
+  // Joy's Sheet types `color` as a palette token; the dropzone root props
+  // carry the generic HTML `color` attribute, which is never set here.
+  const { color: _dropzoneColor, ...dropzoneRootProps } = getRootProps();
 
   const handleUpload = async () => {
     if (!selectedFile) {
@@ -781,7 +784,7 @@ function BloomKnowledgeManagementContent() {
         <JoyDialogContent>
           <Stack spacing={2.25}>
             <Sheet
-              {...getRootProps()}
+              {...dropzoneRootProps}
               variant="outlined"
               sx={{
                 borderColor: isDragActive ? "primary.400" : "neutral.300",

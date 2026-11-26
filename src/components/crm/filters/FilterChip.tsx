@@ -109,7 +109,7 @@ function useAnchoredOverlayDismissal({
 
 export function FilterChip(props: FilterChipProps) {
   const [anchorEl, setAnchorEl] = React.useState<HTMLElement | null>(null);
-  const menuRef = React.useRef<HTMLUListElement | null>(null);
+  const menuRef = React.useRef<HTMLDivElement | null>(null);
   const closeMenu = React.useCallback(() => {
     setAnchorEl(null);
   }, []);

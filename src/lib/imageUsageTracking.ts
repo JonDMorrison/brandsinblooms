@@ -64,11 +64,12 @@ export async function trackImageUsage(
     }
 
     // Track usage
+    // track_global_image_usage(p_image_id, p_tenant_id, p_user_id,
+    // p_context, p_campaign_id, p_block_id) takes no content id.
     const { error } = await supabase.rpc("track_global_image_usage", {
-      p_content_id: asUuidOrNull(params.contentId),
       p_image_id: globalImageId,
       p_tenant_id: resolvedTenantId,
-      p_usage_context: params.context,
+      p_context: params.context,
       p_user_id: resolvedUserId,
       p_campaign_id: asUuidOrNull(params.campaignId),
       p_block_id: asUuidOrNull(params.blockId),

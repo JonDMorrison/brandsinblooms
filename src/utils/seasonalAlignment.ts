@@ -66,7 +66,7 @@ export function isCampaignSeasonallyAligned(campaign: any): boolean {
  */
 export function filterSeasonallyAlignedCampaigns(campaigns: any[]): any[] {
   return campaigns.filter(campaign => {
-    
+    const isAligned = isCampaignSeasonallyAligned(campaign);
     return isAligned;
   });
 }

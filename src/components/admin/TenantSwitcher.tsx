@@ -25,7 +25,7 @@ export const TenantSwitcher = () => {
     { value: "", label: "Select a tenant to manage" },
     ...availableTenants.map((tenant) => ({
       value: tenant.id,
-      label: tenant.company_name || tenant.name,
+      label: tenant.name,
     })),
   ];
 
@@ -58,7 +58,7 @@ export const TenantSwitcher = () => {
               <Stack direction="row" spacing={1} alignItems="center">
                 <Building2 className="h-4 w-4" />
                 <Typography level="body-sm" color="neutral">
-                  {activeTenant?.company_name || activeTenant?.name}
+                  {activeTenant?.name}
                 </Typography>
               </Stack>
               <Typography level="body-xs" color="neutral" sx={{ mt: 0.5 }}>

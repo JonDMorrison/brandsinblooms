@@ -41,7 +41,7 @@ describe("hero photo discoverability", () => {
       <BlockPropertiesPanel
         campaignImageGallery={[]}
         campaignName="Winter"
-        campaignType="newsletter"
+        campaignType="email"
         selectedBlockId="hero"
         blocks={[block]}
         open
@@ -73,7 +73,7 @@ describe("properties panel heading hierarchy", () => {
       <BlockPropertiesPanel
         campaignImageGallery={[]}
         campaignName="Winter"
-        campaignType="newsletter"
+        campaignType="email"
         selectedBlockId={block.id}
         blocks={[block]}
         open
@@ -94,7 +94,7 @@ describe("block-specific properties", () => {
   function openPanel(block: StudioBlock) {
     return render(
       <BlockPropertiesPanel
-        campaignImageGallery={[]} campaignName="Winter" campaignType="newsletter"
+        campaignImageGallery={[]} campaignName="Winter" campaignType="email"
         selectedBlockId={block.id} blocks={[block]} open onClose={() => {}} onUpdateBlockField={() => {}}
       />,
     );
@@ -156,7 +156,7 @@ describe("Image + Text side switching", () => {
       const [block, setBlock] = React.useState(initial);
       return <>
         <BlockPropertiesPanel
-          campaignImageGallery={[]} campaignName="Winter" campaignType="newsletter"
+          campaignImageGallery={[]} campaignName="Winter" campaignType="email"
           selectedBlockId={block.id} blocks={[block]} open onClose={() => {}}
           onUpdateBlockField={() => {}}
           onUpdateBlockFields={(_id, fields) => {
@@ -170,7 +170,7 @@ describe("Image + Text side switching", () => {
     }
     const { container } = render(<Editor />);
     for (const [name, direction] of [["Image Right", "rtl"], ["Image Left", "ltr"], ["Image Right", "rtl"]]) {
-      fireEvent.click(screen.getByRole("button", { name, exact: true }));
+      fireEvent.click(screen.getByRole("button", { name }));
       const table = container.querySelector<HTMLTableElement>(".image-text-row")!;
       expect(table.dir).toBe(direction);
       expect(table.style.direction).toBe(direction);
@@ -189,14 +189,14 @@ describe("Image + Text side switching", () => {
 describe("Product Gallery layout switching", () => {
   it("switches between grids and side-by-side features without losing products", () => {
     const initial = { ...createStudioBlock("product-gallery"), galleryProducts: [
-      { id: "maple", name: "Japanese maple", imageUrl: "https://example.com/maple.jpg", buttonText: "Shop maple", buttonUrl: "https://example.com/maple" },
-      { id: "fern", name: "Garden fern", imageUrl: "https://example.com/fern.jpg", buttonText: "Shop fern", buttonUrl: "https://example.com/fern" },
+      { id: "maple", name: "Japanese maple", imageUrl: "https://example.com/maple.jpg", buttonText: "Shop maple", buttonUrl: "https://example.com/maple", price: "" },
+      { id: "fern", name: "Garden fern", imageUrl: "https://example.com/fern.jpg", buttonText: "Shop fern", buttonUrl: "https://example.com/fern", price: "" },
     ] };
     function Editor() {
       const [block, setBlock] = React.useState(initial);
       return <>
         <BlockPropertiesPanel
-          campaignImageGallery={[]} campaignName="Winter" campaignType="newsletter"
+          campaignImageGallery={[]} campaignName="Winter" campaignType="email"
           selectedBlockId={block.id} blocks={[block]} open onClose={() => {}}
           onUpdateBlockField={(_id, field, value) => setBlock((current) => JSON.parse(JSON.stringify({ ...current, [field]: value })))}
           onUpdateBlockFields={(_id, fields) => setBlock(JSON.parse(JSON.stringify({ ...block, ...fields })))}
@@ -206,7 +206,7 @@ describe("Product Gallery layout switching", () => {
     }
     const { container } = render(<Editor />);
     for (const name of ["Image beside details", "▯▯▯ 3 across", "▯▯ 2 across", "Image beside details"]) {
-      fireEvent.click(screen.getByRole("button", { name, exact: true }));
+      fireEvent.click(screen.getByRole("button", { name }));
       const preview = container.querySelector(".nl-preview")!;
       for (const product of initial.galleryProducts) {
         const image = preview.querySelector(`img[src="${product.imageUrl}"]`)!;

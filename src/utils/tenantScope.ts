@@ -3,10 +3,10 @@ interface TenantScopeOptions {
   userId?: string | null;
 }
 
-type ScopeableQuery = {
-  eq: (column: string, value: string) => any;
-  or: (filters: string) => any;
-};
+interface ScopeableQuery<TSelf> {
+  eq(column: "tenant_id", value: string): TSelf;
+  or(filters: string): TSelf;
+}
 
 export function buildTenantUserScopeFilter(options: TenantScopeOptions) {
   if (!options.userId || options.tenantId) {
@@ -16,12 +16,12 @@ export function buildTenantUserScopeFilter(options: TenantScopeOptions) {
   return `and(tenant_id.is.null,user_id.eq.${options.userId})`;
 }
 
-export function applyTenantUserScope<TQuery extends ScopeableQuery>(
+export function applyTenantUserScope<TQuery extends ScopeableQuery<TQuery>>(
   query: TQuery,
   options: TenantScopeOptions,
 ): TQuery {
   if (options.tenantId) {
-    return query.eq("tenant_id", options.tenantId) as TQuery;
+    return query.eq("tenant_id", options.tenantId);
   }
 
   const filter = buildTenantUserScopeFilter(options);
@@ -30,7 +30,7 @@ export function applyTenantUserScope<TQuery extends ScopeableQuery>(
     return query;
   }
 
-  return query.or(filter) as TQuery;
+  return query.or(filter);
 }
 
 export function buildRealtimeScopeFilter(options: TenantScopeOptions) {

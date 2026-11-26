@@ -736,9 +736,8 @@ export function useBloomStreaming(handlers: BloomStreamingHandlers = {}) {
   const researchStepsRef = React.useRef<Map<number, BloomResearchStepStatus>>(
     new Map(),
   );
-  const flushIntervalRef = React.useRef<ReturnType<
-    typeof window.setInterval
-  > | null>(null);
+  // window.setInterval returns a DOM interval id (number).
+  const flushIntervalRef = React.useRef<number | null>(null);
   const abortControllerRef = React.useRef<AbortController | null>(null);
   const readerRef =
     React.useRef<ReadableStreamDefaultReader<Uint8Array> | null>(null);

@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  type ComponentProps,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format, formatDistanceToNow } from "date-fns";
 import {
@@ -61,6 +67,7 @@ import {
   Users,
   Webhook,
   X,
+  type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -76,6 +83,7 @@ import {
   FieldRow,
   HealthFieldRow,
   IntegrationDetailHero,
+  type IntegrationTabItem,
   IntegrationDetailTabPanel,
   IntegrationDetailTabs,
   IntegrationStatusBanner,
@@ -387,6 +395,25 @@ function isLightspeedJobActive(status: string) {
 
 function isLightspeedJobQueued(status: string) {
   return status === "pending" || status === "delayed";
+}
+
+type HeroPrimaryAction = ComponentProps<
+  typeof IntegrationDetailHero
+>["primaryAction"];
+
+// Lucide icons are forwardRef components (objects carrying `render`).
+function isLucideIcon(value: unknown): value is LucideIcon {
+  return (
+    typeof value === "function" ||
+    (typeof value === "object" && value !== null && "render" in value)
+  );
+}
+
+function readMetricValueClassName(metric: object): string | undefined {
+  return "valueClassName" in metric &&
+    typeof metric.valueClassName === "string"
+    ? metric.valueClassName
+    : undefined;
 }
 
 function formatLightspeedWebhookMode(
@@ -1495,7 +1522,7 @@ export default function IntegrationDetailPage() {
           },
         }
       : null;
-  const squareTabItems =
+  const squareTabItems: Array<IntegrationTabItem<LightspeedTabValue>> =
     isSquare && squareDetail
       ? [
           { value: "overview" as const, label: "Overview" },
@@ -1521,7 +1548,7 @@ export default function IntegrationDetailPage() {
           },
         ]
       : [];
-  const shopifyTabItems =
+  const shopifyTabItems: Array<IntegrationTabItem<LightspeedTabValue>> =
     isShopify && shopifyConnection
       ? [
           { value: "overview" as const, label: "Overview" },
@@ -1717,7 +1744,7 @@ export default function IntegrationDetailPage() {
               },
             }
       : null;
-  const cloverTabItems =
+  const cloverTabItems: Array<IntegrationTabItem<LightspeedTabValue>> =
     isClover && cloverDetail
       ? [
           { value: "overview" as const, label: "Overview" },
@@ -1929,7 +1956,7 @@ export default function IntegrationDetailPage() {
             },
           }
       : null;
-  const lightspeedTabItems =
+  const lightspeedTabItems: Array<IntegrationTabItem<LightspeedTabValue>> =
     isLightspeed && lightspeedDetail
       ? [
           { value: "overview" as const, label: "Overview" },
@@ -2859,15 +2886,7 @@ export default function IntegrationDetailPage() {
             value: (
               <JoyChip
                 size="sm"
-                color={
-                  lightspeedWebhookMode.tone === "success"
-                    ? "success"
-                    : lightspeedWebhookMode.tone === "warning"
-                      ? "warning"
-                      : lightspeedWebhookMode.tone === "danger"
-                        ? "danger"
-                        : "neutral"
-                }
+                color={lightspeedWebhookMode.tone}
                 variant="soft"
               >
                 {lightspeedWebhookMode.label}
@@ -3108,7 +3127,7 @@ export default function IntegrationDetailPage() {
           },
         ]
       : [];
-  const emailInfrastructureTabItems =
+  const emailInfrastructureTabItems: Array<IntegrationTabItem<EmailInfrastructureTabValue>> =
     isEmailInfrastructure && emailInfrastructureDetail
       ? [
           { value: "overview" as const, label: "Overview" },
@@ -3792,7 +3811,11 @@ export default function IntegrationDetailPage() {
                   : isMarketingImport
                     ? detail.isValidatingMarketingImportConnection
                     : false;
-  const shellPrimaryActionProps = shellPrimaryAction
+  const shellPrimaryActionIcon =
+    shellPrimaryAction && "icon" in shellPrimaryAction
+      ? shellPrimaryAction.icon
+      : undefined;
+  const shellPrimaryActionProps: HeroPrimaryAction = shellPrimaryAction
     ? {
         label: shellPrimaryAction.label,
         disabled: shellPrimaryAction.disabled,
@@ -3803,8 +3826,9 @@ export default function IntegrationDetailPage() {
           shellPrimaryAction.variant === "outline"
             ? "outlined"
             : "solid",
-        icon:
-          "icon" in shellPrimaryAction ? shellPrimaryAction.icon : undefined,
+        icon: isLucideIcon(shellPrimaryActionIcon)
+          ? shellPrimaryActionIcon
+          : undefined,
       }
     : null;
   const heroActionSections =
@@ -3852,9 +3876,10 @@ export default function IntegrationDetailPage() {
       ? shellStatusBanner
       : model.errorBanner
         ? {
-            tone: (shellStatusTone === "danger"
-              ? "danger"
-              : "warning") as const,
+            tone:
+              shellStatusTone === "danger"
+                ? ("danger" as const)
+                : ("warning" as const),
             title: model.errorBanner.title,
             description: model.errorBanner.description,
           }
@@ -4138,11 +4163,7 @@ export default function IntegrationDetailPage() {
                         : metric.subtitle
                     }
                     value={metric.value}
-                    valueClassName={
-                      "valueClassName" in metric
-                        ? metric.valueClassName
-                        : undefined
-                    }
+                    valueClassName={readMetricValueClassName(metric)}
                   />
                 );
               })}
@@ -4289,7 +4310,7 @@ export default function IntegrationDetailPage() {
                         <div
                           className={cn(
                             "mt-3 text-3xl font-semibold tracking-tight text-slate-950",
-                            card.valueClassName,
+                            readMetricValueClassName(card),
                           )}
                         >
                           {card.value}
@@ -5410,7 +5431,7 @@ export default function IntegrationDetailPage() {
               payloadPreview={comingSoonDetail.payloadPreview}
             />
           ) : isEmailInfrastructure && emailInfrastructureDetail ? (
-            <IntegrationDetailTabs
+            <IntegrationDetailTabs<EmailInfrastructureTabValue>
               items={emailInfrastructureTabItems}
               onChange={setEmailInfrastructureTab}
               value={emailInfrastructureTab}
@@ -5824,7 +5845,7 @@ export default function IntegrationDetailPage() {
                     ) : null}
                   </>
                 ) : isShopify && shopifyConnection ? (
-                  <IntegrationDetailTabs
+                  <IntegrationDetailTabs<LightspeedTabValue>
                     items={shopifyTabItems}
                     onChange={setLightspeedTab}
                     value={lightspeedTab}
@@ -6227,7 +6248,7 @@ export default function IntegrationDetailPage() {
                   </IntegrationDetailTabs>
                 ) : isSquare && squareDetail ? (
                   <>
-                    <IntegrationDetailTabs
+                    <IntegrationDetailTabs<LightspeedTabValue>
                       items={squareTabItems}
                       onChange={setLightspeedTab}
                       value={lightspeedTab}
@@ -6606,7 +6627,7 @@ export default function IntegrationDetailPage() {
                   </>
                 ) : isClover && cloverDetail ? (
                   <>
-                    <IntegrationDetailTabs
+                    <IntegrationDetailTabs<LightspeedTabValue>
                       items={cloverTabItems}
                       onChange={setLightspeedTab}
                       value={lightspeedTab}
@@ -8022,7 +8043,7 @@ export default function IntegrationDetailPage() {
                   </>
                 ) : isLightspeed && lightspeedDetail ? (
                   <>
-                    <IntegrationDetailTabs
+                    <IntegrationDetailTabs<LightspeedTabValue>
                       items={lightspeedTabItems}
                       onChange={setLightspeedTab}
                       value={lightspeedTab}
