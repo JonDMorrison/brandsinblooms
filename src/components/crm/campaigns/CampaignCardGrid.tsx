@@ -38,6 +38,8 @@ function Thumbnail({ campaign }: { campaign: CampaignCatalogItem }) {
   const [failed, setFailed] = React.useState(false);
   const Icon = campaign.channel === "sms" ? MessageSquare : Mail;
   const showImage = Boolean(campaign.thumbnailUrl) && !failed;
+  // With no image, show the email's opening headline so the tile reads as a preview.
+  const headline = campaign.firstHeadline?.trim() || campaign.subjectLine.trim();
   return (
     <AspectRatio ratio="16/9" sx={{ borderRadius: "md", overflow: "hidden" }}>
       {showImage ? (
@@ -51,13 +53,35 @@ function Thumbnail({ campaign }: { campaign: CampaignCatalogItem }) {
       ) : (
         <Box
           sx={{
-            display: "grid",
-            placeItems: "center",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "flex-start",
+            justifyContent: "flex-end",
+            gap: 0.75,
+            p: 1.5,
             background:
-              "linear-gradient(135deg, var(--joy-palette-primary-50), var(--joy-palette-neutral-100))",
+              "linear-gradient(135deg, var(--joy-palette-primary-100), var(--joy-palette-primary-50) 60%, var(--joy-palette-neutral-100))",
           }}
         >
-          <Icon size={28} color="var(--joy-palette-primary-400)" aria-hidden="true" />
+          <Icon size={18} color="var(--joy-palette-primary-500)" aria-hidden="true" />
+          {headline ? (
+            <Typography
+              level="title-md"
+              aria-hidden="true"
+              sx={{
+                fontFamily: "Georgia, 'Times New Roman', serif",
+                fontWeight: 400,
+                color: "primary.800",
+                lineHeight: 1.2,
+                display: "-webkit-box",
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: "vertical",
+                overflow: "hidden",
+              }}
+            >
+              {headline}
+            </Typography>
+          ) : null}
         </Box>
       )}
     </AspectRatio>
