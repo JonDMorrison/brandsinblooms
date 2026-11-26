@@ -1,11 +1,12 @@
 // Native OpenAI tools over existing permission-checked Bloom services.
 // No arbitrary execution, new recurring jobs, direct sends, or policy bypasses.
 import { readReleaseEvidence } from "./slack-release-evidence.ts";
-import { db, env, rpc, directRpc, type Caller } from "./runtime.ts";
+import { BloomError, db, env, rpc, directRpc, type Caller } from "./runtime.ts";
 import { aiConfig } from "./ai.ts";
 import { actions } from "./service.ts";
 import { callProduct, runRead } from "./operations.ts";
 import { safeTicketText } from "./ticket-slack.ts";
+import { type FinanceKind, type FinanceResult, StripeAccessError, financeFacts, financeIntent, financeRange, readPlatformFinance } from "./finance.ts";
 import { REVENUE_ELSEWHERE_REPLY, revenueByClientQuestion, revenueFacts, statesAmount } from "./slack-revenue.ts";
 import { type AgentContext, type ChatMessage, type ToolResult, ToolPermissionError, availableTools, composeSlackAgentReply, openAiTools, runAgent } from "./slack-agent-core.ts";
 
@@ -48,12 +49,23 @@ export function privacyDiagnostic(channel: string, data: unknown): Record<string
     id_matches: ch.id === channel, is_private: ch.is_private === true, is_shared: ch.is_shared === true, is_ext_shared: ch.is_ext_shared === true };
 }
 export type StaffChannelReason = "ok" | "public" | "shared" | "lookup_failed" | "not_configured";
-export interface StaffChannelCheck { allowed: boolean; reason: StaffChannelReason; isPrivate?: boolean }
+export interface StaffChannelCheck {
+  allowed: boolean; reason: StaffChannelReason; isPrivate?: boolean;
+  /** A public staff channel where the owners also allow revenue and Stripe answers. */
+  financials?: boolean;
+}
 
-/** slack_agent.allow_any_staff_channel; anything but an explicit true is off. */
-async function allowAnyStaffChannel(): Promise<boolean> {
-  try { return row(await rpc("setting", { key: "slack_agent" })).allow_any_staff_channel === true; }
-  catch { return false; }
+/**
+ * slack_agent.allow_any_staff_channel lets staff ask in public internal channels.
+ * slack_agent.owner_financials_in_any_staff_channel also lets owner-level staff
+ * get revenue and Stripe figures there. Anything but an explicit true is off.
+ */
+async function staffChannelSettings(): Promise<{ any: boolean; financials: boolean }> {
+  try {
+    const s = row(await rpc("setting", { key: "slack_agent" }));
+    const any = s.allow_any_staff_channel === true;
+    return { any, financials: any && s.owner_financials_in_any_staff_channel === true };
+  } catch { return { any: false, financials: false }; }
 }
 
 /**
@@ -81,7 +93,36 @@ export async function checkStaffChannel(channel: string): Promise<StaffChannelCh
     return { allowed: false, reason: "shared" };
   }
   if (ch.is_private === true) return { allowed: true, reason: "ok", isPrivate: true };
-  return await allowAnyStaffChannel() ? { allowed: true, reason: "ok" } : { allowed: false, reason: "public" };
+  const settings = await staffChannelSettings();
+  if (!settings.any) return { allowed: false, reason: "public" };
+  return settings.financials ? { allowed: true, reason: "ok", financials: true } : { allowed: true, reason: "ok" };
+}
+
+/** Fixed reply where Stripe figures are not offered: where to ask, never a claimed restriction on Bloom. */
+export const FINANCE_ELSEWHERE_REPLY =
+  "Stripe payout, commission and client payment figures go to owner-level staff in a private Bloom channel. Ask there and I'll answer from the Brands in Blooms Stripe account.";
+
+/** queue_summary has counts per status and no open total; the model has invented one. Compute it here. */
+export function withOpenTotals(summary: unknown): Row {
+  const s = row(summary), by = row(s.by_status);
+  const open = Object.entries(by).filter(([status, n]) => status !== "resolved" && typeof n === "number" && Number.isFinite(n)) as Array<[string, number]>;
+  if (!Object.keys(by).length) return s;
+  return { ...s, open_total: open.reduce((sum, [, n]) => sum + n, 0), open_by_status: Object.fromEntries(open),
+    resolved_total: typeof by.resolved === "number" ? by.resolved : 0,
+    counting_note: "open_total is every request that is not resolved. It equals the sum of open_by_status. Report these numbers as given." };
+}
+
+/** One Stripe answer in plain words. A key that lacks a resource is named so an owner can fix it. */
+export async function platformFinanceReply(kind: FinanceKind, question: string, now = Date.now()): Promise<{ ok: boolean; text: string }> {
+  const today = new Date(now).toISOString().slice(0, 10);
+  try {
+    return { ok: true, text: financeFacts(await readPlatformFinance(kind, financeRange(question, today), Math.floor(now / 1000))) };
+  } catch (e) {
+    if (e instanceof StripeAccessError) return { ok: false, text: `The Stripe read-only key Bloom uses cannot read ${e.resource}. Give that key read access to ${e.resource} in the Stripe dashboard, then ask me again. Nothing was changed.` };
+    if (e instanceof BloomError && e.code === "not_configured") return { ok: false, text: "Bloom has no Stripe read-only key configured, so I cannot look this up yet. Nothing was changed." };
+    if (e instanceof BloomError && e.code === "wrong_stripe_account") return { ok: false, text: "The Stripe key Bloom uses is not for the Brands in Blooms account, so I did not read it. Nothing was changed." };
+    return { ok: false, text: "Stripe did not answer this time. Ask me again in a minute. Nothing was changed." };
+  }
 }
 
 export async function answerWithSlackAgent(c: SlackAgentContext, question: string, jobId: string): Promise<string | null> {
@@ -92,7 +133,7 @@ export async function answerWithSlackAgent(c: SlackAgentContext, question: strin
   if (!isSlackModelEndpoint(cfg.baseUrl)) return null;
   const channelCheck = await checkStaffChannel(c.channel);
   const privateChannel = channelCheck.allowed;
-  const confirmedPrivate = channelCheck.allowed && channelCheck.isPrivate === true;
+  const confirmedPrivate = channelCheck.allowed && (channelCheck.isPrivate === true || channelCheck.financials === true);
   const ctx: AgentContext = {
     jobId, principalId: c.principal_id, role: c.role, channel: c.channel, route: c.route,
     rootTs: c.root_ts, ticketId: c.ticket_id, question, history: c.history, privateChannel, confirmedPrivate,
@@ -109,6 +150,7 @@ export async function answerWithSlackAgent(c: SlackAgentContext, question: strin
   const evidenceVersions = new Map<string, number>();
   const sources = new Map<string, string>();
   const revenueResults: unknown[] = [];
+  const financeResults: FinanceResult[] = [];
   const authorize = async (): Promise<boolean> => {
     const { data: current, error } = await db().rpc("bloom_support_slack_conversation_context", { p_job: jobId });
     return !error && current?.allowed === true && current.principal_id === c.principal_id && current.role === c.role
@@ -117,6 +159,17 @@ export async function answerWithSlackAgent(c: SlackAgentContext, question: strin
   const audit = async (name: string, outcome: string) => {
     await rpc("log", { actor: c.principal_id, ticket_id: c.ticket_id, action: "slack.agent.tool", detail: { job_id: jobId, tool: name, outcome, route: c.route } });
   };
+  // Payout, commission and client-payment questions are answered from Stripe in
+  // code. The model has answered these with "I cannot access financial data".
+  const financeKind = c.ticket_id ? null : financeIntent(question);
+  if (financeKind) {
+    if (!availableTools(ctx).some(t => t.name === "platform_finance")) return composeSlackAgentReply(FINANCE_ELSEWHERE_REPLY, []);
+    if (!await authorize()) return "I can no longer verify this conversation's access. Please use the authorized support desk to check any recorded work.";
+    const outcome = await platformFinanceReply(financeKind, question);
+    await audit("platform_finance", outcome.ok ? "succeeded" : "not_confirmed").catch(() => undefined);
+    if (!await authorize() || !(await checkStaffChannel(c.channel)).allowed) return "I can no longer verify this conversation's access. Please use the authorized support desk to check any recorded work.";
+    return composeSlackAgentReply(outcome.text, outcome.ok ? ["Checked sources: <https://dashboard.stripe.com/|Stripe, Brands in Blooms account>"] : []);
+  }
   const getTicket = async (value: unknown): Promise<Row> => {
     const ticketId = id(value);
     if (!tickets.has(ticketId) || (c.ticket_id && c.ticket_id !== ticketId)) throw Error("ticket is outside this conversation");
@@ -153,7 +206,7 @@ export async function answerWithSlackAgent(c: SlackAgentContext, question: strin
         return { source: source("Recorded feature requests", `${DESK}?view=features`), data: { results: rows(data).slice(0, 10).map(r => pick(r, ["title", "status", "product", "updated_at"])), limited_to: 10 } };
       }
       case "revenue_by_client": {
-        if (!confirmedPrivate) throw new ToolPermissionError("revenue requires a private Slack channel");
+        if (!confirmedPrivate) throw new ToolPermissionError("revenue is not enabled for this Slack channel");
         const { data, error } = await db().rpc("bloom_support_slack_revenue_by_client", {
           p_job: jobId, p_from: isoDate(a.from), p_to: isoDate(a.to),
           p_category: typeof a.category === "string" && a.category.trim() ? a.category.trim().slice(0, 60) : null,
@@ -196,7 +249,15 @@ export async function answerWithSlackAgent(c: SlackAgentContext, question: strin
           receipt: `A reply draft is recorded for request #${Number(t.number)} in Reply approvals. It has not been sent. Review its exact recipient and text before approving.` };
       }
       case "support_overview":
-        return { source: source("Live support overview"), data: await actions.summary(caller) };
+        return { source: source("Live support overview"), data: withOpenTotals(await actions.summary(caller)) };
+      case "platform_finance": {
+        if (!confirmedPrivate || c.ticket_id) throw new ToolPermissionError("Stripe figures are not enabled for this Slack conversation");
+        const kind = String(a.kind) as FinanceKind;
+        const today = new Date().toISOString().slice(0, 10);
+        const result = await readPlatformFinance(kind, financeRange("", today, isoDate(a.from), isoDate(a.to)));
+        financeResults.push(result);
+        return { source: source("Stripe, Brands in Blooms account", "https://dashboard.stripe.com/"), data: result };
+      }
       case "find_clients": {
         const matches = rows(await actions.listAccounts(caller, String(a.query))).slice(0, 10);
         const normalized = (v: unknown) => String(v ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -297,10 +358,11 @@ export async function answerWithSlackAgent(c: SlackAgentContext, question: strin
   // Revenue amounts come from the tool result, composed in code. Model prose that
   // restates an amount is replaced, so a figure the tool did not return never ships.
   const facts = revenueFacts(revenueResults);
+  const stripeFacts = financeResults.map(financeFacts).join("\n\n");
   const text = facts && statesAmount(result.text)
     ? "Here is the recorded revenue by garden centre. Where a store's system keeps no category, it says not recorded."
-    : result.text;
-  const footer = [receipts, links ? `Checked sources: ${links}` : "", scope];
+    : stripeFacts && statesAmount(result.text) ? "Here is what Stripe records." : result.text;
+  const footer = [stripeFacts, receipts, links ? `Checked sources: ${links}` : "", scope];
   const reply = composeSlackAgentReply(text, [facts ?? "", ...footer]);
   // The durable reply limit is 2,400 characters. When the full figures do not
   // fit, the compact form (one label per category) keeps every store's figures.

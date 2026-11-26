@@ -169,6 +169,19 @@ Deno.test("revenue_by_client is owner-only and needs a channel Slack reports as 
   assertThrows(() => validateArguments(spec, JSON.stringify({ from: null, to: null, category: "x".repeat(61) })));
   assertThrows(() => validateArguments(spec, JSON.stringify({ from: null, to: null, category: null, tenant_id: "other" })));
 });
+Deno.test("platform_finance is owner-only, needs a channel cleared for financial answers, and is not offered in a ticket thread", () => {
+  const has = (patch: Partial<AgentContext>) => availableTools(context(patch)).some(t => t.name === "platform_finance");
+  assert(has({ confirmedPrivate: true }));
+  assertEquals(has({ role: "support", confirmedPrivate: true }), false);
+  assertEquals(has({}), false);
+  assertEquals(has({ privateChannel: false, confirmedPrivate: true }), false);
+  assertEquals(has({ confirmedPrivate: true, ticketId: "bound" }), false);
+  const spec = TOOL_SPECS.find(t => t.name === "platform_finance")!;
+  assertEquals(validateArguments(spec, JSON.stringify({ kind: "payouts", from: null, to: null })).kind, "payouts");
+  assertThrows(() => validateArguments(spec, JSON.stringify({ kind: "refund", from: null, to: null })));
+  assertStringIncludes(AGENT_SYSTEM, "report open_total and open_by_status exactly as returned");
+  assertStringIncludes(AGENT_SYSTEM, "do not ask for a ticket ID");
+});
 Deno.test("prompt reports recorded revenue and forbids a false restriction claim", () => {
   assertEquals(AGENT_SYSTEM.includes("financial outcomes"), false);
   assertStringIncludes(AGENT_SYSTEM, "Report recorded revenue from revenue_by_client. Never state a figure that tool did not return. If a category is not recorded, say so and give the totals that are.");
