@@ -8,6 +8,7 @@ import {
   type ReactElement,
   type ReactNode,
 } from "react";
+import type { To } from "react-router-dom";
 import Box from "@mui/joy/Box";
 import JoyBaseButton, {
   type ButtonProps as JoyBaseButtonProps,
@@ -44,14 +45,19 @@ type CommonProps = {
   color?: NativeJoyColor;
 };
 
-// Joy's Button is polymorphic (`component="a"` renders a link), but the
-// non-generic ButtonProps only types button attributes. Callers that render
-// a download or navigation link pass these through to the anchor.
+// Joy's Button is polymorphic (`component="a"` or `component={Link}` renders
+// a link), but the non-generic ButtonProps only types button attributes.
+// Callers that render a download, navigation or router link pass these
+// through to that component.
 type LinkProps = Pick<
   AnchorHTMLAttributes<HTMLAnchorElement>,
   "href" | "download" | "target" | "rel" | "hrefLang"
 > & {
   component?: ElementType;
+  /** Destination when rendered as a react-router `Link` (`component={Link}`). */
+  to?: To;
+  replace?: boolean;
+  state?: unknown;
 };
 
 export type JoyButtonProps = Omit<
