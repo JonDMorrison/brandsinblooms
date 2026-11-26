@@ -289,6 +289,10 @@ const CampaignStudioPage = lazyRetry(
 const ConnectedContentPage = lazyRetry(
   () => import("@/pages/crm/ConnectedContentPage"),
 );
+const CampaignTemplatesPage = lazyNamed(
+  () => import("@/pages/crm/CampaignTemplatesPage"),
+  "CampaignTemplatesPage",
+);
 const SavedBlocksPage = lazyNamed(
   () => import("@/pages/crm/SavedBlocksPage"),
   "SavedBlocksPage",
@@ -1031,6 +1035,14 @@ function App() {
                 <EmailSendingSettings />,
                 "form",
                 "integrations.manage",
+              )}
+            />
+            <Route
+              path="/crm/campaigns/templates"
+              element={renderProtectedSidebarLazyPage(
+                <CampaignTemplatesPage />,
+                "table",
+                "campaigns.read",
               )}
             />
             <Route

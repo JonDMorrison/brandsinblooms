@@ -138,6 +138,17 @@ const PAGE_ENTRIES: SearchResultItem[] = [
     group: "pages",
   }),
   createStaticItem({
+    id: "static:page:campaign-templates",
+    type: "saved_block",
+    title: "Templates",
+    subtitle: "Email designs your business has saved to use again.",
+    route: "/crm/campaigns/templates",
+    icon: "saved-block",
+    metadata: "Page",
+    keywords: ["templates", "saved designs", "email templates", "newsletter templates", "template library"],
+    group: "pages",
+  }),
+  createStaticItem({
     id: "static:page:saved-blocks",
     type: "saved_block",
     title: "Saved Blocks",

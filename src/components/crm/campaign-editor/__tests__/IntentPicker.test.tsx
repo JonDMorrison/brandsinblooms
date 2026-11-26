@@ -44,6 +44,8 @@ function makeSavedTemplate(
     created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
     updated_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
     isOwn: false,
+    category: null,
+    tags: [],
     ...overrides,
   };
 }

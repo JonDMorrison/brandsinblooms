@@ -1485,6 +1485,7 @@ function CampaignEditorScreen() {
     renameTemplate,
     archiveTemplate,
     isSaving: isSavingTemplate,
+    isLoading: isSavedTemplatesLoading,
   } = useSavedTemplates();
 
   // Intents whose tag mapping doesn't match any seasonal template
@@ -1589,6 +1590,27 @@ function CampaignEditorScreen() {
       updateContent,
     ],
   );
+
+  // "Use for a new email" in the Template Library lands here with
+  // ?template=<id>. Apply that saved design once, on a new draft only. The
+  // email gets its own copy of the blocks, so later template edits do not
+  // change it.
+  React.useEffect(() => {
+    const templateId = processParams.get("template");
+    if (!templateId) return;
+    if (isLoading || isSavedTemplatesLoading) return;
+    const nextParams = new URLSearchParams(processParams);
+    nextParams.delete("template");
+    setProcessParams(nextParams, { replace: true });
+    if (campaignId) return;
+    const template = savedTemplates.find((item) => item.id === templateId);
+    if (!template) {
+      toast.error("That template could not be found. It may have been deleted.");
+      return;
+    }
+    handleApplySavedTemplate(template);
+  }, [campaignId, handleApplySavedTemplate, isLoading, isSavedTemplatesLoading, processParams, savedTemplates, setProcessParams]);
+
 
   const handleSaveAsTemplate = React.useCallback(
     async (input: { name: string; description: string }) => {

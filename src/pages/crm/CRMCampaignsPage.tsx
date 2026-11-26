@@ -28,6 +28,7 @@ import {
   Edit3,
   FileText,
   LayoutGrid,
+  LayoutTemplate,
   List,
   MoreHorizontal,
   Palette,
@@ -1281,6 +1282,14 @@ export function CRMCampaignsPage() {
                 flexWrap="wrap"
               >
                 {import.meta.env["VITE_CARE_GUIDE_STUDIO_ENABLED"] === "true" && <Button color="neutral" variant="outlined" startDecorator={<Palette size={16} />} onClick={() => navigate("/crm/care-guides")}>Care Guide Studio</Button>}
+                <Button
+                  color="neutral"
+                  variant="outlined"
+                  startDecorator={<LayoutTemplate size={16} />}
+                  onClick={() => navigate("/crm/campaigns/templates")}
+                >
+                  Templates
+                </Button>
                 <BloomChip
                   label="Campaign insights"
                   prompt="Show me how my campaigns performed this month and suggest improvements"
