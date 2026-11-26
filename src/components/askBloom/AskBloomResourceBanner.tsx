@@ -1,8 +1,8 @@
 import Box from "@mui/joy/Box";
-import IconButton from "@mui/joy/IconButton";
-import Stack from "@mui/joy/Stack";
+import ChipDelete from "@mui/joy/ChipDelete";
 import Typography from "@mui/joy/Typography";
 import { Lock, X } from "lucide-react";
+import { JoyChip } from "@/components/joy/JoyChip";
 import { useAskBloom } from "@/providers/AskBloomProvider";
 import type { AskBloomResourceType, ResourceFocus } from "@/types/askBloom";
 import { describeCustomerOrders } from "@/utils/askBloomContextBuilders";
@@ -65,6 +65,11 @@ const buildSubtitle = (resourceFocus: ResourceFocus) => {
   }
 };
 
+/**
+ * The drawer's page-context pill ("About: Sarah Tremblay"). It reflects the
+ * resource the conversation is focused on; removing it clears the focus so the
+ * next message is a general question.
+ */
 export function AskBloomResourceBanner() {
   const askBloom = useAskBloom();
   const resourceFocus = askBloom.state.resourceFocus;
@@ -73,58 +78,54 @@ export function AskBloomResourceBanner() {
     return null;
   }
 
+  const pillLabel = `About: ${resourceFocus.resourceLabel}`;
+
   return (
     <Box
+      data-testid="ask-bloom-context-pill"
       sx={{
         px: 1.5,
         py: 1,
+        display: "flex",
+        alignItems: "center",
+        gap: 1,
+        minWidth: 0,
         borderBottom: "1px solid",
         borderColor: "divider",
-        bgcolor: "transparent",
         flexShrink: 0,
       }}
     >
-      <Stack direction="row" spacing={1} alignItems="center">
-        <Box
-          sx={{
-            width: 24,
-            height: 24,
-            borderRadius: "999px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "primary.500",
-            bgcolor: "background.surface",
-            flexShrink: 0,
-          }}
+      <JoyChip
+        color="primary"
+        size="md"
+        variant="soft"
+        title={pillLabel}
+        startDecorator={<Lock size={13} strokeWidth={1.6} aria-hidden="true" />}
+        endDecorator={
+          <ChipDelete
+            aria-label={`Remove context: ${resourceFocus.resourceLabel}`}
+            onDelete={askBloom.clearResourceFocus}
+          >
+            <X size={12} strokeWidth={2} aria-hidden="true" />
+          </ChipDelete>
+        }
+        sx={{ maxWidth: "62%", flexShrink: 0 }}
+      >
+        <Typography
+          noWrap
+          component="span"
+          sx={{ color: "inherit", fontSize: "13px", fontWeight: 600 }}
         >
-          <Lock size={14} strokeWidth={1.5} />
-        </Box>
-        <Box sx={{ minWidth: 0, flex: 1 }}>
-          <Typography level="title-sm" sx={{ fontWeight: 500 }} noWrap>
-            {resourceFocus.resourceLabel}
-          </Typography>
-          <Typography level="body-xs" sx={{ color: "text.secondary" }} noWrap>
-            {buildSubtitle(resourceFocus)}
-          </Typography>
-        </Box>
-        <IconButton
-          aria-label="Clear resource focus"
-          color="neutral"
-          size="sm"
-          variant="plain"
-          onClick={askBloom.clearResourceFocus}
-          sx={{
-            width: 24,
-            height: 24,
-            minWidth: 24,
-            minHeight: 24,
-            flexShrink: 0,
-          }}
-        >
-          <X size={14} strokeWidth={1.5} />
-        </IconButton>
-      </Stack>
+          {pillLabel}
+        </Typography>
+      </JoyChip>
+      <Typography
+        level="body-xs"
+        noWrap
+        sx={{ color: "text.secondary", minWidth: 0 }}
+      >
+        {buildSubtitle(resourceFocus)}
+      </Typography>
     </Box>
   );
 }

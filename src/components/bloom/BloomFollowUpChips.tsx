@@ -27,9 +27,13 @@ export function BloomFollowUpChips({
     isLatestMessage && !isStreaming && chips.length > 0 && !isDismissing;
   const visibleChips = chips.slice(0, visibleChipCount);
 
+  // Key on the chip text, not the array identity: the drawer derives its chips
+  // on every render, and a fresh array must not undo a dismissal in flight.
+  const chipsKey = chips.join("\u0000");
+
   React.useEffect(() => {
     setIsDismissing(false);
-  }, [chips, isLatestMessage]);
+  }, [chipsKey, isLatestMessage]);
 
   React.useEffect(
     () => () => {

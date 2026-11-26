@@ -1,7 +1,6 @@
 import * as React from "react";
 import Box from "@mui/joy/Box";
 import Divider from "@mui/joy/Divider";
-import Sheet from "@mui/joy/Sheet";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
 import { AlertCircle } from "lucide-react";
@@ -39,7 +38,6 @@ import type {
 } from "@/hooks/askBloom/useAskBloomStreaming";
 
 interface BloomStreamingMessageProps {
-  compact?: boolean;
   message: BloomMessage;
   retryPrompt: string | null;
 }
@@ -59,17 +57,11 @@ export interface BloomStreamingMessageState {
 }
 
 export interface BloomStreamingMessageContentProps {
-  compact?: boolean;
   message: BloomMessage;
   onCancelStream: () => void;
   onResourceFormDetected?: (form: PendingResourceForm) => void;
   onSubmitPrompt: (prompt: string) => void;
-  renderBlock?: (
-    block: BloomStreamingBlock,
-    onAction: (action: string, context: BloomBlockActionContext) => void,
-  ) => React.ReactNode;
   retryPrompt: string | null;
-  showAvatar?: boolean;
   streamState: BloomStreamingMessageState;
 }
 
@@ -81,24 +73,6 @@ const initialTextItem = (messageId: string): StreamRenderItem => ({
   kind: "text",
   id: `${messageId}-text-0`,
 });
-
-function CompactThinkingNotice() {
-  return (
-    <Sheet
-      variant="soft"
-      color="neutral"
-      sx={{
-        borderRadius: "var(--joy-radius-lg)",
-        p: 1,
-        backgroundColor: "background.level1",
-      }}
-    >
-      <Typography level="body-xs" sx={{ color: "neutral.600" }}>
-        Reasoning available. Open in Bloom to expand it.
-      </Typography>
-    </Sheet>
-  );
-}
 
 function ErrorActions({
   error,
@@ -148,12 +122,10 @@ function ErrorActions({
 }
 
 export function BloomStreamingMessageContent({
-  compact = false,
   message,
   onCancelStream,
   onResourceFormDetected,
   onSubmitPrompt,
-  renderBlock,
   retryPrompt,
   streamState,
 }: BloomStreamingMessageContentProps) {
@@ -191,12 +163,6 @@ export function BloomStreamingMessageContent({
   const [items, setItems] = React.useState<StreamRenderItem[]>(() => [
     initialTextItem(message.id),
   ]);
-  // Compact mode has no persisted message to re-render, so once the stream
-  // finishes the plain streamed text is swapped for rendered markdown.
-  const [settledText, setSettledText] = React.useState<Map<
-    string,
-    string
-  > | null>(null);
   const showConnecting =
     (connectionState === "connecting" || connectionState === "streaming") &&
     !streamingContent.trim() &&
@@ -275,25 +241,7 @@ export function BloomStreamingMessageContent({
     currentTextItemIdRef.current = firstTextItem.id;
     setCurrentTextItemId(firstTextItem.id);
     setItems([firstTextItem]);
-    setSettledText(null);
   }, [message.id]);
-
-  React.useEffect(() => {
-    if (!compact) return;
-    if (connectionState !== "done") {
-      setSettledText(null);
-      return;
-    }
-    renderCurrentText(streamingContent);
-    const next = new Map<string, string>();
-    for (const item of items) {
-      if (item.kind !== "text") continue;
-      const text = textRefs.current.get(item.id)?.textContent ?? "";
-      if (text.trim()) next.set(item.id, text);
-    }
-    // Keep the first capture: once markdown is shown the plain spans are gone.
-    setSettledText((previous) => previous ?? (next.size > 0 ? next : null));
-  }, [compact, connectionState, items, renderCurrentText, streamingContent]);
 
   React.useLayoutEffect(() => {
     renderCurrentText(streamingContent);
@@ -426,30 +374,23 @@ export function BloomStreamingMessageContent({
       sx={{
         alignItems: showConnecting ? "center" : "flex-start",
         display: "flex",
-        gap: compact ? 1 : 1.5,
-        mb: compact ? 0 : 3,
-        pr: compact ? 0 : { xs: 0, md: 5 },
+        gap: 1.5,
+        mb: 3,
+        pr: { xs: 0, md: 5 },
       }}
     >
-      <Stack spacing={compact ? 1 : 1.25} sx={{ minWidth: 0, flex: 1 }}>
+      <Stack spacing={1.25} sx={{ minWidth: 0, flex: 1 }}>
         {showConnecting ? (
           <BloomStreamingIndicator connectionState={connectionState} />
         ) : null}
 
-        {compact ? (
-          streamingThinking.trim() ? (
-            <CompactThinkingNotice />
-          ) : null
-        ) : (
-          <ThinkingBlock
-            content={streamingThinking}
-            defaultExpanded
-            isStreaming={
-              connectionState === "streaming" ||
-              connectionState === "connecting"
-            }
-          />
-        )}
+        <ThinkingBlock
+          content={streamingThinking}
+          defaultExpanded
+          isStreaming={
+            connectionState === "streaming" || connectionState === "connecting"
+          }
+        />
 
         {researchProgressPayload ? (
           <BlockRenderer
@@ -459,14 +400,10 @@ export function BloomStreamingMessageContent({
           />
         ) : null}
 
-        <Stack spacing={compact ? 1 : 1.25} sx={{ minWidth: 0 }}>
+        <Stack spacing={1.25} sx={{ minWidth: 0 }}>
           {items.map((item) => {
             if (item.kind === "block") {
-              return renderBlock ? (
-                <React.Fragment key={item.id}>
-                  {renderBlock(item.block, handleBlockAction)}
-                </React.Fragment>
-              ) : (
+              return (
                 <ContentBlockRenderer
                   key={item.id}
                   block={contentBlockFromStreamingBlock(item.block)}
@@ -480,31 +417,18 @@ export function BloomStreamingMessageContent({
               );
             }
 
-            const settled = settledText?.get(item.id);
-            if (settled) {
-              return (
-                <ContentBlockRenderer
-                  key={item.id}
-                  compact
-                  block={{ type: "text", id: item.id, content: settled }}
-                />
-              );
-            }
-
             return (
               <Typography
                 key={item.id}
                 component="div"
                 level="body-md"
                 sx={{
-                  color: compact ? "neutral.700" : "neutral.800",
+                  color: "neutral.800",
                   fontSize: "16px",
-                  lineHeight: compact ? 1.65 : 1.7,
+                  lineHeight: 1.7,
                   minHeight:
                     item.id === currentTextItemId && !showConnecting
-                      ? compact
-                        ? 18
-                        : 24
+                      ? 24
                       : undefined,
                   overflowWrap: "anywhere",
                   whiteSpace: "pre-wrap",
@@ -557,7 +481,6 @@ export function BloomStreamingMessageContent({
 }
 
 export function BloomStreamingMessage({
-  compact = false,
   message,
   retryPrompt,
 }: BloomStreamingMessageProps) {
@@ -616,7 +539,6 @@ export function BloomStreamingMessage({
 
   return (
     <BloomStreamingMessageContent
-      compact={compact}
       message={message}
       onCancelStream={cancelStream}
       onResourceFormDetected={presentResourceForm}

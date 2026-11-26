@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { DataCardBlock } from "./blocks/DataCardBlock";
 import { CustomerResultCard } from "./content/cards/CustomerResultCard";
 import { InventoryResultCard } from "./content/cards/InventoryResultCard";
@@ -203,5 +204,46 @@ describe("Bloom customer cards show money in the tenant currency", () => {
   it("shows matched spending for purchase searches", () => {
     render(<CustomerResultCard result={{ ...resultFor({ name: "Ann", customer_id: "a", matched_reported_spend: 120.5, currency: "CAD" }), toolName: "explore_customer_purchases" }} />);
     expect(screen.getByText("Matched spending: CA$120.50")).toBeVisible();
+  });
+});
+
+// Moved from the retired CompactBlockRenderer suite: these cover the full
+// renderers, which the compact panel's removal does not affect.
+describe('saved group contact and export presentation', () => {
+  it('renders recorded emails visibly, without replacing missing addresses', async () => {
+    const {CustomerAnalysisBlock} = await import('./blocks/CustomerAnalysisBlock');
+    render(<MemoryRouter><CustomerAnalysisBlock data={{kind:'customer_exploration',set_id:'saved',total_count:2,rows:[{customer_id:'a',name:'Synthetic A',email:'a@example.com'},{customer_id:'b',name:'Synthetic B',email:null}]}} /></MemoryRouter>);
+    expect(screen.getByRole('columnheader', {name:'Email'})).toBeVisible();
+    expect(screen.getByRole('cell', {name:'a@example.com'})).toBeVisible();
+    expect(screen.getByRole('cell', {name:'No email on file'})).toBeVisible();
+  });
+  it('offers an actionable download only for a generated file and preserves expiry', async () => {
+    const {ExportResultCard}=await import('./content/cards/ExportResultCard');
+    const {normalizeToolResult}=await import('./content/cards/cardUtils');
+    const result=normalizeToolResult({toolName:'export_data',data:{success:true,data:{download_url:'https://example.com/synthetic.csv',file_name:'synthetic.csv',row_count:53,total_matching_count:53,format:'csv',expires_at:'2026-11-11T18:00:00Z',actions:[{label:'Open guide',type:'link',href:'https://example.com/guide'}]},count:53}});
+    render(<ExportResultCard result={result}/>);
+    expect(screen.getByRole('link',{name:'Download Csv'})).toHaveAttribute('href','https://example.com/synthetic.csv');
+    expect(screen.getByRole('link',{name:'Download Csv'})).toHaveAttribute('download','synthetic.csv');
+    expect(screen.getByRole('link',{name:'Download Csv'})).not.toHaveAttribute('target');
+    expect(screen.getByRole('link',{name:'Open guide'})).toHaveAttribute('target','_blank');
+    expect(screen.getByRole('link',{name:'Open guide'})).not.toHaveAttribute('download');
+    expect(screen.getByText(/Expires/)).toBeVisible();
+    const empty=normalizeToolResult({toolName:'export_data',data:{success:false,data:null,error:'export_empty',message:'No export file was created.'}});
+    expect(empty.status).toBe('error');
+    const {container}=render(<ExportResultCard result={empty}/>);expect(container).toBeEmptyDOMElement();
+  });
+});
+
+
+describe('alternate export download renderers', () => {
+  const payload = {entity_type:'segment',entity:{name:'Synthetic export',type:'csv',customer_count:16},download_url:'https://example.com/storage/synthetic.csv?download=synthetic.csv',file_name:'synthetic.csv',format:'csv',actions:[{label:'Open guide',type:'link',url:'https://example.com/guide'}]};
+  it('uses download navigation in the full block renderer while ordinary links open separately', async () => {
+    const {BlockRenderer}=await import('./blocks/BlockRenderer');
+    render(<MemoryRouter><BlockRenderer blockType="data_card" payload={payload} onAction={()=>{}} /></MemoryRouter>);
+    const download=screen.getByRole('link',{name:'Download Csv'});
+    expect(download).toHaveAttribute('href',payload.download_url);
+    expect(download).toHaveAttribute('download','synthetic.csv');
+    expect(download).not.toHaveAttribute('target');
+    expect(screen.getByRole('link',{name:'Open guide'})).toHaveAttribute('target','_blank');
   });
 });

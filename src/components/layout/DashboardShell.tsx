@@ -41,10 +41,6 @@ import {
 import type { SearchOpenSource } from "@/components/search/searchAnalytics";
 import { useAuth } from "@/contexts/AuthContext";
 import { HelpWidget } from "@/components/ui/HelpWidget";
-import {
-  BLOOM_COMPACT_ACTIVATION_EVENT,
-  type BloomCompactActivationRequest,
-} from "@/hooks/bloom/useBloomCompactMode";
 import useMediaQuery from "@/hooks/use-media-query";
 import { useLocationBlockingGuard } from "@/hooks/useLocationBlockingGuard";
 import { useOptionalAskBloom } from "@/providers/AskBloomProvider";
@@ -149,8 +145,6 @@ export function DashboardShell({
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [commandPaletteOpenSource, setCommandPaletteOpenSource] =
     useState<SearchOpenSource>("click");
-  const [compactActivationRequest, setCompactActivationRequest] =
-    useState<BloomCompactActivationRequest | null>(null);
   const [hasRequestedCommandPalette, setHasRequestedCommandPalette] =
     useState(false);
   const { isBlocked: isLocationBlocked, isLoading: isLocationLoading } =
@@ -195,32 +189,6 @@ export function DashboardShell({
 
     setIsSidebarCollapsed(isTablet);
   }, [isTablet]);
-
-  useEffect(() => {
-    const handleCompactActivationRequest = (event: Event) => {
-      const request = (event as CustomEvent<BloomCompactActivationRequest>)
-        .detail;
-
-      if (!request) {
-        return;
-      }
-
-      setCompactActivationRequest(request);
-      openCommandPalette("click");
-    };
-
-    window.addEventListener(
-      BLOOM_COMPACT_ACTIVATION_EVENT,
-      handleCompactActivationRequest as EventListener,
-    );
-
-    return () => {
-      window.removeEventListener(
-        BLOOM_COMPACT_ACTIVATION_EVENT,
-        handleCompactActivationRequest as EventListener,
-      );
-    };
-  }, [openCommandPalette]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -477,7 +445,6 @@ export function DashboardShell({
               }
             >
               <LazyCommandPalette
-                compactActivationRequest={compactActivationRequest}
                 open={isCommandPaletteOpen}
                 openSource={commandPaletteOpenSource}
                 onClose={() => setIsCommandPaletteOpen(false)}

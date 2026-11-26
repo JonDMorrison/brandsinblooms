@@ -13,7 +13,7 @@ import { intelligenceView } from "@/lib/customer-intelligence/intelligenceExperi
 import { BloomConversationArea } from "@/components/bloom/BloomConversationArea";
 import { BloomApprovalBar } from "@/components/bloom/BloomApprovalBar";
 import { useBloom } from "@/components/bloom/BloomContext";
-import { BloomInputArea } from "@/components/bloom/BloomInputArea";
+import { BloomPageComposer } from "@/components/bloom/BloomPageComposer";
 import type { BloomShellOutletContext } from "@/components/bloom/BloomShell";
 import {
   bloomSupabase,
@@ -353,7 +353,7 @@ export default function BloomPage() {
           }}
         >
           <BloomApprovalBar />
-          <BloomInputArea />
+          <BloomPageComposer />
         </Box>
       </Box>
     </>

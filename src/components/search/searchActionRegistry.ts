@@ -61,7 +61,7 @@ export type PaletteCommandId =
 
 export type PaletteActionExecution =
   | {
-      type: "activate-bloom-compact";
+      type: "open-ask-bloom";
       prefilledPrompt: string | null;
     }
   | {
@@ -174,7 +174,7 @@ const COMMAND_REGISTRY: CommandRegistryEntry[] = [
     icon: "saved-block",
     keywords: ["ask bloom", "bloom", "assistant", "ai", "question"],
     resolve: () => ({
-      type: "activate-bloom-compact",
+      type: "open-ask-bloom",
       prefilledPrompt: null,
     }),
   },

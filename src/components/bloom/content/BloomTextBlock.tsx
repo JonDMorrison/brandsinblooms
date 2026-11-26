@@ -5,13 +5,11 @@ import {
 } from "@/components/bloom/BloomMarkdown";
 
 export const BloomTextBlock = React.memo(function BloomTextBlock({
-  compact,
   content,
   variant,
 }: {
-  compact?: boolean;
   content: string;
   variant?: BloomMarkdownVariant;
 }) {
-  return <BloomMarkdown compact={compact} content={content} variant={variant} />;
+  return <BloomMarkdown content={content} variant={variant} />;
 });

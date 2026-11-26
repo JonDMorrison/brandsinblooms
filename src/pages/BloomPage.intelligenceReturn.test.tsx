@@ -34,8 +34,8 @@ vi.mock("@/components/bloom/BloomConversationArea", () => ({
 vi.mock("@/components/bloom/BloomApprovalBar", () => ({
   BloomApprovalBar: () => <div data-testid="approval-bar">Approvals</div>,
 }));
-vi.mock("@/components/bloom/BloomInputArea", () => ({
-  BloomInputArea: () => <div data-testid="input-area">Bloom composer</div>,
+vi.mock("@/components/bloom/BloomPageComposer", () => ({
+  BloomPageComposer: () => <div data-testid="input-area">Bloom composer</div>,
 }));
 vi.mock("@/hooks/useTenant", () => ({
   useTenant: () => ({ tenant: { id: "synthetic-tenant" }, loading: false }),
