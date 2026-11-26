@@ -102,6 +102,7 @@ export function useBloomCompactMode() {
   const {
     activeToolCall,
     cancelStream,
+    canSend,
     connectionState,
     isStreaming,
     isResearchComplete,
@@ -250,6 +251,7 @@ export function useBloomCompactMode() {
   return {
     activateCompact: activateCompactState,
     activeMode,
+    canSend,
     activeToolCall,
     cancelStream,
     capturedPageContext,

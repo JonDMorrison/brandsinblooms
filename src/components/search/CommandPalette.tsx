@@ -421,6 +421,9 @@ export function CommandPalette({
     if (
       !pendingCompactAutoSendPrompt ||
       !compactMode.isActive ||
+      // The palette mounts its own tenant and session hooks. Wait for them,
+      // or an auto-sent prompt fails with "select an organization".
+      !compactMode.canSend ||
       compactMode.isStreaming ||
       compactMode.draftPrompt.trim() !== pendingCompactAutoSendPrompt
     ) {
@@ -442,6 +445,7 @@ export function CommandPalette({
       cancelled = true;
     };
   }, [
+    compactMode.canSend,
     compactMode.draftPrompt,
     compactMode.isActive,
     compactMode.isStreaming,
