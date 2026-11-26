@@ -6,8 +6,8 @@ import { aiConfig } from "./ai.ts";
 import { actions } from "./service.ts";
 import { callProduct, runRead } from "./operations.ts";
 import { safeTicketText } from "./ticket-slack.ts";
-import { revenueFacts, statesAmount } from "./slack-revenue.ts";
-import { type AgentContext, type ChatMessage, type ToolResult, ToolPermissionError, composeSlackAgentReply, openAiTools, runAgent } from "./slack-agent-core.ts";
+import { REVENUE_ELSEWHERE_REPLY, revenueByClientQuestion, revenueFacts, statesAmount } from "./slack-revenue.ts";
+import { type AgentContext, type ChatMessage, type ToolResult, ToolPermissionError, availableTools, composeSlackAgentReply, openAiTools, runAgent } from "./slack-agent-core.ts";
 
 export interface SlackAgentContext {
   allowed: boolean; principal_id: string; role: string; channel: string; route: string;
@@ -97,6 +97,11 @@ export async function answerWithSlackAgent(c: SlackAgentContext, question: strin
     jobId, principalId: c.principal_id, role: c.role, channel: c.channel, route: c.route,
     rootTs: c.root_ts, ticketId: c.ticket_id, question, history: c.history, privateChannel, confirmedPrivate,
   };
+  // Without revenue_by_client (a public channel, or a non-owner) the model has
+  // said "I cannot access revenue". Answer where to ask, in code, instead.
+  if (revenueByClientQuestion(question) && !availableTools(ctx).some(t => t.name === "revenue_by_client")) {
+    return composeSlackAgentReply(REVENUE_ELSEWHERE_REPLY, []);
+  }
   const caller: Caller = { principalId: c.principal_id, role: c.role, via: "service", scopes: [], name: null };
   const tickets = new Set<string>(c.ticket_id ? [c.ticket_id] : []);
   const accounts = new Set<string>();

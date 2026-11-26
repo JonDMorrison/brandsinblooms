@@ -1,5 +1,5 @@
 import { assert, assertEquals, assertStringIncludes } from "@std/assert";
-import { bloomSitesBlock, coverage, money, revenueFacts, statesAmount } from "./slack-revenue.ts";
+import { REVENUE_ELSEWHERE_REPLY, bloomSitesBlock, coverage, money, revenueByClientQuestion, revenueFacts, statesAmount } from "./slack-revenue.ts";
 import { composeSlackAgentReply } from "./slack-agent-core.ts";
 
 const range = { from: "2025-11-25", to: "2026-11-25" };
@@ -134,4 +134,16 @@ Deno.test("POS and BloomSites figures for Jeff's question fit one Slack reply", 
   assertStringIncludes(reply, "The Flowerhouse");
   assertStringIncludes(reply, "Not covered: BloomSites online store orders outside fundraising.");
   assert(reply.length <= 2400, String(reply.length));
+});
+
+Deno.test("revenue-by-client questions are recognised; product help about sales is not", () => {
+  for (const q of [
+    "<#C0CFUG4LFLJ> Can you tell us how much revenue we've generated from events, fundraising and plant sales by garden center?",
+    "how much revenue have we generated from events, fundraising and plant sales by garden center?",
+    "What were sales per store last month?",
+    "fundraising totals for each client",
+  ]) assert(revenueByClientQuestion(q), q);
+  for (const q of ["How do I export my sales report?", "Where do I set up a fundraising campaign?", "What's new in the POS?"])
+    assertEquals(revenueByClientQuestion(q), false, q);
+  assertEquals(/restricted|cannot access|not permitted|unable/i.test(REVENUE_ELSEWHERE_REPLY), false);
 });
