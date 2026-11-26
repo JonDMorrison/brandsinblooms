@@ -1595,10 +1595,16 @@ function CampaignEditorScreen() {
   // ?template=<id>. Apply that saved design once, on a new draft only. The
   // email gets its own copy of the blocks, so later template edits do not
   // change it.
+  // Removing the URL parameter takes a render, and applying the design
+  // changes this effect's inputs, so it would run twice and ask to replace
+  // the design it had just applied. Handle each template id once.
+  const handledTemplateParamRef = React.useRef<string | null>(null);
   React.useEffect(() => {
     const templateId = processParams.get("template");
     if (!templateId) return;
     if (isLoading || isSavedTemplatesLoading) return;
+    if (handledTemplateParamRef.current === templateId) return;
+    handledTemplateParamRef.current = templateId;
     const nextParams = new URLSearchParams(processParams);
     nextParams.delete("template");
     setProcessParams(nextParams, { replace: true });

@@ -78,7 +78,12 @@ function toSavedTemplate(
     layout_json: toBlockArray(row.layout_json),
     created_at: typeof row.created_at === "string" ? row.created_at : "",
     updated_at: typeof row.updated_at === "string" ? row.updated_at : "",
-    category: typeof row.category === "string" && row.category.trim() ? row.category.trim() : null,
+    // "general" is the table's default, set on every design saved before
+    // categories could be chosen. It means no category was picked.
+    category:
+      typeof row.category === "string" && row.category.trim() && row.category.trim().toLowerCase() !== "general"
+        ? row.category.trim()
+        : null,
     tags: normalizeTemplateTags(Array.isArray(row.tags) ? (row.tags as string[]) : []),
   };
 }
