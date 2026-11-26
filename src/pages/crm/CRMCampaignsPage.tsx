@@ -3,7 +3,7 @@ import { deriveCampaignDisplayName, isUnsetCampaignName } from "@/lib/crm/campai
 import { CampaignOrganization } from "@/components/crm/campaigns/CampaignOrganization";
 import { CampaignCardGrid } from "@/components/crm/campaigns/CampaignCardGrid";
 import { ThisWeekThemeStrip } from "@/components/crm/campaigns/ThisWeekThemeStrip";
-import { partitionEmptyDrafts, visibleColumnsForFilter } from "@/lib/crm/campaignCardModel";
+import { campaignReadiness, partitionEmptyDrafts, visibleColumnsForFilter } from "@/lib/crm/campaignCardModel";
 import { useCampaignOrganization, campaignOrganizationClient } from "@/lib/crm/campaignOrganization";
 import * as React from "react";
 import Box from "@mui/joy/Box";
@@ -1088,11 +1088,27 @@ export function CRMCampaignsPage() {
 
     let items: React.ReactNode[];
     switch (campaign.status) {
-      case CAMPAIGN_STATUS.DRAFT:
+      case CAMPAIGN_STATUS.DRAFT: {
+        // Offer Send/Schedule only when the draft can be sent. Otherwise offer
+        // the step that is missing, the same one the card footer names.
+        const readiness = campaignReadiness(campaign);
+        const missing = readiness.steps.find((step) => !step.done)?.key;
+        const finishTarget =
+          missing === "content"
+            ? campaign.channel === "sms"
+              ? `/crm/campaigns/${campaign.id}`
+              : `/crm/campaigns/${campaign.id}/studio`
+            : missing === "subject"
+              ? `/crm/campaigns/${campaign.id}?step=review&section=inbox`
+              : `/crm/campaigns/${campaign.id}?step=review&section=audience`;
         items = [
           designer,
-          item("Send now", <Send size={16} />, () => navigate(`/crm/campaigns/${campaign.id}?step=review&section=actions&action=send`)),
-          item("Schedule send", <Clock3 size={16} />, () => navigate(`/crm/campaigns/${campaign.id}?step=review&section=actions&action=schedule`)),
+          ...(readiness.ready
+            ? [
+                item("Send now", <Send size={16} />, () => navigate(`/crm/campaigns/${campaign.id}?step=review&section=actions&action=send`)),
+                item("Schedule send", <Clock3 size={16} />, () => navigate(`/crm/campaigns/${campaign.id}?step=review&section=actions&action=schedule`)),
+              ]
+            : [item(readiness.nextStep ?? "Finish setup", <Send size={16} />, () => navigate(finishTarget))]),
           item("Edit", <Edit3 size={16} />, () =>
             navigate(`/crm/campaigns/${campaign.id}`),
           ),
@@ -1100,6 +1116,7 @@ export function CRMCampaignsPage() {
           deleteItem,
         ];
         break;
+      }
       case CAMPAIGN_STATUS.SCHEDULED:
         items = [
           designer,
