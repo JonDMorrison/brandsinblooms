@@ -652,11 +652,11 @@ export function InlineFieldEditor({
                 onFieldChange({ required: checked });
 
                 if (field.type === "email_consent") {
-                  onComplianceChange({ require_email_consent: checked });
+                  onComplianceChange({ email_consent_required: checked });
                 }
 
                 if (field.type === "sms_consent") {
-                  onComplianceChange({ require_sms_consent: checked });
+                  onComplianceChange({ sms_consent_required: checked });
                 }
               }}
             />
@@ -1402,7 +1402,7 @@ function SegmentCheckboxFieldOptions({
     onFieldChange({ segment_selection_mode: nextMode });
   };
 
-  const noStaticSegments = !segmentsQuery.loading && staticSegments.length === 0;
+  const noStaticSegments = !segmentsQuery.isLoading && staticSegments.length === 0;
   const hasUnsetOption = options.some((option) => !option.segment_id);
 
   return (
@@ -1469,7 +1469,7 @@ function SegmentCheckboxFieldOptions({
                       handleSegmentChange(index, value)
                     }
                     placeholder={
-                      segmentsQuery.loading
+                      segmentsQuery.isLoading
                         ? "Loading segments…"
                         : staticSegments.length === 0
                           ? "No static segments available"
@@ -1490,7 +1490,7 @@ function SegmentCheckboxFieldOptions({
                       })),
                     ]}
                     disabled={
-                      segmentsQuery.loading || staticSegments.length === 0
+                      segmentsQuery.isLoading || staticSegments.length === 0
                     }
                   />
                   <JoyInput
@@ -1568,7 +1568,7 @@ function SegmentCheckboxFieldOptions({
           color="neutral"
           startDecorator={<Plus size={14} />}
           onClick={handleAddOption}
-          disabled={segmentsQuery.loading || staticSegments.length === 0}
+          disabled={segmentsQuery.isLoading || staticSegments.length === 0}
         >
           Add option
         </Button>

@@ -47,7 +47,10 @@ export async function fetchTenantCustomerSummary(
     throw error;
   }
 
-  const row = (Array.isArray(data) ? data[0] : data) as
+  // The RPC is missing from the generated Supabase types, so `data` is typed
+  // as `null`; read it as unknown before narrowing.
+  const payload: unknown = data;
+  const row = (Array.isArray(payload) ? payload[0] : payload) as
     | TenantCustomerSummaryRpcRow
     | null
     | undefined;

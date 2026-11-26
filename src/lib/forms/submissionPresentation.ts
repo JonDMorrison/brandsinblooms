@@ -302,8 +302,9 @@ export function getSubmissionDisplaySource(
 export function isTestSubmission(
   submission: Pick<FormSubmission, "metadata">,
 ): boolean {
-  const metadata = getSubmissionMetadata(submission);
-  return metadata.is_test === true;
+  // `is_test` is written by test submissions but is not part of the
+  // FormSubmissionMetadata contract, so read it from the raw record.
+  return isRecord(submission.metadata) && submission.metadata.is_test === true;
 }
 
 export function getSubmissionVisibleEntries(

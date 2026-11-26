@@ -10,7 +10,7 @@ import Typography from "@mui/joy/Typography";
 import type { SxProps } from "@mui/joy/styles/types";
 import { mergeSx } from "@/components/joy/mergeSx";
 
-const createFocusOutline = (): SxProps => ({
+const createFocusOutline = () => ({
   outline: 0,
   boxShadow: "0 0 0 2px rgba(var(--joy-palette-primary-mainChannel) / 0.18)",
 });
@@ -130,7 +130,7 @@ export type JoyDropdownMenuContentProps = MenuProps & {
 };
 
 export const JoyDropdownMenuContent = React.forwardRef<
-  HTMLUListElement,
+  HTMLDivElement,
   JoyDropdownMenuContentProps
 >(({ placement = "bottom-end", sx, children, ...props }, ref) => (
   <Menu ref={ref} placement={placement} sx={mergeSx(menuSx, sx)} {...props}>
@@ -147,7 +147,7 @@ export type JoyDropdownMenuItemProps = Omit<MenuItemProps, "color"> & {
 };
 
 export const JoyDropdownMenuItem = React.forwardRef<
-  HTMLLIElement,
+  HTMLDivElement,
   JoyDropdownMenuItemProps
 >(
   (
@@ -181,7 +181,7 @@ export const JoyDropdownMenuItem = React.forwardRef<
 JoyDropdownMenuItem.displayName = "JoyDropdownMenuItem";
 
 export const JoyDropdownMenuSeparator = React.forwardRef<
-  HTMLHRElement,
+  HTMLLIElement,
   ListDividerProps
 >(({ sx, ...props }, ref) => (
   <ListDivider ref={ref} sx={mergeSx({ my: 0.5 }, sx)} {...props} />

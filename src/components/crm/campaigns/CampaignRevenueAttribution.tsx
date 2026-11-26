@@ -10,6 +10,7 @@ import {
   MousePointerClick,
   Receipt,
   Users,
+  type LucideIcon,
 } from "lucide-react";
 import {
   formatAttributedRevenue,
@@ -21,7 +22,7 @@ function AttributionCell({
   label,
   value,
 }: {
-  icon: React.ComponentType<{ size?: number }>;
+  icon: LucideIcon;
   label: string;
   value: string;
 }) {

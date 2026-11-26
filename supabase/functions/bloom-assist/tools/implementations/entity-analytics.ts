@@ -2018,8 +2018,11 @@ async function loadStripeSubscription(
 ): Promise<StripeSubscriptionRow | null> {
   const { data, error } = await client
     .from("subscriptions")
+    // public.subscriptions has no status, current_period_*,
+    // cancel_at_period_end, trial_end or stripe_subscription_id columns;
+    // selecting them made this lookup fail. Those fields stay unset.
     .select(
-      "user_id, plan, tier, status, billing_interval, current_period_start, current_period_end, cancel_at_period_end, trial_end, start_date, end_date, deleted_at, max_connections, stripe_customer_id, stripe_subscription_id, stripe_subscription_item_id, created_at, updated_at",
+      "user_id, plan, tier, billing_interval, start_date, end_date, deleted_at, max_connections, stripe_customer_id, stripe_subscription_item_id, created_at, updated_at",
     )
     .eq("user_id", userId)
     .order("updated_at", { ascending: false, nullsFirst: false })

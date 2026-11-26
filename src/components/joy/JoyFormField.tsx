@@ -137,80 +137,85 @@ export function JoyFormField<
         const required = isRequiredRule(rules);
         const stringValue = asString(field.value);
 
-        return render({
-          field,
-          fieldState,
-          error,
-          errorMessage,
-          commonProps: {
-            name: field.name,
-            disabled,
-            required,
-            error,
-            errorMessage,
-          },
-          inputProps: {
-            ref: field.ref,
-            name: field.name,
-            disabled,
-            value: stringValue,
-            onBlur: field.onBlur,
-            onValueChange: field.onChange,
-            onChange: (event) => field.onChange(event.target.value),
-            error,
-            errorMessage,
-          },
-          textareaProps: {
-            ref: field.ref,
-            name: field.name,
-            disabled,
-            value: stringValue,
-            onBlur: field.onBlur,
-            onValueChange: field.onChange,
-            onChange: (event) => field.onChange(event.target.value),
-            error,
-            errorMessage,
-          },
-          selectProps: {
-            ref: field.ref,
-            name: field.name,
-            disabled,
-            value: stringValue,
-            onBlur: field.onBlur,
-            onValueChange: field.onChange,
-            error,
-            errorMessage,
-          },
-          autocompleteProps: {
-            ref: field.ref,
-            name: field.name,
-            disabled,
-            value: (field.value ?? null) as FieldPathValue<
-              TFieldValues,
-              TName
-            > | null,
-            onBlur: field.onBlur,
-            onValueChange: field.onChange,
-            error,
-            errorMessage,
-          },
-          switchProps: {
-            ref: field.ref,
-            name: field.name,
-            disabled,
-            checked: Boolean(field.value),
-            onBlur: field.onBlur,
-            onCheckedChange: field.onChange,
-          },
-          checkboxProps: {
-            ref: field.ref,
-            name: field.name,
-            disabled,
-            checked: Boolean(field.value),
-            onBlur: field.onBlur,
-            onCheckedChange: field.onChange,
-          },
-        });
+        // Controller requires a ReactElement; render may return any node.
+        return (
+          <>
+            {render({
+              field,
+              fieldState,
+              error,
+              errorMessage,
+              commonProps: {
+                name: field.name,
+                disabled,
+                required,
+                error,
+                errorMessage,
+              },
+              inputProps: {
+                ref: field.ref,
+                name: field.name,
+                disabled,
+                value: stringValue,
+                onBlur: field.onBlur,
+                onValueChange: field.onChange,
+                onChange: (event) => field.onChange(event.target.value),
+                error,
+                errorMessage,
+              },
+              textareaProps: {
+                ref: field.ref,
+                name: field.name,
+                disabled,
+                value: stringValue,
+                onBlur: field.onBlur,
+                onValueChange: field.onChange,
+                onChange: (event) => field.onChange(event.target.value),
+                error,
+                errorMessage,
+              },
+              selectProps: {
+                ref: field.ref,
+                name: field.name,
+                disabled,
+                value: stringValue,
+                onBlur: field.onBlur,
+                onValueChange: field.onChange,
+                error,
+                errorMessage,
+              },
+              autocompleteProps: {
+                ref: field.ref,
+                name: field.name,
+                disabled,
+                value: (field.value ?? null) as FieldPathValue<
+                  TFieldValues,
+                  TName
+                > | null,
+                onBlur: field.onBlur,
+                onValueChange: field.onChange,
+                error,
+                errorMessage,
+              },
+              switchProps: {
+                ref: field.ref,
+                name: field.name,
+                disabled,
+                checked: Boolean(field.value),
+                onBlur: field.onBlur,
+                onCheckedChange: field.onChange,
+              },
+              checkboxProps: {
+                ref: field.ref,
+                name: field.name,
+                disabled,
+                checked: Boolean(field.value),
+                onBlur: field.onBlur,
+                onCheckedChange: field.onChange,
+              },
+            })}
+          </>
+        );
       }}
     />
   );

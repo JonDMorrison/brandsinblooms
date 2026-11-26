@@ -123,14 +123,16 @@ function BloomPageParamHandler() {
 
       isProcessingRef.current = true;
 
-      void bloomSupabase
-        .from("bloom_proactive_insights")
-        .select(
-          "id, tenant_id, insight_type, title, description, action_prompt, entity_type, entity_id, severity, dismissed_by, expires_at, created_at",
-        )
-        .eq("id", insightId)
-        .eq("tenant_id", tenant.id)
-        .maybeSingle()
+      void Promise.resolve(
+        bloomSupabase
+          .from("bloom_proactive_insights")
+          .select(
+            "id, tenant_id, insight_type, title, description, action_prompt, entity_type, entity_id, severity, dismissed_by, expires_at, created_at",
+          )
+          .eq("id", insightId)
+          .eq("tenant_id", tenant.id)
+          .maybeSingle(),
+      )
         .then(async ({ data, error }) => {
           if (error) {
             throw error;

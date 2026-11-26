@@ -42,7 +42,10 @@ const flattenSx = (value: SxProps | undefined): SxProps[] => {
   return [value];
 };
 
-const resolveSxEntries = (value: SxProps, theme: Theme) => {
+const resolveSxEntries = (
+  value: SxProps,
+  theme: Theme,
+): Array<Record<string, unknown>> => {
   const resolved = typeof value === "function" ? value(theme) : value;
 
   if (!resolved) {

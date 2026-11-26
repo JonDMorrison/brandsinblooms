@@ -1,5 +1,4 @@
 import * as React from "react";
-import Alert from "@mui/joy/Alert";
 import AspectRatio from "@mui/joy/AspectRatio";
 import Button from "@mui/joy/Button";
 import Card from "@mui/joy/Card";
@@ -400,7 +399,7 @@ export const SmsPreviewPanel: React.FC<SmsPreviewPanelProps> = ({
                   <Typography level="body-sm" sx={{ whiteSpace: "pre-wrap" }}>
                     {loadingPreview
                       ? "Rendering preview…"
-                      : previewData?.renderedContent ||
+                      : previewData?.renderedText ||
                         messageTemplate ||
                         "Start typing to preview this SMS."}
                   </Typography>
@@ -410,11 +409,6 @@ export const SmsPreviewPanel: React.FC<SmsPreviewPanelProps> = ({
           </Sheet>
         </Stack>
 
-        {previewData?.warnings?.length ? (
-          <Alert color="warning" variant="soft" sx={{ borderRadius: "18px" }}>
-            {previewData.warnings.join(" ")}
-          </Alert>
-        ) : null}
       </Stack>
     </Card>
   );

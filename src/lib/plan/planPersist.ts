@@ -197,7 +197,8 @@ export const persistPlan = async (
         } as const;
         const scheduledPostInsert: Database["public"]["Tables"]["scheduled_posts"]["Insert"] =
           {
-            global_image_id: globalImageId || null,
+            // scheduled_posts has no global_image_id column; the image is
+            // recorded through trackImageUsage above.
             task_id: contentTask.id,
             tenant_id: tenantId,
             platform: platformMap[item.type as keyof typeof platformMap],

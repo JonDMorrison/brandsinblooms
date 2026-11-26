@@ -156,8 +156,11 @@ const readRawTokenText = (data: unknown): string => {
 };
 
 const toJsonPayload = (value: unknown): Json => {
+  if (value === null) {
+    return null;
+  }
+
   if (
-    value === null ||
     typeof value === "string" ||
     typeof value === "number" ||
     typeof value === "boolean"

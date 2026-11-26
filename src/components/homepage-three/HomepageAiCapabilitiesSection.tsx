@@ -100,7 +100,7 @@ const useScriptedAiChatDemo = ({
     }
 
     let cancelled = false;
-    const timers: Array<ReturnType<typeof window.setTimeout>> = [];
+    const timers: number[] = [];
 
     const schedule = (callback: () => void, delayMs: number) => {
       const timer = window.setTimeout(() => {

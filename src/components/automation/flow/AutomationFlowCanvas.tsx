@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   type Connection,
+  ConnectionLineType,
   MiniMap,
   type Node,
   ReactFlow,
@@ -617,7 +618,7 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
                 strokeWidth: 2,
               },
             }}
-            connectionLineType="smoothstep"
+            connectionLineType={ConnectionLineType.SmoothStep}
             connectionLineStyle={{
               stroke: "var(--joy-palette-primary-400)",
               strokeWidth: 2,

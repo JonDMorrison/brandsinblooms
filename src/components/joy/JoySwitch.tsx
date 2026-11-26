@@ -5,11 +5,11 @@ import JoyBaseSwitch, {
 import type { SxProps } from "@mui/joy/styles/types";
 import { mergeSx } from "@/components/joy/mergeSx";
 
-export interface JoySwitchProps extends Omit<JoyBaseSwitchProps, "onChange"> {
+export interface JoySwitchProps extends JoyBaseSwitchProps {
   onCheckedChange?: (checked: boolean) => void;
 }
 
-export const JoySwitch = React.forwardRef<HTMLSpanElement, JoySwitchProps>(
+export const JoySwitch = React.forwardRef<HTMLDivElement, JoySwitchProps>(
   ({ color = "primary", onChange, onCheckedChange, sx, ...props }, ref) => (
     <JoyBaseSwitch
       ref={ref}

@@ -137,5 +137,7 @@ export async function runLocationPersistenceIntegrationTest(
     });
   }
 
+  const allPassed = results.every((result) => result.passed);
+
   return { passed: allPassed, results };
 }

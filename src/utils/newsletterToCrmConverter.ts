@@ -39,6 +39,7 @@ export const convertNewsletterToCRM = async (
   }
 
   // Process the newsletter content
+  const processed = processNewsletterContent(fullContent, title);
 
   // Generate campaign name from title or newsletter content
   const campaignName = generateCampaignName(title, processed);

@@ -207,7 +207,6 @@ export const DashboardSetupWizard = ({
                 onBack={handleBack}
                 isCompleting={isCompleting}
                 isAnalyzing={isAnalyzing}
-                onLocationConfirmationChange={setIsLocationConfirmed}
               />
             </div>
           )}

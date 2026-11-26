@@ -82,7 +82,7 @@ function InsightSkeletonCard() {
           </Stack>
           <Skeleton
             animation={reducedMotion ? false : "pulse"}
-            variant="rounded"
+            variant="rectangular"
             sx={{
               width: 76,
               height: 24,

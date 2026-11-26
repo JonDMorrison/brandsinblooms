@@ -131,10 +131,12 @@ function mapRow(row: ContentLibraryRow): ContentSummary | null {
     bundleId: row.bundle_id,
     snapshotId: row.snapshot_id || undefined,
     mode: mapMode(row.mode),
-    title: row.preview_title || undefined,
+    // content_library_view exposes neither a preview title nor a
+    // mixed-carousel flag, so these were always undefined/false.
+    title: undefined,
     sourceLabel: row.source_label || undefined,
     channels: parseChannels(row.channels),
-    hasMixedCarousel: Boolean(row.has_mixed_carousel),
+    hasMixedCarousel: false,
     approvedCount: row.approved_count || 0,
     totalItems: row.total_items || 0,
     thumbnail: row.thumbnail || undefined,
@@ -148,22 +150,26 @@ function mapRow(row: ContentLibraryRow): ContentSummary | null {
 async function fetchLibraryRows(tenantId: string, filters: LibraryFilters) {
   const { search = "", mode = "all", channel = "all" } = filters;
 
+  // content_library_view has no has_mixed_carousel column, so no row can
+  // match the carousel filter (filtering on it was rejected by PostgREST).
+  if (channel === "carousel") {
+    return [] as ContentLibraryRow[];
+  }
+
   let query = supabase.from(table).select("*").eq("workspace_id", tenantId);
 
   const normalizedSearch = normalizeSearchTerm(search);
   if (normalizedSearch) {
-    query = query.or(
-      `source_label.ilike.%${normalizedSearch}%,preview_title.ilike.%${normalizedSearch}%`,
-    );
+    // The view has no preview_title column; searching it was rejected by
+    // PostgREST, so only source_label is searchable.
+    query = query.ilike("source_label", `%${normalizedSearch}%`);
   }
 
   if (mode !== "all") {
     query = query.eq("mode", mode);
   }
 
-  if (channel === "carousel") {
-    query = query.eq("has_mixed_carousel", true);
-  } else if (channel !== "all") {
+  if (channel !== "all") {
     query = query.contains("channels", [channel]);
   }
 

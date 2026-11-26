@@ -59,6 +59,7 @@ interface AIImageLibraryRow {
     storage_path: string;
   } | null;
   global_image_id: string;
+  user_prompt: string;
 }
 
 type MediaLibraryItemSource = "content_asset" | "global_image_gallery";

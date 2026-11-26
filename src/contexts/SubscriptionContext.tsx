@@ -15,6 +15,7 @@ import {
   ensureTestAccountHasProAccess,
 } from "@/utils/testAccountUtils";
 import { getBusinessProfileUserId } from "@/lib/profile/businessProfileUserId";
+import { Constants, type Tables } from "@/integrations/supabase/types";
 
 type SubscriptionPlan =
   | "free_trial"
@@ -43,6 +44,29 @@ interface Subscription {
   created_at: string;
   updated_at: string;
 }
+
+type SubscriptionRow = Tables<"subscriptions">;
+
+const SUBSCRIPTION_PLANS: readonly SubscriptionPlan[] =
+  Constants.public.Enums.subscription_plan;
+
+const isSubscriptionPlan = (
+  value: string | null | undefined,
+): value is SubscriptionPlan =>
+  typeof value === "string" &&
+  SUBSCRIPTION_PLANS.some((plan) => plan === value);
+
+const toSubscription = (row: SubscriptionRow): Subscription => ({
+  id: row.id,
+  user_id: row.user_id,
+  plan: row.plan,
+  tier: isSubscriptionPlan(row.tier) ? row.tier : null,
+  start_date: row.start_date,
+  end_date: row.end_date,
+  billing_interval: row.billing_interval,
+  created_at: row.created_at,
+  updated_at: row.updated_at,
+});
 
 interface SubscriptionContextType {
   subscription: Subscription | null;
@@ -211,7 +235,7 @@ export const SubscriptionProvider = ({
         return;
       }
 
-      setSubscription(data);
+      setSubscription(toSubscription(data));
       setSubscriptionError(null);
     } catch (error) {
       console.error("❌ Error in updateSubscriptionPlan:", error);
@@ -332,7 +356,7 @@ export const SubscriptionProvider = ({
         // Create default subscription asynchronously
         createDefaultSubscription()
           .then((newSub) => {
-            if (newSub) setSubscription(newSub);
+            if (newSub) setSubscription(toSubscription(newSub));
           })
           .catch(console.error);
       }

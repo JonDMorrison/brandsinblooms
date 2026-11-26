@@ -635,11 +635,11 @@ export function FormSubmissionsTab({
     [form, submissions],
   );
   const submissionBaseName = sanitizeFilename(
-    form.name || form.settings.form_title || "form",
+    form.name || form.settings_json.form_title || "form",
   );
 
   const realtimeFilters = React.useMemo(
-    () => ({
+    (): Parameters<typeof submissionMatchesFilters>[1] => ({
       searchQuery,
       resultFilter: serverResultFilter,
       dateFrom: dateFrom || null,
@@ -1737,7 +1737,6 @@ export function FormSubmissionsTab({
           anchorEl={exportMenuAnchor}
           open={Boolean(exportMenuAnchor)}
           onClose={handleExportMenuClose}
-          onBackdropClick={handleExportMenuClose}
           placement="bottom-end"
           sx={{
             bgcolor: "background.surface",

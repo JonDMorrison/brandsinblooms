@@ -283,7 +283,7 @@ export function CustomersTabView({
                     </span>
                   </div>
                   <div className="min-w-0 text-left">
-                    <SheetTitle className="text-base">
+                    <SheetTitle>
                       {selectedCustomer.displayName}
                     </SheetTitle>
                     <p className="mt-0.5 font-mono text-xs text-muted-foreground">

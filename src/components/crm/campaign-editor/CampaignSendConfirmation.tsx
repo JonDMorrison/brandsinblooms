@@ -1385,7 +1385,7 @@ export function CampaignSendConfirmation({
             ? acknowledgedWarnings
             : undefined,
       });
-      if (result.success) {
+      if (result.success === true) {
         setLowCountConfirmOpen(false);
         onClose();
         return;

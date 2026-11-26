@@ -30,25 +30,15 @@ import {
 } from "@/components/joy/JoyDropdownMenu";
 import { PageContainer } from "@/components/joy/PageContainer";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 import { useAuth } from "@/hooks/useAuth";
 import { useTenant } from "@/hooks/useTenant";
 import { toast } from "sonner";
 
 const MOUNT_SKELETON_MS = 260;
 
-type SMSAutomationRecord = {
-  created_at: string;
-  description: string | null;
-  flow: unknown;
-  id: string;
-  name: string;
-  status: string | null;
-  tenant_id: string | null;
-  trigger_config: Record<string, unknown> | null;
-  trigger_type: string;
-  updated_at: string;
-  user_id: string;
-};
+type SMSAutomationRecord =
+  Database["public"]["Tables"]["sms_automations"]["Row"];
 
 type AutomationStatsMap = Record<string, { sent: number; failed: number }>;
 
@@ -190,7 +180,7 @@ export default function SMSAutomationDashboard() {
         throw error;
       }
 
-      return (data || []) as SMSAutomationRecord[];
+      return data || [];
     },
     enabled: Boolean(user && tenant),
   });

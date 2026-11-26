@@ -1,5 +1,12 @@
 import * as React from "react";
-import { DragDropContext, Draggable, Droppable, type DropResult } from "@hello-pangea/dnd";
+import {
+  DragDropContext,
+  Draggable,
+  Droppable,
+  type DraggableProvidedDraggableProps,
+  type DraggableProvidedDragHandleProps,
+  type DropResult,
+} from "@hello-pangea/dnd";
 import Box from "@mui/joy/Box";
 import Button from "@mui/joy/Button";
 import IconButton from "@mui/joy/IconButton";
@@ -20,6 +27,9 @@ import {
   FORM_FONT_FAMILY_OPTIONS,
   FORM_SPACING_OPTIONS,
   FORM_WIDTH_OPTIONS,
+  normalizeBorderRadius,
+  normalizeFontFamily,
+  normalizeSpacing,
 } from "@/lib/forms/designSettings";
 import type { FormSettings, FormStep } from "@/types/formBuilder";
 
@@ -98,8 +108,8 @@ function StepCard({
   onFocusStep: (stepIndex: number) => void;
   onRemoveStep: (stepIndex: number) => void;
   onUpdateStep: (stepIndex: number, updates: Partial<FormStep>) => void;
-  dragHandleProps?: Record<string, unknown>;
-  draggableProps?: Record<string, unknown>;
+  dragHandleProps?: DraggableProvidedDragHandleProps | null;
+  draggableProps?: DraggableProvidedDraggableProps;
   innerRef?: (element: HTMLElement | null) => void;
   isDragging: boolean;
 }) {
@@ -120,7 +130,7 @@ function StepCard({
       <Stack spacing={1.25}>
         <Stack direction="row" spacing={1} alignItems="center">
           <Box
-            {...dragHandleProps}
+            {...(dragHandleProps ?? {})}
             sx={{
               width: 28,
               height: 28,
@@ -463,7 +473,9 @@ export function FormBuilderSettingsDrawer({
                 value: option.value,
                 label: option.label,
               }))}
-              onValueChange={(font_family) => onThemePatch({ font_family })}
+              onValueChange={(font_family) =>
+                onThemePatch({ font_family: normalizeFontFamily(font_family) })
+              }
             />
             <JoySelect
               label="Border radius"
@@ -472,7 +484,11 @@ export function FormBuilderSettingsDrawer({
                 value: option.value,
                 label: option.label,
               }))}
-              onValueChange={(border_radius) => onThemePatch({ border_radius })}
+              onValueChange={(border_radius) =>
+                onThemePatch({
+                  border_radius: normalizeBorderRadius(border_radius),
+                })
+              }
             />
             <JoySelect
               label="Spacing"
@@ -481,7 +497,9 @@ export function FormBuilderSettingsDrawer({
                 value: option.value,
                 label: option.label,
               }))}
-              onValueChange={(spacing) => onThemePatch({ spacing })}
+              onValueChange={(spacing) =>
+                onThemePatch({ spacing: normalizeSpacing(spacing) })
+              }
             />
             <JoyInput
               label="Primary color"
