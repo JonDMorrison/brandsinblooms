@@ -43,26 +43,30 @@ export function useCampaignTemplateLock(campaignId: string | null | undefined) {
 
   /** Name the locked template on the saved email, keeping everything else in its metadata. */
   const record = useCallback(
-    async (templateId: string) => {
-      if (!campaignId || !tenantId) return;
+    async (templateId: string): Promise<boolean> => {
+      if (!campaignId || !tenantId) return false;
       const { data, error } = await supabase
         .from("crm_campaigns")
         .select("metadata")
         .eq("id", campaignId)
         .eq("tenant_id", tenantId)
         .maybeSingle();
-      if (error || !data) return;
+      // The email may not be saved yet. The caller tries again after the next save.
+      if (error || !data) return false;
       const metadata =
         data.metadata && typeof data.metadata === "object" && !Array.isArray(data.metadata)
           ? (data.metadata as Record<string, unknown>)
           : {};
-      if (metadata.lockedTemplateId === templateId) return;
-      await supabase
+      if (metadata.lockedTemplateId === templateId) return true;
+      const { data: updated, error: updateError } = await supabase
         .from("crm_campaigns")
         .update({ metadata: { ...metadata, lockedTemplateId: templateId } as never })
         .eq("id", campaignId)
-        .eq("tenant_id", tenantId);
+        .eq("tenant_id", tenantId)
+        .select("id");
+      if (updateError || !updated?.length) return false;
       void queryClient.invalidateQueries({ queryKey: ["campaign-template-lock", tenantId, campaignId] });
+      return true;
     },
     [campaignId, queryClient, tenantId],
   );
