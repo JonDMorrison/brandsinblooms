@@ -11,6 +11,7 @@ import {
   getQueryClient,
   isJsonValue,
   isRecord,
+  loadTenantCurrency,
   uniqueStrings,
   type BloomQueryClient,
 } from "./shared.ts";
@@ -613,6 +614,7 @@ function mapCustomerDetail(args: {
   smsConsentEvent: SmsConsentEventRow | null;
   engagementSummary: JsonObject;
   timelineSummary: JsonObject;
+  currency: string | null;
 }): JsonObject {
   const customFields = jsonOrNull(args.customer.custom_fields);
   const orderHistory = jsonOrNull(args.customer.order_history);
@@ -644,6 +646,8 @@ function mapCustomerDetail(args: {
     custom_fields: customFields,
     reported_period_spending: purchases.reported_period_spending,
     purchase_data_note: purchases.purchase_data_note,
+    // Recorded purchase metrics are in the tenant's currency.
+    currency: args.currency,
     email_consent: {
       status: consentStatus(args.customer.email_opt_in),
       status_date:
@@ -808,11 +812,14 @@ export const getCustomerDetail: ToolImplementation = async (
 
   const personaAssignments = (personaResponse.data ??
     []) as CustomerPersonaRow[];
-  const customPersonas = await loadCustomPersonas(
-    client,
-    context.tenantId,
-    collectPersonaIds(customer, personaAssignments),
-  );
+  const [customPersonas, currency] = await Promise.all([
+    loadCustomPersonas(
+      client,
+      context.tenantId,
+      collectPersonaIds(customer, personaAssignments),
+    ),
+    loadTenantCurrency(client, context.tenantId),
+  ]);
 
   return createDetailResult(
     mapCustomerDetail({
@@ -832,6 +839,7 @@ export const getCustomerDetail: ToolImplementation = async (
         (timelineResponse.data ?? []) as TimelineRow[],
         timelineResponse.count,
       ),
+      currency,
     }),
   );
 };

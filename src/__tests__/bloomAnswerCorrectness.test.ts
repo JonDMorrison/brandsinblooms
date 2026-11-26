@@ -103,6 +103,19 @@ describe("1. unknown spend is never shown as $0.00 USD", () => {
     expect(order?.args).toEqual(["total_spent", { ascending: false, nullsFirst: false }]);
   });
 
+  it("query_customers formats recorded spend in the tenant currency", async () => {
+    const client = fakeClient({
+      crm_customers: [
+        { id: "b", first_name: "Sarah", last_name: "Tremblay", email: "s@x.test", phone: null, total_spent: 3700.91, last_purchase_date: null, created_at: "2026-01-01", persona: null, persona_id: null },
+      ],
+      tenants: [{ country: "CA", settings: {} }],
+    });
+    const result = await queryCustomers({}, contextFor(client));
+    const rows = result.data as Array<Record<string, unknown>>;
+    expect(rows[0]).toMatchObject({ total_spent: "CA$3,700.91", currency: "CAD" });
+    expect(client.calls).toContainEqual({ table: "tenants", method: "eq", args: ["id", "tenant"] });
+  });
+
   it("steers top-customer questions to spend and ranking tools", () => {
     expect(BASE_SYSTEM_PROMPT).not.toContain("call query_customers (sorted by spend");
     expect(BASE_SYSTEM_PROMPT).toContain("explore_customer_reported_spending or rank_customers_by_intelligence");
