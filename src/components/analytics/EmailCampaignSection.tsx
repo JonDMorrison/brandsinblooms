@@ -141,7 +141,7 @@ export function EmailCampaignSection({ dateRange }: EmailCampaignSectionProps) {
   if (error) {
     return (
       <JoyCard variant="outlined" sx={{ borderRadius: "xl", boxShadow: "0 4px 20px rgb(24 60 83 / 5%)" }}>
-        <JoyCardHeader title="Email Campaign Performance" />
+        <JoyCardHeader title="Email engagement" />
         <JoyCardContent sx={{ pt: 3 }}>
           <Stack spacing={1.5}>
             <Typography level="body-sm">
@@ -165,7 +165,7 @@ export function EmailCampaignSection({ dateRange }: EmailCampaignSectionProps) {
   if (!campaigns.length) {
     return (
       <JoyCard variant="outlined" sx={{ borderRadius: "xl", boxShadow: "0 4px 20px rgb(24 60 83 / 5%)" }}>
-        <JoyCardHeader title="Email Campaign Performance" />
+        <JoyCardHeader title="Email engagement" />
         <JoyCardContent sx={{ pt: 3 }}>
           <JoyEmptyState
             icon={<Mail />}
@@ -236,8 +236,8 @@ export function EmailCampaignSection({ dateRange }: EmailCampaignSectionProps) {
   return (
     <JoyCard variant="outlined" sx={{ borderRadius: "xl", boxShadow: "0 4px 20px rgb(24 60 83 / 5%)" }}>
       <JoyCardHeader
-        title="Email Campaign Performance"
-        description="A clear view of clicks, opens, and delivery for up to 10 recent sent campaigns"
+        title="Email engagement"
+        description="Clicks, opens and delivery across your 10 most recent sent campaigns"
         actions={
           <Stack direction="row" spacing={1} alignItems="center">
             {/* Cache reconciliation is an internal diagnostic: admins only. */}
@@ -257,7 +257,7 @@ export function EmailCampaignSection({ dateRange }: EmailCampaignSectionProps) {
               color="neutral"
               onClick={() => navigate("/crm/campaigns")}
             >
-              View campaigns →
+              All campaigns →
             </JoyButton>
           </Stack>
         }
@@ -280,33 +280,36 @@ export function EmailCampaignSection({ dateRange }: EmailCampaignSectionProps) {
                 xs: "minmax(0, 1fr)",
                 sm: "repeat(3, minmax(0, 1fr))",
               },
-              gap: 1.25,
+              borderTop: "1px solid",
+              borderBottom: "1px solid",
+              borderColor: "neutral.200",
             }}
           >
-            {engagementMetrics.map((metric) => {
+            {engagementMetrics.map((metric, index) => {
               const Icon = metric.icon;
               return (
                 <Stack
                   key={metric.id}
-                  spacing={0.75}
+                  spacing={0.5}
                   sx={{
-                    border: "1px solid",
-                    borderColor: "neutral.200",
-                    borderRadius: "lg",
-                    backgroundColor: "neutral.50",
-                    p: { xs: 2.25, md: 3 },
+                    py: { xs: 2, md: 2.5 },
+                    pl: { xs: 0, sm: index === 0 ? 0 : 3 },
+                    pr: { xs: 0, sm: 3 },
                     minWidth: 0,
+                    borderLeft: { xs: "none", sm: index === 0 ? "none" : "1px solid" },
+                    borderTop: { xs: index === 0 ? "none" : "1px solid", sm: "none" },
+                    borderColor: { xs: "neutral.200", sm: "neutral.200" },
                   }}
                 >
-                  <Stack direction="row" alignItems="center" spacing={0.75}>
-                    <Icon size={21} aria-hidden="true" />
+                  <Stack direction="row" alignItems="center" spacing={0.75} sx={{ color: "neutral.600" }}>
+                    <Icon size={16} aria-hidden="true" />
                     <Typography level="body-sm" sx={{ color: "neutral.700", fontWeight: 600 }}>
                       {metric.label}
                     </Typography>
                   </Stack>
                   <Typography
                     level="h2"
-                    sx={{ fontSize: { xs: "2.5rem", md: "3.25rem" }, lineHeight: 1.15, py: 1, fontWeight: 700, color: "neutral.900", letterSpacing: "-0.04em", fontVariantNumeric: "tabular-nums" }}
+                    sx={{ fontSize: { xs: "2.25rem", md: "2.75rem" }, lineHeight: 1.1, py: 0.5, fontWeight: 700, color: "neutral.900", letterSpacing: "-0.04em", fontVariantNumeric: "tabular-nums" }}
                   >
                     {metric.value}
                   </Typography>
@@ -322,18 +325,18 @@ export function EmailCampaignSection({ dateRange }: EmailCampaignSectionProps) {
               Recorded delivery totals are not yet available. Engagement rates are not shown as zero.
             </Typography>
           ) : null}
-          <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
-            {summaryChips.map((chip) => (
-              <JoyChip
+          <Typography level="body-xs" sx={{ color: "neutral.600" }}>
+            {summaryChips.map((chip, index) => (
+              <Box
+                component="span"
                 key={chip.key}
-                size="sm"
-                variant="soft"
-                color={chip.color}
+                sx={{ color: chip.color === "warning" ? "warning.700" : undefined }}
               >
+                {index > 0 ? " · " : ""}
                 {chip.label}
-              </JoyChip>
+              </Box>
             ))}
-          </Stack>
+          </Typography>
 
           <Box
             component="details"

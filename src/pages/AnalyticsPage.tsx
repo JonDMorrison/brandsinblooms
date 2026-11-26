@@ -181,82 +181,91 @@ const AnalyticsPage = () => {
       "& .MuiButton-root": { minHeight: 44, fontSize: ".9375rem", fontWeight: 600 },
     }}>
       <Stack spacing={3} sx={{ pb: 4 }}>
-        <Sheet variant="outlined" sx={{ p: { xs: 2.5, md: 3.5 }, borderRadius: "xl", bgcolor: "background.surface", boxShadow: "0 4px 20px rgb(24 60 83 / 5%)" }}>
-          <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ xs: "flex-start", sm: "center" }} gap={2}>
-            <Stack spacing={1}>
-              <Typography level="h1" sx={{ fontSize: { xs: "1.9rem", md: "2.25rem" }, fontWeight: 700, letterSpacing: "-.035em" }}>Analytics</Typography>
-              <Typography level="body-md" sx={{ color: "neutral.600", maxWidth: 650 }}>
-                See what’s connecting with your customers.
-              </Typography>
-            </Stack>
-            <JoyButton size="lg" variant="solid" onClick={() => selectView("campaigns")} startDecorator={<BarChart3 size={20} />}>Campaign reports</JoyButton>
-          </Stack>
-        </Sheet>
-
-        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap"
-          role="group" aria-label="Analytics sections">
-          {views.map((view) => (
-            <JoyButton
-              key={view.id}
-              color={activeView === view.id ? "primary" : "neutral"}
-              variant={activeView === view.id ? "solid" : "outlined"}
-              size="lg"
-              aria-pressed={activeView === view.id}
-              startDecorator={view.icon}
-              onClick={() => selectView(view.id)}
-            >
-              {view.label}
-            </JoyButton>
-          ))}
+        <Stack spacing={0.5}>
+          <Typography level="h1" sx={{ fontSize: { xs: "1.9rem", md: "2.25rem" }, fontWeight: 700, letterSpacing: "-.035em" }}>Analytics</Typography>
+          <Typography level="body-md" sx={{ color: "neutral.600", maxWidth: 650 }}>
+            See what’s connecting with your customers.
+          </Typography>
         </Stack>
 
-
-
-        {hasPeriodSelector ? (
-          <Stack direction={{ xs: "column", sm: "row" }}
-            alignItems={{ xs: "stretch", sm: "center" }} spacing={1.5}>
-            <Typography level="body-sm" sx={{ color: "neutral.700", fontWeight: 600 }}>
-              Reporting period
-            </Typography>
-            <Stack direction="row" spacing={0.75}
-              sx={{ display: { xs: "none", sm: "flex" } }}>
-              {ANALYTICS_PERIOD_OPTIONS.map((option) => (
+        {/* One control row: section switcher on the left, reporting period on the right. */}
+        <Stack
+          direction={{ xs: "column", md: "row" }}
+          justifyContent="space-between"
+          alignItems={{ xs: "stretch", md: "center" }}
+          gap={1.5}
+          sx={{ borderBottom: "1px solid", borderColor: "neutral.200", pb: 1.5 }}
+        >
+          <Stack direction="row" spacing={0.5} useFlexGap flexWrap="wrap"
+            role="group" aria-label="Analytics sections">
+            {views.map((view) => {
+              const active = activeView === view.id;
+              return (
                 <JoyButton
-                  key={option.value} size="md"
-                  color={selectedPeriod === option.value ? "primary" : "neutral"}
-                  variant={selectedPeriod === option.value ? "solid" : "soft"}
-                  onClick={() => setSelectedPeriod(option.value)}
+                  key={view.id}
+                  color={active ? "primary" : "neutral"}
+                  variant={active ? "soft" : "plain"}
+                  size="md"
+                  aria-pressed={active}
+                  startDecorator={view.icon}
+                  onClick={() => selectView(view.id)}
+                  sx={{ fontWeight: active ? 700 : 600 }}
                 >
-                  {option.label}
+                  {view.label}
                 </JoyButton>
-              ))}
-            </Stack>
-            <Box sx={{ display: { xs: "block", sm: "none" } }}>
-              <JoySelect
-                value={String(selectedPeriod)}
-                onValueChange={(value) => setSelectedPeriod(Number(value) as AnalyticsPeriod)}
-                options={ANALYTICS_PERIOD_OPTIONS.map((option) => ({
-                  label: option.label, value: String(option.value),
-                }))}
-              />
-            </Box>
+              );
+            })}
           </Stack>
-        ) : null}
+
+          {hasPeriodSelector ? (
+            <>
+              <Sheet
+                variant="soft"
+                role="group"
+                aria-label="Reporting period"
+                sx={{
+                  display: { xs: "none", sm: "inline-flex" },
+                  alignSelf: { sm: "flex-start", md: "center" },
+                  p: 0.5,
+                  gap: 0.25,
+                  borderRadius: "lg",
+                  "& .MuiButton-root": { px: 1.75 },
+                }}
+              >
+                {ANALYTICS_PERIOD_OPTIONS.map((option) => {
+                  const active = selectedPeriod === option.value;
+                  return (
+                    <JoyButton
+                      key={option.value}
+                      size="sm"
+                      color="neutral"
+                      variant={active ? "outlined" : "plain"}
+                      aria-pressed={active}
+                      onClick={() => setSelectedPeriod(option.value)}
+                      sx={active ? { bgcolor: "background.surface", boxShadow: "sm" } : undefined}
+                    >
+                      {option.label}
+                    </JoyButton>
+                  );
+                })}
+              </Sheet>
+              <Box sx={{ display: { xs: "block", sm: "none" } }}>
+                <JoySelect
+                  value={String(selectedPeriod)}
+                  onValueChange={(value) => setSelectedPeriod(Number(value) as AnalyticsPeriod)}
+                  options={ANALYTICS_PERIOD_OPTIONS.map((option) => ({
+                    label: option.label, value: String(option.value),
+                  }))}
+                />
+              </Box>
+            </>
+          ) : null}
+        </Stack>
 
         {activeView === "overview" ? (
           <Stack spacing={2}>
-            <Stack spacing={0.5}>
-              <Typography level="h2" sx={{ fontSize: "1.5rem", fontWeight: 700 }}>Email engagement</Typography>
-              <Typography level="body-sm" sx={{ color: "neutral.600" }}>
-                Your recent results at a glance. Start with clicks, then explore each campaign.
-              </Typography>
-            </Stack>
             <EmailCampaignSection dateRange={selectedPeriod} />
-            <JoyButton size="md" variant="outlined" color="neutral" sx={{ alignSelf: "flex-start", px: 3 }}
-              onClick={() => selectView("campaigns")}>
-              Explore all campaign reports
-            </JoyButton>
-            <Stack spacing={1} sx={{ pt: 1, alignItems: "flex-start" }}>
+            <Stack spacing={1} sx={{ alignItems: "flex-start" }}>
               <JoyButton size="sm" variant="plain" color="neutral"
                 onClick={() => setShowChannels(!showChannels)}
                 aria-expanded={showChannels}>
