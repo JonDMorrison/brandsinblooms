@@ -137,6 +137,10 @@ export function composeSlackAgentReply(answer: string, details: string[]): strin
   }
   return [explanation, footer].filter(Boolean).join("\n\n");
 }
+/** "How many open tickets", "how many requests are waiting": answered from the live overview, never from memory. */
+export function openCountQuestion(question: string): boolean {
+  return /\bhow many\b.{0,60}\b(?:tickets?|requests?)\b|\b(?:number|count|total) of\b.{0,40}\b(?:tickets?|requests?)\b/i.test(question);
+}
 export function releaseQuestion(question:string, route:string):boolean {
   return /\b(?:merges?|merged|releases?|these changes)\b/i.test(question)
     || (route==="releases" && /\b(?:help|benefit|customer|changes|describe)\b/i.test(question));
@@ -160,7 +164,7 @@ Prefer a direct answer under 220 words. Explain what is known, missing, proposed
  * "nothing was changed" statements are never altered, and nothing written for a
  * client ever uses it.
  */
-export const SLACK_PERSONA = `Voice for this internal staff Slack only: you are a grizzled, seen-it-all IT veteran. Dry, a bit grumpy, deadpan funny, and secretly helpful. This voice is required in every reply here, not optional: never sound cheerful, corporate or eager ("Looks like", "Happy to help", "feel free to ask" are out). Always open with one short wry, world-weary line that reacts to the question, then give the complete, accurate answer in plain words, and you may close with a short dry aside. Always use one to three emojis that fit the mood (for example 🙄 😤 ☕ 🔧 🫠 📋 ✅). Example opener for a ticket count: "📋 Fourteen. I counted so you don't have to." Example for a how-to: "☕ Again with this one. Fine." The humour is aimed at the work, the tools and yourself: never at the person asking, never at a client or their customers. Humour never replaces or softens a fact, a number, a warning, a limit, or a statement that nothing was changed, and it never delays the answer. No jokes about customer-affecting outages, money owed, security or privacy. Never say you sent, closed, fixed, changed, approved or deployed anything, not even as a joke. Draft customer replies and any customer-facing copy stay warm and plain, with no snark and no emojis.`;
+export const SLACK_PERSONA = `Voice for this internal staff Slack only: you are a grizzled, seen-it-all IT veteran. Dry, a bit grumpy, deadpan funny, and secretly helpful. This voice is required in every reply here, not optional: never sound cheerful, corporate or eager ("Looks like", "Happy to help", "feel free to ask" are out). Always open with one short wry, world-weary line that reacts to the question, then give the complete, accurate answer in plain words, and you may close with a short dry aside. Always use one to three emojis that fit the mood (for example 🙄 😤 ☕ 🔧 🫠 📋 ✅). The opening line carries attitude only: it never contains a number, a name, a date, a day of the week or any other fact. Example openers: "☕ Again with this one. Fine." and "🙄 Sure, let me drop everything." The voice never replaces a lookup: every count, amount, status and date in your answer still comes from a tool result in this conversation, and you call the tool before you answer. The humour is aimed at the work, the tools and yourself: never at the person asking, never at a client or their customers. Humour never replaces or softens a fact, a number, a warning, a limit, or a statement that nothing was changed, and it never delays the answer. No jokes about customer-affecting outages, money owed, security or privacy. Never say you sent, closed, fixed, changed, approved or deployed anything, not even as a joke. Draft customer replies and any customer-facing copy stay warm and plain, with no snark and no emojis.`;
 const QUIPS: Record<string, string[]> = {
   finance: ["💸 Fine. I went and looked at the money.", "☕ Stripe and I had a chat. Here is what it admitted to.", "🧾 I opened Stripe so you don't have to. You're welcome."],
   blocked: ["🔑 I'd tell you, but Stripe won't let me in. Not my fault this time.", "🙄 I tried. The key said no."],
@@ -224,6 +228,24 @@ export async function runAgent(c: AgentContext, d: AgentDependencies): Promise<{
       evidenceFallback="I couldn't verify recent release details. A merge alone does not establish a live customer improvement. Which product should I check first?";
       messages.push({role:"tool",tool_call_id:call.id,content:JSON.stringify({error:"Release evidence unavailable. Do not invent changes or deployment."})});
       await d.audit("release_status","not_confirmed").catch(()=>undefined);
+    }
+  }
+  // A count must not depend on the model choosing to look it up. Prefetch the
+  // live overview so the figure in the answer is the recorded one.
+  if (!c.ticketId && openCountQuestion(c.question) && specs.some(s => s.name === "support_overview") && !seen.has("support_overview:{}")) {
+    const call: ToolCall = { id: "open-count", type: "function", function: { name: "support_overview", arguments: "{}" } };
+    messages.push({ role: "assistant", content: null, tool_calls: [call] });
+    seen.add("support_overview:{}");
+    try {
+      if (!await d.authorize()) throw Error("access changed");
+      const result = await d.execute("support_overview", {}); calls++;
+      if (result.source) sources.push(result.source);
+      if (result.fallback) evidenceFallback = result.fallback;
+      messages.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify({ source: result.source, data: scrub(result.data) }) });
+      await d.audit("support_overview", "succeeded").catch(() => undefined);
+    } catch (e) {
+      messages.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify(toolFailure(e)) });
+      await d.audit("support_overview", e instanceof ToolPermissionError ? "permission_denied" : "not_confirmed").catch(() => undefined);
     }
   }
   for (let turn = 0; turn < 5 && now() - started < 42000; turn++) {
