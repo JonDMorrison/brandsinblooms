@@ -118,6 +118,11 @@ function rankGalleryResults(
 ): GalleryImageMatch[] {
   const safeTagCount = Math.max(totalSearchTags, 1);
 
+  // The live find_images_by_tags returns no matched_confidence_total (it
+  // differs from migration 20260505170000), so the confidence total has
+  // always read as 0 here.
+  const matchedConfidenceTotal = 0;
+
   return rows
     .map((row, index) => ({
       imageId: row.image_id,
@@ -125,8 +130,8 @@ function rankGalleryResults(
       storagePath: row.storage_path || undefined,
       matchedTags: row.matched_tags ?? [],
       matchCount: row.match_count ?? 0,
-      matchScore: Number(row.matched_confidence_total ?? 0) / safeTagCount,
-      matchedConfidenceTotal: Number(row.matched_confidence_total ?? 0),
+      matchScore: matchedConfidenceTotal / safeTagCount,
+      matchedConfidenceTotal,
       totalUsageCount: row.total_usage_count ?? 0,
       originalIndex: index,
     }))

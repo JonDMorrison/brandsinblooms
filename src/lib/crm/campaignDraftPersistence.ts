@@ -22,6 +22,39 @@ import { getBusinessProfileUserId } from "@/lib/profile/businessProfileUserId";
 type CampaignRow = Database["public"]["Tables"]["crm_campaigns"]["Row"];
 type CampaignStatus = CampaignRow["status"];
 
+/** Legacy object form of a block's socialLinks, keyed by platform. */
+export type LegacySocialLinkRecord = NonNullable<ContentBlock["socialLinks"]>;
+
+/** Legacy ContentBlock aliases Campaign Studio writes beside its own fields. */
+type LegacyContentBlockAliases = Partial<
+  Pick<
+    ContentBlock,
+    | "title"
+    | "content"
+    | "altText"
+    | "ctaText"
+    | "ctaUrl"
+    | "quote"
+    | "author"
+    | "subtitle"
+    | "issueNumber"
+    | "publishDate"
+  >
+>;
+
+/**
+ * A content block as written to crm_campaigns.metadata.contentBlocks.
+ * Campaign Studio saves StudioBlock fields plus the legacy ContentBlock
+ * aliases, with imageUrl null when the image was removed and socialLinks in
+ * the legacy object form; readers go through normalizeSocialLinks, which
+ * accepts either socialLinks form.
+ */
+export type SavedCampaignBlock = Omit<StudioBlock, "socialLinks" | "imageUrl"> &
+  LegacyContentBlockAliases & {
+    imageUrl?: string | null;
+    socialLinks?: StudioBlock["socialLinks"] | LegacySocialLinkRecord;
+  };
+
 export interface PersistCampaignRecordInput {
   tenantId?: string | null;
   campaignId?: string | null;
@@ -36,7 +69,7 @@ export interface PersistCampaignRecordInput {
   senderEmail: string;
   fromEmailDomainId?: string | null;
   replyTo: string;
-  contentBlocks: StudioBlock[];
+  contentBlocks: SavedCampaignBlock[];
   smsMessage: string;
   sendAt?: string | null;
   sendImmediately?: boolean;

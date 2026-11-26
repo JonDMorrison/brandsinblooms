@@ -70,7 +70,11 @@ import {
   fetchCampaignEditorRecord,
   persistCampaignDraft,
 } from "@/lib/crm/campaignEditor";
-import { CampaignDraftConflictError, isCampaignContentLocked } from "@/lib/crm/campaignDraftPersistence";
+import {
+  CampaignDraftConflictError,
+  isCampaignContentLocked,
+  type SavedCampaignBlock,
+} from "@/lib/crm/campaignDraftPersistence";
 import {
   classifyExternalCampaignChange,
   type CampaignChangeClassification,
@@ -184,124 +188,98 @@ function toLegacySocialLinks(
   );
 }
 
-function toStudioBlock(block: ContentBlock, index: number): StudioBlock {
-  const record = block as ContentBlock & Record<string, unknown>;
-  const type = toStudioBlockType(
-    typeof record.type === "string" ? record.type : "plain-text",
-  );
-  const galleryProducts = Array.isArray(record.galleryProducts)
-    ? (record.galleryProducts as StudioBlock["galleryProducts"])
-    : Array.isArray(block.galleryItems)
-      ? block.galleryItems.map((item) => ({
-          id: item.id,
-          imageUrl: item.imageUrl,
-          name: item.title,
-          buttonUrl: item.url,
-        }))
+function readString(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
+
+function toLegacyGalleryProducts(value: unknown): GalleryProduct[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  // Legacy ContentBlock galleryItems ({ id, title, imageUrl, url }). They
+  // carry no price; "" is the empty price every renderer treats as unset.
+  return value.flatMap((item): GalleryProduct[] => {
+    if (!item || typeof item !== "object") {
+      return [];
+    }
+
+    const entry: Record<string, unknown> = { ...item };
+    return [
+      {
+        id: readString(entry.id) ?? "",
+        imageUrl: readString(entry.imageUrl) ?? "",
+        name: readString(entry.title) ?? "",
+        buttonUrl: readString(entry.url),
+        price: "",
+      },
+    ];
+  });
+}
+
+/**
+ * Loaded blocks are StudioBlocks that may still carry the legacy ContentBlock
+ * aliases (heading, title, content, ctaText, socialLinks object...) written by
+ * earlier saves. Studio fields win; the aliases fill the gaps.
+ */
+function toStudioBlock(block: SavedCampaignBlock, index: number): StudioBlock {
+  const record: Record<string, unknown> = { ...block };
+  const type = toStudioBlockType(readString(record.type) ?? "plain-text");
+  const galleryProducts = Array.isArray(block.galleryProducts)
+    ? block.galleryProducts
+    : Array.isArray(record.galleryItems)
+      ? toLegacyGalleryProducts(record.galleryItems)
       : undefined;
+  const label = readString(record.label);
 
   return {
-    ...(record as StudioBlock),
+    ...block,
     id:
       typeof record.id === "string" && record.id.length > 0
         ? record.id
         : `studio-block-${index}`,
     type,
     label:
-      typeof record.label === "string" && record.label.trim().length > 0
-        ? record.label
+      label !== undefined && label.trim().length > 0
+        ? label
         : STUDIO_BLOCK_LOOKUP[type].name,
     order: typeof record.order === "number" ? record.order : index,
     visible: record.visible !== false,
     headline:
-      typeof record.headline === "string"
-        ? record.headline
-        : typeof block.heading === "string"
-          ? block.heading
-          : typeof block.title === "string"
-            ? block.title
-            : undefined,
-    subheading:
-      typeof record.subheading === "string"
-        ? record.subheading
-        : typeof block.subtitle === "string"
-          ? block.subtitle
-          : undefined,
-    body:
-      typeof record.body === "string"
-        ? record.body
-        : typeof block.content === "string"
-          ? block.content
-          : undefined,
+      readString(record.headline) ??
+      readString(record.heading) ??
+      readString(record.title),
+    subheading: readString(record.subheading) ?? readString(record.subtitle),
+    body: readString(record.body) ?? readString(record.content),
     imageUrl:
-      typeof record.imageUrl === "string"
-        ? record.imageUrl
-        : typeof block.imageUrl === "string"
-          ? block.imageUrl
-          : typeof block.backgroundImageUrl === "string"
-            ? block.backgroundImageUrl
-            : undefined,
-    imageAlt:
-      typeof record.imageAlt === "string"
-        ? record.imageAlt
-        : typeof block.altText === "string"
-          ? block.altText
-          : undefined,
+      readString(record.imageUrl) ?? readString(record.backgroundImageUrl),
+    imageAlt: readString(record.imageAlt) ?? readString(record.altText),
     buttonText:
-      typeof record.buttonText === "string"
-        ? record.buttonText
-        : typeof block.buttonText === "string"
-          ? block.buttonText
-          : typeof block.ctaText === "string"
-            ? block.ctaText
-            : undefined,
-    buttonUrl:
-      typeof record.buttonUrl === "string"
-        ? record.buttonUrl
-        : typeof block.buttonUrl === "string"
-          ? block.buttonUrl
-          : typeof block.ctaUrl === "string"
-            ? block.ctaUrl
-            : undefined,
-    quoteText:
-      typeof record.quoteText === "string"
-        ? record.quoteText
-        : typeof block.quote === "string"
-          ? block.quote
-          : undefined,
-    authorName:
-      typeof record.authorName === "string"
-        ? record.authorName
-        : typeof block.author === "string"
-          ? block.author
-          : undefined,
-    authorTitle:
-      typeof record.authorTitle === "string"
-        ? record.authorTitle
-        : typeof block.authorTitle === "string"
-          ? block.authorTitle
-          : undefined,
-    tagLabel:
-      typeof record.tagLabel === "string"
-        ? record.tagLabel
-        : typeof block.issueNumber === "string"
-          ? block.issueNumber
-          : undefined,
-    dateLabel:
-      typeof record.dateLabel === "string"
-        ? record.dateLabel
-        : typeof block.publishDate === "string"
-          ? block.publishDate
-          : undefined,
+      readString(record.buttonText) ?? readString(record.ctaText),
+    buttonUrl: readString(record.buttonUrl) ?? readString(record.ctaUrl),
+    quoteText: readString(record.quoteText) ?? readString(record.quote),
+    authorName: readString(record.authorName) ?? readString(record.author),
+    authorTitle: readString(record.authorTitle),
+    tagLabel: readString(record.tagLabel) ?? readString(record.issueNumber),
+    dateLabel: readString(record.dateLabel) ?? readString(record.publishDate),
     galleryProducts,
-    socialLinks: Array.isArray(record.socialLinks)
-      ? (record.socialLinks as StudioBlock["socialLinks"])
+    socialLinks: Array.isArray(block.socialLinks)
+      ? block.socialLinks
       : toStudioSocialLinks(block.socialLinks, record.socialLinkOrder),
   };
 }
 
+/**
+ * The last loaded or saved campaign. After a Studio save its contentBlocks
+ * hold exactly what was written (legacy aliases included), so the realtime
+ * change classifier compares like with like.
+ */
+type StudioCampaignRecord = Omit<CampaignEditorRecord, "contentBlocks"> & {
+  contentBlocks: SavedCampaignBlock[];
+};
+
 function toStudioSnapshot(
-  record: CampaignEditorRecord,
+  record: StudioCampaignRecord,
 ): StudioCampaignSnapshot {
   return {
     campaignName: isUnsetCampaignName(record.name) ? "" : record.name,
@@ -314,14 +292,14 @@ function toStudioSnapshot(
   };
 }
 
-function toPersistedContentBlocks(blocks: StudioBlock[]): ContentBlock[] {
+function toPersistedContentBlocks(blocks: StudioBlock[]): SavedCampaignBlock[] {
   return blocks.map((block, index) => ({
-    ...(block as ContentBlock),
+    ...block,
     id: block.id,
-    type: block.type as ContentBlock["type"],
+    type: block.type,
     // Keep where the block came from (theme, template, clone...). Stamping
     // every block "manual" on save erased all block-level provenance.
-    source: toContentBlockSource((block as { source?: unknown }).source),
+    source: toContentBlockSource(block.source),
     title: block.headline ?? block.label,
     content: block.body,
     imageUrl: block.imageUrl ?? null,
@@ -681,7 +659,7 @@ function CampaignStudioPageContent() {
   const editorPath = campaignId
     ? `/crm/campaigns/${campaignId}/edit`
     : "/crm/campaigns";
-  const campaignRecordRef = React.useRef<CampaignEditorRecord | null>(null);
+  const campaignRecordRef = React.useRef<StudioCampaignRecord | null>(null);
   // Design Studio edits email content only; drafts persist as "email" too.
   const activeCampaignType: EditorCampaignType = "email";
   const channelRef = React.useRef<ReturnType<typeof supabase.channel> | null>(

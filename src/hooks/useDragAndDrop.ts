@@ -11,7 +11,6 @@ import type { PostgrestError } from "@supabase/supabase-js";
 
 type ScopedRecordUpdate =
   | { table: "content_tasks"; values: TablesUpdate<"content_tasks"> }
-  | { table: "scheduled_posts"; values: TablesUpdate<"scheduled_posts"> }
   | { table: "crm_campaigns"; values: TablesUpdate<"crm_campaigns"> }
   | { table: "campaigns"; values: TablesUpdate<"campaigns"> };
 
@@ -51,15 +50,6 @@ export const useDragAndDrop = (onTaskUpdate: () => void) => {
       case "content_tasks": {
         let query = supabase
           .from("content_tasks")
-          .update(update.values)
-          .eq("id", recordId);
-        query = applyTenantUserScope(query, scope);
-        ({ error } = await query);
-        break;
-      }
-      case "scheduled_posts": {
-        let query = supabase
-          .from("scheduled_posts")
           .update(update.values)
           .eq("id", recordId);
         query = applyTenantUserScope(query, scope);
@@ -122,22 +112,6 @@ export const useDragAndDrop = (onTaskUpdate: () => void) => {
           case "task":
             await updateScopedRecord(
               { table: "content_tasks", values: { scheduled_date: newDateString } },
-              event.id,
-            );
-            break;
-
-          case "scheduled_post":
-            // Update publish_at while preserving time
-            const currentDate = new Date(event.meta.publish_at);
-            const targetDateTime = new Date(targetDate);
-            targetDateTime.setHours(
-              currentDate.getHours(),
-              currentDate.getMinutes(),
-              currentDate.getSeconds(),
-            );
-
-            await updateScopedRecord(
-              { table: "scheduled_posts", values: { publish_at: targetDateTime.toISOString() } },
               event.id,
             );
             break;

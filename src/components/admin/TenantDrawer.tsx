@@ -38,6 +38,8 @@ import { format, formatDistanceToNow } from "date-fns";
 
 interface AdminTenant {
   tenant_id: string;
+  /** Returned by admin_list_tenants; null when the tenant has no owner user. */
+  primary_contact_user_id: string | null;
   company_name: string;
   website: string;
   city: string;

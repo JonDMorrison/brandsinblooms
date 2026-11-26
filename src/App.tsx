@@ -239,9 +239,6 @@ const CRMCampaignRecipientsPage = lazyRetry(
 const CRMCampaignRecipientDetailPage = lazyRetry(
   () => import("@/pages/crm/CRMCampaignRecipientDetailPage"),
 );
-const CRMSegmentsBetaPage = lazyRetry(
-  () => import("@/pages/crm/CRMSegmentsBetaPage"),
-);
 const CRMSegmentsPage = lazyNamed(
   () => import("@/pages/crm/CRMSegmentsPage"),
   "CRMSegmentsPage",

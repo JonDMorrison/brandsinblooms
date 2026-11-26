@@ -15,6 +15,7 @@ import {
 import {
   persistCampaignRecord,
   type CampaignDraftConflictError,
+  type SavedCampaignBlock,
 } from "@/lib/crm/campaignDraftPersistence";
 
 type CampaignRow = Database["public"]["Tables"]["crm_campaigns"]["Row"];
@@ -110,7 +111,7 @@ export interface PersistCampaignDraftInput {
   senderEmail: string;
   fromEmailDomainId?: string | null;
   replyTo?: string;
-  contentBlocks: StudioBlock[];
+  contentBlocks: SavedCampaignBlock[];
   smsMessage: string;
   sendAt: Date | null;
   sendImmediately: boolean;

@@ -508,7 +508,10 @@ export type LightspeedDashboardOptions = {
   customers?: {
     page?: number;
     search?: string;
-    sortField?: LightspeedCustomerSortField | SquareCustomerSortField;
+    sortField?:
+      | LightspeedCustomerSortField
+      | SquareCustomerSortField
+      | ShopifyCustomerSortField;
     sortDirection?: LightspeedSortDirection;
   };
   sales?: {
@@ -517,7 +520,10 @@ export type LightspeedDashboardOptions = {
     status?: string;
     startDate?: string | null;
     endDate?: string | null;
-    sortField?: LightspeedSalesSortField | SquareSalesSortField;
+    sortField?:
+      | LightspeedSalesSortField
+      | SquareSalesSortField
+      | ShopifyOrdersSortField;
     sortDirection?: LightspeedSortDirection;
   };
   products?: {
@@ -526,7 +532,10 @@ export type LightspeedDashboardOptions = {
     category?: string;
     categories?: string[];
     inStockOnly?: boolean;
-    sortField?: LightspeedProductsSortField | SquareProductsSortField;
+    sortField?:
+      | LightspeedProductsSortField
+      | SquareProductsSortField
+      | ShopifyProductsSortField;
     sortDirection?: LightspeedSortDirection;
   };
   syncLogs?: {
@@ -871,24 +880,6 @@ function normalizeLightspeedJobSyncType(
   return "customers";
 }
 
-function normalizeShopifyJobSyncType(
-  syncType: PosSyncJobRow["sync_type"] | string,
-): "customers" | "orders" | "products" | "full" {
-  if (syncType === "orders" || syncType === "sales") {
-    return "orders";
-  }
-
-  if (syncType === "products") {
-    return "products";
-  }
-
-  if (syncType === "full") {
-    return "full";
-  }
-
-  return "customers";
-}
-
 function isTerminalLightspeedJobStatus(status: PosSyncJobRow["status"]) {
   return (
     status === "completed" || status === "failed" || status === "cancelled"
@@ -1106,16 +1097,6 @@ function normalizeLightspeedSyncLogRow(
   return {
     ...job,
     normalizedSyncType: normalizeLightspeedJobSyncType(job.sync_type),
-    progressPercent: calculateLightspeedJobProgress(job),
-    isStale: isLightspeedJobStale(job),
-    isTerminal: isTerminalLightspeedJobStatus(job.status),
-  };
-}
-
-function normalizeShopifySyncLogRow(job: PosSyncJobRow): ShopifySyncLogRow {
-  return {
-    ...job,
-    normalizedSyncType: normalizeShopifyJobSyncType(job.sync_type),
     progressPercent: calculateLightspeedJobProgress(job),
     isStale: isLightspeedJobStale(job),
     isTerminal: isTerminalLightspeedJobStatus(job.status),
@@ -5523,33 +5504,13 @@ export function useIntegrationDetailData(
         };
       }
 
-      const { from, to, safePage } = getLightspeedPageRange(
-        shopifyDashboardOptions.syncLogs.page,
-      );
-      let request = supabase
-        .from("pos_sync_jobs_v2")
-        .select("*", { count: "exact" })
-        .eq("tenant_id", tenant.id)
-        .eq("provider", "shopify");
-
-      const syncStatusFilter = toPosJobStatusFilter(
-        shopifyDashboardOptions.syncLogs.status,
-      );
-      if (syncStatusFilter) {
-        request = request.eq("status", syncStatusFilter);
-      }
-
-      const { data, error, count } = await request
-        .order("created_at", { ascending: false })
-        .range(from, to);
-
-      if (error) {
-        throw error;
-      }
-
+      // pos_sync_jobs_v2.provider is the pos_provider enum
+      // (square, clover, lightspeed). It has no "shopify" value, so no
+      // Shopify job row can exist there and filtering on it is rejected by
+      // Postgres (22P02). Return the empty state the page already showed.
       return {
-        rows: (data ?? []).map(normalizeShopifySyncLogRow),
-        pagination: buildLightspeedPagination(safePage, count ?? 0),
+        rows: [] as ShopifySyncLogRow[],
+        pagination: buildLightspeedPagination(1, 0),
       };
     },
   });
@@ -5569,20 +5530,8 @@ export function useIntegrationDetailData(
         return [] as ShopifySyncLogRow[];
       }
 
-      const { data, error } = await supabase
-        .from("pos_sync_jobs_v2")
-        .select("*")
-        .eq("tenant_id", tenant.id)
-        .eq("provider", "shopify")
-        .in("status", [...LIGHTSPEED_ACTIVE_JOB_STATUSES])
-        .order("created_at", { ascending: false })
-        .limit(3);
-
-      if (error) {
-        throw error;
-      }
-
-      return (data ?? []).map(normalizeShopifySyncLogRow);
+      // No Shopify rows can exist in pos_sync_jobs_v2 (see sync logs above).
+      return [] as ShopifySyncLogRow[];
     },
   });
 
@@ -5597,19 +5546,8 @@ export function useIntegrationDetailData(
         return [] as ShopifySyncLogRow[];
       }
 
-      const { data, error } = await supabase
-        .from("pos_sync_jobs_v2")
-        .select("*")
-        .eq("tenant_id", tenant.id)
-        .eq("provider", "shopify")
-        .order("created_at", { ascending: false })
-        .limit(5);
-
-      if (error) {
-        throw error;
-      }
-
-      return (data ?? []).map(normalizeShopifySyncLogRow);
+      // No Shopify rows can exist in pos_sync_jobs_v2 (see sync logs above).
+      return [] as ShopifySyncLogRow[];
     },
   });
 
