@@ -39,6 +39,7 @@ import { campaignMutationImplementation } from "./implementations/campaign-mutat
 import { customerMutationImplementation } from "./implementations/customer-mutations.ts";
 import { productMutationImplementation } from "./implementations/product-mutations.ts";
 import { queryCampaigns } from "./implementations/query-campaigns.ts";
+import { getSendReadiness } from "./implementations/send-readiness.ts";
 import { queryCustomers } from "./implementations/query-customers.ts";
 import { queryOrders } from "./implementations/query-orders.ts";
 import { queryProducts } from "./implementations/query-products.ts";
@@ -941,6 +942,8 @@ function getToolImplementation(toolName: ToolName): ToolImplementation {
       return getRevenueAnalytics;
     case "get_email_health":
       return getEmailHealth;
+    case "get_send_readiness":
+      return getSendReadiness;
     case "get_customer_timeline":
       return getCustomerTimeline;
     case "get_integration_status":

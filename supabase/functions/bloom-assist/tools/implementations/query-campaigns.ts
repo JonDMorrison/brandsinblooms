@@ -510,21 +510,15 @@ export function toReviewableBlock(block: CampaignBlockRow): ReviewableBlock {
   };
 }
 
-async function loadDraftReviews(
+/**
+ * The tenant's sending domains and its sending readiness, read the way the
+ * send path reads them (shared helper: src/lib/crm/senderSeverity.ts).
+ */
+export async function loadTenantSendingReadiness(
   client: BloomQueryClient,
   tenantId: string,
-  rows: CampaignRow[],
-): Promise<Map<string, JsonObject>> {
-  const drafts = rows.filter((row) => REVIEWABLE_STATUSES.has(String(row.status)));
-  const reviews = new Map<string, JsonObject>();
-  if (drafts.length === 0) return reviews;
-
-  const [blocksResult, domainsResult, tenantResult] = await Promise.all([
-    client
-      .from("campaign_blocks")
-      .select("campaign_id, order_index, block_type, content, image_url")
-      .in("campaign_id", drafts.map((row) => row.id))
-      .order("order_index", { ascending: true }),
+): Promise<{ emailDomains: SendingDomainRow[]; readiness: TenantSendingReadiness }> {
+  const [domainsResult, tenantResult] = await Promise.all([
     client
       .from("email_domains")
       .select(
@@ -537,16 +531,8 @@ async function loadDraftReviews(
       .eq("id", tenantId)
       .maybeSingle(),
   ]);
-  if (blocksResult.error) throw blocksResult.error;
   if (domainsResult.error) throw domainsResult.error;
   if (tenantResult.error) throw tenantResult.error;
-
-  const blocksByCampaign = new Map<string, ReviewableBlock[]>();
-  for (const block of (blocksResult.data ?? []) as CampaignBlockRow[]) {
-    const list = blocksByCampaign.get(block.campaign_id) ?? [];
-    list.push(toReviewableBlock(block));
-    blocksByCampaign.set(block.campaign_id, list);
-  }
 
   const emailDomains: SendingDomainRow[] = (
     (domainsResult.data ?? []) as Array<{
@@ -567,6 +553,35 @@ async function loadDraftReviews(
       (tenantResult.data as { default_from_email_domain_id: string | null } | null)
         ?.default_from_email_domain_id ?? null,
   });
+  return { emailDomains, readiness };
+}
+
+async function loadDraftReviews(
+  client: BloomQueryClient,
+  tenantId: string,
+  rows: CampaignRow[],
+): Promise<Map<string, JsonObject>> {
+  const drafts = rows.filter((row) => REVIEWABLE_STATUSES.has(String(row.status)));
+  const reviews = new Map<string, JsonObject>();
+  if (drafts.length === 0) return reviews;
+
+  const [blocksResult, sending] = await Promise.all([
+    client
+      .from("campaign_blocks")
+      .select("campaign_id, order_index, block_type, content, image_url")
+      .in("campaign_id", drafts.map((row) => row.id))
+      .order("order_index", { ascending: true }),
+    loadTenantSendingReadiness(client, tenantId),
+  ]);
+  if (blocksResult.error) throw blocksResult.error;
+  const { emailDomains, readiness } = sending;
+
+  const blocksByCampaign = new Map<string, ReviewableBlock[]>();
+  for (const block of (blocksResult.data ?? []) as CampaignBlockRow[]) {
+    const list = blocksByCampaign.get(block.campaign_id) ?? [];
+    list.push(toReviewableBlock(block));
+    blocksByCampaign.set(block.campaign_id, list);
+  }
 
   for (const row of drafts) {
     reviews.set(

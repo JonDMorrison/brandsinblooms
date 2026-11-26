@@ -22,6 +22,27 @@ const CONTENT_TOOL_CATEGORIES = new Set<ToolCategory>(["content"]);
 const NAVIGATION_TOOL_CATEGORIES = new Set<ToolCategory>(["navigation"]);
 const RESEARCH_TOOL_CATEGORIES = QUERY_ANALYTICS_TOOL_CATEGORIES;
 
+// "Is my sender set up so I can send campaigns?", "Can I send emails yet?",
+// "Will my newsletter reach anyone?", "How many customers can I email?"
+const SEND_READINESS_PATTERNS: readonly RegExp[] = [
+  /\bsender\b[^?.!]{0,60}\b(?:set ?up|ready|verified|configured|working|work)\b/i,
+  /\b(?:set ?up|ready|configured)\b[^?.!]{0,40}\bso (?:i|we) can send\b/i,
+  /\b(?:can|could|am|are)\s+(?:i|we)\s+(?:able to\s+)?(?:actually\s+)?send\b[^?.!]{0,40}\b(?:campaigns?|emails?|newsletters?)\b/i,
+  /\b(?:ready|able) to send\b[^?.!]{0,30}\b(?:campaigns?|emails?|newsletters?)\b/i,
+  /\b(?:will|would|do|does)\b[^?.!]{0,40}\b(?:campaigns?|emails?|newsletters?)\b[^?.!]{0,20}\b(?:go out|get delivered|be delivered|reach)\b/i,
+  /\bhow many\b[^?.!]{0,50}\b(?:can|could)\s+(?:i|we)\s+(?:email|reach)\b/i,
+  /\bhow many\b[^?.!]{0,50}\bcan (?:get|receive)\b[^?.!]{0,20}\bemails?\b/i,
+];
+
+/** The send-readiness tool every "can I send" question is routed to. */
+export const SEND_READINESS_TOOL = "get_send_readiness";
+
+/** Does the message ask whether email campaigns can be sent? */
+export function isSendReadinessQuestion(message: string): boolean {
+  const text = message.replace(/\s+/g, " ");
+  return SEND_READINESS_PATTERNS.some((pattern) => pattern.test(text));
+}
+
 /**
  * When the message names a campaign, segment, product or customer, the
  * lookup tools must be offered whatever the intent was classified as, so
