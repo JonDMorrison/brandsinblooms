@@ -316,14 +316,15 @@ END;
 $function$;
 
 -- ---------------------------------------------------------------------------
--- Permission: campaigns.approve, added to the existing owner/admin role.
--- The role map lives in get_current_crm_access(); patch it in place so the
--- rest of that function stays exactly as deployed.
+-- Permission: campaigns.approve, added to the existing owner/admin and
+-- marketing roles. The role map lives in get_current_crm_access(); patch it
+-- in place so the rest of that function stays exactly as deployed.
 -- ---------------------------------------------------------------------------
 
 DO $patch$
 DECLARE
   v_def text;
+  v_count integer;
 BEGIN
   SELECT pg_get_functiondef(p.oid) INTO v_def
   FROM pg_proc p
@@ -335,7 +336,16 @@ BEGIN
     IF (length(v_def) - length(replace(v_def, '''integrations.manage''', ''))) / length('''integrations.manage''') <> 1 THEN
       RAISE EXCEPTION 'Unexpected role map in get_current_crm_access(); not patching';
     END IF;
+    -- Owner/admin: the only role with integrations.manage.
     v_def := replace(v_def, '''integrations.manage''', '''integrations.manage'', ''campaigns.approve''');
+    -- Marketing: append to that role's own list.
+    v_def := regexp_replace(v_def,
+      '(WHEN ''marketing'' THEN ARRAY\[[^\]]*?''content\.design'')',
+      '\1, ''campaigns.approve''');
+    v_count := (length(v_def) - length(replace(v_def, '''campaigns.approve''', ''))) / length('''campaigns.approve''');
+    IF v_count <> 2 THEN
+      RAISE EXCEPTION 'Expected campaigns.approve on two roles, found %; not patching', v_count;
+    END IF;
     EXECUTE v_def;
   END IF;
 END
