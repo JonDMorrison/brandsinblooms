@@ -217,6 +217,9 @@ export async function runAgent(c: AgentContext, d: AgentDependencies): Promise<{
       calls++;
       if (result.source && !sources.includes(result.source)) sources.push(result.source);
       if (result.receipt && !receipts.includes(result.receipt)) receipts.push(result.receipt);
+      // A code-composed answer from the same records. Used only when the model's
+      // own wording fails validation or only asks a question back.
+      if (result.fallback) evidenceFallback = result.fallback;
       const data = JSON.stringify({ observed_at: new Date(now()).toISOString(), source: result.source, data: scrub(result.data), receipt: result.receipt ?? null });
       messages.push({ role: "tool", tool_call_id: call.id, content: data.length <= 9000 ? data : JSON.stringify({ truncated: true, excerpt: data.slice(0, 8500) }) });
       await d.audit(spec.name, "succeeded").catch(() => undefined);

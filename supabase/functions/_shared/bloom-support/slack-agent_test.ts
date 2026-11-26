@@ -1,5 +1,5 @@
 import { assertEquals, assert, assertStringIncludes } from "@std/assert";
-import { FINANCE_ELSEWHERE_REPLY, answerWithSlackAgent, checkStaffChannel, isoDate, isSlackModelEndpoint, withOpenTotals, type SlackAgentContext } from "./slack-agent.ts";
+import { FINANCE_ELSEWHERE_REPLY, answerWithSlackAgent, checkStaffChannel, isoDate, isSlackModelEndpoint, openTotalsFallback, ticketListFallback, withOpenTotals, type SlackAgentContext } from "./slack-agent.ts";
 const channel = "C0CFNEQBS2X";
 const principal = "10000000-0000-4000-8000-000000000001";
 const context: SlackAgentContext = { allowed: true, principal_id: principal, role: "platform_admin", channel, route: "tickets", root_ts: "1794936205.974579", user_id: "U06VD9ZGA4U", ticket_id: null, history: [] };
@@ -378,4 +378,35 @@ Deno.test("financial answers in a public channel need the owners' financial sett
     assertEquals(await checkStaffChannel(channel), { allowed: true, reason: "ok", financials: true });
     assertStringIncludes(await answerWithSlackAgent({ ...context, route: "ask" }, "when is the next payout", "job") ?? "", "89.40 CAD");
   }, settings(true), { BLOOM_SUPPORT_STRIPE_READONLY_KEY: "rk_test_placeholder" });
+});
+
+Deno.test("when the model's ticket list cannot be shown, the open requests are listed from the records instead", async () => {
+  assertEquals(openTotalsFallback(withOpenTotals({ by_status: { new: 1, needs_owner: 2, resolved: 9 } })), "Open requests: 3 (new 1, needs owner 2).");
+  assertEquals(ticketListFallback([], true), "No open requests matched.");
+  let modelCalls = 0;
+  await fixture(async calls => {
+    const result = await answerWithSlackAgent({ ...context, route: "alerts" }, "what tickets are open", "job") ?? "";
+    assertStringIncludes(result, "Open requests, up to 10 shown:");
+    assertStringIncludes(result, "#1028 Published links missing (working)");
+    assertStringIncludes(result, "#1015 Import history (needs owner)");
+    assertEquals(result.includes("#1030"), false, "resolved requests are not open");
+    assertEquals(result.includes("could not validate"), false);
+    const list = calls.find(c => c.body.p_fn === "list_tickets")!;
+    assertEquals(((list.body.p as Record<string, unknown>).filters as Record<string, unknown>).status, undefined);
+  }, (url, body) => {
+    if (url.endsWith("bloom_support_slack_conversation_context")) return { ...context, route: "alerts" };
+    if (url.endsWith("bloom_support_rpc") && body.p_fn === "list_tickets") return [
+      { id: "20000000-0000-4000-8000-000000000001", number: 1028, subject: "Published links missing", status: "working" },
+      { id: "20000000-0000-4000-8000-000000000002", number: 1030, subject: "Long filenames", status: "resolved" },
+      { id: "20000000-0000-4000-8000-000000000003", number: 1015, subject: "Import history", status: "needs_owner" },
+    ];
+    if (url.endsWith("chat/completions")) {
+      modelCalls++;
+      return { choices: [{ message: modelCalls === 1
+        ? { role: "assistant", content: null, tool_calls: [{ id: "c1", type: "function", function: { name: "find_tickets", arguments: JSON.stringify({ query: null, status: "open" }) } }] }
+        // A reply the validator rejects: it carries a contact address.
+        : { role: "assistant", content: "Open: #1028, raised by owner@example.com" } }] };
+    }
+    return standard(url, body);
+  });
 });
