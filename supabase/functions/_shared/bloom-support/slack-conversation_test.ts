@@ -2,6 +2,8 @@ import { assertEquals, assertStringIncludes } from "@std/assert";
 import { conversationFallback, internalSupportQueueAnswer, safeConversationAnswer, respondToSlackConversation } from "./slack-conversation.ts";
 import { slackQuestionRoute } from "./slack-questions.ts";
 import { slackQuestionText } from "./slack-question.ts";
+import { DEFAULT_CLOSE_SUMMARY, detectCloseRequest, refersToUnnamedTicket, slackCloseAllowed } from "./slack-actions.ts";
+import { unansweredDigest, unansweredReason } from "./slack-digest.ts";
 Deno.test("all eight Bloom channels route, unknown channels do not",()=>{
   assertEquals(slackQuestionRoute("C0CFUG4STS6"),"alerts");assertEquals(slackQuestionRoute("C0CGP4GPG8G"),"finance");
   assertEquals(slackQuestionRoute("C0CFDBT8JAK"),"clients");assertEquals(slackQuestionRoute("C0CFYDVE4A0"),"releases");
@@ -228,4 +230,78 @@ Deno.test("a provider rejected by the agent cannot receive ticket facts through 
   assertEquals(result.calls.filter(c=>c.body.p_fn==="get_ticket").length,1);
   assertEquals(result.calls.some(c=>c.url.includes("untrusted.example")||c.url.endsWith("chat/completions")),false);
   assertEquals(result.answer.includes("couldn't finish checking"),false);
+});
+
+Deno.test("close requests are recognised only as direct instructions, with an optional number and note",()=>{
+  assertEquals(detectCloseRequest("close #1028"),{number:1028,summary:DEFAULT_CLOSE_SUMMARY});
+  assertEquals(detectCloseRequest("Please resolve ticket 1028: fixed by the redeploy this morning"),{number:1028,summary:"fixed by the redeploy this morning"});
+  assertEquals(detectCloseRequest("close this ticket"),{number:null,summary:DEFAULT_CLOSE_SUMMARY});
+  assertEquals(detectCloseRequest("mark as resolved"),{number:null,summary:DEFAULT_CLOSE_SUMMARY});
+  for(const q of ["should we close #1028?","don't close #1028","how do I close a ticket","which tickets did we close","close to finishing #1028?","why did you close #1028"])
+    assertEquals(detectCloseRequest(q),null,q);
+  assertEquals(slackCloseAllowed("platform_admin"),true);
+  assertEquals(slackCloseAllowed("support"),false);
+  assertEquals(refersToUnnamedTicket("close this ticket"),true);
+  assertEquals(refersToUnnamedTicket("how many open tickets"),false);
+});
+const openTicket={id:"20000000-0000-4000-8000-000000000009",number:1028,subject:"Published links missing",status:"working",version:3};
+const closeRespond=(extra:(url:string,body:Record<string,unknown>)=>unknown=()=>undefined)=>(url:string,body:Record<string,unknown>):unknown=>{
+  if(url.includes("conversations.info"))return privateMetadata;
+  const given=extra(url,body);if(given!==undefined)return given;
+  if(url.endsWith("bloom_support_rpc")&&body.p_fn==="list_tickets")return [{id:openTicket.id,number:1028}];
+  if(url.endsWith("bloom_support_rpc")&&body.p_fn==="get_ticket")return openTicket;
+  if(url.endsWith("bloom_support_rpc")&&body.p_fn==="update_ticket")return {id:openTicket.id,status:"resolved"};
+  throw Error("Unexpected "+url+" "+String(body.p_fn));
+};
+Deno.test("an owner closes a named request from any staff channel; the client-facing note is stated",async()=>{
+  const result=await privacyFixture("close #1028 fixed by the redeploy this morning",closeRespond(),{...privacyContext,ticket_id:null} as typeof privacyContext);
+  const update=result.calls.filter(c=>c.body.p_fn==="update_ticket");
+  assertEquals(update.length,1);
+  const p=update[0].body.p as Record<string,unknown>;
+  assertEquals(p.ticket_id,openTicket.id);
+  assertEquals(p.patch,{status:"resolved",resolution_summary:"fixed by the redeploy this morning"});
+  assertStringIncludes(result.answer,"Closed request #1028");
+  assertStringIncludes(result.answer,"resolved notice");
+});
+Deno.test("closing needs an owner, a ticket that is still open, and never guesses which ticket",async()=>{
+  const support=await privacyFixture("close #1028",closeRespond(),{...privacyContext,ticket_id:null,role:"support"} as typeof privacyContext);
+  assertStringIncludes(support.answer,"Only owner-level staff");
+  assertEquals(support.calls.some(c=>c.body.p_fn==="update_ticket"),false);
+  const already=await privacyFixture("close #1028",closeRespond((url,body)=>url.endsWith("bloom_support_rpc")&&body.p_fn==="get_ticket"?{...openTicket,status:"resolved"}:undefined),{...privacyContext,ticket_id:null} as typeof privacyContext);
+  assertStringIncludes(already.answer,"already closed");
+  assertEquals(already.calls.some(c=>c.body.p_fn==="update_ticket"),false);
+  const unnamed=await privacyFixture("close this ticket",closeRespond((url)=>url.endsWith("bloom_support_slack_recent_ticket")?{ticket_id:openTicket.id,number:1028,subject:"Published links missing",status:"working"}:undefined),{...privacyContext,ticket_id:null} as typeof privacyContext);
+  assertStringIncludes(unnamed.answer,"Do you mean request #1028");
+  assertStringIncludes(unnamed.answer,"Nothing was changed yet");
+  assertEquals(unnamed.calls.some(c=>c.body.p_fn==="update_ticket"),false);
+  const refused=await privacyFixture("close #1028",closeRespond(),{...privacyContext,ticket_id:null} as typeof privacyContext,undefined);
+  assertEquals(refused.calls.filter(c=>c.body.p_fn==="update_ticket").length,1);
+});
+Deno.test("a close request in a public channel without the open-channel setting changes nothing",async()=>{
+  const result=await privacyFixture("close #1028",(url,body)=>{
+    if(url.includes("conversations.info"))return {ok:true,channel:{id:privacyChannel,is_private:false,is_shared:false,is_ext_shared:false}};
+    if(url.endsWith("bloom_support_rpc")&&body.p_fn==="setting")return {enabled:true};
+    throw Error("Unexpected "+url+" "+String(body.p_fn));
+  },{...privacyContext,ticket_id:null} as typeof privacyContext);
+  assertEquals(result.answer,PUBLIC_REFUSAL);
+});
+Deno.test("the digest lists the questions Bloom did not answer, once each, and stays silent when all were answered",()=>{
+  assertEquals(unansweredReason("There are currently 14 open support tickets."),null);
+  assertEquals(unansweredReason("Closed request #1028 (Published links missing)."),null);
+  assertEquals(unansweredReason("I cannot access specific financial data, such as commission totals."),"Bloom said it could not");
+  assertEquals(unansweredReason("I'm unable to provide information about specific payout dates."),"Bloom said it could not");
+  assertEquals(unansweredReason("The Stripe read-only key Bloom uses cannot read invoices."),"the Stripe key lacks access");
+  assertEquals(unansweredReason("It seems you want to close a ticket but I need the specific ticket ID to proceed. Please provide the ticket ID you wish to close."),"Bloom asked for details instead of answering");
+  assertEquals(unansweredReason(PUBLIC_REFUSAL),"the channel was refused");
+  assertEquals(unansweredDigest([{route:"tickets",question:"How many open tickets",answer:"There are currently 14 open support tickets."}]),null);
+  const digest=unansweredDigest([
+    {route:"finance",question:"When is our next payout",answer:"I currently don't have access to specific payout schedules."},
+    {route:"finance",question:"when is our next payout",answer:"I'm unable to provide information about specific payout dates."},
+    {route:"alerts",question:"close this ticket <@U123>",answer:"Please provide the ticket ID you wish to close."},
+    {route:"tickets",question:"How many open tickets",answer:"There are currently 14 open support tickets."},
+  ])!;
+  assertStringIncludes(digest.text,"2 questions Bloom could not answer");
+  assertStringIncludes(digest.text,"(asked 2 times)");
+  assertEquals(digest.text.includes("<@"),false);
+  assertEquals(digest.text.includes("How many open tickets"),false);
 });

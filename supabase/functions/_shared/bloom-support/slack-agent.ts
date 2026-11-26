@@ -6,6 +6,7 @@ import { aiConfig } from "./ai.ts";
 import { actions } from "./service.ts";
 import { callProduct, runRead } from "./operations.ts";
 import { safeTicketText } from "./ticket-slack.ts";
+import { refersToUnnamedTicket } from "./slack-actions.ts";
 import { type FinanceKind, type FinanceResult, StripeAccessError, financeFacts, financeIntent, financeRange, readPlatformFinance } from "./finance.ts";
 import { REVENUE_ELSEWHERE_REPLY, revenueByClientQuestion, revenueFacts, statesAmount } from "./slack-revenue.ts";
 import { type AgentContext, type ChatMessage, type ToolResult, ToolPermissionError, availableTools, composeSlackAgentReply, openAiTools, runAgent } from "./slack-agent-core.ts";
@@ -145,6 +146,16 @@ export async function answerWithSlackAgent(c: SlackAgentContext, question: strin
   }
   const caller: Caller = { principalId: c.principal_id, role: c.role, via: "service", scopes: [], name: null };
   const tickets = new Set<string>(c.ticket_id ? [c.ticket_id] : []);
+  // "This ticket" outside a ticket thread: offer the request Bloom last posted
+  // about in this channel. Best effort; the lookup re-checks read permission.
+  if (privateChannel && !c.ticket_id && refersToUnnamedTicket(question)) {
+    const { data, error } = await db().rpc("bloom_support_slack_recent_ticket", { p_job: jobId }).then(r => r, () => ({ data: null, error: true }));
+    const recent = row(data);
+    if (!error && typeof recent.ticket_id === "string" && /^[0-9a-f-]{36}$/i.test(recent.ticket_id)) {
+      ctx.likelyTicket = { id: recent.ticket_id, number: Number(recent.number), subject: String(recent.subject ?? "").slice(0, 160), status: String(recent.status ?? "") };
+      tickets.add(recent.ticket_id);
+    }
+  }
   const accounts = new Set<string>();
   const customers = new Map<string, Set<string>>();
   const evidenceVersions = new Map<string, number>();
@@ -275,7 +286,10 @@ export async function answerWithSlackAgent(c: SlackAgentContext, question: strin
         return { source: source("Client account and support history"), data: { account: pick(account, ["id", "name", "links", "notes", "automation_paused"]), requests: history.map(t => pick(t, ["id", "number", "subject", "status", "product", "updated_at"])), limited_to: 8 } };
       }
       case "find_tickets": {
-        const found = rows(await actions.listTickets(caller, { q: a.query, ...(a.status === "all" ? {} : { status: a.status }), limit: 10 }));
+        // "open" is every status except resolved; the list RPC filters one status at a time.
+        const open = a.status === "open";
+        const page = rows(await actions.listTickets(caller, { q: a.query, ...(a.status === "all" || open ? {} : { status: a.status }), limit: open ? 40 : 10 }));
+        const found = (open ? page.filter(t => t.status !== "resolved") : page).slice(0, 10);
         for (const t of found) tickets.add(id(t.id));
         return { source: source("Live support requests"), data: { results: found.map(t => pick(t, ["id", "number", "subject", "status", "priority", "product", "account", "updated_at", "next_action"])), limited_to: 10 } };
       }

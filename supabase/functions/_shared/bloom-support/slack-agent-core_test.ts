@@ -181,6 +181,36 @@ Deno.test("platform_finance is owner-only, needs a channel cleared for financial
   assertThrows(() => validateArguments(spec, JSON.stringify({ kind: "refund", from: null, to: null })));
   assertStringIncludes(AGENT_SYSTEM, "report open_total and open_by_status exactly as returned");
   assertStringIncludes(AGENT_SYSTEM, "do not ask for a ticket ID");
+  assertStringIncludes(AGENT_SYSTEM, "you never close one yourself");
+});
+// The questions the owners actually asked in each Bloom channel, and the
+// capability that must be on offer there. A change that takes one away fails here.
+Deno.test("every recorded owner question has its capability in its channel, public channels included", () => {
+  const owner = (route: string, question: string, patch: Partial<AgentContext> = {}) =>
+    availableTools(context({ route, question, confirmedPrivate: true, ...patch })).map(t => t.name);
+  const cases: Array<[string, string, string]> = [
+    ["tickets", "How many open tickets", "support_overview"],
+    ["tickets", "please check the live support overview and pending reply count", "pending_replies"],
+    ["alerts", "close this ticket", "find_tickets"],
+    ["alerts", "I cannot. You find it.", "find_tickets"],
+    ["finance", "when is the next payout", "platform_finance"],
+    ["finance", "How much did we make in commissions", "platform_finance"],
+    ["finance", "What clients has paid the most money to us", "platform_finance"],
+    ["finance", "how much revenue have we generated from events, fundraising and plant sales by garden center?", "revenue_by_client"],
+    ["ask", "Can you tell us how much revenue we've generated from events, fundraising and plant sales by garden center?", "revenue_by_client"],
+    ["ask", "is changing the dates enough to reopen a closed pre-sale?", "product_knowledge"],
+    ["releases", "How does the recent merges help our customers on our tech", "release_status"],
+    ["features", "what feature requests are open", "feature_requests"],
+    ["projects", "are there any major projects we need to follow up on?", "major_projects"],
+    ["clients", "what do we know about West Coast Gardens", "client_context"],
+  ];
+  for (const [route, question, tool] of cases) assert(owner(route, question).includes(tool), `${route}: "${question}" needs ${tool}`);
+  // Support staff keep the operational tools but never the owner-only figures.
+  const support = owner("finance", "when is the next payout", { role: "support" });
+  assert(support.includes("support_overview") && !support.includes("platform_finance") && !support.includes("revenue_by_client"));
+  const find = TOOL_SPECS.find(t => t.name === "find_tickets")!;
+  assertEquals(validateArguments(find, JSON.stringify({ query: null, status: "open" })).status, "open");
+  assertStringIncludes(AGENT_SYSTEM, "If likely_ticket is set");
 });
 Deno.test("prompt reports recorded revenue and forbids a false restriction claim", () => {
   assertEquals(AGENT_SYSTEM.includes("financial outcomes"), false);
