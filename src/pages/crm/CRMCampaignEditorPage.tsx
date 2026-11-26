@@ -143,6 +143,8 @@ import { registerResourceAccessor } from "@/utils/askBloomResourceRegistry";
 
 /** Marks the synthetic template built from this week's theme. */
 const WEEKLY_THEME_TEMPLATE_PREFIX = "weekly-theme:";
+/** "Start over with a blank newsletter", sent through the same replace confirmation. */
+const BLANK_TEMPLATE_ID = "blank";
 
 const EDITOR_MAX_WIDTH = 1200;
 const AUDIENCE_CUSTOMER_PAGE_SIZE = 8;
@@ -1346,6 +1348,15 @@ function CampaignEditorScreen() {
 
   const applyTemplateToCampaign = React.useCallback(
     (template: CampaignTemplate) => {
+      if (template.id === BLANK_TEMPLATE_ID) {
+        setOrigin("blank");
+        setSelectedBuiltInTemplateId(null);
+        setSelectedIntent("blank");
+        setSelectedSavedTemplateId(null);
+        setWeeklyThemeApplied(false);
+        updateContent({ contentBlocks: template.buildBlocks(designSystem) });
+        return;
+      }
       setOrigin(
         template.id.startsWith(WEEKLY_THEME_TEMPLATE_PREFIX)
           ? (normalizeCampaignOrigin(
@@ -1510,6 +1521,23 @@ function CampaignEditorScreen() {
           createStudioBlock("newsletter-header", designSystem),
           createStudioBlock("plain-text", designSystem),
         ];
+        // Starting over replaces what is there, so ask first, like every
+        // other design. Subject and preview text are kept.
+        if (hasMeaningfulEmailContent) {
+          setTemplateToConfirm({
+            id: BLANK_TEMPLATE_ID,
+            name: "Blank newsletter",
+            summary: "",
+            season: "evergreen",
+            tags: [],
+            accentColor: "#1F4341",
+            subjectLine,
+            previewText: preheaderText,
+            thumbnailBlocks: [],
+            buildBlocks: () => blocks,
+          });
+          return;
+        }
         setOrigin("blank");
         updateContent({ contentBlocks: blocks });
         setSelectedIntent("blank");
@@ -1524,7 +1552,7 @@ function CampaignEditorScreen() {
       setSelectedIntent(intent);
       setSelectedSavedTemplateId(null);
     },
-    [designSystem, handleApplyTemplate, setOrigin, updateContent],
+    [designSystem, handleApplyTemplate, hasMeaningfulEmailContent, preheaderText, setOrigin, subjectLine, updateContent],
   );
 
   const handleApplySavedTemplate = React.useCallback(
@@ -2350,6 +2378,7 @@ function CampaignEditorScreen() {
               selectedBuiltInTemplateId={
                 selectedIntent || selectedSavedTemplateId ? null : selectedBuiltInTemplateId
               }
+              hasContent={hasMeaningfulEmailContent}
             />
 
             <StudioCtaCard
@@ -2785,8 +2814,9 @@ function CampaignEditorScreen() {
           <DialogTitle>Replace the current email content?</DialogTitle>
           <DialogContent>
             <Typography level="body-sm" sx={{ color: "neutral.700" }}>
-              Applying a seasonal template will replace the current email
-              blocks, subject line, and preview text for this campaign.
+              {templateToConfirm?.id === BLANK_TEMPLATE_ID
+                ? "Starting over removes everything in this email and leaves a blank newsletter. Your subject line stays."
+                : "This design will replace what is in this email now, including the subject line and preview text."}
             </Typography>
           </DialogContent>
           <DialogActions>
@@ -2807,7 +2837,7 @@ function CampaignEditorScreen() {
                 setTemplateToConfirm(null);
               }}
             >
-              Replace with template
+              {templateToConfirm?.id === BLANK_TEMPLATE_ID ? "Start over" : "Replace with this design"}
             </Button>
           </DialogActions>
         </ModalDialog>

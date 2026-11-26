@@ -519,7 +519,19 @@ export interface IntentPickerProps {
   onStartFromTheme?: () => void;
   /** Built-in design last applied, shown as selected. */
   selectedBuiltInTemplateId?: string | null;
+  /** True when the email already has content. Scratch then offers "start over". */
+  hasContent?: boolean;
 }
+
+/** The four ways to start an email. */
+export type StartMode = "scratch" | "preset" | "template" | "theme";
+
+const START_MODES: ReadonlyArray<{ mode: StartMode; title: string; description: string; icon: LucideIcon }> = [
+  { mode: "scratch", title: "Start from scratch", description: "A clean newsletter you fill in yourself.", icon: FilePlus },
+  { mode: "preset", title: "Pick a preset", description: "A ready-made layout designed by BloomSuite.", icon: Newspaper },
+  { mode: "template", title: "Choose a template", description: "A design your own business has saved.", icon: Images },
+  { mode: "theme", title: "Choose a theme", description: "Seasonal garden centre content, written for you.", icon: Sun },
+];
 
 export function IntentPicker({
   savedTemplates,
@@ -538,6 +550,7 @@ export function IntentPicker({
   weeklyThemeSelected = false,
   onStartFromTheme,
   selectedBuiltInTemplateId = null,
+  hasContent = false,
 }: IntentPickerProps) {
   const designSystem = useOptionalDesignSystem()?.designSystem ?? null;
   const intentEntries = React.useMemo(
@@ -546,6 +559,19 @@ export function IntentPicker({
   );
 
   const hasSavedTemplates = savedTemplates.length > 0;
+  const themeAvailable = Boolean(onStartFromTheme && (weeklyTheme || weeklyThemeLoading));
+  // Open on whatever this email already uses. A new email opens on scratch.
+  const appliedMode: StartMode = weeklyThemeSelected
+    ? "theme"
+    : selectedSavedTemplateId
+      ? "template"
+      : (selectedIntent && selectedIntent !== "blank") || selectedBuiltInTemplateId
+        ? "preset"
+        : "scratch";
+  const [mode, setMode] = React.useState<StartMode>(appliedMode);
+  React.useEffect(() => {
+    setMode(appliedMode);
+  }, [appliedMode]);
 
   return (
     <Stack spacing={2.5} data-testid="intent-picker">
@@ -557,48 +583,123 @@ export function IntentPicker({
           level="body-sm"
           sx={{ color: "neutral.600", maxWidth: 620 }}
         >
-          Start from this week's theme or a blank canvas, or pick a layout below. Every design can be customized in Design Studio.
+          Pick how you want to start. You can change every word, photo and colour in Design Studio.
         </Typography>
       </Stack>
 
       <Box
+        role="radiogroup"
+        aria-label="How do you want to start?"
         data-testid="intent-picker-start"
         sx={{
           display: "grid",
-          gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" },
+          gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", lg: "repeat(4, minmax(0, 1fr))" },
           gap: 1.5,
         }}
       >
-        {onStartFromTheme && (weeklyTheme || weeklyThemeLoading) ? (
-          <StartCard
-            testId="intent-start-weekly-theme"
-            icon={Sun}
-            eyebrow={weeklyTheme ? `This week's theme · ${weeklyTheme.weekLabel}` : "This week's theme"}
-            title={weeklyTheme?.title ?? "Loading this week's theme…"}
-            description={
-              weeklyTheme?.summary ||
-              "Start from this week's theme, copy and photos. Edit anything in Design Studio."
-            }
-            imageUrl={weeklyTheme?.imageUrl}
-            selected={weeklyThemeSelected}
-            disabled={disabled}
-            loading={weeklyThemeLoading && !weeklyTheme}
-            onSelect={onStartFromTheme}
-          />
-        ) : null}
-        <StartCard
-          testId="intent-card-blank"
-          icon={FilePlus}
-          eyebrow="Start from scratch"
-          title="Blank canvas"
-          description="A header and an empty paragraph, ready for your own content."
-          selected={selectedIntent === "blank"}
-          disabled={disabled}
-          onSelect={() => onSelectIntent("blank")}
-        />
+        {START_MODES.map(({ mode: option, title, description, icon: Icon }) => {
+          const chosen = mode === option;
+          return (
+            <Box
+              key={option}
+              role="radio"
+              aria-checked={chosen}
+              tabIndex={disabled ? -1 : 0}
+              aria-disabled={disabled || undefined}
+              data-testid={`start-mode-${option}`}
+              onClick={() => {
+                if (!disabled) setMode(option);
+              }}
+              onKeyDown={(event) => {
+                if (!disabled && (event.key === "Enter" || event.key === " ")) {
+                  event.preventDefault();
+                  setMode(option);
+                }
+              }}
+              sx={{
+                ...cardBaseSx,
+                gap: 0.75,
+                minHeight: 108,
+                ...(chosen ? cardSelectedSx : {}),
+                ...(disabled ? cardDisabledSx : {}),
+              }}
+            >
+              {chosen ? (
+                <Box sx={selectedBadgeSx} aria-hidden>
+                  <Check size={14} />
+                </Box>
+              ) : null}
+              <Box sx={iconContainerSx} aria-hidden>
+                <Icon size={18} strokeWidth={1.8} />
+              </Box>
+              <Typography level="title-sm" sx={{ fontSize: 16, fontWeight: 600, color: "neutral.800" }}>
+                {title}
+              </Typography>
+              <Typography level="body-sm" sx={{ color: "neutral.600", fontSize: 13.5 }}>
+                {description}
+              </Typography>
+            </Box>
+          );
+        })}
       </Box>
 
-      {hasSavedTemplates ? (
+      {mode === "scratch" ? (
+        <Stack spacing={1} data-testid="start-panel-scratch" alignItems="flex-start">
+          <Typography level="body-sm" sx={{ color: "neutral.700", maxWidth: 620 }}>
+            {hasContent && selectedIntent !== "blank"
+              ? "This email already has a design. Keep it and open Design Studio below, or start over with a blank newsletter."
+              : "You get a header and an empty paragraph, ready for your own words. Open Design Studio below to begin."}
+          </Typography>
+          {hasContent && selectedIntent !== "blank" ? (
+            <JoyButton
+              variant="outlined"
+              color="neutral"
+              size="sm"
+              disabled={disabled}
+              data-testid="intent-card-blank"
+              onClick={() => onSelectIntent("blank")}
+            >
+              Start over with a blank newsletter
+            </JoyButton>
+          ) : null}
+        </Stack>
+      ) : null}
+
+      {mode === "theme" ? (
+        <Stack spacing={1} data-testid="start-panel-theme">
+          {themeAvailable && onStartFromTheme ? (
+            <Box sx={{ maxWidth: 560 }}>
+              <StartCard
+                testId="intent-start-weekly-theme"
+                icon={Sun}
+                eyebrow={weeklyTheme ? `This week's theme · ${weeklyTheme.weekLabel}` : "This week's theme"}
+                title={weeklyTheme?.title ?? "Loading this week's theme…"}
+                description={
+                  weeklyTheme?.summary ||
+                  "Start from this week's theme, copy and photos. Edit anything in Design Studio."
+                }
+                imageUrl={weeklyTheme?.imageUrl}
+                selected={weeklyThemeSelected}
+                disabled={disabled}
+                loading={weeklyThemeLoading && !weeklyTheme}
+                onSelect={onStartFromTheme}
+              />
+            </Box>
+          ) : (
+            <Typography level="body-sm" sx={{ color: "neutral.700" }}>
+              There is no theme for this week yet. Pick a preset, or start from scratch.
+            </Typography>
+          )}
+        </Stack>
+      ) : null}
+
+      {mode === "template" && !hasSavedTemplates ? (
+        <Typography level="body-sm" sx={{ color: "neutral.700", maxWidth: 620 }} data-testid="start-panel-template-empty">
+          Your business has no saved designs yet. Build an email in Design Studio, then choose Save as template to reuse it here.
+        </Typography>
+      ) : null}
+
+      {mode === "template" && hasSavedTemplates ? (
         <Stack spacing={1.5} data-testid="intent-picker-my-templates">
           <Stack
             direction="row"
@@ -649,6 +750,7 @@ export function IntentPicker({
         </Stack>
       ) : null}
 
+      {mode === "preset" ? (
       <Box
         data-testid="campaign-design-gallery"
         sx={{
@@ -732,6 +834,7 @@ export function IntentPicker({
           <IntentCard key={entry.key} entry={entry} selected={entry.key === selectedIntent} disabled={disabled} onSelect={onSelectIntent} />
         ))}
       </Box>
+      ) : null}
     </Stack>
   );
 }
