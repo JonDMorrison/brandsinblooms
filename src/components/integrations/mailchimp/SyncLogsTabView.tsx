@@ -36,10 +36,7 @@ import {
   useMailchimpSyncLogs,
 } from "@/hooks/useMailchimpSyncLogs";
 
-const STATUS_OPTIONS: Array<{
-  label: string;
-  value: MailchimpSyncLogsStatusFilter;
-}> = [
+const STATUS_OPTIONS = [
   { label: "All", value: "all" },
   { label: "Pending", value: "pending" },
   { label: "Running", value: "running" },
@@ -47,16 +44,13 @@ const STATUS_OPTIONS: Array<{
   { label: "Cancelled", value: "cancelled" },
   { label: "Completed", value: "completed" },
   { label: "Failed", value: "failed" },
-];
+] satisfies Array<{ label: string; value: MailchimpSyncLogsStatusFilter }>;
 
-const DATE_PRESET_OPTIONS: Array<{
-  label: string;
-  value: MailchimpSyncLogsDatePreset;
-}> = [
+const DATE_PRESET_OPTIONS = [
   { label: "7 days", value: "7d" },
   { label: "30 days", value: "30d" },
   { label: "All time", value: "all" },
-];
+] satisfies Array<{ label: string; value: MailchimpSyncLogsDatePreset }>;
 
 function getStatusChipColor(
   status: MailchimpSyncLogEntry["status"],
@@ -698,12 +692,12 @@ export function SyncLogsTabView({
           justifyContent="space-between"
         >
           <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
-            <StatusFilterPills
+            <StatusFilterPills<MailchimpSyncLogsStatusFilter>
               options={STATUS_OPTIONS}
               value={statusFilter}
               onChange={setStatusFilter}
             />
-            <StatusFilterPills
+            <StatusFilterPills<MailchimpSyncLogsDatePreset>
               options={DATE_PRESET_OPTIONS}
               value={datePreset}
               onChange={setDatePreset}

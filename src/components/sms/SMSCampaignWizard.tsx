@@ -148,7 +148,7 @@ const AUDIENCE_OPTIONS: Array<{
   value: AudienceMode;
   title: string;
   description: string;
-  icon: React.ComponentType<{ size?: number }>;
+  icon: LucideIcon;
 }> = [
   {
     value: "all",
@@ -174,7 +174,7 @@ const SCHEDULE_OPTIONS: Array<{
   value: ScheduleMode;
   title: string;
   description: string;
-  icon: React.ComponentType<{ size?: number }>;
+  icon: LucideIcon;
 }> = [
   {
     value: "now",

@@ -137,35 +137,6 @@ const COMING_SOON_CONTENT: Record<
       "You're on the list. We'll notify you when Clover is approved and available.",
     requestLabel: "Ask about Clover availability →",
   },
-  shopify: {
-    statusLabel: "Coming soon",
-    statusTone: "warning",
-    availabilityLabel: "Planned ecommerce release",
-    description:
-      "The new first-class Shopify integration will replace the retired legacy flow and bring ecommerce activity fully into the shared BloomSuite integrations shell.",
-    metadata: [
-      "Category: POS Systems",
-      "Scope: Products, orders, customers, and storefront data",
-      "Availability: Planned release",
-    ],
-    capabilities: [
-      "Sync Shopify products, orders, and customers into BloomSuite CRM",
-      "Trigger automations on new orders, abandoned carts, and fulfillment events",
-      "Import your Shopify customer base as a migration source",
-      "Display Shopify products on BloomSuite-powered store pages",
-    ],
-    callout: {
-      tone: "warning",
-      title:
-        "The legacy Shopify connection flow in BloomSuite has been retired.",
-      description:
-        "The new first-class Shopify integration is currently being built.",
-    },
-    notifyLabel: "Notify me when available",
-    notifyConfirmation:
-      "You're on the list. We'll notify you when Shopify is available.",
-    requestLabel: "Request this integration →",
-  },
   hubspot: {
     statusLabel: "Coming soon",
     statusTone: "warning",
@@ -2692,7 +2663,7 @@ function buildMarketingImportDetailData(
   const timeline: IntegrationDetailTimelineEntry[] =
     provider === "mailchimp"
       ? [
-          ...importHistory.map((entry) => ({
+          ...importHistory.map((entry): IntegrationDetailTimelineEntry => ({
             key: `${provider}-${entry.id}`,
             label:
               entry.segmentsCreated > 0
@@ -3468,7 +3439,7 @@ function buildEmailInfrastructureDetailData(
       tone: primaryDomain?.verified_at ? "success" : "warning",
     },
   ];
-  const healthRows = {
+  const healthRows: EmailInfrastructureDetailData["healthRows"] = {
     domain: [
       {
         label: "Primary Domain",
@@ -4687,6 +4658,9 @@ export function useIntegrationDetailData(
           if (healthDashboardResult.error) throw healthDashboardResult.error;
           if (deliverabilityResult.error) throw deliverabilityResult.error;
 
+          // get_tenant_email_health_dashboard is missing from the generated
+          // Supabase types, so its `data` is typed `null`; read it as unknown.
+          const healthDashboardData: unknown = healthDashboardResult.data;
           const emailInfrastructureDetail = buildEmailInfrastructureDetailData(
             domains,
             (dnsRecordsResult.data ?? []) as EmailInfrastructureDnsRecord[],
@@ -4695,9 +4669,9 @@ export function useIntegrationDetailData(
                 checks?: EmailInfrastructureHealthCheck[];
               } | null
             )?.checks ?? []) as EmailInfrastructureHealthCheck[],
-            (Array.isArray(healthDashboardResult.data)
-              ? (healthDashboardResult.data[0] ?? null)
-              : (healthDashboardResult.data ?? null)) as Record<
+            (Array.isArray(healthDashboardData)
+              ? (healthDashboardData[0] ?? null)
+              : (healthDashboardData ?? null)) as Record<
               string,
               unknown
             > | null,
