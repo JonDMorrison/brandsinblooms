@@ -9,6 +9,7 @@ import {
   ensureTenantWeeklyTheme,
   type ThisWeeksTheme,
 } from "@/hooks/useThisWeeksTheme";
+import { supabase } from "@/integrations/supabase/client";
 import { persistCampaignDraft } from "@/lib/crm/campaignEditor";
 import { buildCampaignOrigin } from "@/lib/crm/campaignOrigin";
 import { buildStudioDesignSystem } from "@/lib/studio/designSystem";
@@ -38,6 +39,31 @@ export function readThemeGenerationState(
       ? (record.themeImages as WeeklyThemeImage[])
       : [],
   };
+}
+
+/**
+ * The tenant's existing unsent draft for this week's theme, if any. Each
+ * click used to create another draft, so a tenant collected several
+ * near-identical "Year-End Garden Review" drafts for one theme.
+ */
+const THEME_DRAFT_REUSE_MS = 60 * 24 * 60 * 60 * 1000;
+
+export async function findThemeDraft(
+  tenantId: string,
+  origins: string[],
+): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("crm_campaigns")
+    .select("id")
+    .eq("tenant_id", tenantId)
+    .eq("status", "draft")
+    .in("origin", origins)
+    // Week numbers repeat each year: only reuse a draft from this season.
+    .gte("created_at", new Date(Date.now() - THEME_DRAFT_REUSE_MS).toISOString())
+    .order("updated_at", { ascending: false })
+    .limit(1);
+  if (error) throw error;
+  return data?.[0]?.id ?? null;
 }
 
 /**
@@ -92,9 +118,26 @@ export function useStartThemeNewsletter() {
           ),
           { brief: source.description, storeName: designSystem.company.name },
         );
+        const masterOrigin = buildCampaignOrigin(
+          "weekly_theme",
+          `master:${source.weekNumber}`,
+        );
         const origin = themeCampaignId
           ? buildCampaignOrigin("weekly_theme", themeCampaignId)
-          : buildCampaignOrigin("weekly_theme", `master:${source.weekNumber}`);
+          : masterOrigin;
+
+        // Reopen this week's draft instead of starting another copy. The
+        // draft was already written, so Studio does not regenerate it.
+        if (tenant?.id) {
+          const existingId = await findThemeDraft(
+            tenant.id,
+            Array.from(new Set([origin, masterOrigin])),
+          );
+          if (existingId) {
+            navigate(`/crm/campaigns/${existingId}/studio`);
+            return;
+          }
+        }
 
         const saved = await persistCampaignDraft({
           tenantId: tenant?.id ?? null,
