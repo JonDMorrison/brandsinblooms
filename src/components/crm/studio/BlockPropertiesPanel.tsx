@@ -2217,6 +2217,7 @@ function PanelContent({
       "event",
       "blog",
       "announcement",
+      "plant-care",
       "coupon",
       "image-gallery",
       "product-gallery",

@@ -1335,15 +1335,52 @@ export default function ExtendedBlockProperties({
     default:
       content = (
         <>
-          <p className="nl-section-title">Words</p>
+          {block.type === "plant-care" && (
+            <Choice
+              label="Layout"
+              value={block.careLayout || "beside"}
+              options={[
+                { value: "beside", label: "Photo beside the care facts" },
+                { value: "compact", label: "Compact spotlight" },
+                { value: "feature", label: "Full-width feature" },
+              ]}
+              onChange={(value) => update("careLayout", value as StudioBlock["careLayout"])}
+            />
+          )}
+          <p className="nl-section-title">{block.type === "plant-care" ? "The plant" : "Words"}</p>
           {textField("Small label above the headline", "tagLabel")}
-          {textField("Headline", "headline")}
-          {textField("Subheading", "subheading")}
-          <StudioRichTextField
-            label="Description"
-            value={block.body || ""}
-            onChange={(value) => update("body", value)}
-          />
+          {textField(block.type === "plant-care" ? "Common name" : "Headline", "headline")}
+          {textField(block.type === "plant-care" ? "Botanical name" : "Subheading", "subheading")}
+          {(block.type !== "plant-care" || block.careLayout !== "compact") && (
+            <StudioRichTextField
+              label={block.type === "plant-care" ? "Short description" : "Description"}
+              value={block.body || ""}
+              onChange={(value) => update("body", value)}
+            />
+          )}
+          {block.type === "plant-care" && (
+            <>
+              <p className="nl-section-title">Care facts</p>
+              <p className="nl-note">
+                Fill in only what you know is right for this plant. A box left
+                empty is left out of the email.
+              </p>
+              {textField("Light", "careLight")}
+              {textField("Water", "careWater")}
+              {textField("Soil", "careSoil")}
+              {textField("Hardiness", "careHardiness")}
+              {textField("Care this season", "careSeason")}
+              {block.careLayout !== "compact" && (
+                <Field
+                  label="Care tips (one per line)"
+                  multiline
+                  value={block.careTips}
+                  onChange={(value) => update("careTips", value)}
+                />
+              )}
+              {textField("Where these facts came from (optional)", "careSource")}
+            </>
+          )}
           {block.type === "event" && (
             <>
               <p className="nl-section-title">Date and place</p>

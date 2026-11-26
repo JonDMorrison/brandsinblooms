@@ -59,6 +59,13 @@ export function isEditorEmptyBlock(block: StudioBlock): boolean {
       return !present(block.headline) && !(block.chartData ?? []).length && !present(block.chartDataText);
     case "survey":
       return linksEmpty && !anyPresent([block.headline, block.body]);
+    case "plant-care":
+      // The starting label and button words do not count as content.
+      return !anyPresent([
+        block.imageUrl, block.headline, block.subheading, block.body,
+        block.careLight, block.careWater, block.careSoil, block.careHardiness,
+        block.careSeason, block.careTips,
+      ]);
     case "event":
     case "blog":
     case "announcement":
@@ -205,6 +212,15 @@ function layoutFor(block: StudioBlock): string | null {
         ["Answer one", "Answer two", "Answer three"]
           .map((label) => `<div style="margin:8px 0;">${sampleButton(label, { full: true, outlined: true })}</div>`)
           .join("");
+    case "plant-care": {
+      const position = block.careLayout === "feature" ? "top" : block.imagePosition === "right" ? "right" : "left";
+      const button = typeof block.buttonText === "string" && block.buttonText.trim() ? block.buttonText : "Button";
+      return imageAndCopy(
+        position,
+        editorImagePlaceholder({ height: position === "top" ? 220 : 180, radius: 6, field: "imageUrl" }),
+        editorSampleCopy({ heading: "Plant name", text: "Light · Water · Care tips for this plant.", button }),
+      );
+    }
     case "event":
     case "blog":
     case "announcement": {

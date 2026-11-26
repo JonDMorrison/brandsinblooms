@@ -194,6 +194,28 @@ export function createStudioBlock(
         links: [],
         appearance: { padding: { top: 24, right: 24, bottom: 24, left: 24 } },
       };
+    case "plant-care":
+      return {
+        ...base,
+        tagLabel: "Plant care spotlight",
+        headline: "",
+        subheading: "",
+        body: "",
+        imageUrl: "",
+        imagePosition: "left",
+        careLayout: "beside",
+        careLight: "",
+        careWater: "",
+        careSoil: "",
+        careHardiness: "",
+        careSeason: "",
+        careTips: "",
+        careSource: "",
+        buttonText: "Read the full care guide",
+        buttonUrl: "",
+        buttonColor: primaryColor || "#1f4341",
+        buttonTextColor: primaryContrastText || "#ffffff",
+      };
     case "event":
     case "blog":
     case "announcement":

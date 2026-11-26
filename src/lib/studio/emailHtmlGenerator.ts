@@ -2393,6 +2393,7 @@ export function renderNewsletterBlock(
     "event",
     "blog",
     "announcement",
+    "plant-care",
     "product",
     "product-card",
     "product-gallery",

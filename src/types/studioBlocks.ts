@@ -23,6 +23,7 @@ export type BlockType =
   | "event"
   | "blog"
   | "announcement"
+  | "plant-care"
   | "email-safe-hero"
   | "graphic-hero"
   | "full-width-image"
@@ -151,6 +152,21 @@ export interface StudioBlock {
   eventFeeType?: "unspecified" | "free" | "donation" | "paid";
   eventFeeAmount?: string;
   eventLocation?: string;
+  /**
+   * Plant Care Spotlight. Every fact is typed or picked by staff and saved
+   * with the email, so a sent email never changes when a care guide does.
+   * An empty fact is left out of the email. Nothing is filled in by guesswork.
+   */
+  careLight?: string;
+  careWater?: string;
+  careSoil?: string;
+  careHardiness?: string;
+  careSeason?: string;
+  /** One tip per line. */
+  careTips?: string;
+  /** Where the facts came from, shown small under them. */
+  careSource?: string;
+  careLayout?: "beside" | "compact" | "feature";
   headerBannerUrl?: string;
   newsletterSettings?: NewsletterSettings;
 

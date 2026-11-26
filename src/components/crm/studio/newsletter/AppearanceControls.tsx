@@ -487,7 +487,7 @@ export default function AppearanceControls({
   // spacing with the content it affects. Never render the generic copies below.
   const hasDedicatedSpacing = Boolean(block && [
     "image-gallery", "product-gallery", "product-card", "social-follow",
-    "event", "blog", "announcement", "coupon",
+    "event", "blog", "announcement", "plant-care", "coupon",
   ].includes(block.type));
   const roles: TextRole[] = blockRoles ?? [
     ...(Object.keys(HEADING_SIZES) as TextRole[]),
