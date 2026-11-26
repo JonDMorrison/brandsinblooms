@@ -121,7 +121,7 @@ function picture(block: StudioBlock, width = 220, sizing?: PictureSizing): strin
       ? `${clampNumber(block.imageHeight, 220, 120, 480)}px`
       // Blog and Announcement: "Show whole photo" (the default) keeps the
       // photo's own shape. Fill and Stretch use the chosen height.
-      : (block.type === "blog" || block.type === "announcement") &&
+      : (block.type === "blog" || block.type === "announcement" || block.type === "plant-care") &&
           (block.imageFit === "cover" || block.imageFit === "fill")
         ? `${croppedPhotoHeight(block, 240)}px`
         : "auto";
@@ -185,6 +185,72 @@ function imageAndContent(
   return table(
     `<tr>${side === "right" ? contentCell + imageCell : imageCell + contentCell}</tr>`,
   );
+}
+
+/** The facts a Plant Care Spotlight shows, in order. Empty ones are left out. */
+export function plantCareFacts(block: StudioBlock): Array<{ label: string; value: string }> {
+  const rows: Array<[string, unknown]> = [
+    ["Light", block.careLight],
+    ["Water", block.careWater],
+    ["Soil", block.careSoil],
+    ["Hardiness", block.careHardiness],
+    ["This season", block.careSeason],
+  ];
+  return rows
+    .filter((row): row is [string, string] => present(row[1]))
+    .map(([label, value]) => ({ label, value: value.trim() }));
+}
+export function plantCareTips(block: StudioBlock): string[] {
+  return present(block.careTips)
+    ? block.careTips.split(/\r?\n/).map((tip) => tip.replace(/^\s*[-*\u2022]\s*/, "").trim()).filter(Boolean).slice(0, 8)
+    : [];
+}
+function renderPlantCare(block: StudioBlock, width: number, editing = false): string {
+  const layout = block.careLayout === "compact" || block.careLayout === "feature" ? block.careLayout : "beside";
+  const facts = plantCareFacts(block);
+  const tips = layout === "compact" ? [] : plantCareTips(block);
+  const align = blockTextAlign(block);
+  const alignCss = align ? `text-align:${align};` : "";
+  const label = (value: string) =>
+    `<span style="font-weight:700;">${text(value)}</span>`;
+  const factText = `font-family:${emailFont(block.appearance?.text?.body?.fontFamily)};font-size:14px;line-height:1.45;color:${emailColor(block.textColor, "#172d2c")};${alignCss}`;
+  const line = `border-top:1px solid ${emailColor(block.accentColor, "#dfe6e2")};`;
+  let factHtml = "";
+  if (facts.length && layout === "compact") {
+    // One short line keeps the compact card small.
+    factHtml = `<div data-newsletter-role="label" style="margin:0 0 10px;${factText}">${facts.map((fact) => `${label(fact.label)}: ${text(fact.value)}`).join(" &nbsp;&middot;&nbsp; ")}</div>`;
+  } else if (facts.length && layout === "feature") {
+    // Two facts per row under the wide photo. Cells stack on a phone.
+    const rows: string[] = [];
+    for (let i = 0; i < facts.length; i += 2) {
+      const pair = facts.slice(i, i + 2);
+      rows.push(`<tr>${pair.map((fact) => `<td class="responsive-column" width="50%" valign="top" style="width:50%;padding:10px 12px 10px 0;${line}${factText}"><div style="font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;">${text(fact.label)}</div>${text(fact.value)}</td>`).join("")}${pair.length === 1 ? `<td class="responsive-column" width="50%" style="width:50%;${line}">&nbsp;</td>` : ""}</tr>`);
+    }
+    factHtml = `<div style="margin:6px 0 12px;">${table(rows.join(""))}</div>`;
+  } else if (facts.length) {
+    factHtml = `<div style="margin:6px 0 12px;">${table(facts.map((fact) => `<tr><td valign="top" width="34%" style="width:34%;padding:7px 10px 7px 0;${line}${factText}font-weight:700;">${text(fact.label)}</td><td valign="top" style="padding:7px 0;${line}${factText}">${text(fact.value)}</td></tr>`).join(""))}</div>`;
+  }
+  const tipHtml = tips.length
+    ? `<div data-newsletter-role="label" style="margin:0 0 6px;${factText}font-weight:700;">Care tips</div>${table(tips.map((tip) => `<tr><td valign="top" width="18" style="width:18px;padding:0 0 6px;${factText}">&bull;</td><td valign="top" style="padding:0 0 6px;${factText}text-align:left;">${text(tip)}</td></tr>`).join(""))}`
+    : "";
+  const source = present(block.careSource)
+    ? `<div style="margin:8px 0 12px;${factText}font-size:12px;opacity:0.75;">Source: ${text(block.careSource)}</div>`
+    : "";
+  const botanical = present(block.subheading)
+    ? `<div data-newsletter-role="subheading" style="margin:0 0 10px;font-style:italic;${role(block, "subheading", 16)}">${text(block.subheading)}</div>`
+    : "";
+  const content =
+    paragraph(block, block.tagLabel, "label", 12) +
+    heading(block) +
+    botanical +
+    (layout === "compact" ? "" : paragraph(block, block.body)) +
+    factHtml +
+    tipHtml +
+    source +
+    (block.showButton === false ? "" : alignedButton(block, renderNewsletterButton(block, undefined, undefined, editing)));
+  const shown = block.showImage === false ? { ...block, imageUrl: "" } : block;
+  const side = layout === "feature" ? "top" : block.imagePosition === "right" ? "right" : "left";
+  return imageAndContent(shown, content, side, width, layout === "compact" ? 26 : 38);
 }
 
 function renderEventCard(block: StudioBlock, width: number, editing = false): string {
@@ -694,6 +760,8 @@ export function renderExtendedBlock(
     }
     case "event":
       return renderEventCard(block, width, editing);
+    case "plant-care":
+      return renderPlantCare(block, width, editing);
     case "blog":
     case "announcement":
       return imageAndContent(

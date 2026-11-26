@@ -10,6 +10,7 @@ import {
   ListChecks,
   CalendarDays,
   Megaphone,
+  Sprout,
   Columns,
   Grid3X3,
   Heading,
@@ -190,6 +191,12 @@ export const BLOCK_CATEGORIES: BlockCategory[] = [
         name: "Announcement",
         description: "Share important news, like new hours",
         icon: Megaphone,
+      },
+      {
+        type: "plant-care",
+        name: "Plant Care Spotlight",
+        description: "Feature one plant with its light, water and care tips",
+        icon: Sprout,
       },
       {
         type: "quote",
