@@ -113,6 +113,20 @@ export function withOpenTotals(summary: unknown): Row {
     counting_note: "open_total is every request that is not resolved. It equals the sum of open_by_status. Report these numbers as given." };
 }
 
+const statusWords = (s: unknown) => String(s ?? "").replace(/_/g, " ");
+/** The found requests as plain lines, for when the model's own wording cannot be shown. */
+export function ticketListFallback(found: Row[], openOnly: boolean): string | undefined {
+  if (!found.length) return openOnly ? "No open requests matched." : "No requests matched.";
+  const lines = found.slice(0, 10).map(t => `\u2022 #${Number(t.number)} ${safeTicketText(t.subject, 90)} (${statusWords(t.status)})`);
+  return `${openOnly ? "Open requests" : "Requests found"}, up to 10 shown:\n${lines.join("\n")}\nTo close one, say *close #* and its number.`;
+}
+/** The open totals as one plain line. */
+export function openTotalsFallback(overview: Row): string | undefined {
+  if (typeof overview.open_total !== "number") return undefined;
+  const parts = Object.entries(row(overview.open_by_status)).map(([status, n]) => `${statusWords(status)} ${Number(n)}`);
+  return `Open requests: ${overview.open_total}${parts.length ? ` (${parts.join(", ")})` : ""}.`;
+}
+
 /** One Stripe answer in plain words. A key that lacks a resource is named so an owner can fix it. */
 export async function platformFinanceReply(kind: FinanceKind, question: string, now = Date.now()): Promise<{ ok: boolean; text: string }> {
   const today = new Date(now).toISOString().slice(0, 10);
@@ -259,8 +273,10 @@ export async function answerWithSlackAgent(c: SlackAgentContext, question: strin
         return { source: source("Reply approvals", `${DESK}?view=approvals`), data,
           receipt: `A reply draft is recorded for request #${Number(t.number)} in Reply approvals. It has not been sent. Review its exact recipient and text before approving.` };
       }
-      case "support_overview":
-        return { source: source("Live support overview"), data: withOpenTotals(await actions.summary(caller)) };
+      case "support_overview": {
+        const overview = withOpenTotals(await actions.summary(caller));
+        return { source: source("Live support overview"), data: overview, fallback: openTotalsFallback(overview) };
+      }
       case "platform_finance": {
         if (!confirmedPrivate || c.ticket_id) throw new ToolPermissionError("Stripe figures are not enabled for this Slack conversation");
         const kind = String(a.kind) as FinanceKind;
@@ -291,7 +307,8 @@ export async function answerWithSlackAgent(c: SlackAgentContext, question: strin
         const page = rows(await actions.listTickets(caller, { q: a.query, ...(a.status === "all" || open ? {} : { status: a.status }), limit: open ? 40 : 10 }));
         const found = (open ? page.filter(t => t.status !== "resolved") : page).slice(0, 10);
         for (const t of found) tickets.add(id(t.id));
-        return { source: source("Live support requests"), data: { results: found.map(t => pick(t, ["id", "number", "subject", "status", "priority", "product", "account", "updated_at", "next_action"])), limited_to: 10 } };
+        return { source: source("Live support requests"), fallback: ticketListFallback(found, open),
+          data: { results: found.map(t => pick(t, ["id", "number", "subject", "status", "priority", "product", "account", "updated_at", "next_action"])), limited_to: 10 } };
       }
       case "ticket_evidence": {
         const t = await getTicket(a.ticket_id);
