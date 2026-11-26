@@ -377,7 +377,7 @@ export function DashboardTopBar({
                         return;
                       }
 
-                      askBloom.openGeneral();
+                      askBloom.openForCurrentPage();
                     }}
                     sx={{
                       minHeight: 32,

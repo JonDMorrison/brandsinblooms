@@ -12,6 +12,8 @@ import type { Json } from "@/integrations/supabase/types";
 import { useAskBloomStreaming } from "@/hooks/askBloom/useAskBloomStreaming";
 import { useAskBloomConversation } from "@/hooks/askBloom/useAskBloomConversation";
 import { useAskBloomNavigation } from "@/hooks/askBloom/useAskBloomNavigation";
+import { bloomConversationsQueryBaseKey } from "@/hooks/bloom/useBloomConversations";
+import { bloomMessagesQueryKey } from "@/hooks/bloom/useBloomMessages";
 import {
   parseBloomTaskCompletionSummary,
   parseBloomTaskPlan,
@@ -46,6 +48,8 @@ import { toJsonValue } from "@/utils/jsonValue";
 import { parseResourceFromPath } from "@/utils/askBloomRouteContext";
 import { dispatchAskBloomResourceSync } from "@/utils/askBloomResourceSync";
 import { bloomChatClientContext } from "@/lib/bloomSupport/api";
+import { resolvePageContext as resolveBloomPageContext } from "@/components/bloom/utils/resolvePageContext";
+import type { BloomPageContext } from "@/hooks/bloom/types";
 
 interface AskBloomProviderProps {
   children: React.ReactNode;
@@ -53,7 +57,6 @@ interface AskBloomProviderProps {
 
 interface AskBloomConversationCacheEntry {
   conversation: AskBloomConversation | null;
-  messages: AskBloomMessage[];
 }
 
 interface PostStreamRefetchGuard {
@@ -70,6 +73,7 @@ interface ParsedSseEvent {
 type AskBloomAction =
   | { type: "OPEN_WITH_RESOURCE"; payload: ResourceFocus }
   | { type: "OPEN_GENERAL" }
+  | { type: "OPEN" }
   | { type: "CLOSE" }
   | { type: "TOGGLE_COLLAPSE" }
   | { type: "SET_PANEL_WIDTH"; payload: number }
@@ -413,6 +417,16 @@ const askBloomReducer = (
         isTransitioning: false,
         isSendingMessage: false,
         isPinned: false,
+      };
+    case "OPEN":
+      if (state.isOpen && !state.isCollapsed) {
+        return state;
+      }
+
+      return {
+        ...state,
+        isOpen: true,
+        isCollapsed: false,
       };
     case "CLOSE":
       return {
@@ -761,6 +775,42 @@ const askBloomReducer = (
     default:
       return state;
   }
+};
+
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/**
+ * The page the drawer is asked from, in the same shape /bloom sends. A focused
+ * resource wins over the route so a pinned conversation keeps its subject after
+ * the user navigates.
+ */
+const buildAskBloomPageContext = (
+  pathname: string,
+  resourceFocus: ResourceFocus | null,
+): BloomPageContext => {
+  const pageContext = resolveBloomPageContext(
+    resourceFocus?.sourceRoute || pathname,
+  );
+  const resourceType = resourceFocus?.resourceType;
+
+  if (
+    !resourceFocus ||
+    (resourceType !== "campaign" &&
+      resourceType !== "customer" &&
+      resourceType !== "product" &&
+      resourceType !== "segment") ||
+    // bloom-assist rejects a page context whose entityId is not a UUID.
+    !UUID_PATTERN.test(resourceFocus.resourceId)
+  ) {
+    return pageContext;
+  }
+
+  return {
+    ...pageContext,
+    entityType: resourceType,
+    entityId: resourceFocus.resourceId,
+  };
 };
 
 const activeElementIsInsideAskBloomInput = () => {
@@ -1218,6 +1268,16 @@ export function AskBloomProvider({ children }: AskBloomProviderProps) {
           guard.conversationId,
           guard.minimumMessageCount,
         );
+        // The drawer and /bloom share the Bloom message cache. Mark this
+        // conversation's messages and the /bloom history list stale so /bloom
+        // shows what the drawer just wrote.
+        void queryClient.invalidateQueries({
+          queryKey: bloomMessagesQueryKey(guard.conversationId),
+          exact: true,
+        });
+        void queryClient.invalidateQueries({
+          queryKey: bloomConversationsQueryBaseKey(tenant?.id ?? null),
+        });
       }
 
       if (!resourceFocus) {
@@ -1232,7 +1292,7 @@ export function AskBloomProvider({ children }: AskBloomProviderProps) {
         ],
       });
     },
-    [queryClient, startPostStreamRefetchGuard],
+    [queryClient, startPostStreamRefetchGuard, tenant?.id],
   );
 
   const refetchConversationMessages = React.useCallback(
@@ -2270,6 +2330,10 @@ export function AskBloomProvider({ children }: AskBloomProviderProps) {
             conversationId,
             resourceFocus: state.resourceFocus,
             assistantMessageId,
+            pageContext: buildAskBloomPageContext(
+              location.pathname,
+              state.resourceFocus,
+            ),
           });
         } catch (error) {
           const fallbackMessage =
@@ -2310,6 +2374,7 @@ export function AskBloomProvider({ children }: AskBloomProviderProps) {
       ensureConversation,
       clearPersistedFormState,
       clearPostStreamRefetchGuard,
+      location.pathname,
       state.conversationId,
       state.isSendingMessage,
       state.isTransitioning,
@@ -2338,6 +2403,110 @@ export function AskBloomProvider({ children }: AskBloomProviderProps) {
       sendMessage(lastUser.content);
     }
   }, [sendMessage, state.messages]);
+
+  const openConversation = React.useCallback(
+    (conversationId: string) => {
+      if (!conversationId) {
+        return;
+      }
+
+      dispatch({ type: "OPEN" });
+      loadConversation(conversationId);
+    },
+    [loadConversation],
+  );
+
+  const [pendingPrompt, setPendingPrompt] = React.useState<string | null>(
+    null,
+  );
+
+  /**
+   * Opens the drawer on the page the user is looking at: focused on the route's
+   * resource when it is loaded (shown as the "About: …" pill), otherwise a
+   * general conversation. An already-open drawer on that resource is kept.
+   */
+  const openForCurrentPage = React.useCallback(() => {
+    const parsedRouteResource = parseResourceFromPath(location.pathname);
+    const routeFocus = parsedRouteResource
+      ? getResourceFocusFromCache(
+          parsedRouteResource.resourceType,
+          parsedRouteResource.resourceId,
+          queryClient,
+        )
+      : null;
+    const isAlreadyFocusedHere =
+      Boolean(routeFocus) &&
+      state.isOpen &&
+      state.resourceFocus?.resourceType === routeFocus?.resourceType &&
+      state.resourceFocus?.resourceId === routeFocus?.resourceId;
+
+    if (routeFocus && !isAlreadyFocusedHere) {
+      openWithResource(routeFocus);
+    } else if (!state.isOpen) {
+      openGeneral();
+    } else {
+      dispatch({ type: "OPEN" });
+    }
+  }, [
+    location.pathname,
+    openGeneral,
+    openWithResource,
+    queryClient,
+    state.isOpen,
+    state.resourceFocus,
+  ]);
+
+  const openWithPrompt = React.useCallback(
+    (prompt: string) => {
+      const trimmedPrompt = prompt.trim();
+      if (!trimmedPrompt) {
+        return;
+      }
+
+      openForCurrentPage();
+      setPendingPrompt(trimmedPrompt);
+    },
+    [openForCurrentPage],
+  );
+
+  const hasSendableIdentity = Boolean(
+    user?.id && tenant?.id && session?.access_token,
+  );
+  const isConversationSettling =
+    state.isTransitioning ||
+    state.isLoadingConversation ||
+    state.isSendingMessage ||
+    state.isStreaming ||
+    conversationQuery.isLoading ||
+    // A resource-focused drawer resolves (or creates) its conversation first.
+    (Boolean(state.resourceFocus) && !state.conversationId);
+
+  React.useEffect(() => {
+    if (!pendingPrompt) {
+      return;
+    }
+
+    if (!state.isOpen) {
+      // The drawer was closed before the prompt could be asked.
+      setPendingPrompt(null);
+      return;
+    }
+
+    // Never send before the user, organization and session token exist, or
+    // while the drawer is still resolving which conversation it is on.
+    if (!hasSendableIdentity || isConversationSettling) {
+      return;
+    }
+
+    setPendingPrompt(null);
+    sendMessage(pendingPrompt);
+  }, [
+    hasSendableIdentity,
+    isConversationSettling,
+    pendingPrompt,
+    sendMessage,
+    state.isOpen,
+  ]);
 
   const keepPartialResponse = React.useCallback(() => {
     dispatch({ type: "CLEAR_STREAMING_INDICATORS" });
@@ -2565,6 +2734,10 @@ export function AskBloomProvider({ children }: AskBloomProviderProps) {
       unpinConversation,
       newConversation,
       loadConversation,
+      openConversation,
+      openForCurrentPage,
+      openWithPrompt,
+      pendingPrompt,
       setNavigationPrompt,
       dismissNavigationPrompt,
       acceptNavigationPrompt,
@@ -2609,8 +2782,12 @@ export function AskBloomProvider({ children }: AskBloomProviderProps) {
       keepPartialResponse,
       loadConversation,
       newConversation,
+      openConversation,
+      openForCurrentPage,
       openGeneral,
+      openWithPrompt,
       openWithResource,
+      pendingPrompt,
       pinConversation,
       persistResourceFormState,
       presentResourceForm,

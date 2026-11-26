@@ -10,20 +10,17 @@ interface ContentBlockRendererProps {
   block: BloomContentBlock;
   onAction?: (prompt: string) => void;
   onRetry?: () => void;
-  /** Tighter markdown spacing for the command-palette compact panel. */
-  compact?: boolean;
   /** Markdown reading style; "panel" is the Ask Bloom drawer's. */
   markdownVariant?: BloomMarkdownVariant;
 }
 
 /**
- * The one Bloom message-content renderer. The Ask Bloom drawer, the /bloom
- * workspace (persisted and streaming messages) and the compact panel all render
- * message text and result blocks through it.
+ * The one Bloom message-content renderer. The Ask Bloom drawer and the /bloom
+ * workspace (persisted and streaming messages) render message text and result
+ * blocks through it.
  */
 export function ContentBlockRenderer({
   block,
-  compact,
   markdownVariant,
   onAction,
   onRetry,
@@ -31,11 +28,7 @@ export function ContentBlockRenderer({
   switch (block.type) {
     case "text":
       return (
-        <BloomTextBlock
-          compact={compact}
-          content={block.content}
-          variant={markdownVariant}
-        />
+        <BloomTextBlock content={block.content} variant={markdownVariant} />
       );
     case "thinking":
       return <BloomThinkingBlock content={block.content} />;

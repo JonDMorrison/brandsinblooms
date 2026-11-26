@@ -203,7 +203,6 @@ export interface UseAskBloomStreamingOptions {
   onFollowUpChips?: (chips: string[]) => void;
   onResourceFormDetected?: (form: PendingResourceForm) => void;
   onModeOverride?: (mode: BloomMode) => void;
-  onConversationResolved?: (conversationId: string) => void;
 }
 
 export interface AskBloomSendMessageOverrides {
@@ -1562,8 +1561,6 @@ export function useAskBloomStreaming(options: UseAskBloomStreamingOptions) {
   >(null);
   const [lastLatencyMetrics, setLastLatencyMetrics] =
     React.useState<BloomStreamingLatencyMetrics | null>(null);
-  const [lastDoneMetadata, setLastDoneMetadata] =
-    React.useState<BloomStreamingDoneMetadata | null>(null);
 
   const optionsRef = React.useRef(options);
   const connectionStateRef = React.useRef<BloomStreamingConnectionState>("idle");
@@ -1671,7 +1668,6 @@ export function useAskBloomStreaming(options: UseAskBloomStreamingOptions) {
     setActiveToolCall(null);
     setStreamError(null);
     setLastLatencyMetrics(null);
-    setLastDoneMetadata(null);
   }, []);
 
   const dismissPendingTaskPlan = React.useCallback(() => {
@@ -1957,7 +1953,6 @@ export function useAskBloomStreaming(options: UseAskBloomStreamingOptions) {
         return;
       }
 
-      optionsRef.current.onConversationResolved?.(resolvedConversationId);
       const currentMessages = queryClient.getQueryData<BloomMessagesCache>(
         bloomMessagesQueryKey(resolvedConversationId),
       );
@@ -2312,7 +2307,6 @@ export function useAskBloomStreaming(options: UseAskBloomStreamingOptions) {
                 cacheStats: doneMetadata.cacheStats,
               };
               setLastLatencyMetrics(latencyMetrics);
-              setLastDoneMetadata(doneMetadata);
               if (doneMetadata.modeOverride) {
                 callbacks.onModeOverride?.(doneMetadata.modeOverride);
               }
@@ -2597,10 +2591,6 @@ export function useAskBloomStreaming(options: UseAskBloomStreamingOptions) {
     cancelStream,
     isStreaming:
       connectionState === "connecting" || connectionState === "streaming",
-    /** True once a signed-in user (and, for the Bloom message cache, an organization) is loaded. */
-    canSend: Boolean(
-      accessToken && (store === "local" || (tenantId && userId)),
-    ),
     connectionState,
     streamingContent,
     streamingThinking,
@@ -2614,8 +2604,6 @@ export function useAskBloomStreaming(options: UseAskBloomStreamingOptions) {
     isResearchComplete,
     pendingTaskPlan,
     lastLatencyMetrics,
-    lastDoneMetadata,
-    resetStream: resetStreamState,
     dismissPendingTaskPlan,
   };
 }

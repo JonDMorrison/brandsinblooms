@@ -306,6 +306,24 @@ export interface AskBloomContextValue extends AskBloomState {
   unpinConversation: () => void;
   newConversation: () => void;
   loadConversation: (conversationId: string) => void;
+  /**
+   * Opens the drawer on `conversationId` (e.g. when leaving /bloom, which is
+   * the same conversation expanded).
+   */
+  openConversation: (conversationId: string) => void;
+  /**
+   * Opens the drawer with the current page's context and asks `prompt` once
+   * the signed-in user, organization and session token are loaded. This is the
+   * single entry point for buttons that start Bloom with a prompt.
+   */
+  openWithPrompt: (prompt: string) => void;
+  /**
+   * Opens the drawer with the current page's resource as its context when the
+   * page has one, otherwise as a general conversation.
+   */
+  openForCurrentPage: () => void;
+  /** A prompt waiting for auth/tenant/conversation readiness before sending. */
+  pendingPrompt: string | null;
   setNavigationPrompt: (prompt: AskBloomNavigationPrompt | null) => void;
   dismissNavigationPrompt: () => void;
   acceptNavigationPrompt: () => void;

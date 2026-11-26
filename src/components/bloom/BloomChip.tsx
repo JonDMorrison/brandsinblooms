@@ -4,19 +4,13 @@ import Tooltip from "@mui/joy/Tooltip";
 import { motion } from "framer-motion";
 import { Sparkles } from "lucide-react";
 import { useBloomReducedMotion } from "@/components/bloom/BloomMotionContext";
+import { useNavigate } from "react-router-dom";
 import { JoyChip } from "@/components/joy/JoyChip";
-import {
-  activateCompact,
-  type BloomCompactEntityContext,
-} from "@/hooks/bloom/useBloomCompactMode";
-import type { BloomPageEntityType } from "@/hooks/bloom/types";
+import { useOptionalAskBloom } from "@/providers/AskBloomProvider";
 
 export interface BloomChipProps {
   label: string;
   prompt: string;
-  entityType?: string;
-  entityId?: string;
-  autoSend?: boolean;
 }
 
 interface BloomChipInnerProps extends BloomChipProps {
@@ -26,33 +20,6 @@ interface BloomChipInnerProps extends BloomChipProps {
 
 interface BloomChipBoundaryState {
   hasError: boolean;
-}
-
-const entityTypes = new Set<BloomPageEntityType>([
-  "campaign",
-  "customer",
-  "product",
-  "segment",
-]);
-
-function isBloomPageEntityType(
-  value: string | undefined,
-): value is BloomPageEntityType {
-  return Boolean(value && entityTypes.has(value as BloomPageEntityType));
-}
-
-function getEntityContext(
-  entityType: string | undefined,
-  entityId: string | undefined,
-): BloomCompactEntityContext | undefined {
-  if (!entityId || !isBloomPageEntityType(entityType)) {
-    return undefined;
-  }
-
-  return {
-    entityId,
-    entityType,
-  };
 }
 
 function BloomChipTrigger({
@@ -133,15 +100,20 @@ function BloomChipTrigger({
   );
 }
 
+/**
+ * Starts Bloom with a prompt. In the tenant shell that is the Ask Bloom drawer,
+ * which carries the page's context and asks the prompt only once the user,
+ * organization and session token are loaded. Outside it (no drawer), the full
+ * Bloom page opens with the prompt prefilled, never auto-sent.
+ */
 function BloomChipInner({
-  autoSend = true,
   disabled = false,
   disabledTooltip,
-  entityId,
-  entityType,
   label,
   prompt,
 }: BloomChipInnerProps) {
+  const askBloom = useOptionalAskBloom();
+  const navigate = useNavigate();
   const trimmedPrompt = prompt.trim();
   const isDisabled = disabled || !trimmedPrompt;
 
@@ -150,10 +122,13 @@ function BloomChipInner({
       return;
     }
 
-    activateCompact(trimmedPrompt, getEntityContext(entityType, entityId), {
-      autoSend,
-    });
-  }, [autoSend, entityId, entityType, isDisabled, trimmedPrompt]);
+    if (askBloom) {
+      askBloom.openWithPrompt(trimmedPrompt);
+      return;
+    }
+
+    navigate(`/bloom?prompt=${encodeURIComponent(trimmedPrompt)}`);
+  }, [askBloom, isDisabled, navigate, trimmedPrompt]);
 
   return (
     <BloomChipTrigger

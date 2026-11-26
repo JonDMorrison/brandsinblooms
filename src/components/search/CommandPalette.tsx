@@ -13,14 +13,10 @@ import Sheet from "@mui/joy/Sheet";
 import { useColorScheme } from "@mui/joy/styles";
 import { CommandPaletteFilterBar } from "@/components/search/CommandPaletteFilterBar";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useQueryClient } from "@tanstack/react-query";
 import { CommandPaletteFooter } from "@/components/search/CommandPaletteFooter";
 import { CommandPaletteInput } from "@/components/search/CommandPaletteInput";
 import { CommandPaletteResults } from "@/components/search/CommandPaletteResults";
-import { BloomCompactMode } from "@/components/bloom/BloomCompactMode";
 import { useOptionalAskBloom } from "@/providers/AskBloomProvider";
-import { getResourceFocusFromCache } from "@/utils/askBloomResourceRegistry";
-import { parseResourceFromPath } from "@/utils/askBloomRouteContext";
 import { applyRouteVisitBoost } from "@/components/search/databaseSearch";
 import {
   coerceSearchFilter,
@@ -80,10 +76,6 @@ import {
 } from "@/components/search/types";
 import { useCommandPaletteSearch } from "@/components/search/useCommandPaletteSearch";
 import { useCommandPaletteNavigation } from "@/components/search/useCommandPaletteNavigation";
-import {
-  useBloomCompactMode,
-  type BloomCompactActivationRequest,
-} from "@/hooks/bloom/useBloomCompactMode";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useCampaignCloning } from "@/hooks/useCampaignCloning";
 import useMediaQuery from "@/hooks/use-media-query";
@@ -92,7 +84,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/utils/toast";
 
 const PALETTE_EXIT_DURATION_MS = 150;
-const COMPACT_VIEW_TRANSITION_MS = 100;
 const ACTION_SUCCESS_DURATION_MS = 1500;
 const ASK_BLOOM_COMMAND_ID = "ask-bloom";
 const ASK_BLOOM_ITEM_ID = "command:ask-bloom";
@@ -106,7 +97,6 @@ const SUPPORTED_SYNC_PROVIDERS = new Set([
 ]);
 
 interface CommandPaletteProps {
-  compactActivationRequest?: BloomCompactActivationRequest | null;
   open: boolean;
   openSource?: SearchOpenSource;
   onClose: () => void;
@@ -238,7 +228,6 @@ function prependActionResult(
 }
 
 export function CommandPalette({
-  compactActivationRequest = null,
   open,
   openSource = "click",
   onClose,
@@ -250,20 +239,15 @@ export function CommandPalette({
   const copiedActionTimeoutRef = useRef<number | null>(null);
   const announcementTimeoutRef = useRef<number | null>(null);
   const lifecycleOpenRef = useRef(open);
-  const handledCompactRequestIdRef = useRef<number | null>(null);
   const trackedQueryKeyRef = useRef<string | null>(null);
   const trackedNoResultsKeyRef = useRef<string | null>(null);
   const closeSnapshotRef = useRef({ query: "", resultCount: 0 });
-  const compactViewInitializedRef = useRef(false);
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const { user } = useAuth();
   const askBloom = useOptionalAskBloom();
-  const queryClient = useQueryClient();
   const { mode, setMode } = useColorScheme();
   const { cloneCampaign } = useCampaignCloning();
-  const compactMode = useBloomCompactMode();
-  const { activateCompact, dismissCompact } = compactMode;
   const prefersReducedMotion = useMediaQuery(
     "(prefers-reduced-motion: reduce)",
   );
@@ -277,8 +261,6 @@ export function CommandPalette({
   const [analyticsQuery, setAnalyticsQuery] = useState("");
   const [isMounted, setIsMounted] = useState(open);
   const [isVisible, setIsVisible] = useState(open);
-  const [isCompactViewVisible, setIsCompactViewVisible] = useState(false);
-  const [isCompactViewSwitching, setIsCompactViewSwitching] = useState(false);
   const [recentSearches, setRecentSearches] = useState<
     RecentSearchQueryEntry[]
   >([]);
@@ -289,8 +271,6 @@ export function CommandPalette({
   const [focusedFilterIndex, setFocusedFilterIndex] = useState(0);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [copiedActionId, setCopiedActionId] = useState<string | null>(null);
-  const [pendingCompactAutoSendPrompt, setPendingCompactAutoSendPrompt] =
-    useState<string | null>(null);
   const [pendingActionId, setPendingActionId] = useState<string | null>(null);
   const [actionErrors, setActionErrors] = useState<Record<string, string>>({});
   const [itemOverrides, setItemOverrides] = useState<
@@ -381,99 +361,16 @@ export function CommandPalette({
       setFocusedFilterIndex(0);
       setShowShortcuts(false);
       setCopiedActionId(null);
-      setPendingCompactAutoSendPrompt(null);
       setPendingActionId(null);
       setActionErrors({});
       setItemOverrides({});
-      dismissCompact();
       previousFocusRef.current?.focus?.();
     }, PALETTE_EXIT_DURATION_MS);
 
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, [dismissCompact, isMounted, open]);
-
-  useEffect(() => {
-    if (!open || !compactActivationRequest) {
-      return;
-    }
-
-    if (handledCompactRequestIdRef.current === compactActivationRequest.id) {
-      return;
-    }
-
-    handledCompactRequestIdRef.current = compactActivationRequest.id;
-    compactMode.setActiveMode("standard");
-    activateCompact(
-      compactActivationRequest.prompt,
-      compactActivationRequest.entityContext,
-    );
-    setPendingCompactAutoSendPrompt(
-      compactActivationRequest.autoSend
-        ? compactActivationRequest.prompt.trim() || null
-        : null,
-    );
-    setShowShortcuts(false);
-  }, [activateCompact, compactActivationRequest, compactMode, open]);
-
-  useEffect(() => {
-    if (
-      !pendingCompactAutoSendPrompt ||
-      !compactMode.isActive ||
-      // The palette mounts its own tenant and session hooks. Wait for them,
-      // or an auto-sent prompt fails with "select an organization".
-      !compactMode.canSend ||
-      compactMode.isStreaming ||
-      compactMode.draftPrompt.trim() !== pendingCompactAutoSendPrompt
-    ) {
-      return;
-    }
-
-    let cancelled = false;
-
-    void compactMode
-      .sendCompactMessage(pendingCompactAutoSendPrompt)
-      .then((sent) => {
-        if (!cancelled && sent) {
-          setPendingCompactAutoSendPrompt(null);
-        }
-      })
-      .catch(() => undefined);
-
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    compactMode.canSend,
-    compactMode.draftPrompt,
-    compactMode.isActive,
-    compactMode.isStreaming,
-    compactMode.sendCompactMessage,
-    pendingCompactAutoSendPrompt,
-  ]);
-
-  useEffect(() => {
-    if (!compactViewInitializedRef.current) {
-      compactViewInitializedRef.current = true;
-      setIsCompactViewVisible(compactMode.isActive);
-      return;
-    }
-
-    const transitionDelay = prefersReducedMotion
-      ? 0
-      : COMPACT_VIEW_TRANSITION_MS;
-    setIsCompactViewSwitching(true);
-
-    const timeoutId = window.setTimeout(() => {
-      setIsCompactViewVisible(compactMode.isActive);
-      setIsCompactViewSwitching(false);
-    }, transitionDelay);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [compactMode.isActive, prefersReducedMotion]);
+  }, [isMounted, open]);
 
   useEffect(() => {
     if (!open) {
@@ -1006,43 +903,29 @@ export function CommandPalette({
       };
 
       switch (action.execution.type) {
-        case "activate-bloom-compact": {
+        case "open-ask-bloom": {
           const prefilledPrompt =
             action.execution.prefilledPrompt?.trim() || null;
 
-          // Tenant shell: the Ask Bloom sidebar lives in the AskBloomProvider
-          // tree, so route the palette's "Ask Bloom" entry point there instead
-          // of opening the embedded compact chat.
-          if (askBloom) {
-            trackAction();
-            onClose();
+          trackAction();
+          onClose();
 
+          // Tenant shell: the Ask Bloom drawer lives in the AskBloomProvider
+          // tree and is the one Bloom surface, so the palette's "Ask Bloom"
+          // entry point always opens it.
+          if (askBloom) {
             // The palette restores focus to its trigger ~150ms after closing
             // (see the open/close effect). Clear that target so it does not
-            // steal focus back from the sidebar composer.
+            // steal focus back from the drawer composer.
             previousFocusRef.current = null;
 
-            if (!askBloom.state.isOpen) {
-              const parsedResource = parseResourceFromPath(pathname);
-              const resourceFocus = parsedResource
-                ? getResourceFocusFromCache(
-                    parsedResource.resourceType,
-                    parsedResource.resourceId,
-                    queryClient,
-                  )
-                : null;
-
-              if (resourceFocus) {
-                askBloom.openWithResource(resourceFocus);
-              } else {
-                askBloom.openGeneral();
-              }
-            }
-
-            // A typed "Ask Bloom: <query>" entry carries the query as its
-            // prompt; forward it to the sidebar so the prompt is not lost.
             if (prefilledPrompt) {
-              askBloom.sendMessage(prefilledPrompt);
+              // A typed "Ask Bloom: <query>" entry carries the query as its
+              // prompt. The drawer asks it once auth, the organization and
+              // the conversation are ready.
+              askBloom.openWithPrompt(prefilledPrompt);
+            } else if (!askBloom.state.isOpen) {
+              askBloom.openForCurrentPage();
             }
 
             // Focus the composer once the panel has mounted and the palette's
@@ -1051,11 +934,13 @@ export function CommandPalette({
             return;
           }
 
-          // No provider available (e.g. the admin shell): keep the embedded
-          // compact experience as a fallback.
-          activateCompact(prefilledPrompt ?? undefined);
-          announce("Bloom is ready.");
-          trackAction();
+          // No drawer outside the tenant shell (e.g. the admin shell): open
+          // the full Bloom page. A prompt is only prefilled there, never sent.
+          navigate(
+            prefilledPrompt
+              ? `/bloom?prompt=${encodeURIComponent(prefilledPrompt)}`
+              : "/bloom",
+          );
           return;
         }
         case "navigate": {
@@ -1213,7 +1098,7 @@ export function CommandPalette({
       item: SearchResultItem,
       action: PaletteExecutableAction,
     ): PaletteExecutableAction => {
-      if (action.execution.type !== "activate-bloom-compact") {
+      if (action.execution.type !== "open-ask-bloom") {
         return action;
       }
 
@@ -1389,35 +1274,6 @@ export function CommandPalette({
   const resultCount = query.trim()
     ? displayedResults.reduce((count, group) => count + group.results.length, 0)
     : navigableGroups.reduce((count, group) => count + group.results.length, 0);
-
-  const compactStreamState = useMemo(
-    () => ({
-      activeToolCall: compactMode.activeToolCall,
-      connectionState: compactMode.connectionState,
-      isResearchComplete: compactMode.isResearchComplete,
-      isResearchSynthesizing: compactMode.isResearchSynthesizing,
-      researchConversationId: compactMode.researchConversationId,
-      researchPlan: compactMode.researchPlan,
-      researchSteps: compactMode.researchSteps,
-      streamError: compactMode.streamError,
-      streamingBlocks: compactMode.streamingBlocks,
-      streamingContent: compactMode.streamingContent,
-      streamingThinking: compactMode.streamingThinking,
-    }),
-    [
-      compactMode.activeToolCall,
-      compactMode.connectionState,
-      compactMode.isResearchComplete,
-      compactMode.isResearchSynthesizing,
-      compactMode.researchConversationId,
-      compactMode.researchPlan,
-      compactMode.researchSteps,
-      compactMode.streamError,
-      compactMode.streamingBlocks,
-      compactMode.streamingContent,
-      compactMode.streamingThinking,
-    ],
-  );
 
   closeSnapshotRef.current = {
     query: trimmedSearchQuery,
@@ -1686,150 +1542,102 @@ export function CommandPalette({
           >
             {liveAnnouncement}
           </Box>
-          {isCompactViewVisible ? (
-            <Box
-              sx={{
-                opacity: isCompactViewSwitching ? 0 : 1,
-                transition: prefersReducedMotion
-                  ? "none"
-                  : `opacity ${COMPACT_VIEW_TRANSITION_MS}ms ease`,
+          <Box
+            sx={{
+              animation: prefersReducedMotion
+                ? "none"
+                : "commandPaletteStandardIn 100ms ease both",
+              "@keyframes commandPaletteStandardIn": {
+                from: { opacity: 0 },
+                to: { opacity: 1 },
+              },
+            }}
+          >
+            <CommandPaletteInput
+              activeDescendantId={
+                activeItem ? getPaletteOptionId(activeItem.id) : undefined
+              }
+              ariaControlsId={listboxId}
+              dialogLabelId={dialogLabelId}
+              inputRef={inputRef}
+              isCommandMode={isCommandMode}
+              isLoading={!isCommandMode && isDatabaseLoading}
+              onClose={onClose}
+              onKeyDown={handleInputKeyDown}
+              onQueryChange={(nextQuery) => {
+                setQuery(nextQuery);
               }}
-            >
-              <BloomCompactMode
-                activeMode={compactMode.activeMode}
-                connectionState={compactMode.connectionState}
-                draftPrompt={compactMode.draftPrompt}
-                isStreaming={compactMode.isStreaming}
-                onBack={() => {
-                  setPendingCompactAutoSendPrompt(null);
-                  compactMode.dismissCompact();
-                  announce("Command palette restored.");
-                }}
-                onCancelStream={compactMode.cancelStream}
-                onContinueInBloom={() => {
-                  const didContinue = compactMode.continueInBloom();
+              onSuggestionSelect={setQuery}
+              query={query}
+              suggestions={suggestions}
+            />
 
-                  if (didContinue) {
-                    setPendingCompactAutoSendPrompt(null);
-                    onClose();
-                  }
-
-                  return didContinue;
-                }}
-                onDraftPromptChange={compactMode.setDraftPrompt}
-                onModeChange={compactMode.setActiveMode}
-                onSendPrompt={(prompt) => {
-                  void compactMode
-                    .sendCompactMessage(prompt)
-                    .catch(() => undefined);
-                }}
-                streamState={compactStreamState}
-                submittedPrompt={compactMode.submittedPrompt}
-              />
-            </Box>
-          ) : (
-            <Box
-              sx={{
-                opacity: isCompactViewSwitching ? 0 : 1,
-                transition: prefersReducedMotion
-                  ? "none"
-                  : `opacity ${COMPACT_VIEW_TRANSITION_MS}ms ease`,
-                animation:
-                  prefersReducedMotion || isCompactViewSwitching
-                    ? "none"
-                    : "commandPaletteStandardIn 100ms ease both",
-                "@keyframes commandPaletteStandardIn": {
-                  from: { opacity: 0 },
-                  to: { opacity: 1 },
-                },
-              }}
-            >
-              <CommandPaletteInput
-                activeDescendantId={
-                  activeItem ? getPaletteOptionId(activeItem.id) : undefined
-                }
-                ariaControlsId={listboxId}
-                dialogLabelId={dialogLabelId}
-                inputRef={inputRef}
-                isCommandMode={isCommandMode}
-                isLoading={!isCommandMode && isDatabaseLoading}
-                onClose={onClose}
-                onKeyDown={handleInputKeyDown}
-                onQueryChange={(nextQuery) => {
-                  setQuery(nextQuery);
-                }}
-                onSuggestionSelect={setQuery}
-                query={query}
-                suggestions={suggestions}
-              />
-
-              {showFilterBar ? (
-                <CommandPaletteFilterBar
-                  activeFilter={effectiveFilter}
-                  counts={filterCounts}
-                  filterRefs={filterChipRefs}
-                  filters={visibleFilters}
-                  onFocusFilter={setFocusedFilterIndex}
-                  onKeyDownFilter={handleFilterKeyDown}
-                  onSelectFilter={handleSelectFilter}
-                  tabListId={filterTabListId}
-                />
-              ) : null}
-
-              <Box
-                sx={{
-                  minHeight: 0,
-                  maxHeight: "min(60vh, 520px)",
-                  overflowY: "auto",
-                  overflowX: "hidden",
-                  overscrollBehavior: "contain",
-                  WebkitOverflowScrolling: "touch",
-                }}
-              >
-                <CommandPaletteResults
-                  activeItemId={activeItem?.id}
-                  activeActionIndex={activeActionIndex}
-                  copiedActionId={copiedActionId}
-                  currentPathname={pathname}
-                  errorByItemId={actionErrors}
-                  getItemActions={getItemActions}
-                  isDatabaseLoading={isDatabaseLoading}
-                  jumpTo={visibleJumpTo}
-                  listboxId={listboxId}
-                  onCloseActionMenu={closeActionMenu}
-                  onClearRecentSearches={handleClearRecentSearches}
-                  onHoverAction={setActiveActionByIndex}
-                  onHoverItem={setActiveItemById}
-                  onOpenActionMenu={openActionMenu}
-                  onRemoveRecentSearch={handleRemoveRecentSearch}
-                  onSelectAction={(item, action) => {
-                    void executePaletteAction(item, action);
-                  }}
-                  onSelectItem={handleSelectItem}
-                  onSuggestQuery={setQuery}
-                  openActionItemId={openActionItemId}
-                  pendingActionId={pendingActionId}
-                  query={query}
-                  recentItems={recentItemsWithOverrides}
-                  recentSearches={recentSearches}
-                  results={displayedResults}
-                  routeAwareSuggestions={routeAwareSuggestions}
-                  showShortcuts={showShortcuts}
-                  warning={warning}
-                  searchError={searchError}
-                />
-              </Box>
-
-              <CommandPaletteFooter
+            {showFilterBar ? (
+              <CommandPaletteFilterBar
                 activeFilter={effectiveFilter}
-                onToggleShortcuts={() =>
-                  setShowShortcuts((currentValue) => !currentValue)
-                }
-                resultCount={resultCount}
-                shortcutsOpen={showShortcuts}
+                counts={filterCounts}
+                filterRefs={filterChipRefs}
+                filters={visibleFilters}
+                onFocusFilter={setFocusedFilterIndex}
+                onKeyDownFilter={handleFilterKeyDown}
+                onSelectFilter={handleSelectFilter}
+                tabListId={filterTabListId}
+              />
+            ) : null}
+
+            <Box
+              sx={{
+                minHeight: 0,
+                maxHeight: "min(60vh, 520px)",
+                overflowY: "auto",
+                overflowX: "hidden",
+                overscrollBehavior: "contain",
+                WebkitOverflowScrolling: "touch",
+              }}
+            >
+              <CommandPaletteResults
+                activeItemId={activeItem?.id}
+                activeActionIndex={activeActionIndex}
+                copiedActionId={copiedActionId}
+                currentPathname={pathname}
+                errorByItemId={actionErrors}
+                getItemActions={getItemActions}
+                isDatabaseLoading={isDatabaseLoading}
+                jumpTo={visibleJumpTo}
+                listboxId={listboxId}
+                onCloseActionMenu={closeActionMenu}
+                onClearRecentSearches={handleClearRecentSearches}
+                onHoverAction={setActiveActionByIndex}
+                onHoverItem={setActiveItemById}
+                onOpenActionMenu={openActionMenu}
+                onRemoveRecentSearch={handleRemoveRecentSearch}
+                onSelectAction={(item, action) => {
+                  void executePaletteAction(item, action);
+                }}
+                onSelectItem={handleSelectItem}
+                onSuggestQuery={setQuery}
+                openActionItemId={openActionItemId}
+                pendingActionId={pendingActionId}
+                query={query}
+                recentItems={recentItemsWithOverrides}
+                recentSearches={recentSearches}
+                results={displayedResults}
+                routeAwareSuggestions={routeAwareSuggestions}
+                showShortcuts={showShortcuts}
+                warning={warning}
+                searchError={searchError}
               />
             </Box>
-          )}
+
+            <CommandPaletteFooter
+              activeFilter={effectiveFilter}
+              onToggleShortcuts={() =>
+                setShowShortcuts((currentValue) => !currentValue)
+              }
+              resultCount={resultCount}
+              shortcutsOpen={showShortcuts}
+            />
+          </Box>
         </Sheet>
       </Box>
     </Modal>
