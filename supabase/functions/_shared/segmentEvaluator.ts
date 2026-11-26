@@ -5,6 +5,7 @@ export interface SegmentRuleCondition {
   field?: string | null;
   operatorId?: string | null;
   operator?: string | null;
+  op?: string | null;
   value: unknown;
 }
 
@@ -305,12 +306,16 @@ function normalizeCondition(input: unknown): SegmentRuleCondition {
         : typeof source.field === "string"
           ? source.field
           : null,
+    // Some saved segments (for example the seeded "Lapsed (12+ months)")
+    // store the operator as `op`, which the SQL recompute also reads.
     operatorId:
       typeof source.operatorId === "string"
         ? source.operatorId
         : typeof source.operator === "string"
           ? source.operator
-          : null,
+          : typeof source.op === "string"
+            ? source.op
+            : null,
     value: source.value ?? null,
   };
 }
