@@ -6,6 +6,7 @@ import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
 import { AlertCircle } from "lucide-react";
 import { useBloom } from "@/components/bloom/BloomContext";
+import { BloomMarkdown } from "@/components/bloom/BloomMarkdown";
 import { BloomStreamingIndicator } from "@/components/bloom/BloomToolLoadingPill";
 import { BlockRenderer } from "@/components/bloom/blocks/BlockRenderer";
 import { createResearchProgressPayload } from "@/components/bloom/blocks/researchProgressPayload";
@@ -191,6 +192,12 @@ export function BloomStreamingMessageContent({
   const [items, setItems] = React.useState<StreamRenderItem[]>(() => [
     initialTextItem(message.id),
   ]);
+  // Compact mode has no persisted message to re-render, so once the stream
+  // finishes the plain streamed text is swapped for rendered markdown.
+  const [settledText, setSettledText] = React.useState<Map<
+    string,
+    string
+  > | null>(null);
   const showConnecting =
     (connectionState === "connecting" || connectionState === "streaming") &&
     !streamingContent.trim() &&
@@ -269,7 +276,25 @@ export function BloomStreamingMessageContent({
     currentTextItemIdRef.current = firstTextItem.id;
     setCurrentTextItemId(firstTextItem.id);
     setItems([firstTextItem]);
+    setSettledText(null);
   }, [message.id]);
+
+  React.useEffect(() => {
+    if (!compact) return;
+    if (connectionState !== "done") {
+      setSettledText(null);
+      return;
+    }
+    renderCurrentText(streamingContent);
+    const next = new Map<string, string>();
+    for (const item of items) {
+      if (item.kind !== "text") continue;
+      const text = textRefs.current.get(item.id)?.textContent ?? "";
+      if (text.trim()) next.set(item.id, text);
+    }
+    // Keep the first capture: once markdown is shown the plain spans are gone.
+    setSettledText((previous) => previous ?? (next.size > 0 ? next : null));
+  }, [compact, connectionState, items, renderCurrentText, streamingContent]);
 
   React.useLayoutEffect(() => {
     renderCurrentText(streamingContent);
@@ -454,6 +479,11 @@ export function BloomStreamingMessageContent({
                   }
                 />
               );
+            }
+
+            const settled = settledText?.get(item.id);
+            if (settled) {
+              return <BloomMarkdown key={item.id} compact content={settled} />;
             }
 
             return (
