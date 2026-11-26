@@ -17210,6 +17210,7 @@ export type Database = {
           created_at: string;
           description: string | null;
           id: string;
+          is_locked: boolean;
           is_public: boolean | null;
           layout_json: Json;
           name: string;
@@ -17227,6 +17228,7 @@ export type Database = {
           created_at?: string;
           description?: string | null;
           id?: string;
+          is_locked?: boolean;
           is_public?: boolean | null;
           layout_json?: Json;
           name: string;
@@ -17244,6 +17246,7 @@ export type Database = {
           created_at?: string;
           description?: string | null;
           id?: string;
+          is_locked?: boolean;
           is_public?: boolean | null;
           layout_json?: Json;
           name?: string;
@@ -23719,6 +23722,14 @@ export type Database = {
         Returns: Json;
       };
       get_campaign_approval_setting: { Args: never; Returns: Json };
+      get_campaign_template_lock: {
+        Args: { p_campaign_id: string };
+        Returns: Json;
+      };
+      release_campaign_template_lock: {
+        Args: { p_campaign_id: string };
+        Returns: Json;
+      };
       submit_campaign_for_approval: {
         Args: { p_campaign_id: string; p_note?: string };
         Returns: Json;

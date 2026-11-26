@@ -18,6 +18,8 @@ export interface SavedTemplate {
   isOwn: boolean;
   category: string | null;
   tags: string[];
+  /** Emails started from a locked design keep that design. Set by designers. */
+  isLocked: boolean;
 }
 
 export interface UpdateTemplateDetailsInput {
@@ -26,10 +28,11 @@ export interface UpdateTemplateDetailsInput {
   description?: string | null;
   category?: string | null;
   tags?: string[];
+  isLocked?: boolean;
 }
 
 const TEMPLATE_COLUMNS =
-  "id, user_id, tenant_id, name, description, layout_json, created_at, updated_at, category, tags";
+  "id, user_id, tenant_id, name, description, layout_json, created_at, updated_at, category, tags, is_locked";
 
 /** Tags as saved: trimmed, no blanks, no repeats (case-insensitive), at most 12. */
 export function normalizeTemplateTags(tags: readonly string[] | null | undefined): string[] {
@@ -69,6 +72,7 @@ function toSavedTemplate(
 ): SavedTemplate {
   return {
     isOwn: Boolean(currentUserId) && String(row.user_id) === currentUserId,
+    isLocked: row.is_locked === true,
     id: String(row.id),
     user_id: String(row.user_id),
     tenant_id:
@@ -248,6 +252,8 @@ export function useSavedTemplates() {
       if (input.description !== undefined) payload.description = input.description?.trim() || null;
       if (input.category !== undefined) payload.category = input.category?.trim() || null;
       if (input.tags !== undefined) payload.tags = normalizeTemplateTags(input.tags);
+      // The database refuses this unless the person has the design permission.
+      if (input.isLocked !== undefined) payload.is_locked = input.isLocked;
       const { data, error } = await supabase
         .from("saved_campaign_templates")
         .update(payload)

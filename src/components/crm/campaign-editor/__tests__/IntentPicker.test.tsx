@@ -20,6 +20,7 @@ function makeSavedTemplate(
   overrides: Partial<SavedTemplate> = {},
 ): SavedTemplate {
   return {
+    isLocked: false,
     id: "tpl-1",
     user_id: "user-1",
     tenant_id: "tenant-1",

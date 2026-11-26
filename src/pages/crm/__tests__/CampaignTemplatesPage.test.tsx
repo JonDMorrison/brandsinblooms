@@ -34,6 +34,7 @@ vi.mock("@/utils/toast", () => ({ toast: { success: vi.fn(), error: vi.fn() } })
 import { CampaignTemplatesPage, newEmailFromTemplatePath } from "@/pages/crm/CampaignTemplatesPage";
 
 const template = (id: string, fields: Partial<SavedTemplate> = {}): SavedTemplate => ({
+  isLocked: false,
   id,
   user_id: "u1",
   tenant_id: "t1",
