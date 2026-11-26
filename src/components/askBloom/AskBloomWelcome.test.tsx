@@ -36,6 +36,7 @@ vi.mock("@/hooks/askBloom/useAskBloomInsights", () => ({
 vi.mock("@/hooks/bloom/useBloomFileUpload", () => ({
   useBloomFileUpload: () => ({
     addFiles: vi.fn(),
+    attachments: [],
     clearFiles: vi.fn(),
     files: [],
     hasUnreadyFiles: false,
@@ -240,8 +241,10 @@ describe("Ask Bloom composer", () => {
     fireEvent.change(textarea, { target: { value: "Who are my best customers?" } });
     expect(send).toBeEnabled();
     fireEvent.click(send);
+    // The shared composer forwards the chosen mode, model and attachments.
     expect(askBloomMock.sendMessage).toHaveBeenCalledWith(
       "Who are my best customers?",
+      { mode: "standard", modelPreference: "auto", attachments: [] },
     );
   });
 

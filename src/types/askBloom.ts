@@ -5,6 +5,7 @@ import type {
   BloomActiveToolCall,
   BloomStreamingBlock,
 } from "@/hooks/askBloom/useAskBloomStreaming";
+import type { BloomMode, BloomModelPreference } from "@/hooks/bloom/types";
 import type {
   BloomTaskCompletionSummary,
   BloomEditedTaskFields,
@@ -293,6 +294,13 @@ export interface AskBloomState {
   streamError: string | null;
 }
 
+/** What the shared composer sends with a drawer message. */
+export interface AskBloomSendMessageOptions {
+  mode?: BloomMode;
+  modelPreference?: BloomModelPreference;
+  attachments?: Json[];
+}
+
 export interface AskBloomContextValue extends AskBloomState {
   state: AskBloomState;
   openWithResource: (resource: ResourceFocus) => void;
@@ -327,7 +335,9 @@ export interface AskBloomContextValue extends AskBloomState {
   setNavigationPrompt: (prompt: AskBloomNavigationPrompt | null) => void;
   dismissNavigationPrompt: () => void;
   acceptNavigationPrompt: () => void;
-  sendMessage: (content: string) => void;
+  sendMessage: (content: string, options?: AskBloomSendMessageOptions) => void;
+  /** The drawer's conversation id, creating the conversation if needed. */
+  ensureConversationId: () => Promise<string>;
   cancelStream: () => void;
   retryStream: () => void;
   keepPartialResponse: () => void;

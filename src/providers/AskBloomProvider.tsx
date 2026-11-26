@@ -30,6 +30,7 @@ import {
   type PersistedResourceFormState,
 } from "@/components/bloom/utils/resourceFormRegistry";
 import type {
+  AskBloomSendMessageOptions,
   AskBloomActionCard,
   AskBloomBlock,
   AskBloomConversation,
@@ -2245,7 +2246,7 @@ export function AskBloomProvider({ children }: AskBloomProviderProps) {
   );
 
   const sendMessage = React.useCallback(
-    (content: string) => {
+    (content: string, options: AskBloomSendMessageOptions = {}) => {
       void (async () => {
         const trimmedContent = content.trim();
         if (
@@ -2266,6 +2267,7 @@ export function AskBloomProvider({ children }: AskBloomProviderProps) {
         const optimisticConversationId =
           state.conversationId ??
           `ask-bloom-pending-conversation-${crypto.randomUUID()}`;
+        const attachments = options.attachments ?? [];
         const userMessage: AskBloomMessage = {
           id: `ask-bloom-user-${crypto.randomUUID()}`,
           conversationId: optimisticConversationId,
@@ -2275,6 +2277,7 @@ export function AskBloomProvider({ children }: AskBloomProviderProps) {
           toolCalls: [],
           createdAt,
           isStreaming: false,
+          ...(attachments.length > 0 ? { attachments } : {}),
         };
         const assistantMessageId = `ask-bloom-assistant-${crypto.randomUUID()}`;
         const streamingAssistantMessage: AskBloomMessage = {
@@ -2334,6 +2337,9 @@ export function AskBloomProvider({ children }: AskBloomProviderProps) {
               location.pathname,
               state.resourceFocus,
             ),
+            mode: options.mode,
+            modelPreference: options.modelPreference,
+            attachments,
           });
         } catch (error) {
           const fallbackMessage =
@@ -2403,6 +2409,20 @@ export function AskBloomProvider({ children }: AskBloomProviderProps) {
       sendMessage(lastUser.content);
     }
   }, [sendMessage, state.messages]);
+
+  // Files can be attached before the first message, so the composer may need
+  // the conversation to exist first. Shares the in-flight insert with a send.
+  const ensureConversationId = React.useCallback(async () => {
+    if (state.conversationId) {
+      return state.conversationId;
+    }
+
+    const { id, created } = await ensureConversation(state.resourceFocus);
+    if (created && !activeAssistantMessageIdRef.current) {
+      dispatch({ type: "SET_CONVERSATION", payload: { id, messages: [] } });
+    }
+    return id;
+  }, [ensureConversation, state.conversationId, state.resourceFocus]);
 
   const openConversation = React.useCallback(
     (conversationId: string) => {
@@ -2738,6 +2758,7 @@ export function AskBloomProvider({ children }: AskBloomProviderProps) {
       openForCurrentPage,
       openWithPrompt,
       pendingPrompt,
+      ensureConversationId,
       setNavigationPrompt,
       dismissNavigationPrompt,
       acceptNavigationPrompt,
@@ -2784,6 +2805,7 @@ export function AskBloomProvider({ children }: AskBloomProviderProps) {
       newConversation,
       openConversation,
       openForCurrentPage,
+      ensureConversationId,
       openGeneral,
       openWithPrompt,
       openWithResource,
