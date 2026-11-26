@@ -155,8 +155,15 @@ export async function answerWithSlackAgent(c: SlackAgentContext, question: strin
         });
         if (error?.code === "42501") throw new ToolPermissionError("revenue refused for this conversation");
         if (error) throw Error("revenue lookup unavailable");
-        revenueResults.push(data);
-        return { source: source("Recorded POS sales by garden centre"), data };
+        // BloomSites event tickets and fundraising live in the CMS database; ask
+        // its signed bridge for the same range. Optional: POS figures still ship.
+        const range = row(row(data).requested_range);
+        const bloomsites = await callProduct("cms", "revenue.by_site", { inputs: { from: range.from, to: range.to } }, 12000)
+          .then(r => ({ sites: rows(r.sites), excluded: row(r.excluded) }), () => ({ unavailable: true }));
+        const merged = { ...row(data), bloomsites, ...("sites" in bloomsites
+          ? { not_covered: ["BloomSites online store orders outside fundraising", "Synthetic demo sales"] } : {}) };
+        revenueResults.push(merged);
+        return { source: source("Recorded POS and BloomSites sales by garden centre"), data: merged };
       }
       case "client_customer_overview":
       case "find_client_customer":
@@ -288,5 +295,13 @@ export async function answerWithSlackAgent(c: SlackAgentContext, question: strin
   const text = facts && statesAmount(result.text)
     ? "Here is the recorded revenue by garden centre. Where a store's system keeps no category, it says not recorded."
     : result.text;
-  return composeSlackAgentReply(text, [facts ?? "", receipts, links ? `Checked sources: ${links}` : "", scope]);
+  const footer = [receipts, links ? `Checked sources: ${links}` : "", scope];
+  const reply = composeSlackAgentReply(text, [facts ?? "", ...footer]);
+  // The durable reply limit is 2,400 characters. When the full figures do not
+  // fit, the compact form (one label per category) keeps every store's figures.
+  if (facts && !reply.includes(facts)) {
+    const compact = revenueFacts(revenueResults, { compact: true });
+    if (compact) return composeSlackAgentReply(text, [compact, ...footer]);
+  }
+  return reply;
 }
