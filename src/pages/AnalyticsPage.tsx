@@ -223,6 +223,8 @@ const AnalyticsPage = () => {
                       color: "neutral.900",
                       borderColor: active ? "primary.500" : "neutral.300",
                     },
+                    // Joy fills aria-pressed plain buttons; the underline marks the active tab.
+                    "&&[aria-pressed='true']": { bgcolor: "transparent" },
                   }}
                 >
                   {view.label}
