@@ -73,8 +73,17 @@ function FilterControls({
       </Stack>
 
       <Box sx={{ minWidth: { xs: "100%", md: 180 } }}>
+        {/* In the toolbar row a stacked label pushes the select off the
+            row's centre line, so the label moves inside the control. */}
         <JoySelect
-          label="Sort"
+          label={align === "column" ? "Sort" : undefined}
+          startDecorator={
+            align === "row" ? (
+              <Typography level="body-sm" sx={{ color: "neutral.500" }}>
+                Sort:
+              </Typography>
+            ) : undefined
+          }
           value={sort}
           onValueChange={(value) => onSortChange(value as SegmentSortOption)}
           options={SORT_OPTIONS.map((option) => ({
