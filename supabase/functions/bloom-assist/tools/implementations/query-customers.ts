@@ -16,6 +16,7 @@ import {
   formatCurrency,
   getQueryClient,
   isJunctionOperator,
+  loadTenantCurrency,
   normalizeSortBy,
   paginationRange,
   parseListQueryParams,
@@ -611,6 +612,7 @@ async function loadCustomPersonaNames(
 function mapCustomer(
   row: CustomerRow,
   customPersonas: Map<string, string>,
+  currency: string | null,
 ): JsonObject {
   const assignedPersonaNames = uniqueStrings([
     personaNameFromId(row.persona_id, customPersonas),
@@ -640,9 +642,10 @@ function mapCustomer(
     last_name: row.last_name,
     email: row.email,
     phone: row.phone,
-    // crm_customers has no currency column and tenants have no currency
-    // setting, so the amount is shown without a currency symbol.
-    total_spent: formatCurrency(purchases.total_spent),
+    // crm_customers has no currency column; recorded spending is in the
+    // tenant's currency. Without a readable tenant the amount stays plain.
+    total_spent: formatCurrency(purchases.total_spent, currency),
+    currency,
     reported_period_spending: purchases.reported_period_spending,
     purchase_data_note: purchases.purchase_data_note,
     last_purchase_date: row.last_purchase_date,
@@ -744,9 +747,12 @@ export const queryCustomers: ToolImplementation = async (
     throw error;
   }
 
-  const customPersonas = await loadCustomPersonaNames(client, context.tenantId);
+  const [customPersonas, currency] = await Promise.all([
+    loadCustomPersonaNames(client, context.tenantId),
+    loadTenantCurrency(client, context.tenantId),
+  ]);
   const items = ((data ?? []) as CustomerRow[]).map(
-    (row) => mapCustomer(row, customPersonas) as JsonValue,
+    (row) => mapCustomer(row, customPersonas, currency) as JsonValue,
   );
 
   return createListResult({ entityLabel: "customer", items, count });
