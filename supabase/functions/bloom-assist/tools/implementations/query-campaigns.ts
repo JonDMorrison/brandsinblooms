@@ -6,8 +6,10 @@ import {
 } from "../../../../../src/lib/crm/campaignContentReview.ts";
 import {
   classifySender,
-  type SenderDomainLike,
+  resolveTenantSendingReadiness,
+  type SendingDomainRow,
   type SenderDomainStatus,
+  type TenantSendingReadiness,
 } from "../../../../../src/lib/crm/senderSeverity.ts";
 import type { JsonObject, JsonValue } from "../../types.ts";
 import { applyFilters } from "../filter-engine.ts";
@@ -340,7 +342,13 @@ export interface DraftReviewInput {
   senderEmail: string | null;
   senderName: string | null;
   blocks: ReviewableBlock[];
-  emailDomains: SenderDomainLike[];
+  emailDomains: SendingDomainRow[];
+  /**
+   * The tenant's sending readiness (shared with Settings). A draft with no
+   * sender of its own sends from the tenant's default sender, as the send
+   * path does, so it is not "missing a sender".
+   */
+  readiness: TenantSendingReadiness;
 }
 
 /**
@@ -352,12 +360,27 @@ export function reviewDraft(input: DraftReviewInput): JsonObject {
   const subject = (input.subjectLine ?? "").trim();
   const visibleBlocks = input.blocks.filter((block) => block.visible !== false);
   const contentIssues = reviewCampaignContent(visibleBlocks).map((issue) => issue.message);
-  const sender = classifySender({
-    senderEmail: input.senderEmail ?? "",
-    senderName: input.senderName ?? "",
+  const draftSender = (input.senderEmail ?? "").trim();
+  const readiness = input.readiness;
+  const effectiveSender =
+    draftSender || (readiness.canSend ? readiness.fromEmail : "");
+  const classified = classifySender({
+    senderEmail: effectiveSender,
+    senderName: (input.senderName ?? "").trim() || (readiness.canSend ? readiness.fromName ?? "" : ""),
     emailDomains: input.emailDomains,
     campaignType: "email",
   });
+  // The tenant cannot send at all: that is the reason, whatever the draft says.
+  const sender =
+    readiness.canSend === false
+      ? { status: "blocked" as const, message: readiness.message }
+      : classified;
+  const senderDetail =
+    sender.status === "ready"
+      ? draftSender
+        ? "Sender is set up (" + draftSender + ")."
+        : "Sends from your default sender, " + effectiveSender + "."
+      : sender.message;
 
   const checks: JsonObject[] = [
     {
@@ -378,7 +401,7 @@ export function reviewDraft(input: DraftReviewInput): JsonObject {
     {
       check: "Sender",
       ok: sender.status === "ready",
-      detail: sender.status === "ready" ? "Sender is set up." : sender.message,
+      detail: senderDetail,
     },
   ];
 
@@ -495,7 +518,7 @@ async function loadDraftReviews(
   const reviews = new Map<string, JsonObject>();
   if (drafts.length === 0) return reviews;
 
-  const [blocksResult, domainsResult] = await Promise.all([
+  const [blocksResult, domainsResult, tenantResult] = await Promise.all([
     client
       .from("campaign_blocks")
       .select("campaign_id, order_index, block_type, content, image_url")
@@ -503,11 +526,19 @@ async function loadDraftReviews(
       .order("order_index", { ascending: true }),
     client
       .from("email_domains")
-      .select("domain, default_from_email, status")
+      .select(
+        "id, domain, status, default_from_email, default_from_name, verified_at, manual_pause, investigation_mode, resend_status",
+      )
       .eq("tenant_id", tenantId),
+    client
+      .from("tenants")
+      .select("default_from_email_domain_id")
+      .eq("id", tenantId)
+      .maybeSingle(),
   ]);
   if (blocksResult.error) throw blocksResult.error;
   if (domainsResult.error) throw domainsResult.error;
+  if (tenantResult.error) throw tenantResult.error;
 
   const blocksByCampaign = new Map<string, ReviewableBlock[]>();
   for (const block of (blocksResult.data ?? []) as CampaignBlockRow[]) {
@@ -516,17 +547,25 @@ async function loadDraftReviews(
     blocksByCampaign.set(block.campaign_id, list);
   }
 
-  const emailDomains: SenderDomainLike[] = (
+  const emailDomains: SendingDomainRow[] = (
     (domainsResult.data ?? []) as Array<{
+      id: string;
       domain: string;
       default_from_email: string | null;
+      default_from_name: string | null;
       status: string;
+      verified_at: string | null;
+      manual_pause: boolean | null;
+      investigation_mode: boolean | null;
+      resend_status: unknown;
     }>
-  ).map((domain) => ({
-    domain: domain.domain,
-    default_from_email: domain.default_from_email,
-    status: domain.status as SenderDomainStatus,
-  }));
+  ).map((domain) => ({ ...domain, status: domain.status as SenderDomainStatus }));
+  const readiness = resolveTenantSendingReadiness({
+    domains: emailDomains,
+    defaultDomainId:
+      (tenantResult.data as { default_from_email_domain_id: string | null } | null)
+        ?.default_from_email_domain_id ?? null,
+  });
 
   for (const row of drafts) {
     reviews.set(
@@ -537,6 +576,7 @@ async function loadDraftReviews(
         senderName: row.sender_name,
         blocks: blocksByCampaign.get(row.id) ?? [],
         emailDomains,
+        readiness,
       }),
     );
   }

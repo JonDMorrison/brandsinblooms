@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { EmailDomain } from "@/hooks/useEmailDomains";
-import { classifySender } from "../senderSeverity";
+import { classifySender, resolveTenantSendingReadiness } from "../senderSeverity";
 
 const baseDomain = (
   overrides: Partial<EmailDomain> & Pick<EmailDomain, "status">,
@@ -231,5 +231,63 @@ describe("classifySender", () => {
     if (result.status === "blocked") {
       expect(result.reason).toBe("PAUSED");
     }
+  });
+});
+
+describe("resolveTenantSendingReadiness", () => {
+  const verified = {
+    id: "d1",
+    domain: "northfieldgardens.ca",
+    default_from_email: "mail@northfieldgardens.ca",
+    default_from_name: "Northfield Garden Center",
+    status: "active" as const,
+    verified_at: "2026-11-22T12:30:07Z",
+    manual_pause: false,
+    investigation_mode: false,
+    resend_status: {
+      status: "verified",
+      spf_verified: true,
+      dkim_verified: true,
+      return_path_verified: true,
+    },
+  };
+
+  it("sends from the default domain's From address", () => {
+    expect(
+      resolveTenantSendingReadiness({ domains: [verified], defaultDomainId: "d1" }),
+    ).toEqual({
+      canSend: true,
+      domainId: "d1",
+      domain: "northfieldgardens.ca",
+      fromEmail: "mail@northfieldgardens.ca",
+      fromName: "Northfield Garden Center",
+    });
+  });
+
+  it("falls back to mail@<domain> like the send path", () => {
+    const result = resolveTenantSendingReadiness({
+      domains: [{ ...verified, default_from_email: null }],
+      defaultDomainId: null,
+    });
+    expect(result.canSend && result.fromEmail).toBe("mail@northfieldgardens.ca");
+  });
+
+  it("cannot send without a domain, while paused, or before DNS verifies", () => {
+    expect(resolveTenantSendingReadiness({ domains: [], defaultDomainId: null })).toMatchObject({
+      canSend: false,
+      reason: "NO_DOMAIN",
+    });
+    expect(
+      resolveTenantSendingReadiness({
+        domains: [{ ...verified, manual_pause: true }],
+        defaultDomainId: "d1",
+      }),
+    ).toMatchObject({ canSend: false, reason: "DOMAIN_PAUSED" });
+    expect(
+      resolveTenantSendingReadiness({
+        domains: [{ ...verified, resend_status: { status: "verified", spf_verified: true } }],
+        defaultDomainId: "d1",
+      }),
+    ).toMatchObject({ canSend: false, reason: "DOMAIN_NOT_VERIFIED" });
   });
 });
