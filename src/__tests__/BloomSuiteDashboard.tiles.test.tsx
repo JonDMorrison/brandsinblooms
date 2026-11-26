@@ -177,13 +177,24 @@ vi.mock("@/components/dashboard/BloomWeeklySuggestionsCard", () => ({
   BloomWeeklySuggestionsCard: () => null,
 }));
 
-vi.mock("@/hooks/useTenantAudienceHealth", () => ({
-  useTenantAudienceHealth: () => ({
-    data: { eligible: 1250, total: 1700 },
-    isLoading: false,
-    isError: false,
-  }),
-}));
+vi.mock("@/hooks/useTenantAudienceHealth", async () => {
+  const actual = await vi.importActual<typeof import("@/hooks/useTenantAudienceHealth")>(
+    "@/hooks/useTenantAudienceHealth",
+  );
+  return {
+    ...actual,
+    useTenantAudienceHealth: () => ({
+      data: {
+        ...actual.EMPTY_TENANT_AUDIENCE_HEALTH,
+        eligible: 1250,
+        confirmed: 1250,
+        total: 1700,
+      },
+      isLoading: false,
+      isError: false,
+    }),
+  };
+});
 
 vi.mock("@/hooks/analytics/useCampaignDeliveryMetrics", () => ({
   useCampaignDeliveryMetrics: () => ({
