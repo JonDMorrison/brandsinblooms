@@ -35,6 +35,7 @@ import {
   uniqueStrings,
   type BloomQueryClient,
 } from "./shared.ts";
+import { emptyNameSearchResult } from "../../named-entity-lookup.ts";
 
 type CampaignRow = Pick<
   Database["public"]["Tables"]["crm_campaigns"]["Row"],
@@ -631,6 +632,9 @@ export const queryCampaigns: ToolImplementation = async (
   }
 
   const rows = (data ?? []) as CampaignRow[];
+  if (rows.length === 0 && queryParams.search && queryParams.filters.length === 0 && queryParams.page === 1) {
+    return emptyNameSearchResult(context.dataClient ?? context.serviceClient, context.tenantId, "campaign", queryParams.search);
+  }
   const segmentNames = await loadCampaignSegmentNames(
     client,
     context.tenantId,

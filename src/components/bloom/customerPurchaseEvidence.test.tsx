@@ -3,6 +3,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { DataCardBlock } from "./blocks/DataCardBlock";
 import { CustomerResultCard } from "./content/cards/CustomerResultCard";
 import { InventoryResultCard } from "./content/cards/InventoryResultCard";
+import { BloomToolResultCard } from "./content/BloomToolResultCard";
 import {
   formatCurrencyValue,
   formatNumberValue,
@@ -162,5 +163,45 @@ describe("Bloom inventory card measures stock against each product's threshold",
     ])} />);
     expect(screen.queryByRole("meter")).toBeNull();
     expect(screen.queryByText("Low")).toBeNull();
+  });
+});
+
+describe("Bloom customer cards show money in the tenant currency", () => {
+  it("formats recorded spending with the row currency", () => {
+    render(<CustomerResultCard result={resultFor({ id: "c", name: "Sarah Tremblay", total_spent: "CA$3,700.91", currency: "CAD", reported_period_spending: null })} />);
+    expect(screen.getByText(/Recorded spending: CA\$3,700\.91/)).toBeVisible();
+  });
+
+  it("keeps an amount plain when no currency is known", () => {
+    render(<CustomerResultCard result={resultFor({ id: "c", name: "Old Result", total_spent: "3,700.91", reported_period_spending: null })} />);
+    expect(screen.getByText("Recorded spending: 3,700.91")).toBeVisible();
+    expect(screen.queryByText(/US\$|USD/)).toBeNull();
+  });
+
+  it("shows each top customer's spend from a reported-spending ranking", () => {
+    // Shape of a logged rank_customers_by_intelligence output for Northfield.
+    const output = {
+      success: true,
+      count: 2,
+      message: "Selected an exact audience from the reconciled spending report.",
+      block_type: "data_table",
+      data: {
+        kind: "customer_exploration",
+        criteria: { currency: "CAD", minimum_spend: 0, minimum_transactions: 1 },
+        rows: [
+          { name: "Hannah Wilson", customer_id: "45f80704-0c0f-4f3c-8816-4fbae24e32d3", reported_period_spend: 4834.73, reported_transactions: 8, currency: "CAD" },
+          { name: "Sarah Tremblay", customer_id: "8f7319f9-1160-4404-81a2-95228fb8b2fd", reported_period_spend: 4834.46, reported_transactions: 15 },
+        ],
+      },
+    };
+    render(<BloomToolResultCard toolName="rank_customers_by_intelligence" data={output} status="success" />);
+    expect(screen.getByText("Reported spending: CA$4,834.73 · 8 reported transactions")).toBeVisible();
+    // A row without its own currency uses the result's stated currency.
+    expect(screen.getByText("Reported spending: CA$4,834.46 · 15 reported transactions")).toBeVisible();
+  });
+
+  it("shows matched spending for purchase searches", () => {
+    render(<CustomerResultCard result={{ ...resultFor({ name: "Ann", customer_id: "a", matched_reported_spend: 120.5, currency: "CAD" }), toolName: "explore_customer_purchases" }} />);
+    expect(screen.getByText("Matched spending: CA$120.50")).toBeVisible();
   });
 });

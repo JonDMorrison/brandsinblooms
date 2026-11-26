@@ -639,7 +639,7 @@ export async function exploreCustomerReportedSpending(params: JsonObject,context
   const result=publicSetFrom(set,visible,await loadCustomerNames(context,set.included_ids.slice(0,50)));
   return analysisResult({...result,source_filename:report.source_filename,period_start:report.source_period_start,period_end:report.source_period_end,
     criteria:{minimum_spend:minimum,minimum_transactions:transactions,currency},
-    rows:result.rows.map(row=>({...row,reported_period_spend:values.get(row.customer_id)?.amount,reported_transactions:values.get(row.customer_id)?.transactions})),
+    rows:result.rows.map(row=>({...row,reported_period_spend:values.get(row.customer_id)?.amount,reported_transactions:values.get(row.customer_id)?.transactions,currency})),
     note:'Reported period spending and transaction totals are not lifetime value or dated receipts. Missing customers remain unknown, not inactive. Continue product searches with scope=previous_result.'},set.included_ids.length,'Selected an exact audience from the reconciled spending report. No customer classification or marketing consent changed.');
 };
 

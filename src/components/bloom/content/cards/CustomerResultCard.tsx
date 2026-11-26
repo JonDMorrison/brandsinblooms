@@ -11,7 +11,9 @@ import {
   getValue,
   initialsFor,
   mutationStateForResult,
+  readNumber,
   readString,
+  resultCurrency,
   type NormalizedToolResult,
   visibleRows,
 } from "@/components/bloom/content/cards/cardUtils";
@@ -29,6 +31,7 @@ export function CustomerResultCard({
 }) {
   const { overflow, rows, total } = visibleRows(result);
   const mutationState = mutationStateForResult(result);
+  const currencyForResult = resultCurrency(result);
 
   return (
     <ResultCardShell
@@ -67,19 +70,38 @@ export function CustomerResultCard({
                   "purchase_metrics.last_purchase_date",
                 ]),
               );
+              const currency = readString(customer.currency) ?? currencyForResult;
               const totalSpent = formatCurrency(
                 getValue(customer, [
                   "total_spent",
                   "lifetime_value",
                   "purchase_metrics.total_spent",
                 ]),
-                customer.currency,
+                currency,
+              );
+              // Ranked and searched audiences carry period spending instead of
+              // recorded totals: the report total, or the matched purchases.
+              const periodSpend = formatCurrency(
+                customer.reported_period_spend,
+                currency,
+              );
+              const matchedSpend = formatCurrency(
+                customer.matched_reported_spend,
+                currency,
+              );
+              const reportedTransactions = readNumber(
+                customer.reported_transactions,
               );
               const reported = readCustomerReportedSpending(customer);
               const detailLine = [email, phone].filter(Boolean).join(" · ");
               const activityLine = [
                 lastOrder ? `Last order: ${lastOrder}` : null,
                 totalSpent ? `Recorded spending: ${totalSpent}` : null,
+                periodSpend ? `Reported spending: ${periodSpend}` : null,
+                periodSpend && reportedTransactions !== null
+                  ? `${reportedTransactions.toLocaleString()} reported ${reportedTransactions === 1 ? "transaction" : "transactions"}`
+                  : null,
+                matchedSpend ? `Matched spending: ${matchedSpend}` : null,
               ]
                 .filter(Boolean)
                 .join(" · ");

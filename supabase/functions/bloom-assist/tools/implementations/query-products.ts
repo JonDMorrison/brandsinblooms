@@ -16,6 +16,7 @@ import {
   sanitizePostgrestSearch,
   type BloomQueryClient,
 } from "./shared.ts";
+import { emptyNameSearchResult } from "../../named-entity-lookup.ts";
 
 type ProductRow = Pick<
   Database["public"]["Tables"]["products"]["Row"],
@@ -212,6 +213,9 @@ export const queryProducts: ToolImplementation = async (
     throw error;
   }
 
+  if ((data ?? []).length === 0 && queryParams.search && queryParams.filters.length === 0 && queryParams.page === 1) {
+    return emptyNameSearchResult(context.dataClient ?? context.serviceClient, context.tenantId, "product", queryParams.search);
+  }
   const items = ((data ?? []) as ProductRow[]).map(
     (row) => mapProduct(row) as JsonValue,
   );
