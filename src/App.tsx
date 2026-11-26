@@ -146,6 +146,7 @@ const ResetPasswordPage = lazyNamed(
   () => import("@/pages/ResetPasswordPage"),
   "ResetPasswordPage",
 );
+const InviteAcceptPage = lazyRetry(() => import("@/pages/InviteAcceptPage"));
 const OnboardingPage = lazyRetry(() => import("@/pages/OnboardingPage"));
 const PricingPage = lazyRetry(() => import("@/pages/PricingPage"));
 const FAQPage = lazyRetry(() => import("@/pages/FAQPage"));
@@ -584,6 +585,8 @@ function App() {
                   </RecoveryRoute>
                 }
               />
+              {/* Team invitation: works signed in or out, so no PublicRoute redirect. */}
+              <Route path="/invite/accept" element={<InviteAcceptPage />} />
               <Route
                 path="/onboarding"
                 element={
