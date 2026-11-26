@@ -9,7 +9,7 @@ import { safeTicketText } from "./ticket-slack.ts";
 import { refersToUnnamedTicket } from "./slack-actions.ts";
 import { type FinanceKind, type FinanceResult, StripeAccessError, financeFacts, financeIntent, financeRange, readPlatformFinance } from "./finance.ts";
 import { REVENUE_ELSEWHERE_REPLY, revenueByClientQuestion, revenueFacts, statesAmount } from "./slack-revenue.ts";
-import { type AgentContext, type ChatMessage, type ToolResult, ToolPermissionError, availableTools, composeSlackAgentReply, openAiTools, runAgent } from "./slack-agent-core.ts";
+import { type AgentContext, type ChatMessage, type ToolResult, ToolPermissionError, availableTools, composeSlackAgentReply, inPersona, openAiTools, personaEnabled, runAgent } from "./slack-agent-core.ts";
 
 export interface SlackAgentContext {
   allowed: boolean; principal_id: string; role: string; channel: string; route: string;
@@ -152,6 +152,7 @@ export async function answerWithSlackAgent(c: SlackAgentContext, question: strin
   const ctx: AgentContext = {
     jobId, principalId: c.principal_id, role: c.role, channel: c.channel, route: c.route,
     rootTs: c.root_ts, ticketId: c.ticket_id, question, history: c.history, privateChannel, confirmedPrivate,
+    persona: personaEnabled(config),
   };
   // Without revenue_by_client (a public channel, or a non-owner) the model has
   // said "I cannot access revenue". Answer where to ask, in code, instead.
@@ -193,7 +194,7 @@ export async function answerWithSlackAgent(c: SlackAgentContext, question: strin
     const outcome = await platformFinanceReply(financeKind, question);
     await audit("platform_finance", outcome.ok ? "succeeded" : "not_confirmed").catch(() => undefined);
     if (!await authorize() || !(await checkStaffChannel(c.channel)).allowed) return "I can no longer verify this conversation's access. Please use the authorized support desk to check any recorded work.";
-    return composeSlackAgentReply(outcome.text, outcome.ok ? ["Checked sources: <https://dashboard.stripe.com/|Stripe, Brands in Blooms account>"] : []);
+    return composeSlackAgentReply(inPersona(ctx.persona, outcome.ok ? "finance" : "blocked", jobId, outcome.text), outcome.ok ? ["Checked sources: <https://dashboard.stripe.com/|Stripe, Brands in Blooms account>"] : []);
   }
   const getTicket = async (value: unknown): Promise<Row> => {
     const ticketId = id(value);

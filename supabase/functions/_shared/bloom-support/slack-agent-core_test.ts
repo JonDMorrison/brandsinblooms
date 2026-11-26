@@ -1,5 +1,5 @@
 import { assertEquals, assert, assertThrows, assertStringIncludes } from "@std/assert";
-import { AGENT_SYSTEM, ToolPermissionError, toolFailure, availableTools, composeSlackAgentReply, explicitIntent, openAiTools, runAgent, safeAgentAnswer, scrub, TOOL_SPECS, validateArguments, type AgentContext, type AgentDependencies, type ChatMessage } from "./slack-agent-core.ts";
+import { SLACK_PERSONA, inPersona, personaEnabled, quip, AGENT_SYSTEM, ToolPermissionError, toolFailure, availableTools, composeSlackAgentReply, explicitIntent, openAiTools, runAgent, safeAgentAnswer, scrub, TOOL_SPECS, validateArguments, type AgentContext, type AgentDependencies, type ChatMessage } from "./slack-agent-core.ts";
 const context = (patch: Partial<AgentContext> = {}): AgentContext => ({
   jobId: "job", principalId: "staff", role: "platform_admin", channel: "private", route: "tickets", rootTs: "1.000001",
   ticketId: null, question: "What needs attention?", history: [], privateChannel: true, ...patch,
@@ -238,4 +238,27 @@ Deno.test("the model knows today's date and that all-sales totals are not catego
   const spec = TOOL_SPECS.find(t => t.name === "revenue_by_client")!;
   assertStringIncludes(spec.description, "must be null unless the staff member named a period");
   assertStringIncludes(spec.description, "comma-separated");
+});
+
+Deno.test("the grumpy voice is a staff-Slack setting: it adds tone, never changes a reply, and is off by default", async () => {
+  assertEquals(personaEnabled({ enabled: true }), false);
+  assertEquals(personaEnabled({ persona: "grumpy_it_vet" }), true);
+  assertEquals(personaEnabled({ persona: "something_else" }), false);
+  assertEquals(personaEnabled(null), false);
+  const off = harness([answer()]);
+  await runAgent(context(), off.deps);
+  assertEquals(off.requests[0][0].content, AGENT_SYSTEM);
+  const on = harness([answer()]);
+  await runAgent(context({ persona: true }), on.deps);
+  assertStringIncludes(String(on.requests[0][0].content), AGENT_SYSTEM);
+  assertStringIncludes(String(on.requests[0][0].content), SLACK_PERSONA);
+  // The persona text keeps the rules that protect clients and accuracy.
+  for (const rule of ["never at a client or their customers", "Humour never replaces or softens a fact", "customer-facing copy stay warm and plain"])
+    assertStringIncludes(SLACK_PERSONA, rule);
+  const reply = "Open requests: 14 (new 1, waiting 2).";
+  assertEquals(inPersona(false, "records", "job-1", reply), reply);
+  const voiced = inPersona(true, "records", "job-1", reply);
+  assert(voiced.endsWith("\n" + reply) && voiced.length > reply.length + 5);
+  assertEquals(quip("closed", "job-1"), quip("closed", "job-1"));
+  assert(quip("no-such-kind", "job-1").length > 0);
 });

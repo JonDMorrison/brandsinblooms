@@ -1,5 +1,5 @@
 import { readReleaseEvidence, releaseQuestion } from "./slack-release-evidence.ts";
-import { clarificationOnly } from "./slack-agent-core.ts";
+import { clarificationOnly, inPersona, personaEnabled } from "./slack-agent-core.ts";
 import { db, env, rpc, BloomError } from "./runtime.ts";
 import { completeJson } from "./ai.ts";
 import { answerWithSlackAgent, checkStaffChannel, isSlackModelEndpoint, type StaffChannelReason } from "./slack-agent.ts";
@@ -138,30 +138,33 @@ async function recentTicket(jobId:string):Promise<RecentTicket|null>{
 }
 /** Close one request the way the desk's quick resolve does. The database enforces permission and evidence rules. */
 async function closeFromSlack(c:Context,request:CloseRequest,jobId:string):Promise<string>{
-  if(!slackCloseAllowed(c.role)) return "Only owner-level staff can close a request from Slack. Nothing was changed. Close it in the Bloom Support desk.";
+  // Tone only: the persona never changes what is done or what is reported.
+  const persona=personaEnabled(await rpc("setting",{key:"slack_agent"}).catch(()=>null));
+  const say=(kind:string,reply:string)=>inPersona(persona,kind,jobId,reply);
+  if(!slackCloseAllowed(c.role)) return say("refused","Only owner-level staff can close a request from Slack. Nothing was changed. Close it in the Bloom Support desk.");
   let ticketId=c.ticket_id;
   if(!ticketId && request.number!==null){
     const matches=await rpc<Array<{id:string;number:number}>>("list_tickets",{actor:c.principal_id,filters:{q:"#"+request.number,limit:5}});
     ticketId=(Array.isArray(matches)?matches:[]).find(t=>Number(t.number)===request.number)?.id??null;
-    if(!ticketId) return "I couldn't find request #"+request.number+". Nothing was changed.";
+    if(!ticketId) return say("which","I couldn't find request #"+request.number+". Nothing was changed.");
   }
   if(!ticketId){
     const recent=await recentTicket(jobId).catch(()=>null);
     return recent
-      ? "Do you mean request #"+recent.number+" ("+safeTicketText(recent.subject,90)+")? Reply *close #"+recent.number+"* and I'll close it. Nothing was changed yet."
-      : "Tell me which request to close, for example *close #1028*. Ask *what tickets are open* to see the numbers. Nothing was changed.";
+      ? say("guess","Do you mean request #"+recent.number+" ("+safeTicketText(recent.subject,90)+")? Reply *close #"+recent.number+"* and I'll close it. Nothing was changed yet.")
+      : say("which","Tell me which request to close, for example *close #1028*. Ask *what tickets are open* to see the numbers. Nothing was changed.");
   }
   const caller={principalId:c.principal_id,role:c.role,via:"service" as const,scopes:[],name:null};
   const ticket=await rpc<Record<string,unknown>>("get_ticket",{actor:c.principal_id,ticket_id:ticketId});
   const label="request #"+Number(ticket.number)+" ("+safeTicketText(ticket.subject,90)+")";
-  if(ticket.status==="resolved") return label.charAt(0).toUpperCase()+label.slice(1)+" is already closed. Nothing was changed.";
+  if(ticket.status==="resolved") return say("records",label.charAt(0).toUpperCase()+label.slice(1)+" is already closed. Nothing was changed.");
   try{
     await actions.updateTicket(caller,ticketId,{status:"resolved",resolution_summary:request.summary});
   }catch(e){
     const why=e instanceof BloomError?safeTicketText(e.message,220):"the support desk did not accept the change";
     return "I couldn't close "+label+": "+why+". Nothing was changed. Close it in the Bloom Support desk if it needs more detail.";
   }
-  return "Closed "+label+". The client gets the usual resolved notice with this note: \u201c"+safeTicketText(request.summary,300)+"\u201d. Reopen it in the Bloom Support desk if that was not what you meant.";
+  return say("closed","Closed "+label+". The client gets the usual resolved notice with this note: \u201c"+safeTicketText(request.summary,300)+"\u201d. Reopen it in the Bloom Support desk if that was not what you meant.");
 }
 /** One leased job owns its progress message. Unknown post outcomes never cause blind duplicates. */
 export async function respondToSlackConversation(job:{id:string;payload:Record<string,unknown>}):Promise<string>{
