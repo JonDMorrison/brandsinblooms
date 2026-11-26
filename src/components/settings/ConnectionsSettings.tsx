@@ -157,9 +157,9 @@ export const ConnectionsSettings = () => {
       </SettingsSectionCard>:purchaseHealth.isError?<SettingsInlineError message="Native POS purchase history could not be checked. Current owner or marketing access is required." onRetry={()=>void purchaseHealth.refetch()}/>:null}
 
       <SettingsSectionCard
-        description="The systems feeding customer, catalog and sales data into BloomSuite."
+        description="Your point of sale or sales import. It feeds customer, catalog and sales data into BloomSuite."
         startDecorator={<Plug size={18} />}
-        title="Connected integrations"
+        title="Sales data source"
       >
         {showLoading ? (
           <Stack spacing={1.5}>
@@ -218,7 +218,7 @@ export const ConnectionsSettings = () => {
               variant: "outline",
               color: "neutral",
             }}
-            title="Nothing connected yet"
+            title="No point of sale connected yet"
           />
         )}
       </SettingsSectionCard>
