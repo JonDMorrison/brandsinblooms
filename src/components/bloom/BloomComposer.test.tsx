@@ -10,6 +10,12 @@ const mocks = vi.hoisted(() => ({
   drawerSend: vi.fn(),
   drawerStop: vi.fn(),
   drawerStreaming: false,
+  drawerConversationId: null as string | null,
+  drawerResourceFocus: null as {
+    resourceType: "customer" | "campaign";
+    resourceId: string;
+    resourceLabel: string;
+  } | null,
   pageSend: vi.fn(() => Promise.resolve()),
   pageStop: vi.fn(),
   pageStreaming: false,
@@ -21,11 +27,11 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/providers/AskBloomProvider", () => ({
   useAskBloom: () => ({
     state: {
-      conversationId: null,
+      conversationId: mocks.drawerConversationId,
       messages: [],
       panelWidth: 400,
       isPinned: false,
-      resourceFocus: null,
+      resourceFocus: mocks.drawerResourceFocus,
       isStreaming: mocks.drawerStreaming,
       isTransitioning: false,
       isSendingMessage: false,
@@ -106,6 +112,8 @@ beforeEach(() => {
     }
   });
   mocks.drawerStreaming = false;
+  mocks.drawerConversationId = null;
+  mocks.drawerResourceFocus = null;
   mocks.pageStreaming = false;
   mocks.pageDraft = "";
 });
@@ -195,4 +203,53 @@ describe("one Bloom composer", () => {
       expect(stop()).toHaveBeenCalledTimes(1);
     },
   );
+});
+
+describe("Bloom drafts stay in their own context", () => {
+  const customerA = {
+    resourceType: "customer" as const,
+    resourceId: "customer-a",
+    resourceLabel: "Ada Lovelace",
+  };
+  const customerB = {
+    resourceType: "customer" as const,
+    resourceId: "customer-b",
+    resourceLabel: "Grace Hopper",
+  };
+  const textbox = () =>
+    screen.getByRole("textbox", { name: "What can I help with?" });
+
+  it("keeps the drawer's draft with the resource and conversation it was typed for", () => {
+    mocks.drawerResourceFocus = customerA;
+    const view = renderInRouter(<AskBloomInput />);
+    fireEvent.change(textbox(), {
+      target: { value: "Explain Ada Lovelace's purchase behavior" },
+    });
+
+    mocks.drawerResourceFocus = customerB;
+    view.rerender(
+      <MemoryRouter>
+        <AskBloomInput />
+      </MemoryRouter>,
+    );
+    expect(textbox()).toHaveValue("");
+
+    mocks.drawerResourceFocus = null;
+    mocks.drawerConversationId = "conversation-9";
+    view.rerender(
+      <MemoryRouter>
+        <AskBloomInput />
+      </MemoryRouter>,
+    );
+    expect(textbox()).toHaveValue("");
+
+    mocks.drawerConversationId = null;
+    mocks.drawerResourceFocus = customerA;
+    view.rerender(
+      <MemoryRouter>
+        <AskBloomInput />
+      </MemoryRouter>,
+    );
+    expect(textbox()).toHaveValue("Explain Ada Lovelace's purchase behavior");
+  });
 });

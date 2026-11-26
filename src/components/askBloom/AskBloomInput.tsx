@@ -2,6 +2,10 @@ import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import { BloomComposer } from "@/components/bloom/BloomComposer";
 import type { BloomActionContext } from "@/components/bloom/utils/slashCommandRegistry";
+import {
+  askBloomDraftKey,
+  useComposerDrafts,
+} from "@/hooks/bloom/useComposerDrafts";
 import type {
   BloomJsonArray,
   BloomMode,
@@ -11,13 +15,21 @@ import { useAskBloom } from "@/providers/AskBloomProvider";
 
 /**
  * The Ask Bloom drawer's composer: the shared BloomComposer driven by the
- * drawer's provider. The draft, mode and model live here, per drawer.
+ * drawer's provider. The mode and model live here, per drawer; drafts are kept
+ * per conversation (or per focused resource before one exists), so a prompt
+ * typed for one customer or campaign never shows up on another.
  */
 function AskBloomInput() {
   const askBloom = useAskBloom();
   const { state } = askBloom;
   const navigate = useNavigate();
-  const [draft, setDraft] = React.useState("");
+  const { getDraft, setDraft } = useComposerDrafts();
+  const draftKey = askBloomDraftKey(state.conversationId, state.resourceFocus);
+  const draft = getDraft(draftKey);
+  const setContextDraft = React.useCallback(
+    (value: string) => setDraft(draftKey, value),
+    [draftKey, setDraft],
+  );
   const [activeMode, setActiveMode] = React.useState<BloomMode>("standard");
   const [modelPreference, setModelPreference] =
     React.useState<BloomModelPreference>("auto");
@@ -81,7 +93,7 @@ function AskBloomInput() {
     <BloomComposer
       layout="panel"
       value={draft}
-      onValueChange={setDraft}
+      onValueChange={setContextDraft}
       conversationId={state.conversationId}
       ensureConversationId={ensureConversationId}
       isStreaming={state.isStreaming}
