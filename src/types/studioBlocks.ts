@@ -197,6 +197,16 @@ export interface StudioBlock {
   captionColor?: string;
   businessName?: string;
   address?: string;
+  /**
+   * Footer: where the name and address come from. "company" follows the
+   * account's business details. "custom" keeps what was typed here and is
+   * never refilled from the account. Unset is the older behaviour.
+   */
+  businessNameSource?: "company" | "custom";
+  addressSource?: "company" | "custom";
+  /** Footer: false hides the account's phone or email line. Unset means shown. */
+  showFooterPhone?: boolean;
+  showFooterEmail?: boolean;
   hoursOfOperation?: string;
   copyright?: string;
   copyrightText?: string;

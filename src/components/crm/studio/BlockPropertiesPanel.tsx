@@ -215,6 +215,137 @@ function PanelSection({ title, children }: PanelSectionProps) {
   );
 }
 
+type FooterCompany = { name?: string; addressLines?: string; phone?: string; email?: string };
+
+/** Which source a footer detail uses. Unset blocks are read from their content. */
+export function footerDetailSource(
+  explicit: "company" | "custom" | undefined,
+  blockValue: string | undefined,
+  companyValue: string | undefined,
+): "company" | "custom" {
+  if (explicit) return explicit;
+  const typed = (blockValue ?? "").trim();
+  return typed && typed !== (companyValue ?? "").trim() ? "custom" : "company";
+}
+
+/**
+ * Footer name, address, phone and email.
+ *
+ * Name and address: "Use my business details" or "Type a different one".
+ * A typed value is kept exactly and is not replaced by the account's.
+ * They cannot be hidden, because marketing email must say who sent it.
+ * Phone and email are optional lines and have a Show switch each.
+ */
+function FooterBusinessDetails({
+  block,
+  company,
+  updateField,
+}: {
+  block: StudioBlock;
+  company?: FooterCompany;
+  updateField: (field: keyof StudioBlock, value: StudioBlock[keyof StudioBlock]) => void;
+}) {
+  const nameSource = footerDetailSource(block.businessNameSource, block.businessName, company?.name);
+  const addressSource = footerDetailSource(block.addressSource, block.address, company?.addressLines);
+  const companyName = company?.name?.trim() ?? "";
+  const companyAddress = company?.addressLines?.trim() ?? "";
+  const sourceOptions = (companyLabel: string, customLabel: string) => [
+    { label: companyLabel, value: "company" },
+    { label: customLabel, value: "custom" },
+  ];
+  const quiet = { color: "neutral.600", fontSize: "12px", lineHeight: 1.45, whiteSpace: "pre-line" } as const;
+  // Opens in a new tab so the email being edited stays open.
+  const settingsLink = (
+    <a href="/profile/contact-footer" target="_blank" rel="noopener noreferrer">
+      Change it for every email in Contact &amp; Footer settings
+    </a>
+  );
+  return (
+    <>
+      <StudioToggleField
+        label="Business name"
+        options={sourceOptions("My business name", "A different name")}
+        value={nameSource}
+        onChange={(value) => {
+          updateField("businessNameSource", value as StudioBlock["businessNameSource"]);
+          if (value === "company" && companyName) updateField("businessName", companyName);
+        }}
+      />
+      {nameSource === "company" ? (
+        <Typography level="body-xs" sx={quiet}>
+          {companyName
+            ? `Showing: ${companyName}. `
+            : "No business name is saved yet. "}
+          {settingsLink}
+        </Typography>
+      ) : (
+        <>
+          <StudioTextField
+            label="Name to show"
+            placeholder={companyName || "Your Business"}
+            value={block.businessName ?? ""}
+            onChange={(value) => updateField("businessName", value)}
+          />
+          {!(block.businessName ?? "").trim() && (
+            <Typography level="body-xs" sx={quiet}>
+              {`This box is empty, so ${companyName || "your business name"} is shown. An email must say who sent it.`}
+            </Typography>
+          )}
+        </>
+      )}
+      <StudioToggleField
+        label="Address"
+        options={sourceOptions("My business address", "A different address")}
+        value={addressSource}
+        onChange={(value) => {
+          updateField("addressSource", value as StudioBlock["addressSource"]);
+          if (value === "company" && companyAddress) updateField("address", companyAddress);
+        }}
+      />
+      {addressSource === "company" ? (
+        <Typography level="body-xs" sx={quiet}>
+          {companyAddress
+            ? `Showing:\n${companyAddress}\n`
+            : "No address is saved yet. "}
+          {settingsLink}
+        </Typography>
+      ) : (
+        <>
+          <StudioTextField
+            label="Address to show"
+            multiline
+            minRows={3}
+            placeholder={"123 Main St\nCity, Province"}
+            value={block.address ?? ""}
+            onChange={(value) => updateField("address", value)}
+          />
+          {!(block.address ?? "").trim() && (
+            <Typography level="body-xs" sx={quiet}>
+              {companyAddress
+                ? "This box is empty, so your business address is shown. Marketing email must show a mailing address."
+                : "Marketing email must show a mailing address. Type one here."}
+            </Typography>
+          )}
+        </>
+      )}
+      {company?.phone?.trim() ? (
+        <StudioSwitchField
+          label={`Show phone (${company.phone.trim()})`}
+          checked={block.showFooterPhone !== false}
+          onChange={(value) => updateField("showFooterPhone", value)}
+        />
+      ) : null}
+      {company?.email?.trim() ? (
+        <StudioSwitchField
+          label={`Show email (${company.email.trim()})`}
+          checked={block.showFooterEmail !== false}
+          onChange={(value) => updateField("showFooterEmail", value)}
+        />
+      ) : null}
+    </>
+  );
+}
+
 /** The shared button alignment control. `fallback` is the alignment used while unset. */
 function ButtonAlignmentField({
   block,
@@ -3065,10 +3196,10 @@ function PanelContent({
                       sx={{ width: "100%", maxWidth: "100%", minWidth: 0 }}
                     >
                       <StudioSliderField
-                        label="Max Height"
-                        min={200}
+                        label={block.imageFit === "contain" ? "Tallest the photo can be" : "Banner height"}
+                        min={60}
                         max={600}
-                        step={20}
+                        step={10}
                         defaultValue={400}
                         value={block.maxHeight ?? 400}
                         onChange={(value) => updateField("maxHeight", value)}
@@ -3081,7 +3212,9 @@ function PanelContent({
                           lineHeight: 1.45,
                         }}
                       >
-                        Limit image height on desktop
+                        {block.imageFit === "contain"
+                          ? "The photo keeps its own shape and is never made taller than this."
+                          : "The banner is exactly this tall. The photo fills it."}
                       </Typography>
                     </Stack>
                   </>
@@ -3438,7 +3571,7 @@ function PanelContent({
                       updateField={updateField}
                     />
                     {block.imageFit !== "contain" && (block.imageRatio == null || block.imageRatio === "auto") && (
-                      <StudioSliderField label="Image height" min={150} max={600} step={10} defaultValue={400} value={block.maxHeight ?? 400} onChange={(value) => updateField("maxHeight", value)} />
+                      <StudioSliderField label="Image height" min={60} max={600} step={10} defaultValue={400} value={block.maxHeight ?? 400} onChange={(value) => updateField("maxHeight", value)} />
                     )}
                     {block.imageFit === "contain" && (
                       <Typography level="body-xs">Shows the full image at its natural proportions.</Typography>
@@ -4170,19 +4303,10 @@ function PanelContent({
                 title: "Content",
                 content: (
                   <>
-                    <StudioTextField
-                      label="Business Name"
-                      placeholder="Your Business"
-                      value={block.businessName ?? ""}
-                      onChange={(value) => updateField("businessName", value)}
-                    />
-                    <StudioTextField
-                      label="Address"
-                      multiline
-                      minRows={3}
-                      placeholder={"123 Main St\nCity, State"}
-                      value={block.address ?? ""}
-                      onChange={(value) => updateField("address", value)}
+                    <FooterBusinessDetails
+                      block={block}
+                      company={designSystem?.company}
+                      updateField={updateField}
                     />
                     <StudioTextField
                       label="Hours of operation"

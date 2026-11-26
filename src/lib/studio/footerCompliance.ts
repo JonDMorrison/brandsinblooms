@@ -156,8 +156,21 @@ export function hydrateFooterBlockWithDesignSystem(
     return block;
   }
 
-  const businessName = block.businessName || designSystem.company.name;
-  const address = block.address || designSystem.company.addressLines;
+  // "custom" is never refilled from the account, even when the box is empty.
+  // Refilling made a cleared address snap back while it was being edited.
+  // "company" always follows the account. Unset keeps the older fill-if-empty rule.
+  const businessName =
+    block.businessNameSource === "custom"
+      ? (block.businessName ?? "")
+      : block.businessNameSource === "company"
+        ? designSystem.company.name || block.businessName
+        : block.businessName || designSystem.company.name;
+  const address =
+    block.addressSource === "custom"
+      ? (block.address ?? "")
+      : block.addressSource === "company"
+        ? designSystem.company.addressLines || block.address
+        : block.address || designSystem.company.addressLines;
   const websiteUrl = block.websiteUrl || designSystem.company.websiteUrl;
 
   const nextBlock = {
