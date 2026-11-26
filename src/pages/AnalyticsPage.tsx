@@ -192,24 +192,38 @@ const AnalyticsPage = () => {
         <Stack
           direction={{ xs: "column", md: "row" }}
           justifyContent="space-between"
-          alignItems={{ xs: "stretch", md: "center" }}
+          alignItems={{ xs: "stretch", md: "flex-end" }}
           gap={1.5}
-          sx={{ borderBottom: "1px solid", borderColor: "neutral.200", pb: 1.5 }}
+          sx={{ borderBottom: "1px solid", borderColor: "neutral.200" }}
         >
-          <Stack direction="row" spacing={0.5} useFlexGap flexWrap="wrap"
-            role="group" aria-label="Analytics sections">
+          <Stack direction="row" spacing={2.5} useFlexGap flexWrap="wrap"
+            role="group" aria-label="Analytics sections"
+            sx={{ mb: "-1px" }}>
             {views.map((view) => {
               const active = activeView === view.id;
               return (
                 <JoyButton
                   key={view.id}
-                  color={active ? "primary" : "neutral"}
-                  variant={active ? "soft" : "plain"}
+                  color="neutral"
+                  variant="plain"
                   size="md"
                   aria-pressed={active}
                   startDecorator={view.icon}
                   onClick={() => selectView(view.id)}
-                  sx={{ fontWeight: active ? 700 : 600 }}
+                  sx={{
+                    px: 0.5,
+                    borderRadius: 0,
+                    bgcolor: "transparent",
+                    color: active ? "neutral.900" : "neutral.500",
+                    fontWeight: active ? 700 : 600,
+                    borderBottom: "2px solid",
+                    borderColor: active ? "primary.500" : "transparent",
+                    "&:hover": {
+                      bgcolor: "transparent",
+                      color: "neutral.900",
+                      borderColor: active ? "primary.500" : "neutral.300",
+                    },
+                  }}
                 >
                   {view.label}
                 </JoyButton>
@@ -226,10 +240,12 @@ const AnalyticsPage = () => {
                 sx={{
                   display: { xs: "none", sm: "inline-flex" },
                   alignSelf: { sm: "flex-start", md: "center" },
+                  mb: 1,
                   p: 0.5,
                   gap: 0.25,
                   borderRadius: "lg",
-                  "& .MuiButton-root": { px: 1.75 },
+                  bgcolor: "neutral.100",
+                  "& .MuiButton-root": { px: 1.75, minHeight: 34, bgcolor: "transparent", border: "1px solid transparent" },
                 }}
               >
                 {ANALYTICS_PERIOD_OPTIONS.map((option) => {
@@ -242,7 +258,9 @@ const AnalyticsPage = () => {
                       variant={active ? "outlined" : "plain"}
                       aria-pressed={active}
                       onClick={() => setSelectedPeriod(option.value)}
-                      sx={active ? { bgcolor: "background.surface", boxShadow: "sm" } : undefined}
+                      sx={active
+                        ? { "&&": { bgcolor: "background.surface", borderColor: "neutral.200", boxShadow: "xs", color: "neutral.900" } }
+                        : { "&&": { color: "neutral.600" }, "&&:hover": { bgcolor: "neutral.200" } }}
                     >
                       {option.label}
                     </JoyButton>
