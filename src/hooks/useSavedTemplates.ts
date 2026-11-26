@@ -16,6 +16,33 @@ export interface SavedTemplate {
   updated_at: string;
   /** Saved by the signed-in user. Teammates' templates are read-only. */
   isOwn: boolean;
+  category: string | null;
+  tags: string[];
+}
+
+export interface UpdateTemplateDetailsInput {
+  id: string;
+  name: string;
+  description?: string | null;
+  category?: string | null;
+  tags?: string[];
+}
+
+const TEMPLATE_COLUMNS =
+  "id, user_id, tenant_id, name, description, layout_json, created_at, updated_at, category, tags";
+
+/** Tags as saved: trimmed, no blanks, no repeats (case-insensitive), at most 12. */
+export function normalizeTemplateTags(tags: readonly string[] | null | undefined): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of tags ?? []) {
+    const tag = String(raw).trim().slice(0, 40);
+    const key = tag.toLowerCase();
+    if (!tag || seen.has(key)) continue;
+    seen.add(key);
+    out.push(tag);
+  }
+  return out.slice(0, 12);
 }
 
 export interface SaveTemplateInput {
@@ -51,6 +78,8 @@ function toSavedTemplate(
     layout_json: toBlockArray(row.layout_json),
     created_at: typeof row.created_at === "string" ? row.created_at : "",
     updated_at: typeof row.updated_at === "string" ? row.updated_at : "",
+    category: typeof row.category === "string" && row.category.trim() ? row.category.trim() : null,
+    tags: normalizeTemplateTags(Array.isArray(row.tags) ? (row.tags as string[]) : []),
   };
 }
 
@@ -86,7 +115,7 @@ export function useSavedTemplates() {
       let templatesQuery = supabase
         .from("saved_campaign_templates")
         .select(
-          "id, user_id, tenant_id, name, description, layout_json, created_at, updated_at",
+          TEMPLATE_COLUMNS,
         );
       // This business's designs, from anyone on the team (RLS: tenant members
       // can read them), plus your own older ones saved without a business.
@@ -137,7 +166,7 @@ export function useSavedTemplates() {
           automation_ready: false,
         })
         .select(
-          "id, user_id, tenant_id, name, description, layout_json, created_at, updated_at",
+          TEMPLATE_COLUMNS,
         )
         .single();
 
@@ -173,7 +202,7 @@ export function useSavedTemplates() {
         .update(updatePayload)
         .eq("id", input.id)
         .select(
-          "id, user_id, tenant_id, name, description, layout_json, created_at, updated_at",
+          TEMPLATE_COLUMNS,
         )
         .single();
 
@@ -206,6 +235,65 @@ export function useSavedTemplates() {
     },
   });
 
+  const detailsMutation = useMutation({
+    mutationFn: async (input: UpdateTemplateDetailsInput): Promise<SavedTemplate> => {
+      const name = input.name.trim();
+      if (!name) throw new Error("Template name is required");
+      const payload: Record<string, unknown> = { name };
+      if (input.description !== undefined) payload.description = input.description?.trim() || null;
+      if (input.category !== undefined) payload.category = input.category?.trim() || null;
+      if (input.tags !== undefined) payload.tags = normalizeTemplateTags(input.tags);
+      const { data, error } = await supabase
+        .from("saved_campaign_templates")
+        .update(payload)
+        .eq("id", input.id)
+        .select(TEMPLATE_COLUMNS)
+        .single();
+      if (error) throw error;
+      return toSavedTemplate(data as Record<string, unknown>, userId);
+    },
+    onSuccess: () => {
+      void invalidate();
+    },
+  });
+
+  // A copy belongs to whoever made it, so a teammate's design can be reused
+  // and changed without touching the original.
+  const duplicateMutation = useMutation({
+    mutationFn: async (template: SavedTemplate): Promise<SavedTemplate> => {
+      if (!userId) throw new Error("Must be signed in to copy a template");
+      const { data, error } = await supabase
+        .from("saved_campaign_templates")
+        .insert({
+          user_id: userId,
+          tenant_id: tenantId,
+          name: `${template.name} (copy)`.slice(0, 120),
+          description: template.description,
+          layout_json: template.layout_json as never,
+          category: template.category,
+          tags: template.tags,
+          is_public: false,
+          automation_ready: false,
+        })
+        .select(TEMPLATE_COLUMNS)
+        .single();
+      if (error) throw error;
+      return toSavedTemplate(data as Record<string, unknown>, userId);
+    },
+    onSuccess: () => {
+      void invalidate();
+    },
+  });
+
+  const updateTemplateDetails = useCallback(
+    (input: UpdateTemplateDetailsInput) => detailsMutation.mutateAsync(input),
+    [detailsMutation],
+  );
+  const duplicateTemplate = useCallback(
+    (template: SavedTemplate) => duplicateMutation.mutateAsync(template),
+    [duplicateMutation],
+  );
+
   const saveTemplate = useCallback(
     (input: SaveTemplateInput) => saveMutation.mutateAsync(input),
     [saveMutation],
@@ -231,6 +319,10 @@ export function useSavedTemplates() {
     saveTemplate,
     renameTemplate,
     archiveTemplate,
+    updateTemplateDetails,
+    duplicateTemplate,
+    isUpdatingDetails: detailsMutation.isPending,
+    isDuplicating: duplicateMutation.isPending,
     isSaving: saveMutation.isPending,
     isRenaming: renameMutation.isPending,
     isArchiving: archiveMutation.isPending,

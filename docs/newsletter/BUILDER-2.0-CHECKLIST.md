@@ -57,7 +57,7 @@ Rules that stay in force for every step:
 
 | Item | Status | Evidence / gap |
 | --- | --- | --- |
-| Template Library under Campaigns | Open | |
+| Template Library under Campaigns | Partial | New page at Campaigns, Templates (`/crm/campaigns/templates`), built on the existing `saved_campaign_templates` table. No second template system. It has previews drawn from the saved blocks, names, descriptions, search across name, category and tags, category and owner filters, sorting, edit details, copy, delete with a confirmation, and "Use for a new email". A template has no send or schedule action. Using one copies its blocks into a new email, so later template changes do not touch that email. Ownership and saved date are shown. Only the person who saved a design can change or delete it; anyone on the team can copy it. Not built yet, because each needs new database columns: favourites, default company template, brand-approved flag, archive (delete is permanent today), and versions. Also open: editing a template's design directly in Design Studio. Today a template is changed by using it, editing, and saving it again. |
 | Spreadsheet import for repeatable blocks | Partial | An import dialog exists (`DataImportDialog`). Not yet checked against the brief. |
 | Plant Care Spotlight block | Open | |
 
