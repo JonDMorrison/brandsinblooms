@@ -64,8 +64,8 @@ export function SaveAsTemplateModal({
       <ModalDialog sx={{ width: "min(520px, 96vw)", maxWidth: "96vw" }}>
         <DialogTitle>Save this design as a template</DialogTitle>
         <DialogContent>
-          You can reuse this layout for future campaigns. Only you will see
-          this template.
+          Save this layout to use again. Your whole team can use it. Find it
+          under Campaigns, Templates.
         </DialogContent>
 
         <Stack spacing={2} sx={{ mt: 1 }}>

@@ -28,7 +28,7 @@ vi.mock("@/hooks/useSavedTemplates", async (original) => ({
   useSavedTemplates: () => hook,
 }));
 vi.mock("@/hooks/useUserRole", () => ({ useUserRole: () => ({ hasPermission: () => canWrite }) }));
-vi.mock("@/components/crm/campaign-editor/IntentCardThumbnail", () => ({ IntentCardThumbnail: () => <div data-testid="thumbnail" /> }));
+vi.mock("@/components/crm/campaigns/TemplatePreview", () => ({ TemplatePreview: () => <div data-testid="thumbnail" /> }));
 vi.mock("@/utils/toast", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 import { CampaignTemplatesPage, newEmailFromTemplatePath } from "@/pages/crm/CampaignTemplatesPage";

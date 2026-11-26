@@ -8,7 +8,7 @@ import Typography from "@mui/joy/Typography";
 import { ArrowLeft, Copy, LayoutTemplate, Mail, Pencil, Plus, Trash2 } from "lucide-react";
 import { formatDistanceToNow, isValid } from "date-fns";
 import { useNavigate } from "react-router-dom";
-import { IntentCardThumbnail } from "@/components/crm/campaign-editor/IntentCardThumbnail";
+import { TemplatePreview } from "@/components/crm/campaigns/TemplatePreview";
 import { JoyAlertDialog } from "@/components/joy/JoyAlertDialog";
 import { JoyButton } from "@/components/joy/JoyButton";
 import { JoyDialog, JoyDialogActions, JoyDialogContent } from "@/components/joy/JoyDialog";
@@ -67,8 +67,7 @@ function TemplateCard({
       data-testid={`template-card-${template.id}`}
       sx={{ borderRadius: "lg", p: 1.5, display: "flex", flexDirection: "column", gap: 1, bgcolor: "background.surface", minWidth: 0 }}
     >
-      {/* Drawn from the saved blocks by the same thumbnail the design picker uses. */}
-      <IntentCardThumbnail template={null} blocks={template.layout_json} />
+      <TemplatePreview blocks={template.layout_json} name={template.name} />
       <Typography level="title-md" sx={{ fontWeight: 600, overflowWrap: "anywhere" }}>
         {template.name}
       </Typography>
