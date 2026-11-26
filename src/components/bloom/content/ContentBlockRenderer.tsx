@@ -4,21 +4,39 @@ import { BloomTextBlock } from "@/components/bloom/content/BloomTextBlock";
 import { BloomThinkingBlock } from "@/components/bloom/content/BloomThinkingBlock";
 import { BloomToolResultCard } from "@/components/bloom/content/BloomToolResultCard";
 import type { BloomContentBlock } from "@/components/bloom/content/parseContentBlocks";
+import type { BloomMarkdownVariant } from "@/components/bloom/BloomMarkdown";
 
 interface ContentBlockRendererProps {
   block: BloomContentBlock;
   onAction?: (prompt: string) => void;
   onRetry?: () => void;
+  /** Tighter markdown spacing for the command-palette compact panel. */
+  compact?: boolean;
+  /** Markdown reading style; "panel" is the Ask Bloom drawer's. */
+  markdownVariant?: BloomMarkdownVariant;
 }
 
+/**
+ * The one Bloom message-content renderer. The Ask Bloom drawer, the /bloom
+ * workspace (persisted and streaming messages) and the compact panel all render
+ * message text and result blocks through it.
+ */
 export function ContentBlockRenderer({
   block,
+  compact,
+  markdownVariant,
   onAction,
   onRetry,
 }: ContentBlockRendererProps) {
   switch (block.type) {
     case "text":
-      return <BloomTextBlock content={block.content} />;
+      return (
+        <BloomTextBlock
+          compact={compact}
+          content={block.content}
+          variant={markdownVariant}
+        />
+      );
     case "thinking":
       return <BloomThinkingBlock content={block.content} />;
     case "tool_result":

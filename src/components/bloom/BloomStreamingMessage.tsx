@@ -6,7 +6,6 @@ import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
 import { AlertCircle } from "lucide-react";
 import { useBloom } from "@/components/bloom/BloomContext";
-import { BloomMarkdown } from "@/components/bloom/BloomMarkdown";
 import { BloomStreamingIndicator } from "@/components/bloom/BloomToolLoadingPill";
 import { BlockRenderer } from "@/components/bloom/blocks/BlockRenderer";
 import { createResearchProgressPayload } from "@/components/bloom/blocks/researchProgressPayload";
@@ -37,7 +36,7 @@ import type { BloomMessage } from "@/hooks/bloom/types";
 import type {
   BloomActiveToolCall,
   BloomStreamingBlock,
-} from "@/hooks/bloom/useBloomStreaming";
+} from "@/hooks/askBloom/useAskBloomStreaming";
 
 interface BloomStreamingMessageProps {
   compact?: boolean;
@@ -483,7 +482,13 @@ export function BloomStreamingMessageContent({
 
             const settled = settledText?.get(item.id);
             if (settled) {
-              return <BloomMarkdown key={item.id} compact content={settled} />;
+              return (
+                <ContentBlockRenderer
+                  key={item.id}
+                  compact
+                  block={{ type: "text", id: item.id, content: settled }}
+                />
+              );
             }
 
             return (
