@@ -387,8 +387,10 @@ export function DashboardShell({
               ? 'url("/images/dashboard/botanical-corner.svg"), url("/images/dashboard/botanical-corner.svg")'
               : "none",
             // Outlined/plain controls must remain opaque over the botanical canvas.
+            // Control groups that draw their own surface (underline tabs, a
+            // segmented track) opt out with data-bare-controls.
             ...(showBotanicalCanvas ? {
-              "& :is(.MuiButton-variantOutlined, .MuiButton-variantPlain, .MuiIconButton-variantOutlined, .MuiIconButton-variantPlain)": {
+              "& :is(.MuiButton-variantOutlined, .MuiButton-variantPlain, .MuiIconButton-variantOutlined, .MuiIconButton-variantPlain):not([data-bare-controls] *)": {
                 backgroundColor: "var(--joy-palette-background-surface) !important",
                 "&:hover": { backgroundColor: "var(--joy-palette-neutral-100) !important" },
                 "&:active": { backgroundColor: "var(--joy-palette-neutral-200) !important" },
