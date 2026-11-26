@@ -522,9 +522,10 @@ export function AskBloomHeader() {
     focusInput();
   }, [askBloom, closeDropdown, focusInput]);
 
+  // /bloom is this conversation expanded: open it on the same conversation id.
+  // Leaving /bloom hands the conversation back to the drawer (BloomShell).
   const handleOpenInBloom = React.useCallback(() => {
-    const search = conversationId ? `?conversationId=${conversationId}` : "";
-    navigate(`/bloom${search}`);
+    navigate(conversationId ? `/bloom/${conversationId}` : "/bloom");
     askBloom.close();
   }, [askBloom, conversationId, navigate]);
 

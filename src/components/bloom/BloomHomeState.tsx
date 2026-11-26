@@ -4,22 +4,19 @@ import Skeleton from "@mui/joy/Skeleton";
 import Typography from "@mui/joy/Typography";
 import { motion, useReducedMotion, type Variants } from "framer-motion";
 import {
-  ArrowRight,
   BarChart3,
   Layers,
   Mail,
   Package,
   Pin,
-  TrendingUp,
   Users,
   X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { BloomAvatar } from "@/components/bloom/BloomAvatar";
 import { useBloom } from "@/components/bloom/BloomContext";
 import { BloomInsightsSection } from "@/components/bloom/BloomInsightsSection";
+import { BloomWelcome } from "@/components/bloom/BloomWelcome";
 import { JoyChip } from "@/components/joy/JoyChip";
-import { useAuth } from "@/contexts/AuthContext";
 import {
   useBloomDailySnapshot,
   type DailySnapshot,
@@ -28,10 +25,7 @@ import { useBloomInsights } from "@/hooks/bloom/useBloomInsights";
 import { useBloomOnboarding } from "@/hooks/bloom/useBloomOnboarding";
 import { useBloomProfile } from "@/hooks/bloom/useBloomProfile";
 import { useBloomProfileMutations } from "@/hooks/bloom/useBloomProfileMutations";
-import type {
-  BloomEntitySummary,
-  BloomPageEntityType,
-} from "@/hooks/bloom/types";
+import type { BloomPageEntityType } from "@/hooks/bloom/types";
 import {
   useBloomSuggestions,
   type BloomSuggestionCategory,
@@ -44,37 +38,7 @@ import { useTenant } from "@/hooks/useTenant";
 
 const promptCardSkeletons = [0, 1, 2, 3] as const;
 const snapshotPrompt = "How's business going today?";
-const STARTER_PROMPTS = [
-  "Show me my customers",
-  snapshotPrompt,
-  "Check my inventory",
-  "Campaign performance",
-] as const;
-
 const motionEase = [0.2, 0, 0, 1] as const;
-
-const capabilityCards = [
-  {
-    title: "Customers",
-    description: "View and search your list",
-    Icon: Users,
-  },
-  {
-    title: "Inventory",
-    description: "Track stock and products",
-    Icon: Package,
-  },
-  {
-    title: "Analytics",
-    description: "See your business metrics",
-    Icon: TrendingUp,
-  },
-  {
-    title: "Campaigns",
-    description: "Email and SMS performance",
-    Icon: Mail,
-  },
-] as const;
 
 const suggestionCategoryLabels: Record<BloomSuggestionCategory, string> = {
   analytics: "Analytics",
@@ -82,13 +46,6 @@ const suggestionCategoryLabels: Record<BloomSuggestionCategory, string> = {
   campaign: "Marketing",
   customer: "Customers",
   product: "Inventory",
-};
-
-const entityCategoryLabels: Record<BloomPageEntityType, string> = {
-  campaign: "Campaign",
-  customer: "Customer",
-  product: "Product",
-  segment: "Segment",
 };
 
 const pinnedEntityMeta: Record<
@@ -101,174 +58,11 @@ const pinnedEntityMeta: Record<
   segment: { Icon: Layers, label: "Segment" },
 };
 
-type HomeTimeContext = {
-  formattedDate: string;
-  greeting: string;
-};
-
 type HomePromptSuggestion = {
   categoryLabel?: string;
   displayText: string;
   prompt: string;
 };
-
-type EntityPromptBlueprint = {
-  label: string;
-  buildPrompt: (summary: BloomEntitySummary) => string;
-};
-
-const ENTITY_PROMPT_BLUEPRINTS: Record<
-  BloomPageEntityType,
-  readonly EntityPromptBlueprint[]
-> = {
-  customer: [
-    {
-      label: "Tell me about this customer",
-      buildPrompt: (summary) =>
-        `Tell me about customer ${summary.name} (ID: ${summary.entityId})`,
-    },
-    {
-      label: "Show their order history",
-      buildPrompt: (summary) =>
-        `Show the order history for customer ${summary.name} (ID: ${summary.entityId})`,
-    },
-    {
-      label: "Add to a segment",
-      buildPrompt: (summary) =>
-        `Add customer ${summary.name} (ID: ${summary.entityId}) to a segment`,
-    },
-    {
-      label: "Create a campaign for them",
-      buildPrompt: (summary) =>
-        `Create a campaign for customer ${summary.name} (ID: ${summary.entityId})`,
-    },
-  ],
-  product: [
-    {
-      label: "Generate a description",
-      buildPrompt: (summary) =>
-        `Generate a description for product ${summary.name} (ID: ${summary.entityId})`,
-    },
-    {
-      label: "Check stock levels",
-      buildPrompt: (summary) =>
-        `Check stock levels for product ${summary.name} (ID: ${summary.entityId})`,
-    },
-    {
-      label: "Update price",
-      buildPrompt: (summary) =>
-        `Update the price for product ${summary.name} (ID: ${summary.entityId})`,
-    },
-    {
-      label: "Compare with similar products",
-      buildPrompt: (summary) =>
-        `Compare product ${summary.name} (ID: ${summary.entityId}) with similar products`,
-    },
-  ],
-  campaign: [
-    {
-      label: "How did this campaign perform?",
-      buildPrompt: (summary) =>
-        `How did campaign ${summary.name} (ID: ${summary.entityId}) perform?`,
-    },
-    {
-      label: "Generate better subject lines",
-      buildPrompt: (summary) =>
-        `Generate better subject lines for campaign ${summary.name} (ID: ${summary.entityId})`,
-    },
-    {
-      label: "Clone this campaign",
-      buildPrompt: (summary) =>
-        `Clone campaign ${summary.name} (ID: ${summary.entityId})`,
-    },
-    {
-      label: "Show audience details",
-      buildPrompt: (summary) =>
-        `Show audience details for campaign ${summary.name} (ID: ${summary.entityId})`,
-    },
-  ],
-  segment: [
-    {
-      label: "Show segment members",
-      buildPrompt: (summary) =>
-        `Show members for segment ${summary.name} (ID: ${summary.entityId})`,
-    },
-    {
-      label: "Create a campaign for this segment",
-      buildPrompt: (summary) =>
-        `Create a campaign for segment ${summary.name} (ID: ${summary.entityId})`,
-    },
-    {
-      label: "Compare with other segments",
-      buildPrompt: (summary) =>
-        `Compare segment ${summary.name} (ID: ${summary.entityId}) with other segments`,
-    },
-    {
-      label: "Analyze member behavior",
-      buildPrompt: (summary) =>
-        `Analyze member behavior for segment ${summary.name} (ID: ${summary.entityId})`,
-    },
-  ],
-};
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function readString(value: unknown) {
-  return typeof value === "string" && value.trim().length > 0
-    ? value.trim()
-    : null;
-}
-
-function getDisplayName(metadata: unknown, email: string | undefined) {
-  const record = isRecord(metadata) ? metadata : {};
-  const profileName =
-    readString(record.full_name) ??
-    readString(record.fullName) ??
-    readString(record.first_name) ??
-    readString(record.firstName) ??
-    readString(record.name);
-
-  if (profileName) {
-    return profileName.split(/\s+/)[0] ?? "there";
-  }
-
-  if (email?.trim()) {
-    return email.split("@")[0] ?? "there";
-  }
-
-  return "there";
-}
-
-function getTimeGreeting() {
-  const hour = new Date().getHours();
-
-  if (hour >= 5 && hour < 12) {
-    return "Good morning";
-  }
-
-  if (hour >= 12 && hour < 17) {
-    return "Good afternoon";
-  }
-
-  if (hour >= 17 && hour < 22) {
-    return "Good evening";
-  }
-
-  return "Working late";
-}
-
-function getHomeTimeContext(): HomeTimeContext {
-  return {
-    greeting: getTimeGreeting(),
-    formattedDate: new Intl.DateTimeFormat(undefined, {
-      day: "numeric",
-      month: "long",
-      weekday: "long",
-    }).format(new Date()),
-  };
-}
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat(undefined, {
@@ -600,274 +394,6 @@ function HomeShellSkeleton() {
   );
 }
 
-function StageZeroWelcomeCard({
-  disabled,
-  onSelect,
-}: {
-  disabled: boolean;
-  onSelect: (prompt: string) => void;
-}) {
-  const prefersReducedMotion = useReducedMotion() === true;
-  const containerVariants = getMotionContainerVariants(0.15);
-  const itemVariants = getMotionItemVariants(prefersReducedMotion);
-
-  return (
-    <Box
-      sx={{
-        position: "relative",
-        alignItems: "center",
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "center",
-        minHeight: "100%",
-        mx: "auto",
-        px: { xs: 3, sm: 5, md: 6 },
-        py: { xs: 5, sm: 7 },
-        width: "100%",
-        maxWidth: 920,
-        "&::before": {
-          content: '""',
-          position: "absolute",
-          inset: 0,
-          pointerEvents: "none",
-          background:
-            "radial-gradient(ellipse 600px 400px at 50% 0%, var(--joy-palette-primary-softBg) 0%, transparent 70%)",
-          opacity: 0.4,
-          zIndex: 0,
-        },
-      }}
-    >
-      <motion.div
-        initial="hidden"
-        animate="visible"
-        variants={containerVariants}
-        style={{
-          alignItems: "center",
-          display: "flex",
-          flexDirection: "column",
-          position: "relative",
-          width: "100%",
-          zIndex: 1,
-        }}
-      >
-        <motion.div variants={itemVariants} style={{ marginBottom: 24 }}>
-          <BloomAvatar size="xl" animate />
-        </motion.div>
-
-        <motion.div variants={itemVariants} style={{ width: "100%" }}>
-          <Typography
-            level="h1"
-            sx={{
-              color: "neutral.800",
-              fontSize: { xs: "26px", sm: "30px", md: "32px" },
-              fontWeight: 500,
-              letterSpacing: "-0.02em",
-              lineHeight: 1.2,
-              mb: 1.5,
-              textAlign: "center",
-            }}
-          >
-            Welcome to Bloom
-          </Typography>
-        </motion.div>
-
-        <motion.div variants={itemVariants} style={{ width: "100%" }}>
-          <Typography
-            sx={{
-              color: "neutral.500",
-              fontSize: "16px",
-              fontWeight: 400,
-              lineHeight: 1.5,
-              maxWidth: 480,
-              mb: { xs: 6, sm: 7 },
-              mx: "auto",
-              textAlign: "center",
-            }}
-          >
-            Your intelligent business companion
-          </Typography>
-        </motion.div>
-
-        <motion.div variants={itemVariants} style={{ width: "100%" }}>
-          <Box sx={{ mb: 2.5, textAlign: "center" }}>
-            <SectionLabel>Here&apos;s what I can help you with</SectionLabel>
-          </Box>
-        </motion.div>
-
-        <motion.div variants={itemVariants} style={{ width: "100%" }}>
-          <Box
-            sx={{
-              display: "grid",
-              gap: 2,
-              gridTemplateColumns: { xs: "1fr 1fr", sm: "repeat(4, 1fr)" },
-              mb: { xs: 6, sm: 7 },
-              width: "100%",
-            }}
-          >
-            {capabilityCards.map(({ description, Icon, title }) => (
-              <Box
-                key={title}
-                sx={{
-                  alignItems: "flex-start",
-                  backgroundColor: "background.surface",
-                  border: "1px solid",
-                  borderColor: "neutral.outlinedBorder",
-                  borderRadius: "var(--joy-radius-xl)",
-                  boxShadow: "none",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 1,
-                  p: 2.5,
-                  transition: prefersReducedMotion ? "none" : "all 200ms ease",
-                  "&:hover": {
-                    borderColor: "primary.300",
-                    boxShadow: "sm",
-                    transform: prefersReducedMotion
-                      ? "none"
-                      : "translateY(-2px)",
-                  },
-                }}
-              >
-                <Box
-                  sx={{
-                    alignItems: "center",
-                    backgroundColor: "primary.softBg",
-                    borderRadius: "var(--joy-radius-lg)",
-                    color: "primary.600",
-                    display: "flex",
-                    height: 36,
-                    justifyContent: "center",
-                    mb: 0.5,
-                    width: 36,
-                  }}
-                >
-                  <Icon size={20} strokeWidth={1.8} aria-hidden="true" />
-                </Box>
-                <Typography
-                  sx={{
-                    color: "neutral.800",
-                    fontSize: "14px",
-                    fontWeight: 500,
-                    lineHeight: 1.35,
-                  }}
-                >
-                  {title}
-                </Typography>
-                <Typography
-                  sx={{
-                    color: "neutral.500",
-                    fontSize: "12.5px",
-                    fontWeight: 400,
-                    lineHeight: 1.5,
-                  }}
-                >
-                  {description}
-                </Typography>
-              </Box>
-            ))}
-          </Box>
-        </motion.div>
-
-        <motion.div variants={itemVariants} style={{ width: "100%" }}>
-          <Box sx={{ mb: 2.5, textAlign: "center" }}>
-            <SectionLabel>Try one of these to get started</SectionLabel>
-          </Box>
-        </motion.div>
-
-        <motion.div variants={itemVariants} style={{ width: "100%" }}>
-          <Box
-            sx={{
-              display: "grid",
-              gap: 1.5,
-              gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
-              maxWidth: 620,
-              mx: "auto",
-              width: "100%",
-            }}
-          >
-            {STARTER_PROMPTS.map((prompt) => (
-              <Box
-                key={prompt}
-                component="button"
-                type="button"
-                disabled={disabled}
-                onClick={() => onSelect(prompt)}
-                sx={{
-                  alignItems: "center",
-                  backgroundColor: "background.surface",
-                  border: "1px solid",
-                  borderColor: "neutral.outlinedBorder",
-                  borderRadius: "var(--joy-radius-xl)",
-                  color: "inherit",
-                  cursor: "pointer",
-                  display: "flex",
-                  fontFamily: "inherit",
-                  gap: 2,
-                  justifyContent: "space-between",
-                  p: 2.25,
-                  pl: 2.5,
-                  pr: 2.25,
-                  textAlign: "left",
-                  transition: prefersReducedMotion
-                    ? "none"
-                    : "all 200ms cubic-bezier(0.2, 0, 0, 1)",
-                  "&:hover:not(:disabled)": {
-                    backgroundColor: "primary.softBg",
-                    borderColor: "primary.400",
-                    transform: prefersReducedMotion
-                      ? "none"
-                      : "translateX(2px)",
-                    "& .starterArrow": {
-                      color: "var(--joy-palette-primary-600)",
-                      transform: prefersReducedMotion
-                        ? "none"
-                        : "translateX(2px)",
-                    },
-                  },
-                  "&:disabled": {
-                    cursor: "not-allowed",
-                    opacity: 0.5,
-                  },
-                  "&:focus-visible": {
-                    outline: "2px solid",
-                    outlineColor: "primary.400",
-                    outlineOffset: "2px",
-                  },
-                }}
-              >
-                <Typography
-                  sx={{
-                    color: "neutral.800",
-                    fontSize: "14px",
-                    fontWeight: 500,
-                    lineHeight: 1.4,
-                    overflowWrap: "anywhere",
-                  }}
-                >
-                  {prompt}
-                </Typography>
-                <Box
-                  className="starterArrow"
-                  sx={{
-                    color: "neutral.400",
-                    display: "inline-flex",
-                    flexShrink: 0,
-                    transition: prefersReducedMotion
-                      ? "none"
-                      : "all 200ms ease",
-                  }}
-                >
-                  <ArrowRight size={16} strokeWidth={1.9} aria-hidden="true" />
-                </Box>
-              </Box>
-            ))}
-          </Box>
-        </motion.div>
-      </motion.div>
-    </Box>
-  );
-}
-
 function SnapshotMetric({
   isFirst,
   label,
@@ -1090,8 +616,6 @@ function BloomInsightsHomeSection({
 function ReturningHomeContent({
   disabled,
   displayedSuggestions,
-  formattedDate,
-  greeting,
   isUnpinningEntity,
   onPinnedContextSelect,
   onPinnedContextUnpin,
@@ -1104,8 +628,6 @@ function ReturningHomeContent({
 }: {
   disabled: boolean;
   displayedSuggestions: HomePromptSuggestion[];
-  formattedDate: string;
-  greeting: string;
   isUnpinningEntity: boolean;
   onPinnedContextSelect: (
     entityType: BloomPageEntityType,
@@ -1137,7 +659,7 @@ function ReturningHomeContent({
         minHeight: "100%",
         mx: "auto",
         px: { xs: 3, sm: 5, md: 6 },
-        py: { xs: 4, sm: 5 },
+        pb: { xs: 4, sm: 5 },
         width: "100%",
         maxWidth: 920,
       }}
@@ -1156,33 +678,6 @@ function ReturningHomeContent({
             width: "100%",
           }}
         >
-          <motion.div variants={itemVariants} style={{ width: "100%" }}>
-            <Box>
-              <Typography
-                sx={{
-                  color: "neutral.800",
-                  fontSize: { xs: "22px", sm: "28px" },
-                  fontWeight: 500,
-                  letterSpacing: "-0.015em",
-                  lineHeight: 1.2,
-                  mb: 0.5,
-                }}
-              >
-                {greeting}
-              </Typography>
-              <Typography
-                sx={{
-                  color: "neutral.500",
-                  fontSize: "14px",
-                  fontWeight: 400,
-                  lineHeight: 1.5,
-                }}
-              >
-                {formattedDate}
-              </Typography>
-            </Box>
-          </motion.div>
-
           {showSnapshotSkeleton ? (
             <motion.div variants={itemVariants} style={{ width: "100%" }}>
               <SnapshotSkeleton />
@@ -1373,19 +868,10 @@ export function BloomHomeState({
   prioritizePageContext = true,
 }: BloomHomeStateProps) {
   const { stage: onboardingStage } = useBloomOnboarding();
-  const { user } = useAuth();
   const { tenant, loading: tenantLoading } = useTenant();
   const profileQuery = useBloomProfile();
   const { isUnpinningEntity, unpinEntity } = useBloomProfileMutations();
-  const {
-    entitySummary,
-    entitySummaryLoading,
-    sendMessage,
-    isStreaming,
-    pageContext,
-  } = useBloom();
-  const [homeTimeContext] = React.useState(getHomeTimeContext);
-  const displayName = getDisplayName(user?.user_metadata, user?.email);
+  const { sendMessage, isStreaming, pageContext } = useBloom();
   const workspaceMemory = React.useMemo(() => {
     const rawWorkspaceMemory = profileQuery.data?.workspaceMemory;
     return rawWorkspaceMemory
@@ -1402,10 +888,7 @@ export function BloomHomeState({
     tenant?.id,
   );
   const snapshotQuery = useBloomDailySnapshot(tenant?.id);
-  const hasEntityContext = Boolean(
-    pageContext?.entityType && pageContext.entityId,
-  );
-  const genericSuggestions = React.useMemo<HomePromptSuggestion[]>(
+  const displayedSuggestions = React.useMemo<HomePromptSuggestion[]>(
     () =>
       suggestions.data.map((suggestion) => ({
         categoryLabel: suggestionCategoryLabels[suggestion.category],
@@ -1414,25 +897,7 @@ export function BloomHomeState({
       })),
     [suggestions.data],
   );
-  const entitySuggestions = React.useMemo<HomePromptSuggestion[] | null>(() => {
-    if (!entitySummary) {
-      return null;
-    }
-
-    return ENTITY_PROMPT_BLUEPRINTS[entitySummary.entityType].map(
-      (blueprint) => ({
-        categoryLabel: entityCategoryLabels[entitySummary.entityType],
-        displayText: blueprint.label,
-        prompt: blueprint.buildPrompt(entitySummary),
-      }),
-    );
-  }, [entitySummary]);
-  const displayedSuggestions = entitySuggestions ?? genericSuggestions;
-  const showSuggestionSkeletons =
-    tenantLoading ||
-    (hasEntityContext
-      ? entitySummaryLoading || (!entitySummary && suggestions.isLoading)
-      : suggestions.isLoading);
+  const showSuggestionSkeletons = tenantLoading || suggestions.isLoading;
   const showSnapshotSkeleton =
     tenantLoading || (Boolean(tenant?.id) && snapshotQuery.isLoading);
   const showSnapshot =
@@ -1477,24 +942,28 @@ export function BloomHomeState({
     );
   }
 
-  if (
-    onboardingStage === 0 &&
-    !(profileQuery.isLoading && profileQuery.data === undefined)
-  ) {
-    return (
-      <HomeScrollContainer>
-        <StageZeroWelcomeCard disabled={isStreaming} onSelect={submitPrompt} />
-      </HomeScrollContainer>
-    );
+  // The welcome (greeting + starter questions) is the drawer's, so /bloom and
+  // the drawer greet the same way. /bloom's wider canvas adds the snapshot,
+  // insights, personalised suggestions and pinned context for returning users.
+  const welcome = (
+    <BloomWelcome
+      disabled={isStreaming}
+      layout="page"
+      onSelectPrompt={submitPrompt}
+      resourceFocus={null}
+    />
+  );
+
+  if (onboardingStage === 0) {
+    return <HomeScrollContainer>{welcome}</HomeScrollContainer>;
   }
 
   return (
     <HomeScrollContainer>
+      {welcome}
       <ReturningHomeContent
         disabled={isStreaming}
         displayedSuggestions={displayedSuggestions}
-        formattedDate={homeTimeContext.formattedDate}
-        greeting={`${homeTimeContext.greeting}, ${displayName}`}
         isUnpinningEntity={isUnpinningEntity}
         onPinnedContextSelect={handlePinnedContextSelect}
         onPinnedContextUnpin={handlePinnedContextUnpin}

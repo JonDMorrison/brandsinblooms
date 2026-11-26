@@ -12,6 +12,7 @@ import { ChunkErrorBoundary } from "@/components/loading/ChunkErrorBoundary";
 import { PageSkeleton } from "@/components/loading/PageSkeleton";
 import { useBloomShortcuts } from "@/hooks/bloom/useBloomShortcuts";
 import useMediaQuery from "@/hooks/use-media-query";
+import { useOptionalAskBloom } from "@/providers/AskBloomProvider";
 
 export interface BloomShellOutletContext {
   prioritizePageContext: boolean;
@@ -24,10 +25,51 @@ const isBloomUtilityPath = (pathname: string) => {
   return bloomSegment === "bloom" && BLOOM_UTILITY_SEGMENTS.has(childSegment);
 };
 
+/**
+ * /bloom is the drawer's conversation, expanded. When the user leaves /bloom,
+ * the drawer opens on the conversation they were looking at.
+ */
+function useReturnConversationToDrawer(activeConversationId: string | null) {
+  const askBloom = useOptionalAskBloom();
+  const openConversationRef = React.useRef(askBloom?.openConversation);
+  const activeConversationIdRef = React.useRef(activeConversationId);
+  openConversationRef.current = askBloom?.openConversation;
+  activeConversationIdRef.current = activeConversationId;
+
+  const pendingReturnRef = React.useRef<number | null>(null);
+
+  React.useEffect(() => {
+    // React StrictMode unmounts and remounts on /bloom; a remount cancels the
+    // hand-back that the simulated unmount scheduled.
+    if (pendingReturnRef.current !== null) {
+      window.clearTimeout(pendingReturnRef.current);
+      pendingReturnRef.current = null;
+    }
+
+    return () => {
+      const conversationId = activeConversationIdRef.current;
+      if (!conversationId) {
+        return;
+      }
+
+      pendingReturnRef.current = window.setTimeout(() => {
+        pendingReturnRef.current = null;
+        openConversationRef.current?.(conversationId);
+      }, 0);
+    };
+  }, []);
+}
+
 function BloomShellContent() {
   const location = useLocation();
-  const { conversationStartCount, entitySummary, messages, pageContext } =
-    useBloom();
+  const {
+    activeConversationId,
+    conversationStartCount,
+    entitySummary,
+    messages,
+    pageContext,
+  } = useBloom();
+  useReturnConversationToDrawer(activeConversationId);
   const isMobile = useMediaQuery("(max-width: 767.95px)");
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = React.useState(false);
