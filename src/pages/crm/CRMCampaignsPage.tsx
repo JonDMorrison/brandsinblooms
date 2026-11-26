@@ -1184,7 +1184,7 @@ export function CRMCampaignsPage() {
     return (
       <JoyDropdownMenu>
         <JoyDropdownMenuTrigger
-          aria-label={`Actions for ${campaign.name}`}
+          aria-label={`Actions for ${getCampaignListName(campaign)}`}
           variant="plain"
           color="neutral"
           size="sm"
