@@ -530,7 +530,7 @@ export const TenantDrawer = ({
           onValueChange={(value) => updateField(stateKey, value)}
           placeholder={placeholder}
           type="number"
-          step="any"
+          slotProps={{ input: { step: "any" } }}
           disabled={!field.enabled || savingOverrides || loadingOverrides}
         />
       </Stack>

@@ -456,7 +456,6 @@ export function IntegrationsHubIndex({
                   key={category.value}
                   title={section.title}
                   description={section.description}
-                  icon={section.icon}
                 >
                   {sectionItems.map((item) =>
                     FEATURED_INTEGRATION_SLUGS.has(item.slug) ||

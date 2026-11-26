@@ -35,7 +35,6 @@ export const NewCampaignDialog = ({
   const navigate = useNavigate();
   const { user } = useAuth();
   const { tenant } = useTenant();
-  const { toast } = useToast();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [theme, setTheme] = useState("");

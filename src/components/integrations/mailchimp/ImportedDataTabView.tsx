@@ -53,10 +53,10 @@ const SECTION_OPTIONS: Array<{
   { value: "compliance", label: "Consents & Suppressions", icon: ShieldCheck },
 ];
 
-const HAS_FILTER_OPTIONS = [
+const HAS_FILTER_OPTIONS: Array<{ label: string; value: "all" | "yes" }> = [
   { label: "All", value: "all" },
   { label: "Has value", value: "yes" },
-] as const;
+];
 
 function formatPhoneNumber(phone?: string | null) {
   if (!phone) {
@@ -420,12 +420,7 @@ export function ImportedDataTabView({
                         setSegmentPresence(value);
                         resetCustomerPage();
                       }}
-                      options={
-                        HAS_FILTER_OPTIONS as Array<{
-                          label: string;
-                          value: "all" | "yes";
-                        }>
-                      }
+                      options={HAS_FILTER_OPTIONS}
                     />
                     <ToolbarSelect
                       ariaLabel="Filter customers by tag presence"
@@ -434,12 +429,7 @@ export function ImportedDataTabView({
                         setTagPresence(value);
                         resetCustomerPage();
                       }}
-                      options={
-                        HAS_FILTER_OPTIONS as Array<{
-                          label: string;
-                          value: "all" | "yes";
-                        }>
-                      }
+                      options={HAS_FILTER_OPTIONS}
                     />
                   </Stack>
                   <Typography

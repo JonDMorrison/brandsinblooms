@@ -109,7 +109,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
       return;
     }
 
-    editor.commands.setContent(content, false);
+    editor.commands.setContent(content, { emitUpdate: false });
     lastSyncedContentRef.current = content;
   }, [content, editor]);
 

@@ -36,7 +36,10 @@ import {
   useMailchimpSyncLogs,
 } from "@/hooks/useMailchimpSyncLogs";
 
-const STATUS_OPTIONS = [
+const STATUS_OPTIONS: Array<{
+  label: string;
+  value: MailchimpSyncLogsStatusFilter;
+}> = [
   { label: "All", value: "all" },
   { label: "Pending", value: "pending" },
   { label: "Running", value: "running" },
@@ -44,13 +47,16 @@ const STATUS_OPTIONS = [
   { label: "Cancelled", value: "cancelled" },
   { label: "Completed", value: "completed" },
   { label: "Failed", value: "failed" },
-] satisfies Array<{ label: string; value: MailchimpSyncLogsStatusFilter }>;
+];
 
-const DATE_PRESET_OPTIONS = [
+const DATE_PRESET_OPTIONS: Array<{
+  label: string;
+  value: MailchimpSyncLogsDatePreset;
+}> = [
   { label: "7 days", value: "7d" },
   { label: "30 days", value: "30d" },
   { label: "All time", value: "all" },
-] satisfies Array<{ label: string; value: MailchimpSyncLogsDatePreset }>;
+];
 
 function getStatusChipColor(
   status: MailchimpSyncLogEntry["status"],

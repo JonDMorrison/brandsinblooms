@@ -153,7 +153,7 @@ export const ChooseStep = ({
     setSelectedLists(newSelection);
   };
 
-  const handleSegmentToggle = (listId: string, segmentId: string) => {
+  const handleSegmentToggle = (listId: string, segmentId: number) => {
     const fullId = `${listId}:${segmentId}`;
     const newSelection = new Set(selectedSegments);
     if (newSelection.has(fullId)) {

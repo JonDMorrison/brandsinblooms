@@ -6,6 +6,10 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
+import type {
+  QueryObserverSuccessResult,
+  UseQueryResult,
+} from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 
@@ -207,6 +211,42 @@ const mockedUseMailchimpSegmentMembersPreview = vi.mocked(
   useMailchimpSegmentMembersPreview,
 );
 
+type QueryData<THook extends (...args: never[]) => UseQueryResult<unknown, Error>> =
+  NonNullable<ReturnType<THook>["data"]>;
+
+/** A settled, successful React Query result carrying `data`. */
+function buildSuccessQuery<TData>(data: TData): UseQueryResult<TData, Error> {
+  const result: QueryObserverSuccessResult<TData, Error> = {
+    data,
+    dataUpdatedAt: 0,
+    error: null,
+    errorUpdatedAt: 0,
+    failureCount: 0,
+    failureReason: null,
+    errorUpdateCount: 0,
+    isError: false,
+    isFetched: true,
+    isFetchedAfterMount: true,
+    isFetching: false,
+    isLoading: false,
+    isPending: false,
+    isLoadingError: false,
+    isInitialLoading: false,
+    isPaused: false,
+    isPlaceholderData: false,
+    isRefetchError: false,
+    isRefetching: false,
+    isStale: false,
+    isSuccess: true,
+    refetch: vi.fn(),
+    status: "success",
+    fetchStatus: "idle",
+    promise: Promise.resolve(data),
+  };
+
+  return result;
+}
+
 function buildMailchimpImportProgressState(
   overrides: Record<string, unknown> = {},
 ) {
@@ -338,93 +378,21 @@ function buildMailchimpImportedDataSummaryState(
 }
 
 function buildMailchimpImportedCustomersState(
-  overrides: Record<string, unknown> = {},
-) {
-  return {
-    data: {
-      rows: [
-        {
-          id: "customer-1",
-          email: "alice@example.com",
-          firstName: "Alice",
-          lastName: "Miller",
-          phone: "+1 (555) 100-2000",
-          importedAt: "2026-03-23T09:30:00.000Z",
-          sourceId: "member-1",
-          segments: [{ id: "segment-1", name: "VIP Customers" }],
-          tags: [{ id: "tag-1", name: "Spring Promo" }],
-          latestConsent: {
-            id: "consent-1",
-            customerId: "customer-1",
-            email: "alice@example.com",
-            channel: "email",
-            status: "opted_in",
-            statusLabel: "Subscribed",
-            recordedAt: "2026-03-23T09:10:00.000Z",
-          },
-          activeSuppression: null,
-          allSuppressions: [],
-        },
-      ],
-      pagination: {
-        page: 1,
-        pageSize: 25,
-        totalCount: 1,
-        totalPages: 1,
-      },
-    },
-    isLoading: false,
-    error: null,
-    ...overrides,
-  };
-}
-
-function buildMailchimpImportedSegmentsState(
-  overrides: Record<string, unknown> = {},
-) {
-  return {
-    data: [
+  overrides: { data?: QueryData<typeof useMailchimpImportedCustomers> } = {},
+): ReturnType<typeof useMailchimpImportedCustomers> {
+  const data: QueryData<typeof useMailchimpImportedCustomers> = {
+    rows: [
       {
-        id: "segment-1",
-        name: "VIP Customers",
-        sourceId: "list-1:segment-1",
-        memberCount: 12,
-        createdAt: "2026-03-21T09:00:00.000Z",
-        parentListId: "list-1",
-        parentListName: "Newsletter",
-      },
-    ],
-    isLoading: false,
-    error: null,
-    ...overrides,
-  };
-}
-
-function buildMailchimpImportedTagsState(
-  overrides: Record<string, unknown> = {},
-) {
-  return {
-    data: [
-      {
-        id: "tag-1",
-        name: "Spring Promo",
-        createdAt: "2026-03-20T08:00:00.000Z",
-        customerCount: 7,
-      },
-    ],
-    isLoading: false,
-    error: null,
-    ...overrides,
-  };
-}
-
-function buildMailchimpImportedComplianceState(
-  overrides: Record<string, unknown> = {},
-) {
-  return {
-    data: {
-      consentRows: [
-        {
+        id: "customer-1",
+        email: "alice@example.com",
+        firstName: "Alice",
+        lastName: "Miller",
+        phone: "+1 (555) 100-2000",
+        importedAt: "2026-03-23T09:30:00.000Z",
+        sourceId: "member-1",
+        segments: [{ id: "segment-1", name: "VIP Customers" }],
+        tags: [{ id: "tag-1", name: "Spring Promo" }],
+        latestConsent: {
           id: "consent-1",
           customerId: "customer-1",
           email: "alice@example.com",
@@ -433,34 +401,94 @@ function buildMailchimpImportedComplianceState(
           statusLabel: "Subscribed",
           recordedAt: "2026-03-23T09:10:00.000Z",
         },
-      ],
-      suppressionRows: [
-        {
-          id: "suppression-1",
-          customerId: "customer-2",
-          email: "blocked@example.com",
-          phone: null,
-          channel: "email",
-          reason: "unsubscribed",
-          suppressedAt: "2026-03-23T09:05:00.000Z",
-          active: true,
-          suppressionType: "unsubscribed",
-        },
-      ],
-      consentSummaryCards: [
-        {
-          key: "email:Subscribed",
-          label: "email · Subscribed",
-          value: 1,
-        },
-      ],
-      activeConsentRecords: 1,
-      activeSuppressions: 1,
+        activeSuppression: null,
+        allSuppressions: [],
+      },
+    ],
+    pagination: {
+      page: 1,
+      pageSize: 25,
+      totalCount: 1,
+      totalPages: 1,
     },
-    isLoading: false,
-    error: null,
-    ...overrides,
   };
+
+  return buildSuccessQuery(overrides.data ?? data);
+}
+
+function buildMailchimpImportedSegmentsState(
+  overrides: { data?: QueryData<typeof useMailchimpImportedSegments> } = {},
+): ReturnType<typeof useMailchimpImportedSegments> {
+  const data: QueryData<typeof useMailchimpImportedSegments> = [
+    {
+      id: "segment-1",
+      name: "VIP Customers",
+      sourceId: "list-1:segment-1",
+      memberCount: 12,
+      createdAt: "2026-03-21T09:00:00.000Z",
+      parentListId: "list-1",
+      parentListName: "Newsletter",
+    },
+  ];
+
+  return buildSuccessQuery(overrides.data ?? data);
+}
+
+function buildMailchimpImportedTagsState(
+  overrides: { data?: QueryData<typeof useMailchimpImportedTags> } = {},
+): ReturnType<typeof useMailchimpImportedTags> {
+  const data: QueryData<typeof useMailchimpImportedTags> = [
+    {
+      id: "tag-1",
+      name: "Spring Promo",
+      createdAt: "2026-03-20T08:00:00.000Z",
+      customerCount: 7,
+    },
+  ];
+
+  return buildSuccessQuery(overrides.data ?? data);
+}
+
+function buildMailchimpImportedComplianceState(
+  overrides: { data?: QueryData<typeof useMailchimpImportedCompliance> } = {},
+): ReturnType<typeof useMailchimpImportedCompliance> {
+  const data: QueryData<typeof useMailchimpImportedCompliance> = {
+    consentRows: [
+      {
+        id: "consent-1",
+        customerId: "customer-1",
+        email: "alice@example.com",
+        channel: "email",
+        status: "opted_in",
+        statusLabel: "Subscribed",
+        recordedAt: "2026-03-23T09:10:00.000Z",
+      },
+    ],
+    suppressionRows: [
+      {
+        id: "suppression-1",
+        customerId: "customer-2",
+        email: "blocked@example.com",
+        phone: null,
+        channel: "email",
+        reason: "unsubscribed",
+        suppressedAt: "2026-03-23T09:05:00.000Z",
+        active: true,
+        suppressionType: "unsubscribed",
+      },
+    ],
+    consentSummaryCards: [
+      {
+        key: "email:Subscribed",
+        label: "email · Subscribed",
+        value: 1,
+      },
+    ],
+    activeConsentRecords: 1,
+    activeSuppressions: 1,
+  };
+
+  return buildSuccessQuery(overrides.data ?? data);
 }
 
 function buildBaseState(
@@ -549,7 +577,7 @@ function buildBaseState(
   });
 }
 
-function buildGa4State() {
+function buildGa4State(): IntegrationDetailState {
   const state = buildBaseState(
     "google-analytics",
     {
@@ -590,8 +618,9 @@ function buildGa4State() {
       lastPullAt: "2026-03-23T07:00:00.000Z",
       latestConnectionTest: {
         status: "success",
+        title: "Test passed",
         message: "Property accessible · Sessions data available",
-        testedAt: "2026-03-22T12:00:00.000Z",
+        checkedAt: "2026-03-22T12:00:00.000Z",
       },
       connectedAt: "2026-03-20T10:00:00.000Z",
       updatedAt: "2026-03-22T12:00:00.000Z",
@@ -606,10 +635,12 @@ function buildGa4State() {
   };
 }
 
+type MarketingImportDetail = IntegrationDetailState["marketingImportDetail"];
+
 function buildMarketingImportDetail(
   provider: "mailchimp" | "klaviyo" | "constant_contact",
-  overrides: Record<string, unknown> = {},
-) {
+  overrides: Partial<MarketingImportDetail> = {},
+): MarketingImportDetail {
   const baseLabel =
     provider === "mailchimp"
       ? "Mailchimp"
@@ -798,7 +829,7 @@ function buildMarketingImportDetail(
               value: "Connected",
               description:
                 "Mailchimp authorization is active for previews and one-time or periodic imports.",
-              tone: "success",
+              tone: "success" as const,
               valueClassName: "text-blue-800",
             },
             {
@@ -822,7 +853,7 @@ function buildMarketingImportDetail(
                 provider === "klaviyo"
                   ? "Stored credential is ready for list previews and one-time imports"
                   : "Stored authorization is ready for list previews and one-time imports",
-              tone: "success",
+              tone: "success" as const,
               valueClassName: "text-blue-800",
             },
             {
@@ -837,14 +868,14 @@ function buildMarketingImportDetail(
               value: "API key",
               description:
                 "Stored securely for import workflows. The raw API key is never displayed here.",
-              tone: "success",
+              tone: "success" as const,
             },
           ]
         : [
             {
               label: "Token Expiry",
               value: "2026-04-01T10:00:00.000Z",
-              tone: "neutral",
+              tone: "neutral" as const,
             },
           ]),
     ],
@@ -947,7 +978,7 @@ function buildMarketingImportDetail(
   };
 }
 
-function buildMailchimpState() {
+function buildMailchimpState(): IntegrationDetailState {
   const state = buildBaseState(
     "mailchimp",
     {
@@ -981,7 +1012,7 @@ function buildMailchimpState() {
 
 function buildMailchimpReconnectState(
   status: "revoked" | "expired" | "error" = "revoked",
-) {
+): IntegrationDetailState {
   const state = buildMailchimpState();
   const connectionLabel =
     status === "expired" ? "Expired" : status === "error" ? "Error" : "Revoked";
@@ -1019,7 +1050,7 @@ function buildMailchimpReconnectState(
   return state;
 }
 
-function buildMailchimpRunningImportState() {
+function buildMailchimpRunningImportState(): IntegrationDetailState {
   const state = buildMailchimpState();
 
   state.marketingImportDetail = {
@@ -1033,7 +1064,7 @@ function buildMailchimpRunningImportState() {
   return state;
 }
 
-function buildKlaviyoState() {
+function buildKlaviyoState(): IntegrationDetailState {
   const state = buildBaseState(
     "klaviyo",
     {
@@ -1059,7 +1090,7 @@ function buildKlaviyoState() {
   };
 }
 
-function buildConstantContactState() {
+function buildConstantContactState(): IntegrationDetailState {
   const state = buildBaseState(
     "constant-contact",
     {
@@ -1145,11 +1176,9 @@ describe("IntegrationDetailPage GA4 and marketing-import branches", () => {
     mockedUseMailchimpImportedCompliance.mockReturnValue(
       buildMailchimpImportedComplianceState(),
     );
-    mockedUseMailchimpSegmentMembersPreview.mockReturnValue({
-      data: ["alice@example.com", "bob@example.com"],
-      isLoading: false,
-      error: null,
-    });
+    mockedUseMailchimpSegmentMembersPreview.mockReturnValue(
+      buildSuccessQuery(["alice@example.com", "bob@example.com"]),
+    );
   });
 
   it("renders the GA4 panels and actions", async () => {
@@ -1482,10 +1511,13 @@ describe("IntegrationDetailPage GA4 and marketing-import branches", () => {
       error: null,
     });
 
+    const authorizationTabState = { closed: false };
     const authorizationTab = {
-      closed: false,
+      get closed() {
+        return authorizationTabState.closed;
+      },
       close: vi.fn(() => {
-        authorizationTab.closed = true;
+        authorizationTabState.closed = true;
       }),
     } as unknown as Window;
 
@@ -1518,7 +1550,7 @@ describe("IntegrationDetailPage GA4 and marketing-import branches", () => {
       "/integrations/mailchimp",
     );
 
-    authorizationTab.closed = true;
+    authorizationTabState.closed = true;
     await act(async () => {
       await vi.advanceTimersByTimeAsync(500);
     });
@@ -1548,10 +1580,13 @@ describe("IntegrationDetailPage GA4 and marketing-import branches", () => {
       error: null,
     });
 
+    const authorizationTabState = { closed: false };
     const authorizationTab = {
-      closed: false,
+      get closed() {
+        return authorizationTabState.closed;
+      },
       close: vi.fn(() => {
-        authorizationTab.closed = true;
+        authorizationTabState.closed = true;
       }),
     } as unknown as Window;
 

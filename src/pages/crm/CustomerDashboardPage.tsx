@@ -160,16 +160,16 @@ const validRanges = new Set<CustomerDashboardTimeRange>([
 // Ask Bloom's customer focus expects a number.
 function toCustomerFocusInput(customer: CustomerData) {
   const { lifetime_value: lifetimeValue } = customer;
-  const parsedLifetimeValue =
-    typeof lifetimeValue === "string" ? Number(lifetimeValue) : lifetimeValue;
+  if (typeof lifetimeValue !== "string") {
+    return { ...customer, lifetime_value: lifetimeValue };
+  }
 
+  const parsedLifetimeValue = Number(lifetimeValue);
   return {
     ...customer,
-    lifetime_value:
-      typeof parsedLifetimeValue === "number" &&
-      Number.isFinite(parsedLifetimeValue)
-        ? parsedLifetimeValue
-        : null,
+    lifetime_value: Number.isFinite(parsedLifetimeValue)
+      ? parsedLifetimeValue
+      : null,
   };
 }
 

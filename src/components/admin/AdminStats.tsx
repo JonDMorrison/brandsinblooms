@@ -1,4 +1,6 @@
 import Grid from "@mui/joy/Grid";
+import type { ColorPaletteProp } from "@mui/joy/styles/types";
+import type { ReactNode } from "react";
 import { Users, Clock, CreditCard, UserX } from "lucide-react";
 import { JoyStatCard } from "@/components/joy/JoyStatCard";
 
@@ -12,8 +14,16 @@ interface AdminStatsProps {
   onFilterClick: (status: string) => void;
 }
 
+type AdminStatCard = {
+  title: string;
+  value: number;
+  icon: ReactNode;
+  iconColor: ColorPaletteProp;
+  filter: string | null;
+};
+
 export const AdminStats = ({ stats, onFilterClick }: AdminStatsProps) => {
-  const statCards = [
+  const statCards: AdminStatCard[] = [
     {
       title: "Total Tenants",
       value: stats.total_tenants,

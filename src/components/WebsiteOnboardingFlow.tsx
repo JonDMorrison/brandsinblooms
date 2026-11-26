@@ -191,7 +191,6 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
                   onComplete={handleNext}
                   isCompleting={isCompleting}
                   isAnalyzing={isAnalyzing}
-                  onLocationConfirmationChange={setIsLocationConfirmed}
                 />
               )}
             </>

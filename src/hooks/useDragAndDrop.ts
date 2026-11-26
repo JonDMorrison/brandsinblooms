@@ -7,6 +7,7 @@ import { format } from "date-fns";
 import { UnifiedCalendarEvent } from "./useUnifiedCalendarData";
 import { applyTenantUserScope } from "@/utils/tenantScope";
 import type { TablesUpdate } from "@/integrations/supabase/types";
+import type { PostgrestError } from "@supabase/supabase-js";
 
 type ScopedRecordUpdate =
   | { table: "content_tasks"; values: TablesUpdate<"content_tasks"> }
@@ -45,44 +46,46 @@ export const useDragAndDrop = (onTaskUpdate: () => void) => {
 
     // One literal table per branch keeps the Supabase query types concrete
     // (a union table name makes their instantiation unbounded).
-    const run = () => {
-      switch (update.table) {
-        case "content_tasks":
-          return applyTenantUserScope(
-            supabase
-              .from("content_tasks")
-              .update(update.values)
-              .eq("id", recordId),
-            scope,
-          );
-        case "scheduled_posts":
-          return applyTenantUserScope(
-            supabase
-              .from("scheduled_posts")
-              .update(update.values)
-              .eq("id", recordId),
-            scope,
-          );
-        case "crm_campaigns":
-          return applyTenantUserScope(
-            supabase
-              .from("crm_campaigns")
-              .update(update.values)
-              .eq("id", recordId),
-            scope,
-          );
-        case "campaigns":
-          return applyTenantUserScope(
-            supabase
-              .from("campaigns")
-              .update(update.values)
-              .eq("id", recordId),
-            scope,
-          );
+    let error: PostgrestError | null = null;
+    switch (update.table) {
+      case "content_tasks": {
+        let query = supabase
+          .from("content_tasks")
+          .update(update.values)
+          .eq("id", recordId);
+        query = applyTenantUserScope(query, scope);
+        ({ error } = await query);
+        break;
       }
-    };
+      case "scheduled_posts": {
+        let query = supabase
+          .from("scheduled_posts")
+          .update(update.values)
+          .eq("id", recordId);
+        query = applyTenantUserScope(query, scope);
+        ({ error } = await query);
+        break;
+      }
+      case "crm_campaigns": {
+        let query = supabase
+          .from("crm_campaigns")
+          .update(update.values)
+          .eq("id", recordId);
+        query = applyTenantUserScope(query, scope);
+        ({ error } = await query);
+        break;
+      }
+      case "campaigns": {
+        let query = supabase
+          .from("campaigns")
+          .update(update.values)
+          .eq("id", recordId);
+        query = applyTenantUserScope(query, scope);
+        ({ error } = await query);
+        break;
+      }
+    }
 
-    const { error } = await run();
     if (error) {
       throw error;
     }

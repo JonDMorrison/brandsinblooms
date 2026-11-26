@@ -1,9 +1,14 @@
-import type { ComponentType } from "react";
 import Box from "@mui/joy/Box";
 import type { ChipProps } from "@mui/joy/Chip";
 import type { ColorPaletteProp } from "@mui/joy/styles";
 import type { SxProps } from "@mui/joy/styles/types";
-import { CalendarDays, FileText, Mail, Megaphone, Send } from "lucide-react";
+import {
+  CalendarDays,
+  FileText,
+  Mail,
+  Megaphone,
+  type LucideIcon,
+} from "lucide-react";
 import { format } from "date-fns";
 import type { UnifiedCalendarEvent } from "@/hooks/useUnifiedCalendarData";
 
@@ -17,7 +22,7 @@ export type CalendarEventConfig = {
   surfaceHoverColor: string;
   textColor: string;
   borderColor: string;
-  icon: ComponentType<{ size?: number; className?: string }>;
+  icon: LucideIcon;
   statusColor?: ColorPaletteProp;
 };
 
@@ -58,17 +63,6 @@ export const CALENDAR_EVENT_CONFIG: Record<
     icon: FileText,
     statusColor: "warning",
   },
-  scheduled_post: {
-    label: "Scheduled Post",
-    chipColor: "primary",
-    dotColor: "var(--joy-palette-primary-500)",
-    surfaceColor: "rgba(var(--joy-palette-primary-mainChannel) / 0.12)",
-    surfaceHoverColor: "rgba(var(--joy-palette-primary-mainChannel) / 0.18)",
-    textColor: "primary.700",
-    borderColor: "rgba(var(--joy-palette-primary-mainChannel) / 0.34)",
-    icon: Send,
-    statusColor: "primary",
-  },
   holiday: {
     label: "Holiday",
     chipColor: "danger",
@@ -86,8 +80,7 @@ export const CALENDAR_EVENT_ORDER: Record<CalendarEventType, number> = {
   event: 0,
   holiday: 1,
   newsletter: 2,
-  scheduled_post: 3,
-  task: 4,
+  task: 3,
 };
 
 const TASK_TYPE_LABELS: Record<string, string> = {
@@ -136,16 +129,6 @@ export function getCalendarEventTitle(event: UnifiedCalendarEvent) {
     return content || `${getTaskTypeLabel(event.meta?.post_type)} task`;
   }
 
-  if (event.type === "scheduled_post") {
-    const caption = String(
-      event.meta?.content?.caption ?? event.title ?? "",
-    ).trim();
-    return (
-      caption ||
-      `${String(event.meta?.platform ?? event.platform ?? "Post")} post`
-    );
-  }
-
   if (event.type === "newsletter") {
     return String(
       event.meta?.subject_line ??
@@ -176,8 +159,6 @@ export function getCalendarEventDescription(event: UnifiedCalendarEvent) {
           event.meta?.preheader_text ??
           "Email campaign",
       );
-    case "scheduled_post":
-      return String(event.meta?.status ?? event.platform ?? "Scheduled post");
     case "event":
       return String(
         event.meta?.description ?? event.meta?.theme ?? "Weekly theme campaign",
@@ -200,10 +181,6 @@ export function getCalendarEventTime(event: UnifiedCalendarEvent) {
 
   if (event.type === "newsletter" && event.meta?.scheduled_at) {
     return format(new Date(event.meta.scheduled_at), "h:mm a");
-  }
-
-  if (event.type === "scheduled_post" && event.meta?.publish_at) {
-    return format(new Date(event.meta.publish_at), "h:mm a");
   }
 
   return null;

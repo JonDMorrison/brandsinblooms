@@ -60,7 +60,7 @@ describe("FormPublishTab", () => {
       notification_emails: [],
       steps: [{ index: 0, title: "Welcome", description: "Main step" }],
     },
-    status: "published",
+    status: "published" as const,
     tenant_id: "tenant_123",
   };
 

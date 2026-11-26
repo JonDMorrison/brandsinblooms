@@ -103,7 +103,7 @@ export function BloomPlusMenu({
   visibleModeOptions,
 }: BloomPlusMenuProps) {
   const menuRef = React.useRef<HTMLDivElement | null>(null);
-  const firstItemRef = React.useRef<HTMLButtonElement | null>(null);
+  const firstItemRef = React.useRef<HTMLDivElement | null>(null);
 
   React.useEffect(() => {
     if (!open || typeof document === "undefined") {

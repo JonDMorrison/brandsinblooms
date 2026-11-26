@@ -8,6 +8,7 @@ import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
 import { AlertTriangle, ArrowRight, RefreshCw, Tag } from "lucide-react";
 import { JoyAutocomplete } from "@/components/joy/JoyAutocomplete";
+import ChipDelete from "@mui/joy/ChipDelete";
 import { JoyChip } from "@/components/joy/JoyChip";
 import { useCRMPersonas } from "@/hooks/useCRMPersonas";
 import { useCRMTags } from "@/hooks/useCRMTags";
@@ -214,10 +215,15 @@ function AssignmentPicker(props: {
               size="sm"
               variant="soft"
               color="primary"
-              onDelete={() =>
-                props.onChange(
-                  props.value.filter((item) => item !== option.value),
-                )
+              endDecorator={
+                <ChipDelete
+                  aria-label={`Remove ${option.label}`}
+                  onDelete={() =>
+                    props.onChange(
+                      props.value.filter((item) => item !== option.value),
+                    )
+                  }
+                />
               }
             >
               {option.label}

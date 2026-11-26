@@ -537,7 +537,8 @@ export default function ProductDetailPage() {
   const buildProductResourceFocus = useCallback(
     (currentProduct: Product) =>
       buildProductFocus(
-        currentProduct,
+        // Spread to a plain object literal: ProductLike is an open record.
+        { ...currentProduct },
         currentProduct.variations ?? [],
         undefined,
       ),
