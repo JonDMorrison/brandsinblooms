@@ -9,7 +9,12 @@ import { EMAIL_FONTS, HEADING_SIZES } from "@/lib/studio/newsletter/settings";
 import type { StudioBlock } from "@/types/studioBlocks";
 import { useNewsletterDesign } from "./NewsletterDesignContext";
 import StudioColorPicker from "../fields/StudioColorPicker";
+import { VerticalAlignField } from "./AlignmentControls";
 import "./newsletterControls.css";
+
+/** Local placeholder copy. No AI and no network call. */
+export const SAMPLE_TEXT =
+  "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.";
 
 export function Field({
   label,
@@ -19,6 +24,7 @@ export function Field({
   placeholder,
   type = "text",
   captureTab = false,
+  sampleText = multiline,
 }: {
   label: string;
   value?: string;
@@ -27,38 +33,71 @@ export function Field({
   placeholder?: string;
   type?: string;
   captureTab?: boolean;
+  /** Offer "Insert lorem ipsum" under an empty box. On for multi-line boxes. */
+  sampleText?: boolean;
 }) {
   const id = React.useId();
+  const clearable = type === "text" || type === "url" || type === "email";
+  const hasValue = Boolean(value);
   return (
-    <label className="nl-field" htmlFor={id}>
-      <span>{label}</span>
+    <div className="nl-field">
+      <label htmlFor={id}>{label}</label>
       {multiline ? (
-        <textarea
-          id={id}
-          value={value || ""}
-          onChange={(e) => onChange(e.target.value)}
-          rows={3}
-          placeholder={placeholder}
-          onKeyDown={(event) => {
-            if (!captureTab || event.key !== "Tab" || event.shiftKey || event.ctrlKey || event.metaKey) return;
-            event.preventDefault();
-            const field = event.currentTarget;
-            const start = field.selectionStart;
-            const end = field.selectionEnd;
-            onChange(`${field.value.slice(0, start)}\t${field.value.slice(end)}`);
-            requestAnimationFrame(() => { field.setSelectionRange(start + 1, start + 1); });
-          }}
-        />
+        <>
+          <textarea
+            id={id}
+            value={value || ""}
+            onChange={(e) => onChange(e.target.value)}
+            rows={3}
+            placeholder={placeholder}
+            onKeyDown={(event) => {
+              if (!captureTab || event.key !== "Tab" || event.shiftKey || event.ctrlKey || event.metaKey) return;
+              event.preventDefault();
+              const field = event.currentTarget;
+              const start = field.selectionStart;
+              const end = field.selectionEnd;
+              onChange(`${field.value.slice(0, start)}\t${field.value.slice(end)}`);
+              requestAnimationFrame(() => { field.setSelectionRange(start + 1, start + 1); });
+            }}
+          />
+          {(hasValue || sampleText) && (
+            <div className="nl-field-actions">
+              {sampleText && !hasValue && (
+                <button type="button" className="nl-text-action" onClick={() => onChange(SAMPLE_TEXT)}>
+                  Insert lorem ipsum
+                </button>
+              )}
+              {hasValue && (
+                <button type="button" className="nl-text-action" aria-label={`Clear ${label}`} onClick={() => onChange("")}>
+                  Clear text
+                </button>
+              )}
+            </div>
+          )}
+        </>
       ) : (
-        <input
-          id={id}
-          type={type}
-          value={value || ""}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-        />
+        <div className="nl-input-wrap">
+          <input
+            id={id}
+            type={type}
+            value={value || ""}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder={placeholder}
+          />
+          {clearable && hasValue && (
+            <button
+              type="button"
+              className="nl-input-clear"
+              aria-label={`Clear ${label}`}
+              title="Clear"
+              onClick={() => onChange("")}
+            >
+              <span aria-hidden="true">&times;</span>
+            </button>
+          )}
+        </div>
       )}
-    </label>
+    </div>
   );
 }
 export function NumericField({
@@ -345,7 +384,7 @@ export function ButtonPaddingFields({
   );
   return collapsible ? (
     <details className="nl-controls">
-      <summary>Adjust the button size</summary>
+      <summary>Button padding</summary>
       {fields}
     </details>
   ) : (
@@ -355,17 +394,9 @@ export function ButtonPaddingFields({
 
 export function VerticalAlignmentField({ value = {}, onChange }: AppearanceFieldsProps) {
   return (
-    <Choice
-      label="Text vertical alignment"
-      value={value.verticalAlign || "middle"}
-      options={["top", "middle", "bottom"].map((position) => ({
-        value: position,
-        label: position,
-      }))}
-      onChange={(verticalAlign) => onChange({
-        ...value,
-        verticalAlign: verticalAlign as BlockAppearance["verticalAlign"],
-      })}
+    <VerticalAlignField
+      value={value.verticalAlign}
+      onChange={(verticalAlign) => onChange({ ...value, verticalAlign })}
     />
   );
 }

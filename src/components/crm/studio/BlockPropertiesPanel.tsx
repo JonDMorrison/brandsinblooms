@@ -35,6 +35,7 @@ import {
 } from "@/components/crm/studio/icons/SocialIcons";
 import type { StudioBlock } from "@/components/crm/studio/studioCanvasTypes";
 import StudioAlignmentToggle from "@/components/crm/studio/fields/StudioAlignmentToggle";
+import { ButtonAlignField, TextAlignField, VerticalAlignField } from "./newsletter/AlignmentControls";
 import StudioColorPicker from "@/components/crm/studio/fields/StudioColorPicker";
 import StudioImageUpload, {
   ensureCampaignStudioImageUrl,
@@ -214,7 +215,7 @@ function PanelSection({ title, children }: PanelSectionProps) {
   );
 }
 
-/** Left / Centre / Right for a block's button. `fallback` is the alignment used while unset. */
+/** The shared button alignment control. `fallback` is the alignment used while unset. */
 function ButtonAlignmentField({
   block,
   updateField,
@@ -224,18 +225,15 @@ function ButtonAlignmentField({
   updateField: (field: keyof StudioBlock, value: StudioBlock[keyof StudioBlock]) => void;
   fallback?: "left" | "center" | "right";
 }) {
-  // Shows what the renderer does today when nothing is picked.
-  const current = block.buttonAlign ?? fallback;
   return (
-    <StudioToggleField
-      label="Button alignment"
-      options={[
-        { label: "Left", value: "left" },
-        { label: "Centre", value: "center" },
-        { label: "Right", value: "right" },
-      ]}
-      value={current}
-      onChange={(value) => updateField("buttonAlign", value as StudioBlock["buttonAlign"])}
+    <ButtonAlignField
+      block={block}
+      fallback={fallback}
+      onChange={(fields) => {
+        if (fields.buttonAlign !== block.buttonAlign) updateField("buttonAlign", fields.buttonAlign);
+        if (Boolean(fields.fullWidthButton) !== Boolean(block.fullWidthButton))
+          updateField("fullWidthButton", fields.fullWidthButton);
+      }}
     />
   );
 }
@@ -2002,6 +2000,8 @@ function PanelContent({
   const sideBySide = imageTextLayout === "image-left" || imageTextLayout === "image-right";
   const hasCtaCopy = Boolean(block.headline || block.subheading || block.body);
   const splitCta = block.layout === "split" || block.layout === "banner";
+  const quoteIsCentred = block.type === "quote" &&
+    (block.layout ? block.layout === "large-centered" : block.layoutPreset === "quote-centered");
   const buildAIUploadProps = React.useCallback(
     ({
       aiAspectRatioHint,
@@ -2203,7 +2203,7 @@ function PanelContent({
                 content: (
                   <>
                     <StudioAlignmentToggle
-                      label="Text Alignment"
+                      label="Text alignment"
                       value={block.textAlign ?? "center"}
                       onChange={(value) => updateField("textAlign", value)}
                     />
@@ -2326,6 +2326,11 @@ function PanelContent({
                       onChange={(value) =>
                         updateField("buttonTextColor", value)
                       }
+                    />
+                    <ButtonAlignmentField
+                      block={block}
+                      updateField={updateField}
+                      fallback={block.textAlign ?? "center"}
                     />
                     <ButtonPaddingFields {...appearanceFields} />
                     <StudioSwitchField
@@ -2476,7 +2481,7 @@ function PanelContent({
                       onChange={(value) => updateField("textColor", value)}
                     />
                     <StudioAlignmentToggle
-                      label="Text Alignment"
+                      label="Text alignment"
                       value={block.textAlign ?? "left"}
                       onChange={(value) => updateField("textAlign", value)}
                     />
@@ -2574,13 +2579,6 @@ function PanelContent({
                             checked={block.buttonRounded ?? true}
                             onChange={(value) =>
                               updateField("buttonRounded", value)
-                            }
-                          />
-                          <StudioSwitchField
-                            label="Full Width"
-                            checked={block.fullWidthButton ?? false}
-                            onChange={(value) =>
-                              updateField("fullWidthButton", value)
                             }
                           />
                         </CollapsibleSection>
@@ -2735,7 +2733,7 @@ function PanelContent({
                 title: "Alignment",
                 content: (
                   <StudioAlignmentToggle
-                    label="Text Alignment"
+                    label="Text alignment"
                     value={block.textAlign ?? "left"}
                     onChange={(value) => updateField("textAlign", value)}
                   />
@@ -2924,19 +2922,12 @@ function PanelContent({
                       onChange={(value) => updateField("buttonRounded", value)}
                     />
                     <ButtonPaddingFields {...appearanceFields} />
-                    <StudioAlignmentToggle
-                      label="Button alignment"
-                      value={block.buttonAlign ?? (splitCta ? "right" : block.textAlign ?? "center")}
-                      onChange={(value) => updateField("buttonAlign", value)}
+                    <ButtonAlignmentField
+                      block={block}
+                      updateField={updateField}
+                      fallback={splitCta ? "right" : block.textAlign ?? "center"}
                     />
                     {splitCta && hasCtaCopy && <VerticalAlignmentField {...appearanceFields} />}
-                    <StudioSwitchField
-                      label="Full Width"
-                      checked={block.fullWidthButton ?? false}
-                      onChange={(value) =>
-                        updateField("fullWidthButton", value)
-                      }
-                    />
                   </>
                 ),
               },
@@ -3192,7 +3183,7 @@ function PanelContent({
                       }
                     />
                     <StudioAlignmentToggle
-                      label="Text Alignment"
+                      label="Text alignment"
                       value={block.textAlign ?? "center"}
                       onChange={(value) => updateField("textAlign", value)}
                     />
@@ -4633,7 +4624,7 @@ function PanelContent({
                     <StudioSliderField
                       label="Avatar Size"
                       min={32}
-                      max={64}
+                      max={96}
                       step={4}
                       defaultValue={48}
                       value={block.authorAvatarSize ?? 48}
@@ -4666,9 +4657,9 @@ function PanelContent({
                       value={block.textColor ?? "#111827"}
                       onChange={(value) => updateField("textColor", value)}
                     />
-                    <StudioAlignmentToggle
-                      label="Text Alignment"
-                      value={block.textAlign ?? "left"}
+                    <TextAlignField
+                      value={block.textAlign}
+                      fallback={quoteIsCentred ? "center" : "left"}
                       onChange={(value) => updateField("textAlign", value)}
                     />
                     <StudioToggleField
@@ -4685,15 +4676,18 @@ function PanelContent({
                         )
                       }
                     />
-                    <StudioSliderField
-                      label="Quote Mark Size"
-                      min={32}
-                      max={72}
-                      step={4}
-                      defaultValue={48}
-                      value={block.quoteMarkSize ?? 48}
-                      onChange={(value) => updateField("quoteMarkSize", value)}
-                    />
+                    {/* Only the large centred look draws a quote mark. */}
+                    {quoteIsCentred && (
+                      <StudioSliderField
+                        label="Quote Mark Size"
+                        min={32}
+                        max={72}
+                        step={4}
+                        defaultValue={48}
+                        value={block.quoteMarkSize ?? 48}
+                        onChange={(value) => updateField("quoteMarkSize", value)}
+                      />
+                    )}
                     <StudioSliderField
                       label="Content Padding"
                       min={16}
@@ -5012,20 +5006,10 @@ function PanelContent({
                       value={block.buttonUrl ?? ""}
                       onChange={(value) => updateField("buttonUrl", value)}
                     />
-                    <StudioToggleField
-                      label="Button alignment"
-                      options={[
-                        { label: "Left", value: "left" },
-                        { label: "Centre", value: "center" },
-                        { label: "Right", value: "right" },
-                      ]}
-                      value={block.buttonAlign ?? (block.layout === "centered" ? "center" : "left")}
-                      onChange={(value) =>
-                        updateField(
-                          "buttonAlign",
-                          value as StudioBlock["buttonAlign"],
-                        )
-                      }
+                    <ButtonAlignmentField
+                      block={block}
+                      updateField={updateField}
+                      fallback={block.layout === "centered" ? "center" : "left"}
                     />
                     <StudioToggleField
                       label="Button Style"
@@ -5054,13 +5038,6 @@ function PanelContent({
                         updateField("buttonTextColor", value)
                       }
                     />
-                    <StudioSwitchField
-                      label="Full Width Button"
-                      checked={block.fullWidthButton ?? false}
-                      onChange={(value) =>
-                        updateField("fullWidthButton", value)
-                      }
-                    />
                     <ButtonPaddingFields {...appearanceFields} />
                   </>
                 ),
@@ -5070,6 +5047,11 @@ function PanelContent({
                 title: "Style",
                 content: (
                   <>
+                    <TextAlignField
+                      value={block.textAlign}
+                      fallback={block.layout === "centered" ? "center" : "left"}
+                      onChange={(value) => updateField("textAlign", value)}
+                    />
                     <StudioColorPicker
                       label="Background Colour"
                       value={backgroundColor ?? "#ffffff"}
@@ -5235,9 +5217,51 @@ export default function BlockPropertiesPanel({
     const previous = previousSelectedBlockIdRef.current;
     previousSelectedBlockIdRef.current = selectedBlockId;
     if (previous && selectedBlockId && previous !== selectedBlockId) {
+      if (tailSpacerRef.current) tailSpacerRef.current.style.height = "0px";
       if (scrollContainerRef.current) scrollContainerRef.current.scrollTop = 0;
     }
   }, [selectedBlockId]);
+
+  // Keep the control someone just used exactly where it was.
+  //
+  // Turning "Show button" off removes a tall group of fields, and a hint can
+  // appear at the top of the drawer while typing. Either one moved the rest of
+  // the drawer, so the switch jumped out from under the pointer (a second
+  // click landed on a different control, or the switch left the screen).
+  // The last control used is remembered for a moment, and after the drawer
+  // redraws it is scrolled back to the same spot. Extra room is added at the
+  // end when the drawer has become too short to do that.
+  const interactionAnchorRef = React.useRef<{ element: HTMLElement; top: number; until: number } | null>(null);
+  const tailSpacerRef = React.useRef<HTMLDivElement | null>(null);
+  const rememberInteractionAnchor = React.useCallback((event: React.SyntheticEvent) => {
+    const element = event.target instanceof HTMLElement ? event.target : null;
+    if (!element) return;
+    interactionAnchorRef.current = {
+      element,
+      top: element.getBoundingClientRect().top,
+      until: performance.now() + 500,
+    };
+  }, []);
+  const forgetInteractionAnchor = React.useCallback(() => {
+    interactionAnchorRef.current = null;
+  }, []);
+  React.useLayoutEffect(() => {
+    const anchor = interactionAnchorRef.current;
+    const container = scrollContainerRef.current;
+    if (!anchor || !container) return;
+    if (performance.now() > anchor.until || !anchor.element.isConnected) {
+      interactionAnchorRef.current = null;
+      return;
+    }
+    const moved = anchor.element.getBoundingClientRect().top - anchor.top;
+    if (Math.abs(moved) < 1) return;
+    const wanted = container.scrollTop + moved;
+    const furthest = container.scrollHeight - container.clientHeight;
+    if (wanted > furthest && tailSpacerRef.current) {
+      tailSpacerRef.current.style.height = `${tailSpacerRef.current.offsetHeight + Math.ceil(wanted - furthest)}px`;
+    }
+    container.scrollTop = Math.max(0, wanted);
+  });
 
   // Auto-sizing text boxes measure themselves while the drawer is still
   // sliding open, which left some far too tall. Ask them to measure again
@@ -5401,10 +5425,16 @@ export default function BlockPropertiesPanel({
         onScroll={(event) => {
           onScrollPositionChange?.(event.currentTarget.scrollTop);
         }}
+        onPointerDownCapture={rememberInteractionAnchor}
+        onKeyDownCapture={rememberInteractionAnchor}
+        onWheelCapture={forgetInteractionAnchor}
+        onTouchMoveCapture={forgetInteractionAnchor}
         sx={{
           minHeight: 0,
           overflowX: "hidden",
           overflowY: "auto",
+          // The effect above decides what stays put; the browser's own guess fought it.
+          overflowAnchor: "none",
           width: "100%",
           maxWidth: "100%",
           boxSizing: "border-box",
@@ -5568,6 +5598,8 @@ export default function BlockPropertiesPanel({
             )}
           </Box>
         )}
+        {/* Grows only when needed to keep the last-used control in place. */}
+        <div ref={tailSpacerRef} aria-hidden="true" style={{ height: 0 }} />
       </Box>
     </Sheet>
   );

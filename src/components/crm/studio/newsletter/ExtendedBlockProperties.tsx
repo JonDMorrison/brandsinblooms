@@ -14,7 +14,8 @@ import StudioImageUpload, {
 } from "../fields/StudioImageUpload";
 import StudioRichTextField from "../fields/StudioRichTextField";
 import StudioSwitchField from "../fields/StudioSwitchField";
-import { ButtonPaddingFields, ImageSpacingFields, Field, NumericField, Choice, ColorField } from "./AppearanceControls";
+import { ButtonPaddingFields, ImageSpacingFields, Field, NumericField, Choice, ColorField, SliderNumberRow } from "./AppearanceControls";
+import { ButtonAlignField, ElementAlignField, TextAlignField, VerticalAlignField } from "./AlignmentControls";
 import { safeEmailUrl } from "@/lib/studio/newsletter/settings";
 import { navigationLinkColor } from "@/lib/studio/newsletter/settings";
 import { useNewsletterDesign } from "./NewsletterDesignContext";
@@ -228,75 +229,83 @@ function ButtonFields({
   update,
   linkEditable = true,
   defaultText,
+  canHide = false,
 }: {
   block: StudioBlock;
   update: Update;
   /** YouTube: the button always opens the video, so there is no link box. */
   linkEditable?: boolean;
   defaultText?: string;
+  /** Adds a "Show button" switch. Off hides the button and keeps its settings. */
+  canHide?: boolean;
 }) {
+  const shown = !canHide || block.showButton !== false;
   return (
     <fieldset className="nl-fieldset">
       <legend>Button</legend>
-      <Field
-        label="Words on the button"
-        value={block.buttonText}
-        placeholder={defaultText}
-        onChange={(value) => update("buttonText", value)}
-      />
-      {linkEditable && (
-        <Field
-          label="Link (web address)"
-          value={block.buttonUrl}
-          onChange={(value) => update("buttonUrl", value)}
+      {canHide && (
+        <StudioSwitchField
+          label="Show button"
+          checked={shown}
+          onChange={(value) => update("showButton", value)}
         />
       )}
-      <Choice
-        label="Button alignment"
-        value={block.buttonAlign || "left"}
-        options={[
-          { value: "left", label: "Left" },
-          { value: "center", label: "Centre" },
-          { value: "right", label: "Right" },
-        ]}
-        onChange={(value) => update("buttonAlign", value as StudioBlock["buttonAlign"])}
-      />
-      {linkEditable && block.buttonUrl?.trim() && (
-        <div className="nl-note">
-          {safeEmailUrl(block.buttonUrl) ? (
-            <a href={safeEmailUrl(block.buttonUrl)} target="_blank" rel="noopener noreferrer">Open destination to check link</a>
-          ) : "Enter a public website address, such as example.com/page."}
-        </div>
+      {shown && (
+        <>
+          <Field
+            label="Words on the button"
+            value={block.buttonText}
+            placeholder={defaultText}
+            onChange={(value) => update("buttonText", value)}
+          />
+          {linkEditable && (
+            <Field
+              label="Link (web address)"
+              value={block.buttonUrl}
+              onChange={(value) => update("buttonUrl", value)}
+            />
+          )}
+          {linkEditable && block.buttonUrl?.trim() && (
+            <div className="nl-note">
+              {safeEmailUrl(block.buttonUrl) ? (
+                <a href={safeEmailUrl(block.buttonUrl)} target="_blank" rel="noopener noreferrer">Open destination to check link</a>
+              ) : "Enter a public website address, such as example.com/page."}
+            </div>
+          )}
+          <ButtonAlignField
+            block={block}
+            onChange={(fields) => {
+              if (fields.buttonAlign !== block.buttonAlign) update("buttonAlign", fields.buttonAlign);
+              if (Boolean(fields.fullWidthButton) !== Boolean(block.fullWidthButton))
+                update("fullWidthButton", fields.fullWidthButton);
+            }}
+          />
+          <Choice
+            label="How the button looks"
+            value={block.buttonStyle || "filled"}
+            onChange={(value) =>
+              update("buttonStyle", value as StudioBlock["buttonStyle"])
+            }
+            options={[
+              { value: "filled", label: "Filled button" },
+              { value: "outlined", label: "Outlined button" },
+              { value: "link", label: "Text link" },
+            ]}
+          />
+          <ColorField
+            label="Button colour"
+            transparent
+            value={block.buttonColor}
+            onChange={(value) => update("buttonColor", value)}
+          />
+          <ColorField
+            label="Button text colour"
+            value={block.buttonTextColor}
+            onChange={(value) => update("buttonTextColor", value)}
+          />
+          <ButtonPaddingFields value={block.appearance} onChange={(appearance) => update("appearance", appearance)} />
+        </>
       )}
-      <Choice
-        label="How the button looks"
-        value={block.buttonStyle || "filled"}
-        onChange={(value) =>
-          update("buttonStyle", value as StudioBlock["buttonStyle"])
-        }
-        options={[
-          { value: "filled", label: "Filled button" },
-          { value: "outlined", label: "Outlined button" },
-          { value: "link", label: "Text link" },
-        ]}
-      />
-      <ColorField
-        label="Button colour"
-        transparent
-        value={block.buttonColor}
-        onChange={(value) => update("buttonColor", value)}
-      />
-      <ColorField
-        label="Button text colour"
-        value={block.buttonTextColor}
-        onChange={(value) => update("buttonTextColor", value)}
-      />
-      <StudioSwitchField
-        label="Full-width button"
-        checked={Boolean(block.fullWidthButton)}
-        onChange={(value) => update("fullWidthButton", value)}
-      />
-      <ButtonPaddingFields value={block.appearance} onChange={(appearance) => update("appearance", appearance)} />
     </fieldset>
   );
 }
@@ -440,6 +449,7 @@ function CouponFields({
         The conditions and expiry show in small print at the bottom of the
         coupon.
       </p>
+      <TextAlignField value={block.textAlign} onChange={(value) => update("textAlign", value)} />
       <StudioImageUpload
         label="Coupon image"
         value={block.imageUrl || ""}
@@ -451,16 +461,23 @@ function CouponFields({
         onChange={(value) => update("imageAlt", value)}
       />
       <Choice
-        label="Image placement"
+        label="Where the photo goes"
         value={block.couponImageSide || "left"}
-        options={["left", "right", "top"].map((value) => ({
-          value,
-          label: value,
-        }))}
+        options={[
+          { value: "left", label: "Left of the offer" },
+          { value: "right", label: "Right of the offer" },
+          { value: "top", label: "Above the offer" },
+        ]}
         onChange={(value) =>
           update("couponImageSide", value as StudioBlock["couponImageSide"])
         }
       />
+      {(block.couponImageSide || "left") !== "top" && block.imageUrl?.trim() && (
+        <VerticalAlignField
+          value={block.appearance?.verticalAlign}
+          onChange={(verticalAlign) => update("appearance", { ...block.appearance, verticalAlign })}
+        />
+      )}
       {(block.couponImageSide || "left") !== "top" && (
         <Choice
           label="Column widths (photo / offer)"
@@ -494,9 +511,7 @@ function CouponFields({
         onChange={(value) => update("couponScissors", value)}
       />
       <BadgeFields block={block} update={update} />
-      <StudioSwitchField label="Show button" checked={block.showButton !== false}
-        onChange={(value) => update("showButton", value)} />
-      {block.showButton !== false && <ButtonFields block={block} update={update} />}
+      <ButtonFields block={block} update={update} canHide />
       <details>
         <summary>Add a barcode your till can scan</summary>
         <Field
@@ -730,11 +745,14 @@ function GalleryFields({
       {product && (
         <fieldset className="nl-fieldset">
           <legend>Gallery buttons</legend>
-          <Choice label="Button alignment" value={block.buttonAlign || "left"}
-            options={["left", "center", "right"].map((value) => ({ value, label: value === "center" ? "Centre" : value[0].toUpperCase() + value.slice(1) }))}
-            onChange={(value) => update("buttonAlign", value as StudioBlock["buttonAlign"])} />
-          <StudioSwitchField label="Full width buttons" checked={Boolean(block.fullWidthButton)}
-            onChange={(value) => update("fullWidthButton", value)} />
+          <ButtonAlignField
+            block={block}
+            onChange={(fields) => {
+              if (fields.buttonAlign !== block.buttonAlign) update("buttonAlign", fields.buttonAlign);
+              if (Boolean(fields.fullWidthButton) !== Boolean(block.fullWidthButton))
+                update("fullWidthButton", fields.fullWidthButton);
+            }}
+          />
           <ButtonPaddingFields value={block.appearance} onChange={(appearance) => update("appearance", appearance)} />
         </fieldset>
       )}
@@ -892,6 +910,18 @@ function GalleryFields({
     </>
   );
 }
+/** Event cards sit beside the words unless moved; Blog and Announcement start on top. */
+function photoPlacement(block: StudioBlock): "top" | "left" | "right" {
+  if (block.imagePosition === "top" || block.imagePosition === "left" || block.imagePosition === "right")
+    return block.imagePosition;
+  return block.type === "event" ? "left" : "top";
+}
+/** Matches the renderer: Event photos fill their box, the others show whole. */
+function photoFit(block: StudioBlock): "contain" | "cover" | "fill" {
+  if (block.imageFit === "contain" || block.imageFit === "cover" || block.imageFit === "fill")
+    return block.imageFit;
+  return block.type === "event" ? "cover" : "contain";
+}
 export default function ExtendedBlockProperties({
   block,
   update,
@@ -950,16 +980,20 @@ export default function ExtendedBlockProperties({
             value={block.lineColor}
             onChange={(value) => update("lineColor", value)}
           />
-          <Choice
+          {/* Full width is a line 100% wide. Picking a side keeps the saved width, or uses 60%. */}
+          <ElementAlignField
             label="Line alignment"
-            value={block.textAlign || "center"}
-            options={["left", "center", "right"].map((value) => ({
-              value,
-              label: value,
-            }))}
-            onChange={(value) =>
-              update("textAlign", value as StudioBlock["textAlign"])
-            }
+            align={block.textAlign}
+            fallback="center"
+            fullWidth={(block.lineWidth ?? 100) >= 100}
+            onChange={({ align, fullWidth }) => {
+              if (fullWidth) {
+                update("lineWidth", 100);
+                return;
+              }
+              if (align !== block.textAlign) update("textAlign", align);
+              if ((block.lineWidth ?? 100) >= 100) update("lineWidth", 60);
+            }}
           />
           <StudioSwitchField
             label="Centre ornament"
@@ -1027,6 +1061,7 @@ export default function ExtendedBlockProperties({
               update("headingLevel", value as StudioBlock["headingLevel"])
             }
           />
+          <TextAlignField value={block.textAlign} onChange={(value) => update("textAlign", value)} />
         </>
       );
       break;
@@ -1034,6 +1069,7 @@ export default function ExtendedBlockProperties({
       content = (
         <>
           {textField("Visible preview text", "body", true)}
+          <TextAlignField value={block.textAlign} onChange={(value) => update("textAlign", value)} />
           <p className="nl-note">
             Place this above your header. The campaign Preview text setting
             remains the hidden inbox preheader.
@@ -1281,25 +1317,68 @@ export default function ExtendedBlockProperties({
               {textField("Location", "eventLocation")}
             </>
           )}
+          <TextAlignField value={block.textAlign} onChange={(value) => update("textAlign", value)} />
           <p className="nl-section-title">Photo</p>
-          <StudioImageUpload
-            label="Photo"
-            value={block.imageUrl || ""}
-            onChange={(value) => update("imageUrl", value)}
+          <StudioSwitchField
+            label="Show photo"
+            checked={block.showImage !== false}
+            onChange={(value) => update("showImage", value)}
           />
-          <Choice
-            label="Where the photo goes"
-            value={block.imagePosition || "top"}
-            options={["top", "left", "right"].map((value) => ({
-              value,
-              label: value,
-            }))}
-            onChange={(value) =>
-              update("imagePosition", value as StudioBlock["imagePosition"])
-            }
-          />
-          <ImageSpacingFields value={block.appearance} onChange={(appearance) => update("appearance", appearance)} />
-          <ButtonFields block={block} update={update} />
+          {block.showImage !== false && (
+            <>
+              <StudioImageUpload
+                label="Photo"
+                value={block.imageUrl || ""}
+                onChange={(value) => update("imageUrl", value)}
+              />
+              <Field
+                label="Describe the photo"
+                value={block.imageAlt}
+                onChange={(value) => update("imageAlt", value)}
+              />
+              <Choice
+                label="Where the photo goes"
+                value={photoPlacement(block)}
+                options={[
+                  { value: "top", label: "Above the words" },
+                  { value: "left", label: "Left of the words" },
+                  { value: "right", label: "Right of the words" },
+                ]}
+                onChange={(value) =>
+                  update("imagePosition", value as StudioBlock["imagePosition"])
+                }
+              />
+              <Choice
+                label="How the photo fits"
+                value={photoFit(block)}
+                options={[
+                  { value: "contain", label: "Show the whole photo" },
+                  { value: "cover", label: "Fill the space (may crop)" },
+                  { value: "fill", label: "Stretch to fit" },
+                ]}
+                onChange={(value) => update("imageFit", value as StudioBlock["imageFit"])}
+              />
+              {photoFit(block) !== "contain" && (
+                <SliderNumberRow
+                  label="Photo height"
+                  accessibleName="Photo height"
+                  min={60}
+                  max={600}
+                  placeholder={block.type === "event" ? "252" : "240"}
+                  value={block.imageHeight}
+                  onChange={(value) => update("imageHeight", value)}
+                />
+              )}
+              {photoPlacement(block) !== "top" && block.imageUrl?.trim() && (
+                <VerticalAlignField
+                  value={block.appearance?.verticalAlign}
+                  onChange={(verticalAlign) => update("appearance", { ...block.appearance, verticalAlign })}
+                />
+              )}
+              <ImageSpacingFields value={block.appearance} onChange={(appearance) => update("appearance", appearance)} />
+            </>
+          )}
+          <ButtonFields block={block} update={update} canHide />
         </>
       );
   }

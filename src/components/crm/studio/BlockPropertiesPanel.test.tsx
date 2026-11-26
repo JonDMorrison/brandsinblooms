@@ -1,5 +1,5 @@
 import * as React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import BlockPropertiesPanel from "./BlockPropertiesPanel";
 import SharedEmailBlockPreview from "./newsletter/SharedEmailBlockPreview";
@@ -103,7 +103,7 @@ describe("block-specific properties", () => {
   it("keeps old inline buttons editable while giving new text blocks one set of controls", () => {
     const fresh = createStudioBlock("plain-text");
     const clean = openPanel(fresh);
-    expect(screen.getByText("Text Alignment")).toBeInTheDocument();
+    expect(screen.getByText("Text alignment")).toBeInTheDocument();
     expect(screen.queryByText("Button Text")).toBeNull();
     expect(screen.queryByText("Content Padding")).toBeNull();
     expect(screen.queryByText("Font Weight")).toBeNull();
@@ -114,7 +114,9 @@ describe("block-specific properties", () => {
 
   it("groups a button's width, padding and alignment, without text or image controls", () => {
     openPanel(createStudioBlock("call-to-action"));
-    expect(screen.getByLabelText("Full Width")).toBeInTheDocument();
+    // Full width is the fourth choice in the shared alignment control, not a separate switch.
+    expect(within(screen.getByRole("group", { name: "Button alignment" })).getByRole("button", { name: "Full width" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Full Width")).toBeNull();
     expect(screen.getByLabelText("Button horizontal padding")).toBeInTheDocument();
     expect(screen.getByText("Button alignment")).toBeInTheDocument();
     expect(screen.queryByText("Headline")).toBeNull();
@@ -135,7 +137,8 @@ describe("block-specific properties", () => {
     expect(screen.getByText("9:16")).toBeInTheDocument();
     expect(screen.getAllByText("Column Split")).toHaveLength(1);
     expect(screen.getByText("Image link URL")).toBeInTheDocument();
-    expect(screen.getByLabelText("Text vertical alignment")).toBeInTheDocument();
+    const vertical = screen.getByRole("group", { name: "Line up the words beside the photo" });
+    expect(within(vertical).getAllByRole("button").map((button) => button.getAttribute("aria-label"))).toEqual(["Top", "Middle", "Bottom"]);
   });
 });
 

@@ -297,6 +297,8 @@ export interface StudioBlock {
   textPosition?: StudioTextPosition;
   textShadow?: boolean;
   showButton?: boolean;
+  /** false hides the photo and keeps it saved. Unset means shown. */
+  showImage?: boolean;
   showCaptionBar?: boolean;
   captionBarColor?: string;
   fontSize?: StudioFontSize;

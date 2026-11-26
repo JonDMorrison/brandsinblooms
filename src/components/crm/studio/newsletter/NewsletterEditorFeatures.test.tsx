@@ -1,5 +1,5 @@
 import * as React from "react";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { DndContext } from "@dnd-kit/core";
 import BlockLibrary from "../BlockLibrary";
@@ -171,9 +171,10 @@ describe("Arts Nursery November 15 editor controls", () => {
     expect(screen.getAllByText("Badge colour").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Badge text colour").length).toBeGreaterThan(0);
     expect(screen.getAllByLabelText("Image link URL").length).toBeGreaterThan(0);
-    fireEvent.change(screen.getByLabelText("Button alignment"), { target: { value: "center" } });
+    const alignment = within(screen.getByRole("group", { name: "Button alignment" }));
+    fireEvent.click(alignment.getByRole("button", { name: "Centre" }));
     expect(update).toHaveBeenCalledWith("buttonAlign", "center");
-    fireEvent.click(screen.getByLabelText("Full width buttons"));
+    fireEvent.click(alignment.getByRole("button", { name: "Full width" }));
     expect(update).toHaveBeenCalledWith("fullWidthButton", true);
   });
 

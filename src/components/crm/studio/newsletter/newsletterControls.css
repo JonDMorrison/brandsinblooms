@@ -186,3 +186,53 @@
 .nl-section-title:first-child {
   margin-top: 4px;
 }
+
+/* Clear and sample-text actions shared by every text box. */
+.nl-input-wrap {
+  position: relative;
+  display: flex;
+}
+.nl-input-wrap input {
+  padding-right: 30px;
+}
+.nl-input-clear {
+  position: absolute;
+  top: 50%;
+  right: 5px;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #5b6f75;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+.nl-input-clear:hover {
+  background: #eef2f3;
+  color: #203137;
+}
+.nl-field-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+.nl-text-action {
+  border: 0;
+  padding: 2px 0;
+  background: transparent;
+  color: var(--joy-palette-primary-600, #1f5b63);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.nl-input-clear:focus-visible,
+.nl-text-action:focus-visible {
+  outline: 2px solid var(--joy-palette-primary-400, #1f5b63);
+  outline-offset: 2px;
+}
