@@ -451,3 +451,107 @@ describe('saved audience argument contracts', () => {
     expect(BASE_SYSTEM_PROMPT).toContain('inspect_customer_set with no set_id retrieves the latest result');
   });
 });
+
+describe("query_products low stock uses each product's own threshold", () => {
+  const product = (
+    name: string,
+    inventory_count: number | null,
+    low_stock_threshold: number | null,
+    overrides: Record<string, unknown> = {},
+  ) => ({
+    id: name,
+    tenant_id: "tenant",
+    name,
+    sku: null,
+    status: "active",
+    source: "manual",
+    price: 10,
+    compare_at_price: null,
+    currency: "CAD",
+    inventory_count,
+    track_inventory: true,
+    low_stock_threshold,
+    is_visible: true,
+    created_at: "2026-01-01",
+    ...overrides,
+  });
+  // Shaped on the Northfield test catalogue: low rows are at or below their own
+  // threshold even when above 10 would have been "fine", and the others are not.
+  const rows = [
+    product("Basil Genovese", 7, 12),
+    product("Echinacea Magnus", 5, 10),
+    product("Heuchera Caramel", 3, 8),
+    product("Pothos Golden 6-inch", 2, 8),
+    product("Sea Soil Original 32L", 6, 15),
+    product("Spring Bulb Collection", 2, 8),
+    product("Equal To Threshold", 8, 8),
+    product("Above Threshold Under Ten", 9, 5),
+    product("Zero Threshold In Stock", 4, 0),
+    product("No Threshold", 1, null),
+    product("No Count", null, 5),
+    product("Untracked", 1, 5, { track_inventory: false }),
+    product("Archived", 1, 5, { status: "archived" }),
+  ];
+
+  it("returns exactly the active, tracked products at or below threshold", async () => {
+    const { isLowStockProduct, queryProducts } = await import(
+      "../../supabase/functions/bloom-assist/tools/implementations/query-products"
+    );
+    const client = fakeClient({ products: rows });
+    const result = await queryProducts(
+      {
+        low_stock: true,
+        page_size: 100,
+        sort_by: "name",
+        sort_order: "asc",
+        filters: [{ field: "inventory_count", operator: "lt", value: 10 }],
+      },
+      contextFor(client),
+    );
+    const items = result.data as Array<Record<string, unknown>>;
+    expect(items.map((item) => item.name)).toEqual([
+      "Basil Genovese",
+      "Echinacea Magnus",
+      "Heuchera Caramel",
+      "Pothos Golden 6-inch",
+      "Sea Soil Original 32L",
+      "Spring Bulb Collection",
+      "Equal To Threshold",
+    ]);
+    expect(result.count).toBe(7);
+    expect(items.every((item) => item.is_low_stock === true)).toBe(true);
+    expect(items[0]).toMatchObject({ low_stock_threshold: 12 });
+    expect(rows.filter(isLowStockProduct)).toHaveLength(7);
+
+    const productCalls = client.calls.filter((call) => call.table === "products");
+    expect(productCalls).toContainEqual({ table: "products", method: "eq", args: ["tenant_id", "tenant"] });
+    expect(productCalls).toContainEqual({ table: "products", method: "eq", args: ["status", "active"] });
+    expect(productCalls).toContainEqual({ table: "products", method: "eq", args: ["track_inventory", true] });
+    // The model's fixed "inventory_count < 10" cap is replaced, not applied.
+    expect(
+      productCalls.some((call) => call.method === "lt" && call.args[0] === "inventory_count"),
+    ).toBe(false);
+  });
+
+  it("keeps ordinary product listings unchanged and flags low rows", async () => {
+    const { queryProducts } = await import(
+      "../../supabase/functions/bloom-assist/tools/implementations/query-products"
+    );
+    const client = fakeClient({ products: rows });
+    const result = await queryProducts({ page_size: 100 }, contextFor(client));
+    const items = result.data as Array<Record<string, unknown>>;
+    expect(items).toHaveLength(rows.length);
+    expect(items.find((item) => item.name === "No Threshold")).toMatchObject({ is_low_stock: false, low_stock_threshold: null });
+    expect(items.find((item) => item.name === "Untracked")).toMatchObject({ is_low_stock: false });
+  });
+
+  it("advertises low_stock to the model and validates it", async () => {
+    const { getRegisteredTool } = await import("../../supabase/functions/bloom-assist/tools/registry");
+    const { validateToolParams } = await import("../../supabase/functions/bloom-assist/tools/executor");
+    const tool = getRegisteredTool("query_products")!;
+    expect(tool.function.description).toContain("set low_stock to true");
+    expect(tool.function.description).toContain("low_stock_threshold");
+    expect(validateToolParams(tool, { low_stock: true })).toMatchObject({ ok: true });
+    expect(validateToolParams(tool, { low_stock: "yes" })).toMatchObject({ ok: false });
+  });
+});

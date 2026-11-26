@@ -18,6 +18,10 @@ import {
   visibleRows,
 } from "@/components/bloom/content/cards/cardUtils";
 import { ResultOutcomeBanner } from "@/components/bloom/content/cards/ResultOutcomeBanner";
+import {
+  readProductStockLevel,
+  stockPercentOfThreshold,
+} from "@/components/bloom/utils/productStock";
 
 export function InventoryResultCard({
   result,
@@ -69,21 +73,16 @@ export function InventoryResultCard({
                     "in_stock",
                   ]),
                 ) ?? 0;
-              const threshold = readNumber(product.low_stock_threshold) ?? 10;
-              const maxStock = Math.max(
-                readNumber(
-                  getValue(product, [
-                    "max_stock",
-                    "stock_capacity",
-                    "reorder_quantity",
-                  ]),
-                ) ?? 0,
-                threshold * 5,
-                stock,
-                1,
-              );
-              const stockPercent = Math.min((stock / maxStock) * 100, 100);
-              const lowStock = stock <= threshold;
+              const { isLow: lowStock, threshold, tracked } =
+                readProductStockLevel(product);
+              // The bar measures stock against the product's own low-stock
+              // threshold; without a tracked threshold there is nothing to
+              // measure against, so no bar is drawn.
+              const showStockBar = tracked && threshold !== null;
+              const stockPercent =
+                threshold !== null
+                  ? stockPercentOfThreshold(stock, threshold)
+                  : 0;
 
               return (
                 <Box key={`${name}-${index}`} sx={{ py: 1.5 }}>
@@ -145,47 +144,55 @@ export function InventoryResultCard({
                       ) : null}
                     </Stack>
                   </Stack>
-                  <Box
-                    sx={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 1,
-                      mt: 1,
-                    }}
-                  >
+                  {showStockBar ? (
                     <Box
                       sx={{
-                        flex: 1,
-                        height: 4,
-                        borderRadius: 999,
-                        backgroundColor: "neutral.100",
-                        overflow: "hidden",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1,
+                        mt: 1,
                       }}
                     >
                       <Box
+                        role="meter"
+                        aria-label={`${formatNumber(stock) ?? "0"} in stock, low-stock threshold ${formatNumber(threshold) ?? "0"}`}
+                        aria-valuemin={0}
+                        aria-valuemax={threshold}
+                        aria-valuenow={Math.min(stock, threshold)}
                         sx={{
-                          width: `${stockPercent}%`,
-                          height: "100%",
+                          flex: 1,
+                          height: 4,
                           borderRadius: 999,
-                          backgroundColor: lowStock
-                            ? "warning.500"
-                            : "primary.500",
-                          transition: "width 500ms ease",
+                          backgroundColor: "neutral.100",
+                          overflow: "hidden",
                         }}
-                      />
+                      >
+                        <Box
+                          sx={{
+                            width: `${stockPercent}%`,
+                            height: "100%",
+                            borderRadius: 999,
+                            backgroundColor: lowStock
+                              ? "warning.500"
+                              : "primary.500",
+                            transition: "width 500ms ease",
+                          }}
+                        />
+                      </Box>
+                      <Typography
+                        level="body-xs"
+                        sx={{
+                          color: lowStock ? "warning.600" : "neutral.500",
+                          fontVariantNumeric: "tabular-nums",
+                          fontSize: "11px",
+                          flexShrink: 0,
+                        }}
+                      >
+                        {formatNumber(stock) ?? "0"} /{" "}
+                        {formatNumber(threshold) ?? "0"} threshold
+                      </Typography>
                     </Box>
-                    <Typography
-                      level="body-xs"
-                      sx={{
-                        color: lowStock ? "warning.600" : "neutral.500",
-                        fontVariantNumeric: "tabular-nums",
-                        fontSize: "11px",
-                        flexShrink: 0,
-                      }}
-                    >
-                      {stock}/{maxStock}
-                    </Typography>
-                  </Box>
+                  ) : null}
                 </Box>
               );
             })

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { DataCardBlock } from "./blocks/DataCardBlock";
 import { CustomerResultCard } from "./content/cards/CustomerResultCard";
+import { InventoryResultCard } from "./content/cards/InventoryResultCard";
 import { BloomToolResultCard } from "./content/BloomToolResultCard";
 import {
   formatCurrencyValue,
@@ -121,6 +122,47 @@ describe("Bloom purchase evidence rendering", () => {
     expect(screen.getByText("CA$410.50 recorded spending")).toBeVisible();
     expect(screen.getByText(/\$2,013\.85 CAD reported · Jan 1/)).toBeVisible();
     expect(screen.getByText("3 recorded orders")).toBeVisible();
+  });
+});
+
+describe("Bloom inventory card measures stock against each product's threshold", () => {
+  const productResult = (rows: Record<string, unknown>[]): NormalizedToolResult => ({
+    toolName: "query_products",
+    blockType: "data_table",
+    status: "success",
+    data: rows,
+    count: rows.length,
+    message: null,
+    error: null,
+    raw: null,
+  });
+  const product = (name: string, inventory_count: number, low_stock_threshold: number | null, extra: Record<string, unknown> = {}) => ({
+    id: name, name, status: "active", track_inventory: true, inventory_count, low_stock_threshold, price: 10, currency: "CAD", ...extra,
+  });
+
+  it("draws the bar and label against the threshold, never against a fixed 50", () => {
+    render(<InventoryResultCard result={productResult([
+      product("Basil Genovese", 7, 12, { is_low_stock: true }),
+      product("ZZ Plant 8-inch", 16, 6, { is_low_stock: false }),
+    ])} />);
+    expect(screen.getByText("7 / 12 threshold")).toBeVisible();
+    expect(screen.getByText("16 / 6 threshold")).toBeVisible();
+    expect(screen.queryByText(/\/50/)).toBeNull();
+    const [basil, zz] = screen.getAllByRole("meter");
+    expect(basil).toHaveAttribute("aria-valuemax", "12");
+    expect(basil).toHaveAttribute("aria-valuenow", "7");
+    expect(getComputedStyle(basil.firstElementChild as HTMLElement).width).toBe(`${(7 / 12) * 100}%`);
+    expect(getComputedStyle(zz.firstElementChild as HTMLElement).width).toBe("100%");
+    expect(screen.getAllByText("Low")).toHaveLength(1);
+  });
+
+  it("does not mark low or draw a bar without a threshold or tracking", () => {
+    render(<InventoryResultCard result={productResult([
+      product("No Threshold", 1, null),
+      product("Untracked", 1, 5, { track_inventory: false }),
+    ])} />);
+    expect(screen.queryByRole("meter")).toBeNull();
+    expect(screen.queryByText("Low")).toBeNull();
   });
 });
 
