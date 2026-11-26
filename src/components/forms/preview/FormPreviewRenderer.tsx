@@ -824,7 +824,11 @@ export function FormPreviewRenderer({
           ? await onSubmit(getSubmissionData())
           : undefined;
 
-        if (submitResult?.preventSuccess) {
+        if (
+          typeof submitResult === "object" &&
+          submitResult !== null &&
+          submitResult.preventSuccess
+        ) {
           setIsTransitioningToSuccess(false);
           return;
         }
@@ -1643,8 +1647,12 @@ function FieldRenderer({
     const options = getSegmentOptions(field);
     const mode = field.segment_selection_mode ?? "checkbox";
     const isSingle = mode === "single";
-    const selected = Array.isArray(value)
-      ? value.filter((entry): entry is string => typeof entry === "string")
+    // Segment selections are stored as string ids; the shared value type
+    // only lists upload references for arrays, so read entries as unknown.
+    const selected: string[] = Array.isArray(value)
+      ? value.flatMap((entry: unknown) =>
+          typeof entry === "string" ? [entry] : [],
+        )
       : typeof value === "string" && value.length > 0
         ? [value]
         : [];

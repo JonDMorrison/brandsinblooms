@@ -11,6 +11,7 @@ import {
   type FooterCompanyProfile,
 } from "@/lib/studio/footerCompliance";
 import type { StudioBlock } from "@/types/studioBlocks";
+import { toJsonValue } from "@/utils/jsonValue";
 import {
   escapeHtml,
   formatDraftRichText,
@@ -20,6 +21,39 @@ import { getBusinessProfileUserId } from "@/lib/profile/businessProfileUserId";
 
 type CampaignRow = Database["public"]["Tables"]["crm_campaigns"]["Row"];
 type CampaignStatus = CampaignRow["status"];
+
+/** Legacy object form of a block's socialLinks, keyed by platform. */
+export type LegacySocialLinkRecord = NonNullable<ContentBlock["socialLinks"]>;
+
+/** Legacy ContentBlock aliases Campaign Studio writes beside its own fields. */
+type LegacyContentBlockAliases = Partial<
+  Pick<
+    ContentBlock,
+    | "title"
+    | "content"
+    | "altText"
+    | "ctaText"
+    | "ctaUrl"
+    | "quote"
+    | "author"
+    | "subtitle"
+    | "issueNumber"
+    | "publishDate"
+  >
+>;
+
+/**
+ * A content block as written to crm_campaigns.metadata.contentBlocks.
+ * Campaign Studio saves StudioBlock fields plus the legacy ContentBlock
+ * aliases, with imageUrl null when the image was removed and socialLinks in
+ * the legacy object form; readers go through normalizeSocialLinks, which
+ * accepts either socialLinks form.
+ */
+export type SavedCampaignBlock = Omit<StudioBlock, "socialLinks" | "imageUrl"> &
+  LegacyContentBlockAliases & {
+    imageUrl?: string | null;
+    socialLinks?: StudioBlock["socialLinks"] | LegacySocialLinkRecord;
+  };
 
 export interface PersistCampaignRecordInput {
   tenantId?: string | null;
@@ -35,7 +69,7 @@ export interface PersistCampaignRecordInput {
   senderEmail: string;
   fromEmailDomainId?: string | null;
   replyTo: string;
-  contentBlocks: StudioBlock[];
+  contentBlocks: SavedCampaignBlock[];
   smsMessage: string;
   sendAt?: string | null;
   sendImmediately?: boolean;
@@ -154,7 +188,11 @@ function toRecord(value: unknown): Record<string, unknown> {
     : {};
 }
 
-function normalizeInputBlocks(
+/**
+ * Normalizes loosely-shaped editor/legacy blocks into StudioBlocks (stable id,
+ * order and visibility). Idempotent, so callers may pre-normalize.
+ */
+export function normalizeInputBlocks(
   blocks: Array<StudioBlock | Record<string, unknown>>,
 ) {
   return blocks.flatMap((block, index) => {
@@ -557,7 +595,7 @@ function buildCampaignMetadata(
   existingMetadata: Record<string, unknown>,
   input: PersistCampaignRecordInput,
 ) {
-  return {
+  return toJsonValue({
     ...existingMetadata,
     ...(input.metadata ?? {}),
     campaignType: input.campaignType,
@@ -568,7 +606,7 @@ function buildCampaignMetadata(
     sourceSegmentId: input.sourceSegmentId,
     sourcePersonaId: input.sourcePersonaId,
     contentBlocks: input.contentBlocks,
-  } satisfies Record<string, unknown>;
+  } satisfies Record<string, unknown>);
 }
 
 export function buildCampaignBlockRows(
@@ -576,7 +614,7 @@ export function buildCampaignBlockRows(
   contentBlocks: StudioBlock[],
 ): Database["public"]["Tables"]["campaign_blocks"]["Insert"][] {
   return contentBlocks.map((block, index) => {
-    const record = block as Record<string, unknown>;
+    const record: Record<string, unknown> = { ...block };
     const headline =
       typeof record.headline === "string"
         ? record.headline
@@ -615,7 +653,7 @@ export function buildCampaignBlockRows(
     return {
       campaign_id: campaignId,
       block_type: block.type,
-      content: toJsonSafe(record),
+      content: toJsonValue(record),
       headline,
       image_url: imageUrl,
       cta_text: ctaText,
@@ -1025,7 +1063,7 @@ export async function writeCampaignDraftSnapshot(params: {
     doc_type: "newsletter",
     doc_id: params.campaignId,
     version: nextVersion,
-    content: snapshotContent,
+    content: toJsonValue(snapshotContent),
   });
 
   if (insertError) {

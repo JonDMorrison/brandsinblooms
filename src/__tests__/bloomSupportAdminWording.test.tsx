@@ -61,8 +61,9 @@ describe("Bloom Support names roles, never people", () => {
     expect(JSON.stringify(seen)).not.toMatch(PERSON);
     expect(seen!.title).toBe("Escalate to an admin");
     const who = seen!.fields.find((f) => f.name === "who");
-    expect(who?.options?.map((o) => o.value)).toEqual(["both", "jon", "jeff"]);
-    expect(who?.options?.map((o) => o.label)).toEqual(["Any admin", "Admin · inbox 1", "Admin · Pat Admin"]);
+    const whoOptions = who && "options" in who ? who.options : undefined;
+    expect(whoOptions?.map((o) => o.value)).toEqual(["both", "jon", "jeff"]);
+    expect(whoOptions?.map((o) => o.label)).toEqual(["Any admin", "Admin · inbox 1", "Admin · Pat Admin"]);
   });
 
   it("rewords old stored next actions for staff views", () => {

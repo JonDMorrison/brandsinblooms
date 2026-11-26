@@ -1011,7 +1011,7 @@ export async function executeTool(
 
   const normalizedParams = normalizeToolParams(tool, params);
   const validation = validateToolParams(tool, normalizedParams);
-  if (!validation.ok) {
+  if (validation.ok === false) {
     result = validationErrorResult(validation.issues, tool.function.name);
     await logToolExecution(context, {
       toolName: tool.function.name,

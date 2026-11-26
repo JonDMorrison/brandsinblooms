@@ -336,10 +336,14 @@ function getCampaignStatusColor(status: string | null | undefined) {
   }
 }
 
+const ACTIVE_SEND_STATUSES: ReadonlyArray<string> = [
+  CAMPAIGN_STATUS.QUEUED,
+  CAMPAIGN_STATUS.PARTIALLY_QUEUED,
+  CAMPAIGN_STATUS.SENDING,
+];
+
 function isActiveSendStatus(status: string | null | undefined) {
-  return [CAMPAIGN_STATUS.QUEUED, CAMPAIGN_STATUS.PARTIALLY_QUEUED, CAMPAIGN_STATUS.SENDING].includes(
-    (status || "") as typeof CAMPAIGN_STATUS[keyof typeof CAMPAIGN_STATUS],
-  );
+  return typeof status === "string" && ACTIVE_SEND_STATUSES.includes(status);
 }
 
 export default function CRMCampaignRecipientsPage() {

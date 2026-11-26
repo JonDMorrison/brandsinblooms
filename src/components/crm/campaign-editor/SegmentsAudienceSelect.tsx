@@ -106,7 +106,7 @@ export function SegmentsAudienceSelect({
       }}
       renderOption={(optionProps, option) => {
         const { key, ...liProps } =
-          optionProps as React.HTMLAttributes<HTMLLIElement> & {
+          optionProps as Omit<React.HTMLAttributes<HTMLLIElement>, "color"> & {
             key?: React.Key;
           };
         if (isAllContactsSegmentOption(option)) {

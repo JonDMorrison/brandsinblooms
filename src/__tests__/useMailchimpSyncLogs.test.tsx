@@ -399,7 +399,7 @@ describe("useMailchimpSyncLogs", () => {
     ];
 
     const setIntervalSpy = vi
-      .spyOn(window, "setInterval")
+      .spyOn(window as Window, "setInterval")
       .mockImplementation(() => 1);
     vi.spyOn(window, "clearInterval").mockImplementation(() => undefined);
 

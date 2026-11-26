@@ -1,4 +1,5 @@
 import Chip from "@mui/joy/Chip";
+import type { ColorPaletteProp } from "@mui/joy/styles/types";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
 import {
@@ -9,6 +10,8 @@ import {
   JoyTableHeaderCell,
   JoyTableRow,
 } from "@/components/joy/JoyTable";
+
+type ChipStyle = { color: ColorPaletteProp; label: string };
 
 interface UserData {
   id: string;
@@ -25,7 +28,7 @@ interface UserManagementTableProps {
 }
 
 export const UserManagementTable = ({ users }: UserManagementTableProps) => {
-  const getPlanChip = (plan: string) => {
+  const getPlanChip = (plan: string): ChipStyle => {
     switch (plan) {
       case "bloom":
         return { color: "primary", label: "Bloom" };
@@ -41,7 +44,7 @@ export const UserManagementTable = ({ users }: UserManagementTableProps) => {
     }
   };
 
-  const getStatusChip = (status: string) => {
+  const getStatusChip = (status: string): ChipStyle => {
     return status === "Active"
       ? { color: "success", label: status }
       : { color: "danger", label: status };

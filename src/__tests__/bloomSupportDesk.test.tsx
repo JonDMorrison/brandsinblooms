@@ -285,11 +285,15 @@ import type { TicketDetail } from "@/lib/bloomSupport/api";
 import { waitFor } from "@testing-library/react";
 
 describe("mistaken duplicate correction", () => {
-  const ticket = { id: "bulk", number: 1029, subject: "Bulk selling", version: 5, status: "working", duplicate_of: "wreath", merged_into: null,
+  const ticket: TicketDetail = { id: "bulk", number: 1029, subject: "Bulk selling", version: 5, status: "working", duplicate_of: "wreath", merged_into: null,
     problem_id: "problem", engineering_issue_id: "engineering", feature_request_id: "feature", next_action: "Verify bulk flow",
+    product: "bloomsuite", kind: "bug", priority: "normal", created_at: "2024-01-01T00:00:00.000Z", updated_at: "2024-01-01T00:00:00.000Z",
+    resolved_at: null, conversation_id: "conversation", account: null, requester: null, resolution_summary: null,
+    summary: "", messages: [], attachments: [], conversation_tickets: [],
     links: [{ kind: "duplicate", ticket_id: "wreath", number: 1027, subject: "Wreath checkout", status: "working" }],
-    problem: { title: "Wreath problem" }, engineering: { title: "Wreath repair" }, feature_request: { title: "Wreath feature" },
-  } as TicketDetail;
+    problem: { id: "problem", title: "Wreath problem", kind: "bug", status: "working", tickets: 1, accounts: 1 },
+    engineering: { title: "Wreath repair" }, feature_request: { title: "Wreath feature" },
+  };
   const setup = () => {
     vi.spyOn(bloomSupport, "getTicket").mockResolvedValue(ticket);
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });

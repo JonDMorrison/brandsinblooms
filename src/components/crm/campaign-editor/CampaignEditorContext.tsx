@@ -2,8 +2,8 @@ import * as React from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import {
-  LOCKED_STATUSES,
   isLockedCampaignStatus,
+  type CampaignStatus,
 } from "@/constants/campaignStatuses";
 import { computeAudienceRecipientCount } from "@/lib/computeAudienceRecipientCount";
 import {
@@ -13,7 +13,6 @@ import {
   type CampaignEditorRecord,
   type CampaignPersonaSummary,
   type CampaignSegmentSummary,
-  type CampaignStatus,
   type EditorCampaignType,
 } from "@/lib/crm/campaignEditor";
 import {
@@ -447,7 +446,7 @@ export function CampaignEditorProvider({
         lastSavedAt: record.updatedAt ? new Date(record.updatedAt) : null,
         autoSaveStatus: "idle",
         autoSaveMessage: null,
-        isLocked: LOCKED_STATUSES.includes(record.status),
+        isLocked: isLockedCampaignStatus(record.status),
         sourceContentTaskId:
           nextState.sourceContentTaskId ?? current.sourceContentTaskId,
         sourceSegmentId: current.sourceSegmentId,

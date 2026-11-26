@@ -28,6 +28,19 @@ type AuthButtonNativeProps = CommonAuthButtonProps &
 
 export type AuthButtonProps = AuthButtonAnchorProps | AuthButtonNativeProps;
 
+type AuthButtonAnchorRest = Omit<
+  AuthButtonAnchorProps,
+  keyof CommonAuthButtonProps
+>;
+type AuthButtonNativeRest = Omit<
+  AuthButtonNativeProps,
+  keyof CommonAuthButtonProps
+>;
+
+const isAnchorRest = (
+  props: AuthButtonAnchorRest | AuthButtonNativeRest,
+): props is AuthButtonAnchorRest => Boolean(props.href);
+
 export const AuthButton = ({
   variant = "primary",
   size = "md",
@@ -54,7 +67,7 @@ export const AuthButton = ({
     children
   );
 
-  if ("href" in props && props.href) {
+  if (isAnchorRest(props)) {
     return (
       <a className={classes} aria-busy={loading || undefined} {...props}>
         {content}

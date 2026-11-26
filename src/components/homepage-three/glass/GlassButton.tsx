@@ -28,6 +28,19 @@ type GlassButtonNativeProps = CommonGlassButtonProps &
 
 export type GlassButtonProps = GlassButtonAnchorProps | GlassButtonNativeProps;
 
+type GlassButtonAnchorRest = Omit<
+  GlassButtonAnchorProps,
+  keyof CommonGlassButtonProps
+>;
+type GlassButtonNativeRest = Omit<
+  GlassButtonNativeProps,
+  keyof CommonGlassButtonProps
+>;
+
+const isAnchorRest = (
+  props: GlassButtonAnchorRest | GlassButtonNativeRest,
+): props is GlassButtonAnchorRest => Boolean(props.href);
+
 export const GlassButton = ({
   variant = "secondary",
   size = "md",
@@ -42,7 +55,7 @@ export const GlassButton = ({
     className,
   );
 
-  if ("href" in props && props.href) {
+  if (isAnchorRest(props)) {
     return (
       <a className={classes} {...props}>
         {children}

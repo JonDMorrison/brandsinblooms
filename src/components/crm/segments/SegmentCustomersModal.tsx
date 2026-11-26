@@ -97,7 +97,7 @@ export const SegmentCustomersModal: React.FC<SegmentCustomersModalProps> = ({
         const { data: allCustomers, error } = await supabase
           .from("crm_customers")
           .select(
-            "id, email, first_name, last_name, phone, persona, persona_id, created_at, total_spent, last_purchase_date, tags, order_history",
+            "id, email, first_name, last_name, phone, persona, persona_id, created_at, total_spent, last_purchase_date, tags, order_history, loyalty_member",
           )
           .eq("tenant_id", tenant.id);
 

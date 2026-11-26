@@ -47,6 +47,7 @@ import {
   Users,
   WandSparkles,
   X,
+  type LucideIcon,
 } from "lucide-react";
 import { useDropzone } from "react-dropzone";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -93,7 +94,7 @@ type StepDefinition = {
   key: WizardStepKey;
   title: string;
   description: string;
-  icon: React.ComponentType<{ size?: number }>;
+  icon: LucideIcon;
 };
 
 type ValidationCheck = {
@@ -147,7 +148,7 @@ const AUDIENCE_OPTIONS: Array<{
   value: AudienceMode;
   title: string;
   description: string;
-  icon: React.ComponentType<{ size?: number }>;
+  icon: LucideIcon;
 }> = [
   {
     value: "all",
@@ -173,7 +174,7 @@ const SCHEDULE_OPTIONS: Array<{
   value: ScheduleMode;
   title: string;
   description: string;
-  icon: React.ComponentType<{ size?: number }>;
+  icon: LucideIcon;
 }> = [
   {
     value: "now",
@@ -2045,7 +2046,7 @@ export function SMSCampaignWizard() {
                         ) : null}
 
                         {unicodeCharacters.length > 0 ? (
-                          <Typography level="body-xs" color="warning.700">
+                          <Typography level="body-xs" textColor="warning.700">
                             {`Unicode characters detected: ${unicodeCharacters.join(" ")}`}
                           </Typography>
                         ) : null}

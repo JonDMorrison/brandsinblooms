@@ -294,7 +294,7 @@ export const actions = {
       system: PLAIN_SYSTEM, user: plainPrompt(ctx), schemaName: "plain_escalation", schema: PLAIN_SCHEMA,
       accountKey: ctx.account_key ?? "none", timeoutMs: 20_000,
     });
-    if (!answer.ok) return { plain: null, reason: answer.reason };
+    if (answer.ok === false) return { plain: null, reason: answer.reason };
     const clean = cleanPlain(answer.value);
     if (!clean) return { plain: null, reason: "summary rejected: too long or technical" };
     const plain = await directRpc("bloom_support_save_escalation_plain", { p_actor: c.principalId, p_escalation: escalationId, p_plain: { ...clean, model: answer.model } });

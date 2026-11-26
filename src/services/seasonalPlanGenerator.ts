@@ -318,14 +318,18 @@ export const generateSeasonalPlanContent = async (
       enabled: true,
       week: 1,
       // Enhanced blog content will be generated with image after auto-assign
-      enhancedContent: generateEnhancedBlogContent(
-        theme,
-        monthName,
-        seasonalFocus,
-        contentIdeas[0],
-        holidays,
-        "",
-      ),
+      // Spread so the interface-typed result fits PlanItemEnhancedContent's
+      // index signature.
+      enhancedContent: {
+        ...generateEnhancedBlogContent(
+          theme,
+          monthName,
+          seasonalFocus,
+          contentIdeas[0],
+          holidays,
+          "",
+        ),
+      },
     },
 
     // Email items with seasonal content

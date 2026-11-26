@@ -537,8 +537,11 @@ export default function ProductDetailPage() {
   const buildProductResourceFocus = useCallback(
     (currentProduct: Product) =>
       buildProductFocus(
-        currentProduct,
-        currentProduct.variations ?? [],
+        // Spread to plain object literals: the focus builder takes open records.
+        { ...currentProduct },
+        (currentProduct.variations ?? []).map((variation) => ({
+          ...variation,
+        })),
         undefined,
       ),
     [],

@@ -11,9 +11,9 @@ interface CustomerAutomationsCardProps {
   customerId: string;
 }
 
-const statusVariant = (status: string) => {
+const statusColor = (status: string) => {
   if (["active", "running", "waiting", "scheduled"].includes(status)) {
-    return "info" as const;
+    return "primary" as const;
   }
   if (status === "completed") return "success" as const;
   if (["failed", "cancelled", "canceled"].includes(status)) {
@@ -75,7 +75,7 @@ export function CustomerAutomationsCard({
                           : ""}
                       </Typography>
                     </Stack>
-                    <JoyChip bloomVariant={statusVariant(run.status)} size="sm">
+                    <JoyChip color={statusColor(run.status)} variant="soft" size="sm">
                       {formatStatus(run.status)}
                     </JoyChip>
                   </Stack>

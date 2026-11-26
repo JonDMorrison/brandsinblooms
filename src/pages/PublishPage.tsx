@@ -202,7 +202,7 @@ function extractBundleContent(item: BundleContentItem) {
 }
 
 function parseSourceBundle(value: unknown): PublishSourceBundle | null {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
+  if (!isRecord(value)) {
     return null;
   }
 
@@ -264,14 +264,18 @@ function extractApprovedBundleDrafts(
   const draftsByChannel = new Map<Platform, BundlePublishDraft>();
 
   for (const item of snapshot?.items || []) {
-    const channel = normalizePlatform(item.channel);
+    const channel = normalizePlatform(optionalString(item.channel));
     if (!channel || !item._approved || !allowedChannels.has(channel)) {
       continue;
     }
 
     const fallbackImageUrl = snapshot?.recommendedImages?.[0]?.url || null;
-    const imageUrl = item.media?.url || fallbackImageUrl;
-    const imageAlt = item.media?.alt || item.alt || item.title || null;
+    const imageUrl = optionalString(item.media?.url) || fallbackImageUrl;
+    const imageAlt =
+      optionalString(item.media?.alt) ||
+      optionalString(item.alt) ||
+      optionalString(item.title) ||
+      null;
 
     draftsByChannel.set(channel, {
       channel,
@@ -484,7 +488,7 @@ const PublishPage = () => {
           scheduledFor: scheduledPost?.publish_at || null,
           status: normalizePostStatus(task.status),
           createdAt: task.created_at ?? null,
-          attachments: task.attachments,
+          attachments: toJsonRecord(task.attachments),
           sourceBundle: parseSourceBundle(task.image_metadata),
         };
       });
@@ -523,7 +527,7 @@ const PublishPage = () => {
             scheduledFor: null,
             status: "published" as const,
             createdAt: task.created_at ?? null,
-            attachments: task.attachments,
+            attachments: toJsonRecord(task.attachments),
             publishedAt: scheduledPost?.publish_at || task.created_at,
             sourceBundle: parseSourceBundle(task.image_metadata),
           };
@@ -1247,7 +1251,7 @@ const PublishPage = () => {
   // Optimistic UX: we issue the DB update immediately, then surface the
   // undo. If the DB update fails we surface an error toast and refetch to
   // restore the original state.
-  const archivedItemsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(
+  const archivedItemsRef = useRef<Map<string, number>>(
     new Map(),
   );
 

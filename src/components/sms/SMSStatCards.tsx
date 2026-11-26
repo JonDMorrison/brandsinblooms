@@ -11,6 +11,7 @@ import {
   MousePointerClick,
   TrendingUp,
   Users,
+  type LucideIcon,
 } from "lucide-react";
 import type { SMSStats } from "@/hooks/useSMSStats";
 
@@ -26,7 +27,7 @@ type StatCardConfig = {
   formatter: (value: number) => string;
   subtitle: string;
   color: "primary" | "success" | "warning" | "info" | "neutral";
-  icon: React.ComponentType<{ size?: number; className?: string }>;
+  icon: LucideIcon;
   iconSx?: SxProps;
 };
 

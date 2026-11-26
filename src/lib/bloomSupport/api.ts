@@ -167,6 +167,8 @@ export interface TicketMessage {
   body: string;
   created_at: string;
   delivery?: string;
+  /** bloom_support.messages.purpose, e.g. "reply", "acknowledgement", "progress". */
+  purpose?: string | null;
   author: { name: string | null; role?: string | null } | null;
 }
 

@@ -26,6 +26,11 @@ type ToastCallOptions = Omit<ExternalToast, "id" | "description" | "action"> & {
   action?: ToastAction | React.ReactNode;
 };
 
+/** Call options after `action` has been normalized to sonner's shape. */
+type NormalizedToastOptions = Omit<ToastCallOptions, "action"> & {
+  action?: ExternalToast["action"];
+};
+
 type ToastController = {
   id: string | number;
   dismiss: () => void;
@@ -46,10 +51,12 @@ type ToastFn = {
   warning: (input: ToastInput, options?: ToastCallOptions) => ToastController;
   loading: (input: ToastInput, options?: ToastCallOptions) => ToastController;
   dismiss: (id?: string | number) => void;
+  // Mirrors sonner: returns the toast id augmented with `unwrap()`, not the
+  // underlying promise.
   promise: <T>(
     promise: Promise<T>,
     options: ToastPromiseOptions<T>,
-  ) => Promise<T>;
+  ) => ReturnType<typeof sonnerToast.promise<T>>;
   custom: typeof sonnerToast.custom;
 };
 
@@ -90,7 +97,7 @@ const normalizeToast = (
         ...options,
         description: options?.description ?? description,
         action: normalizeAction(options?.action ?? action),
-      } satisfies ToastCallOptions,
+      } satisfies NormalizedToastOptions,
       variant: options?.variant ?? variant ?? fallbackVariant,
     };
   }
@@ -100,7 +107,7 @@ const normalizeToast = (
     options: {
       ...options,
       action: normalizeAction(options?.action),
-    } satisfies ToastCallOptions,
+    } satisfies NormalizedToastOptions,
     variant: options?.variant ?? fallbackVariant,
   };
 };

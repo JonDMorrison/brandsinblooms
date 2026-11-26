@@ -133,7 +133,6 @@ export const EditableTheme = ({
   if (!hideLabel) {
     return (
       <ThemeDisplay
-        campaignId={campaignId}
         currentTheme={currentTheme}
         currentDescription={currentDescription}
         onEdit={handleEdit}

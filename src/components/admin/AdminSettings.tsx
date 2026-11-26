@@ -215,11 +215,11 @@ export const AdminSettings = () => {
                     label="Upload CSV, Excel, or PDF File"
                     helperText="Upload files up to 5 MB containing content ideas, seasonal themes, or AI generation guidance"
                     type="file"
-                    accept=".csv,.txt,.xlsx,.xls,.pdf"
                     onChange={handleFileUpload}
                     disabled={uploading}
                     slotProps={{
                       input: {
+                        accept: ".csv,.txt,.xlsx,.xls,.pdf",
                         className: "cursor-pointer",
                       },
                     }}

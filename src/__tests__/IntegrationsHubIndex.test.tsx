@@ -4,7 +4,10 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { getIntegrationSeed } from "@/components/integrations/integrationsHubConfig";
+import {
+  getIntegrationSeed,
+  type IntegrationDefinition,
+} from "@/components/integrations/integrationsHubConfig";
 import { useIntegrationsHubData } from "@/hooks/useIntegrationsHubData";
 import { IntegrationsHubIndex } from "@/components/integrations/IntegrationsHubIndex";
 import { TooltipProvider } from "@/components/ui-legacy/tooltip";
@@ -15,7 +18,9 @@ vi.mock("@/hooks/useIntegrationsHubData", () => ({
 
 const mockedUseIntegrationsHubData = vi.mocked(useIntegrationsHubData);
 
-function mockHubData(overrides: Record<string, unknown> = {}) {
+type IntegrationsHubData = ReturnType<typeof useIntegrationsHubData>;
+
+function mockHubData(overrides: Partial<IntegrationsHubData> = {}) {
   mockedUseIntegrationsHubData.mockReturnValue({
     items: [
       buildItem("square", { status: "connected" }),
@@ -34,12 +39,18 @@ function mockHubData(overrides: Record<string, unknown> = {}) {
     canUseActions: false,
     isLoading: false,
     isFetching: false,
+    isRefreshing: false,
+    statusUnavailable: false,
+    error: null,
     refetch: vi.fn(),
     ...overrides,
   });
 }
 
-function buildItem(slug: string, patch: Record<string, unknown> = {}) {
+function buildItem(
+  slug: string,
+  patch: Partial<IntegrationDefinition> = {},
+): IntegrationDefinition {
   const seed = getIntegrationSeed(slug);
 
   if (!seed) {

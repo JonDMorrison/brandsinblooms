@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
-import { ImageAttachment } from "@/lib/contentTypes";
 import { extractKeywords } from "@/utils/imageKeywords";
 import {
   formatFallbackImages,
   getRelevantFallbacks,
 } from "@/services/gardenCenterFallbacks";
 
+type ComposerImage = ReturnType<typeof formatFallbackImages>[number];
+
 export const useComposerImages = (selectedDraft: any) => {
-  const [images, setImages] = useState<ImageAttachment[]>([]);
+  const [images, setImages] = useState<ComposerImage[]>([]);
   const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
   const [postWithoutImage, setPostWithoutImage] = useState(false);
   const [imagesFetching, setImagesFetching] = useState(false);
@@ -161,7 +162,7 @@ export const useComposerImages = (selectedDraft: any) => {
     }
   };
 
-  const getSelectedImage = (): ImageAttachment | null => {
+  const getSelectedImage = (): ComposerImage | null => {
     return images.find((img) => img.id === selectedImageId) || null;
   };
 

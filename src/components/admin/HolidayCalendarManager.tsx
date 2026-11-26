@@ -56,8 +56,12 @@ export const HolidayCalendarManager = () => {
                   Number.isNaN(nextYear) ? new Date().getFullYear() : nextYear,
                 );
               }}
-              min={new Date().getFullYear()}
-              max={new Date().getFullYear() + 5}
+              slotProps={{
+                input: {
+                  min: new Date().getFullYear(),
+                  max: new Date().getFullYear() + 5,
+                },
+              }}
             />
             <PremiumButton
               variant="primary"

@@ -78,9 +78,9 @@ function PreviewSkeleton() {
         <Skeleton variant="text" width="22%" />
         <Skeleton variant="text" width="68%" />
         <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
-          <Skeleton variant="rounded" width={86} height={24} />
-          <Skeleton variant="rounded" width={112} height={24} />
-          <Skeleton variant="rounded" width={96} height={24} />
+          <Skeleton variant="rectangular" width={86} height={24} />
+          <Skeleton variant="rectangular" width={112} height={24} />
+          <Skeleton variant="rectangular" width={96} height={24} />
         </Stack>
       </Stack>
       <Box sx={{ px: 2.5, pb: 2.5 }}>

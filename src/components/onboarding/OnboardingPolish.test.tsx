@@ -223,7 +223,6 @@ describe("onboarding polish", () => {
         onComplete={vi.fn()}
         isCompleting={false}
         isAnalyzing={false}
-        onLocationConfirmationChange={vi.fn()}
       />,
     );
 
@@ -278,7 +277,6 @@ describe("onboarding polish", () => {
         onComplete={vi.fn()}
         isCompleting={false}
         isAnalyzing={false}
-        onLocationConfirmationChange={vi.fn()}
       />,
     );
 

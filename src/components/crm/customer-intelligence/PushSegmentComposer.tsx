@@ -114,7 +114,7 @@ export function PushSegmentComposer() {
         </FormControl>
         <FormControl>
           <FormLabel>Notification title</FormLabel>
-          <Input value={title} maxLength={120}
+          <Input value={title} slotProps={{ input: { maxLength: 120 } }}
             onChange={(event) => { setTitle(event.target.value); resetPreview(); }}
             placeholder="Something special from your garden centre" />
         </FormControl>

@@ -24,8 +24,12 @@ function isMacPlatform() {
     return false;
   }
 
+  // `userAgentData` (User-Agent Client Hints) is not in the DOM lib yet.
+  const clientNavigator: Navigator & {
+    userAgentData?: { platform?: string };
+  } = navigator;
   const platform =
-    navigator.userAgentData?.platform ??
+    clientNavigator.userAgentData?.platform ??
     navigator.platform ??
     navigator.userAgent;
 
