@@ -373,7 +373,6 @@ export function DashboardSidebar({
     useIsSuperAdmin();
   const {
     isSidebarCollapsed,
-    isSidebarCollapseLocked,
     sidebarWidth,
     toggleSidebar,
     closeMobileSidebar,
@@ -757,19 +756,13 @@ export function DashboardSidebar({
   };
 
   const renderToggleItem = () => {
-    const toggleLocked = isSidebarCollapseLocked;
-    const buttonLabel = toggleLocked
-      ? "Sidebar locked while Bloom is open"
-      : collapsed
-        ? "Expand sidebar"
-        : "Collapse sidebar";
+    const buttonLabel = collapsed ? "Expand sidebar" : "Collapse sidebar";
     const renderCompactContent = !collapsed || shouldRenderCollapsedContent;
 
     const button = (
       <ListItemButton
         aria-label={buttonLabel}
         data-dashboard-sidebar-focusable="true"
-        disabled={toggleLocked}
         onClick={toggleSidebar}
         onKeyDown={(event) => moveFocusWithinScope(event, "sidebar-footer")}
         sx={getNavButtonSx({ active: false, compact: collapsed })}

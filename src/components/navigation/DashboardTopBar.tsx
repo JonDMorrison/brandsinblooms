@@ -156,7 +156,6 @@ export function DashboardTopBar({
   const {
     isMobile,
     isMobileSidebarOpen,
-    isSidebarCollapseLocked,
     toggleSidebar,
   } = useDashboardShell();
   const [isReportProblemOpen, setIsReportProblemOpen] = useState(false);
@@ -247,16 +246,11 @@ export function DashboardTopBar({
               {isMobile && (
                 <IconButton
                   aria-label={
-                    isSidebarCollapseLocked
-                      ? "Sidebar locked while Bloom is open"
-                      : isMobileSidebarOpen
-                        ? "Close sidebar"
-                        : "Open sidebar"
+                    isMobileSidebarOpen ? "Close sidebar" : "Open sidebar"
                   }
                   color="neutral"
                   size="sm"
                   variant="plain"
-                  disabled={isSidebarCollapseLocked}
                   onClick={toggleSidebar}
                   sx={iconButtonSx}
                 >

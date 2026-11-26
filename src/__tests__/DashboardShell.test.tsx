@@ -71,6 +71,11 @@ vi.mock("@/hooks/useIsSuperAdmin", () => ({
 // DashboardShell tests exercise layout/navigation behavior, not tenant CRM access.
 // Keep this suite isolated from AdminProvider hydration so new CRM permission reads
 // in DashboardSidebar do not turn an unrelated shell test into an integration test.
+// hasPermission is stable like the real hook's useCallback; a fresh function per
+// render would rebuild the sidebar groups every render and, on a route inside a
+// sidebar branch (such as /bloom), re-run the branch-expansion effect forever.
+const stableHasPermission = vi.hoisted(() => () => true);
+
 vi.mock("@/hooks/useUserRole", () => ({
   useUserRole: () => ({
     tenantId: "tenant-1",
@@ -88,7 +93,7 @@ vi.mock("@/hooks/useUserRole", () => ({
       "integrations.manage",
       "access.manage",
     ],
-    hasPermission: () => true,
+    hasPermission: stableHasPermission,
     hasRole: () => true,
     canEditImages: true,
     canUseCanva: true,
@@ -327,16 +332,31 @@ function renderShell(initialPath = "/admin") {
   );
 }
 
-function renderTenantShell() {
+function renderTenantShell(initialPath = "/dashboard") {
   return render(
     <TestQueryClientProvider>
-      <MemoryRouter initialEntries={["/dashboard"]}>
+      <MemoryRouter initialEntries={[initialPath]}>
         <DashboardShell mode="tenant">
           <div>Tenant dashboard</div>
+          <TenantLocationEcho />
         </DashboardShell>
       </MemoryRouter>
     </TestQueryClientProvider>,
   );
+}
+
+/** The first navigation link in the sidebar (role queries are slow on it). */
+function sidebarLink(sidebar: HTMLElement) {
+  const link = sidebar.querySelector<HTMLAnchorElement>("a[href]");
+  if (!link) {
+    throw new Error("The sidebar has no navigation link.");
+  }
+  return link;
+}
+
+function TenantLocationEcho() {
+  const location = useLocation();
+  return <span data-testid="tenant-shell-path">{location.pathname}</span>;
 }
 
 beforeAll(() => {
@@ -646,6 +666,61 @@ describe("DashboardShell", () => {
     } finally {
       tenantMock.loading = false;
     }
+  });
+
+  it("never locks the sidebar on /bloom: it starts collapsed, expands and navigates away", () => {
+    setViewportWidth(1440);
+
+    renderTenantShell("/bloom");
+
+    const sidebar = screen.getByTestId("dashboard-shell-sidebar");
+    expect(sidebar).toHaveStyle({ width: "72px" });
+    expect(screen.queryByLabelText("Sidebar locked while Bloom is open")).toBeNull();
+
+    const expand = screen
+      .getAllByLabelText("Expand sidebar")
+      .find((element) => element.getAttribute("role") === "button");
+    if (!expand) {
+      throw new Error("The sidebar has no expand button.");
+    }
+    expect(expand).toBeEnabled();
+    fireEvent.click(expand);
+    expect(sidebar).toHaveStyle({ width: "260px" });
+
+    const firstLink = sidebarLink(sidebar);
+    const target = firstLink.getAttribute("href");
+    expect(target).toBeTruthy();
+    expect(target).not.toBe("/bloom");
+    fireEvent.click(firstLink);
+    expect(screen.getByTestId("tenant-shell-path")).toHaveTextContent(target ?? "");
+  });
+
+  it("opens the mobile sidebar on /bloom", () => {
+    setViewportWidth(480);
+
+    renderTenantShell("/bloom");
+
+    const mobileSidebar = screen.getByTestId("dashboard-shell-sidebar-mobile");
+    const open = screen.getByLabelText("Open sidebar");
+    expect(open).toBeEnabled();
+    fireEvent.click(open);
+    expect(mobileSidebar).toHaveStyle({ transform: "translateX(0)" });
+  });
+
+  it("keeps the sidebar usable while the Ask Bloom drawer is open", () => {
+    setViewportWidth(1440);
+    askBloomPanelMock.state = { isOpen: true, isCollapsed: false };
+
+    renderTenantShell("/crm/customers");
+
+    const collapse = screen.getByLabelText("Collapse sidebar");
+    expect(collapse).toBeEnabled();
+    const sidebar = screen.getByTestId("dashboard-shell-sidebar");
+    const firstLink = sidebarLink(sidebar);
+    fireEvent.click(firstLink);
+    expect(screen.getByTestId("tenant-shell-path")).toHaveTextContent(
+      firstLink.getAttribute("href") ?? "",
+    );
   });
 
   it("falls back to the generic tenant label when the business has no name", () => {

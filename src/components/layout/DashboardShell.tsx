@@ -94,7 +94,6 @@ type DashboardShellContextValue = {
   isTablet: boolean;
   isDesktop: boolean;
   isSidebarCollapsed: boolean;
-  isSidebarCollapseLocked: boolean;
   isMobileSidebarOpen: boolean;
   sidebarWidth: number;
   toggleSidebar: () => void;
@@ -142,6 +141,11 @@ export function DashboardShell({
     storedPreferenceRef.current ?? false,
   );
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  // /bloom brings its own conversation list, so the app sidebar starts
+  // collapsed there. It is never locked: the user can expand it (or open it on
+  // mobile) and navigate away at any time. This choice is per visit and does
+  // not overwrite the stored preference for the rest of the app.
+  const [isBloomSidebarExpanded, setIsBloomSidebarExpanded] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [commandPaletteOpenSource, setCommandPaletteOpenSource] =
     useState<SearchOpenSource>("click");
@@ -262,13 +266,20 @@ export function DashboardShell({
     };
   }, []);
 
+  useEffect(() => {
+    if (!isBloomRoute) {
+      setIsBloomSidebarExpanded(false);
+    }
+  }, [isBloomRoute]);
+
   const toggleSidebar = useCallback(() => {
-    if (isBloomRoute) {
+    if (isMobile) {
+      setIsMobileSidebarOpen((currentValue) => !currentValue);
       return;
     }
 
-    if (isMobile) {
-      setIsMobileSidebarOpen((currentValue) => !currentValue);
+    if (isBloomRoute) {
+      setIsBloomSidebarExpanded((currentValue) => !currentValue);
       return;
     }
 
@@ -279,10 +290,9 @@ export function DashboardShell({
     setIsMobileSidebarOpen(false);
   }, []);
 
-  const effectiveIsSidebarCollapsed = isBloomRoute || isSidebarCollapsed;
-  const effectiveIsMobileSidebarOpen = isBloomRoute
-    ? false
-    : isMobileSidebarOpen;
+  const effectiveIsSidebarCollapsed = isBloomRoute
+    ? !isBloomSidebarExpanded
+    : isSidebarCollapsed;
 
   const sidebarWidth = isMobile
     ? SIDEBAR_EXPANDED_WIDTH
@@ -296,18 +306,16 @@ export function DashboardShell({
       isTablet,
       isDesktop: !isMobile && !isTablet,
       isSidebarCollapsed: effectiveIsSidebarCollapsed,
-      isSidebarCollapseLocked: isBloomRoute,
-      isMobileSidebarOpen: effectiveIsMobileSidebarOpen,
+      isMobileSidebarOpen,
       sidebarWidth,
       toggleSidebar,
       closeMobileSidebar,
     }),
     [
       closeMobileSidebar,
-      effectiveIsMobileSidebarOpen,
       effectiveIsSidebarCollapsed,
-      isBloomRoute,
       isMobile,
+      isMobileSidebarOpen,
       isTablet,
       sidebarWidth,
       toggleSidebar,
