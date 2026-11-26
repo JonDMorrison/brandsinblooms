@@ -787,6 +787,35 @@ serve(async (req: Request) => {
       );
     }
 
+    // Approval gate. Only tenants that turned approval on are affected. This
+    // runs before any recipient is loaded or any message is queued, so a
+    // direct call to this function cannot send an unapproved version. The
+    // database also blocks the status change; this stops the work earlier.
+    const { data: approvalOk, error: approvalError } = await supabase.rpc(
+      "campaign_send_approval_check",
+      { p_campaign_id: campaignId },
+    );
+    if (approvalError || approvalOk !== true) {
+      if (approvalError) {
+        console.error("❌ Approval check failed; not sending:", {
+          campaignId,
+          err: serializeSupabaseError(approvalError),
+        });
+      }
+      return new Response(
+        JSON.stringify({
+          error: approvalError
+            ? "We could not confirm this email is approved, so it was not sent. Please try again."
+            : "This email needs approval before it can be sent.",
+          code: approvalError ? "APPROVAL_CHECK_FAILED" : "APPROVAL_REQUIRED",
+        }),
+        {
+          status: approvalError ? 503 : 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
     const campaignTenantId = await resolveCampaignTenantId(supabase, campaign);
 
     if (!campaignTenantId) {
