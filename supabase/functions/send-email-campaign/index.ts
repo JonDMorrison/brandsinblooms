@@ -7,6 +7,10 @@ import {
 } from "../_shared/linkRewriter.ts";
 import { dedupeRecipientsByEmail } from "../_shared/recipientEmailDedup.ts";
 import {
+  resolveCampaignSegmentIds,
+  resolveSegmentAudienceCustomerIds,
+} from "../_shared/campaignSegmentAudience.ts";
+import {
   serializeSupabaseError,
   isUuidLike,
 } from "../_shared/campaignHelpers.ts";
@@ -1034,35 +1038,26 @@ serve(async (req: Request) => {
     // Get customers based on targeting (segments + personas)
     let customers: any[] = [];
 
-    // 1) Segment targeting
-    const segmentIds: string[] = [];
-    if (campaign.segment_id) segmentIds.push(campaign.segment_id);
-
-    if (segmentIds.length === 0) {
-      const { data: campaignSegments, error: campaignSegmentsError } =
-        await supabase
-          .from("campaign_segments")
-          .select("segment_id")
-          .eq("campaign_id", campaignId);
-
-      if (campaignSegmentsError) {
-        console.error(
-          "Error fetching campaign_segments:",
-          campaignSegmentsError,
-        );
-        return new Response(
-          JSON.stringify({ error: "Failed to fetch campaign segments" }),
-          {
-            status: 500,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          },
-        );
-      }
-
-      (campaignSegments || []).forEach((cs: any) => {
-        if (cs?.segment_id) segmentIds.push(cs.segment_id);
-      });
+    // 1) Segment targeting: every selected segment (campaign_segments rows
+    // plus the legacy segment_id), never just the first.
+    const segmentIdsResult = await resolveCampaignSegmentIds(supabase, {
+      campaignId,
+      legacySegmentId: campaign.segment_id,
+    });
+    if (!segmentIdsResult.ok) {
+      console.error(
+        "Error fetching campaign_segments:",
+        segmentIdsResult.error,
+      );
+      return new Response(
+        JSON.stringify({ error: "Failed to fetch campaign segments" }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
+    const segmentIds: string[] = segmentIdsResult.value;
 
     // 2) Persona targeting
     const personaIds = new Set<string>();
@@ -1207,40 +1202,25 @@ serve(async (req: Request) => {
     }
 
     if (!resolveAllCustomersAudience && segmentIds.length > 0) {
-      const PAGE_SIZE = 1000;
-      const segmentCustomerIds = new Set<string>();
-      for (let from = 0; ; from += PAGE_SIZE) {
-        const to = from + PAGE_SIZE - 1;
-        const { data: segmentCustomers, error: segErr } = await supabase
-          .from("customer_segments")
-          .select("customer_id, crm_segments!inner(id)")
-          .eq("crm_segments.tenant_id", campaignTenantId)
-          .is("crm_segments.deleted_at", null)
-          .in("segment_id", segmentIds)
-          .range(from, to);
-
-        if (segErr) {
-          console.error("Error fetching customer_segments:", segErr);
-          return new Response(
-            JSON.stringify({ error: "Failed to fetch segment audience" }),
-            {
-              status: 500,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            },
-          );
-        }
-
-        (segmentCustomers || []).forEach((r: any) => {
-          if (typeof r?.customer_id === "string" && isUuidLike(r.customer_id)) {
-            segmentCustomerIds.add(r.customer_id);
-          }
-        });
-
-        if (!segmentCustomers || segmentCustomers.length < PAGE_SIZE) break;
+      const segmentAudience = await resolveSegmentAudienceCustomerIds(
+        supabase,
+        { tenantId: campaignTenantId, segmentIds },
+      );
+      if (!segmentAudience.ok) {
+        console.error("Error fetching customer_segments:", segmentAudience.error);
+        return new Response(
+          JSON.stringify({ error: "Failed to fetch segment audience" }),
+          {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
       }
 
-      const ids = Array.from(segmentCustomerIds);
-      console.log(`📧 Segment audience resolved: ${ids.length} customers`);
+      const ids = segmentAudience.value;
+      console.log(
+        `📧 Segment audience resolved: ${ids.length} customers across ${segmentIds.length} segment(s)`,
+      );
       allowedCustomerIds = ids;
     }
 

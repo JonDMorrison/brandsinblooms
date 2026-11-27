@@ -54,6 +54,11 @@ class MockQueryBuilder {
     return this;
   }
 
+  range(from: number, to: number) {
+    this.filters.push({ type: "range", value: [from, to] });
+    return this;
+  }
+
   maybeSingle() {
     return this.resolve();
   }

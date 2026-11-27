@@ -147,3 +147,10 @@ jobs:
             --config supabase/functions/deno.json \
             --frozen-lockfile \
             supabase/functions/_shared/senderResolver.test.ts
+
+      - name: Test multi-segment campaign audience resolution
+        run: |
+          deno test \
+            --config supabase/functions/deno.json \
+            --frozen-lockfile \
+            supabase/functions/_shared/campaignSegmentAudience.test.ts
