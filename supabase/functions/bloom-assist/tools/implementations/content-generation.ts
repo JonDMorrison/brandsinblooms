@@ -588,30 +588,6 @@ function buildInstructionText(args: {
   return [requestedInstructions, "Context:", contextLines].join("\n\n");
 }
 
-function currentMonth(): string {
-  const now = new Date();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  return `${now.getFullYear()}-${month}`;
-}
-
-function socialContentType(
-  params: JsonObject,
-): "tips" | "feature" | "workshop" | "inspiration" | "behind-scenes" {
-  const value =
-    readString(params.social_content_type) ||
-    readString(params.post_type) ||
-    "tips";
-  switch (value) {
-    case "feature":
-    case "workshop":
-    case "inspiration":
-    case "behind-scenes":
-      return value;
-    default:
-      return "tips";
-  }
-}
-
 function edgeModel(contentType: CanonicalContentType): string {
   switch (contentType) {
     case "subject_lines":
@@ -830,44 +806,11 @@ async function generateByType(args: {
         },
       };
     }
-    case "social_post": {
-      const functionName = "generate-social-content";
-      const platform =
-        readString(args.params.platform) === "instagram"
-          ? "instagram"
-          : "facebook";
-      const response = await invokeEdgeFunction(args.context, functionName, {
-        ...sharedContext,
-        platform,
-        theme: topic,
-        themeDescription: args.prompt,
-        month: readString(args.params.month) ?? currentMonth(),
-        weekNumber: readInteger(args.params.week_number, 1),
-        contentType: socialContentType(args.params),
-        companyProfile: buildCompanyProfile(args.tenantContext),
-      });
-      const text = readString(response.content) || "";
-      return {
-        functionName,
-        count: text ? 1 : 0,
-        generated: {
-          ...commonData({
-            contentType: args.contentType,
-            functionName,
-            tone: readString(args.params.tone) ?? "professional",
-            tenantContext: args.tenantContext,
-            persona: args.persona,
-            product: args.product,
-            campaign: args.campaign,
-            refinement: args.refinement,
-          }),
-          platform,
-          text,
-          image_query: readString(response.imageQuery),
-          hashtags: readString(response.hashtags),
-        },
-      };
-    }
+    case "social_post":
+      // Social media management is retired and no live function generates
+      // social posts (docs/bloom-newsletter-audit.md, section 6.3). The tool
+      // answers before reaching here; this keeps the switch exhaustive.
+      throw new Error(SOCIAL_POST_UNAVAILABLE_MESSAGE);
     case "product_description":
     case "email_body": {
       const functionName = "generate-email-content";
@@ -912,11 +855,17 @@ async function generateByType(args: {
   }
 }
 
+const SOCIAL_POST_UNAVAILABLE_MESSAGE =
+  "Social post generation is not available. Social media management has been retired from BloomSuite.";
+
 export const generateContent: ToolImplementation = async (
   params: JsonObject,
   context: ToolExecutionContext,
 ): Promise<ToolResult> => {
   const contentType = normalizeContentType(params.content_type);
+  if (contentType === "social_post") {
+    return errorResult(SOCIAL_POST_UNAVAILABLE_MESSAGE, "not_available");
+  }
   const instructions = baseInstructions(params);
   if (!instructions) {
     return errorResult(

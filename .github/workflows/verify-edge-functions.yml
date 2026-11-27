@@ -115,11 +115,16 @@ jobs:
             --no-check \
             --allow-env \
             supabase/functions/generate-email-content/__tests__/index.test.ts \
-            supabase/functions/generate-newsletter/__tests__/index.test.ts \
             supabase/functions/generate-structured-newsletter/__tests__/index.test.ts \
-            supabase/functions/generate-cohesive-newsletter/__tests__/index.test.ts \
             supabase/functions/generate-content/__tests__/index.test.ts \
             supabase/functions/generate-weekly-themes/__tests__/index.test.ts
+
+      - name: Test retired function stubs
+        run: |
+          deno test \
+            --config supabase/functions/deno.json \
+            --frozen-lockfile \
+            supabase/functions/_shared/retiredFunction.test.ts
 
       - name: Test campaign recipient email dedup
         run: |
