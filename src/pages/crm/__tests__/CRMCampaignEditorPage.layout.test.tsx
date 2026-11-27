@@ -1,6 +1,6 @@
 import React from "react";
 import { fireEvent, render, screen, within } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { buildStudioDesignSystem } from "@/lib/studio/designSystem";
@@ -30,6 +30,7 @@ vi.mock("@/hooks/useEmailDomains", () => ({
   }),
 }));
 vi.mock("@/hooks/useCustomers", () => ({ useCustomers: () => ({ data: [], totalCount: 0, isLoading: false }) }));
+const eligibilityCounts = vi.hoisted(() => ({ current: {} as Record<string, number> }));
 vi.mock("@/hooks/useCampaignEmailEligibility", async () => {
   const actual = await vi.importActual<typeof import("@/hooks/useCampaignEmailEligibility")>(
     "@/hooks/useCampaignEmailEligibility",
@@ -43,6 +44,7 @@ vi.mock("@/hooks/useCampaignEmailEligibility", async () => {
         neverOptedIn: 0, unsendable: 0, duplicates: 0, blocked: 0,
         eligibleWithConsentOverride: 120, eligibleWithSoftOverride: 120,
         eligibleWithBothOverrides: 120, singleEligibleEmail: null,
+        ...eligibilityCounts.current,
       },
       isError: false,
       gate: "ready",
@@ -103,6 +105,8 @@ vi.mock("@/components/crm/campaign-editor/CampaignSendConfirmation", () => ({ Ca
 vi.mock("@/components/crm/campaign-editor/SenderVerificationDialog", () => ({ SenderVerificationDialog: () => null }));
 // StudioPreviewDialog is real here: the Send test checks open it.
 
+import { CssVarsProvider } from "@mui/joy/styles";
+import { joyTheme } from "@/config/joy-theme";
 import CRMCampaignEditorPage from "../CRMCampaignEditorPage";
 
 const blocks: StudioBlock[] = [
@@ -196,6 +200,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   vi.clearAllMocks();
+  eligibilityCounts.current = {};
 });
 
 describe("campaign editor layout", () => {
@@ -259,6 +264,8 @@ describe("campaign editor layout", () => {
     });
     renderEditor();
     expect(screen.queryByTestId("campaign-readiness-bar")).toBeNull();
+    // Never an empty bar: the ready state takes its place.
+    expect(screen.getByTestId("campaign-readiness-ready")).toHaveTextContent("Campaign is ready");
     expect(screen.getByTestId("campaign-editor-schedule-cta")).not.toBeDisabled();
   });
 
@@ -425,5 +432,241 @@ describe("campaign name field", () => {
     fireEvent.blur(input);
     expect(updateSetup).not.toHaveBeenCalledWith(expect.objectContaining({ name: expect.anything() }));
     expect(screen.queryByTestId("campaign-editor-name-hint")).toBeNull();
+  });
+});
+
+/**
+ * Layout rules checked with the app's own Joy theme (4px spacing unit).
+ * jsdom applies only the styles outside min-width media queries, so the
+ * computed styles here are the phone layout (below 600px); the wider
+ * layouts are checked from the CSS each element is given.
+ */
+function renderThemedEditor() {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <CssVarsProvider theme={joyTheme}>
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={["/crm/campaigns/campaign-test/edit"]}>
+          <Routes>
+            <Route path="/crm/campaigns/:campaignId/edit" element={<CRMCampaignEditorPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>
+    </CssVarsProvider>,
+  );
+}
+
+/** The CSS emotion generated for an element's classes, media queries included. */
+function cssFor(element: Element) {
+  const classes = Array.from(element.classList).filter((name) => name.startsWith("css-"));
+  const css = Array.from(document.querySelectorAll("style"))
+    .map((style) => style.textContent ?? "")
+    .join("\n");
+  return classes.map((name) => css.split("}").filter((rule) => rule.includes(`.${name}`)).join("}")).join("\n");
+}
+
+const readyDraft = () =>
+  draft({
+    subjectLine: "Winter wreath workshops are back this month",
+    preheaderText: "Join us November 14.",
+    includeAllCustomers: true,
+    audienceCount: 120,
+    contentBlocks: blocks.map((block) =>
+      block.type === "footer" ? { ...block, businessName: "Fernhill Gardens" } : block,
+    ),
+  });
+
+describe("campaign editor visual polish", () => {
+  it("header: Inter 700 at xl3, soft neutral status and type chips, 8px group dots, buttons stacked full width", () => {
+    editor.current = draft();
+    renderThemedEditor();
+    const heading = screen.getByRole("heading", { level: 1 });
+    const headingStyle = getComputedStyle(heading);
+    expect(headingStyle.fontFamily).toBe("var(--joy-fontFamily-display)");
+    expect(headingStyle.fontSize).toBe("var(--joy-fontSize-xl3)");
+    expect(headingStyle.fontWeight).toBe("var(--joy-fontWeight-bold)");
+
+    for (const chip of [screen.getByTestId("campaign-editor-status-chip"), screen.getByTestId("campaign-editor-type-chip")]) {
+      expect(chip).toHaveClass("MuiChip-variantSoft");
+      expect(chip).toHaveClass("MuiChip-colorNeutral");
+    }
+    const groupChip = screen.getByTestId("campaign-editor-group-chip");
+    expect(groupChip).toHaveClass("MuiChip-colorNeutral");
+    const dot = within(groupChip).getByTestId("campaign-editor-group-dot");
+    expect(getComputedStyle(dot).width).toBe("8px");
+    expect(getComputedStyle(dot).height).toBe("8px");
+    expect(getComputedStyle(dot).borderRadius).toBe("50%");
+
+    // Below 600px the buttons stack, full width, under the title.
+    const actions = screen.getByTestId("campaign-editor-header-actions");
+    expect(getComputedStyle(actions).flexDirection).toBe("column");
+    // Joy writes xs values as min-width:0px rules, which jsdom does not apply.
+    const phone = /@media \(min-width:0px\)\{[^}]*width:100%/;
+    expect(cssFor(actions)).toMatch(phone);
+    expect(cssFor(screen.getByTestId("campaign-editor-send-test-wrapper"))).toMatch(phone);
+    expect(cssFor(screen.getByTestId("campaign-editor-schedule-cta"))).toMatch(phone);
+    // From 600px they sit in a row, centred on one line.
+    expect(cssFor(actions)).toMatch(/@media \(min-width:600px\)\{[^}]*flex-direction:row/);
+    // The title block and controls share one row from 900px, on one baseline.
+    const row = actions.parentElement as HTMLElement;
+    expect(cssFor(row)).toMatch(/@media \(min-width:900px\)\{[^}]*flex-direction:row/);
+    expect(cssFor(row)).toMatch(/@media \(min-width:900px\)\{[^}]*align-items:flex-end/);
+  });
+
+  it("readiness: one compact row of chips that each jump to their step", () => {
+    editor.current = draft();
+    renderThemedEditor();
+    const bar = screen.getByTestId("campaign-readiness-bar");
+    expect(within(bar).getByRole("heading", { level: 2 })).toHaveTextContent("2 things before you can send");
+    const links = within(bar).getAllByRole("link");
+    expect(links.map((link) => link.textContent)).toEqual(["Add a subject line", "Choose an audience"]);
+    for (const link of links) expect(getComputedStyle(link).minHeight).toBe("44px");
+    if (stepToggle(/Audience/).getAttribute("aria-expanded") === "true") fireEvent.click(stepToggle(/Audience/));
+    expect(stepToggle(/Audience/)).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(within(bar).getByRole("link", { name: /Choose an audience/ }));
+    expect(stepToggle(/Audience/)).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("step cards: 64px headers, 24px padding, 16px apart, badges and tertiary summaries", () => {
+    editor.current = readyDraft();
+    const { container } = renderThemedEditor();
+    const toggles = Array.from(container.querySelectorAll<HTMLElement>("[data-campaign-step-toggle]"));
+    expect(toggles).toHaveLength(5);
+    for (const toggle of toggles) {
+      expect(getComputedStyle(toggle).height).toBe("64px");
+      expect(getComputedStyle(toggle).paddingLeft).toBe("24px");
+      expect(getComputedStyle(toggle).paddingRight).toBe("24px");
+    }
+    for (const id of ["content", "inbox", "audience", "sender"]) {
+      expect(getComputedStyle(document.getElementById(`campaign-editor-${id}-body`) as HTMLElement).padding).toBe("24px");
+      expect(getComputedStyle(document.getElementById(`campaign-editor-${id}`) as HTMLElement).borderRadius).toBe(
+        "var(--joy-radius-lg)",
+      );
+    }
+    const steps = screen.getByTestId("campaign-editor-steps").children;
+    expect(getComputedStyle(steps[1]).marginTop).toBe("16px");
+    // Done is success soft with a check; Organize is neutral "Optional".
+    const done = within(stepToggle(/Inbox/)).getByTestId("campaign-step-badge-done");
+    expect(done).toHaveClass("MuiChip-variantSoft");
+    expect(done).toHaveClass("MuiChip-colorSuccess");
+    expect(done.querySelector("svg")).not.toBeNull();
+    // Collapsed, the step shows one line of summary in text.tertiary.
+    const summary = within(stepToggle(/Organize/)).getByTestId("campaign-step-summary");
+    expect(getComputedStyle(summary).color).toBe("var(--joy-palette-text-tertiary)");
+    expect(getComputedStyle(summary).whiteSpace).toBe("nowrap");
+  });
+
+  it("warning badge carries the number of things to fix", () => {
+    editor.current = draft();
+    renderThemedEditor();
+    const badge = within(stepToggle(/Audience/)).getByTestId("campaign-step-badge-required");
+    expect(badge).toHaveClass("MuiChip-colorWarning");
+    expect(badge).toHaveClass("MuiChip-variantSoft");
+  });
+
+  it("design step: 160x200 thumbnail with radius.md and a divider border; solid and outlined actions", () => {
+    editor.current = readyDraft();
+    renderThemedEditor();
+    const thumbnail = screen.getByTestId("campaign-design-thumbnail");
+    const style = getComputedStyle(thumbnail);
+    expect([style.width, style.height]).toEqual(["160px", "200px"]);
+    expect(style.borderRadius).toBe("var(--joy-radius-md)");
+    expect(cssFor(thumbnail)).toMatch(/border:1px solid/);
+    expect(cssFor(thumbnail)).toMatch(/border-color:var\(--joy-palette-divider\)/);
+    const info = screen.getByTestId("campaign-design-info");
+    expect(Array.from(info.children).map((child) => child.textContent)).toEqual([
+      "Design applied",
+      expect.any(String),
+      expect.stringMatching(/^2 blocks/),
+    ]);
+    expect(screen.getByTestId("campaign-design-edit-studio")).toHaveClass("MuiButton-variantSolid");
+    expect(screen.getByTestId("campaign-design-edit-studio")).toHaveClass("MuiButton-colorPrimary");
+    expect(screen.getByTestId("campaign-design-change")).toHaveClass("MuiButton-variantOutlined");
+  });
+
+  it("audience: five buckets in a 5-column grid, zeros muted, can't-be-sent-to warns and explains", () => {
+    eligibilityCounts.current = { total: 130, eligible: 120, unsendable: 10 };
+    editor.current = readyDraft();
+    renderThemedEditor();
+    fireEvent.click(stepToggle(/Audience/));
+    const grid = screen.getByTestId("audience-bucket-grid");
+    expect(grid.children).toHaveLength(5);
+    expect(cssFor(grid)).toMatch(/@media \(min-width:600px\)\{[^}]*grid-template-columns:repeat\(5, minmax\(0, 1fr\)\)/);
+    expect(getComputedStyle(screen.getByTestId("audience-bucket-eligible-value")).fontSize).toBe("var(--joy-fontSize-xl)");
+    // level body-sm: the theme sets it to 0.875rem (src/config/joy-theme.ts).
+    expect(getComputedStyle(screen.getByTestId("audience-bucket-eligible-label")).fontSize).toContain("0.875rem");
+    // Zero buckets are muted.
+    expect(screen.getByTestId("audience-bucket-waiting")).toHaveAttribute("data-empty", "true");
+    expect(getComputedStyle(screen.getByTestId("audience-bucket-waiting-value")).color).toBe(
+      "var(--joy-palette-text-tertiary)",
+    );
+    // Above 0, "Can't be sent to" is warning text with a link that explains it.
+    expect(getComputedStyle(screen.getByTestId("audience-bucket-unsendable-value")).color).toBe(
+      "var(--joy-palette-warning-plainColor)",
+    );
+    const why = screen.getByTestId("audience-unsendable-why");
+    expect(getComputedStyle(why).minHeight).toBe("44px");
+    fireEvent.click(why);
+    const info = screen.getByTestId("audience-unsendable-info");
+    for (const label of [
+      "Email address can't receive mail",
+      "Blocked from email",
+      "Bounced",
+      "Shares an email address that is blocked",
+    ]) {
+      expect(within(info).getByText(label)).toBeInTheDocument();
+    }
+  });
+
+  it("has no can't-be-sent-to link when that bucket is 0", () => {
+    editor.current = readyDraft();
+    renderThemedEditor();
+    fireEvent.click(stepToggle(/Audience/));
+    expect(screen.getByTestId("audience-bucket-unsendable")).toHaveAttribute("data-empty", "true");
+    expect(screen.queryByTestId("audience-unsendable-why")).toBeNull();
+  });
+
+  it("keeps every control at least 44px tall and nothing wider than a 390px phone", () => {
+    eligibilityCounts.current = { total: 130, eligible: 120, unsendable: 10 };
+    editor.current = readyDraft();
+    // A 390px phone: 16px page gutters and 24px card padding leave the live
+    // preview 310px to lay the email out in.
+    const clientWidth = vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(310);
+    onTestFinished(() => clientWidth.mockRestore());
+    const { container } = renderThemedEditor();
+    for (const toggle of Array.from(container.querySelectorAll<HTMLElement>("[data-campaign-step-toggle]"))) {
+      if (toggle.getAttribute("aria-expanded") === "false") fireEvent.click(toggle);
+    }
+    const page = screen.getByTestId("campaign-editor-page");
+    // The page sets 44px on every Joy button, icon button and select
+    // (campaignEditorPageSx). That rule wins in a browser by specificity;
+    // jsdom resolves the cascade by source order only, so the per-element
+    // check below counts those controls as covered once the rule is there.
+    let pageCss = "";
+    for (let node: Element | null = page; node && !pageCss.includes("min-height:44px"); node = node.parentElement) {
+      pageCss = cssFor(node);
+    }
+    expect(pageCss).toMatch(/\.MuiButton-root,[^{]*\.MuiIconButton-root\{min-height:44px/);
+    expect(pageCss).toMatch(/\.MuiSelect-root[^{]*\{min-height:44px/);
+    const coveredByPageRule = (element: HTMLElement) =>
+      element.matches(".MuiButton-root, .MuiIconButton-root") || Boolean(element.closest(".MuiSelect-root"));
+    const small: string[] = [];
+    for (const element of Array.from(page.querySelectorAll<HTMLElement>("button, a[href], [role='switch']"))) {
+      const style = getComputedStyle(element);
+      // Visually hidden helpers and Joy's overlay action elements sit out of
+      // flow; tabindex -1 parts (Autocomplete indicators, tag delete) are not
+      // separate targets.
+      if (style.position === "absolute" || element.getAttribute("tabindex") === "-1") continue;
+      if (coveredByPageRule(element)) continue;
+      const size = Math.max(parseFloat(style.minHeight) || 0, parseFloat(style.height) || 0);
+      if (size < 44) small.push(`${size} ${element.outerHTML.slice(0, 140)}`);
+    }
+    expect(small).toEqual([]);
+    for (const element of Array.from(page.querySelectorAll<HTMLElement>("*"))) {
+      const width = getComputedStyle(element).width;
+      if (!width.endsWith("px") || parseFloat(width) <= 390) continue;
+      // Only the scaled email renders are wider; each sits in a clipped box.
+      expect(element.tagName, element.outerHTML.slice(0, 120)).toBe("IFRAME");
+    }
   });
 });

@@ -1,7 +1,6 @@
 import * as React from "react";
 import Box from "@mui/joy/Box";
 import Button from "@mui/joy/Button";
-import Link from "@mui/joy/Link";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
 import { Sparkles } from "lucide-react";
@@ -162,7 +161,7 @@ export function NewsletterInboxReview({
     lengthHint.tone === "success" ? "success.plainColor" : "warning.plainColor";
   const fromLabel = senderName?.trim() || "Your business";
   return (
-    <Stack spacing={2.5}>
+    <Stack spacing={6}>
       <Typography level="body-md" textColor="text.secondary">
         Choose how your email appears in the inbox. We draft empty fields from
         your newsletter. You can edit every word.
@@ -173,7 +172,7 @@ export function NewsletterInboxReview({
           appear here when there is text to work with.
         </Typography>
       ) : null}
-      <Stack spacing={1}>
+      <Stack spacing={4}>
         <JoyInput
           id="campaign-editor-subject"
           label="Subject line"
@@ -213,52 +212,74 @@ export function NewsletterInboxReview({
         />
         {currentSuggestions.length ? (
           <Box data-testid="subject-suggestions">
-            <Typography level="body-sm" sx={{ fontWeight: 700, mb: 0.5 }}>
+            <Typography
+              id="subject-suggestions-title"
+              level="body-sm"
+              sx={{ fontWeight: "xl", color: "text.primary", mb: 2 }}
+            >
               Bloom suggests
             </Typography>
-            <Stack component="ul" spacing={0.5} sx={{ m: 0, p: 0, listStyle: "none" }}>
-              {currentSuggestions.map((s, i) => (
-                <Box component="li" key={i}>
-                  <Link
-                    component="button"
-                    type="button"
-                    disabled={disabled}
-                    underline="none"
-                    aria-label={`Use suggestion: ${s.subject}. Preview: ${s.preview}`}
-                    onClick={() =>
-                      onChange({
-                        subjectLine: s.subject,
-                        preheaderText: s.preview,
-                      })
-                    }
+            <Stack
+              component="ul"
+              aria-labelledby="subject-suggestions-title"
+              spacing={2}
+              sx={{ m: 0, p: 0, listStyle: "none" }}
+            >
+              {currentSuggestions.map((s, i) => {
+                const selected = s.subject === subject && s.preview === preview;
+                return (
+                  <Box
+                    component="li"
+                    key={i}
+                    data-testid="subject-suggestion-row"
+                    data-selected={selected || undefined}
                     sx={{
-                      minHeight: 44,
-                      textAlign: "left",
-                      fontSize: 16,
-                      fontWeight: 600,
-                      display: "inline-flex",
-                      flexDirection: "column",
-                      alignItems: "flex-start",
-                      justifyContent: "center",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 4,
+                      px: 4,
+                      py: 2,
+                      minHeight: 64,
+                      border: "1px solid",
+                      borderColor: selected ? "primary.outlinedBorder" : "divider",
+                      borderRadius: "lg",
+                      bgcolor: selected ? "primary.softBg" : "background.surface",
                     }}
                   >
-                    <Box
-                      component="span"
-                      sx={{ textDecoration: "underline", textUnderlineOffset: "3px" }}
-                    >
-                      {s.subject}
+                    <Box sx={{ minWidth: 0, flex: 1 }}>
+                      <Typography
+                        level="body-md"
+                        sx={{ fontWeight: "xl", color: "text.primary", overflowWrap: "anywhere" }}
+                      >
+                        {s.subject}
+                      </Typography>
+                      <Typography
+                        level="body-sm"
+                        sx={{ color: "text.tertiary", overflowWrap: "anywhere" }}
+                      >
+                        {s.preview}
+                      </Typography>
                     </Box>
-                    <Typography
-                      component="span"
-                      level="body-sm"
-                      textColor="text.secondary"
-                      sx={{ fontWeight: 400 }}
+                    <Button
+                      variant={selected ? "solid" : "outlined"}
+                      color={selected ? "primary" : "neutral"}
+                      size="sm"
+                      disabled={disabled}
+                      aria-pressed={selected}
+                      aria-label={`Use suggestion: ${s.subject}. Preview: ${s.preview}`}
+                      onClick={() =>
+                        onChange({
+                          subjectLine: s.subject,
+                          preheaderText: s.preview,
+                        })
+                      }
+                      sx={{ minHeight: 44, minWidth: 64, flexShrink: 0 }}
                     >
-                      {s.preview}
-                    </Typography>
-                  </Link>
-                </Box>
-              ))}
+                      {selected ? "In use" : "Use"}
+                    </Button>
+                  </Box>
+                );
+              })}
             </Stack>
           </Box>
         ) : null}
@@ -297,18 +318,18 @@ export function NewsletterInboxReview({
         helperText={`${preview.length} / 150 · Add a detail that complements the subject`}
       />
       <Box>
-        <Typography level="body-sm" sx={{ fontWeight: 700, mb: 0.75 }}>
+        <Typography level="body-sm" sx={{ fontWeight: "xl", color: "text.primary", mb: 2 }}>
           Inbox preview
         </Typography>
         <Box
           data-testid="inbox-preview-row"
           sx={{
             display: "flex",
-            gap: 1.5,
+            gap: 4,
             alignItems: "flex-start",
-            p: 1.75,
+            p: 4,
             border: "1px solid",
-            borderColor: "neutral.200",
+            borderColor: "divider",
             borderRadius: "lg",
             bgcolor: "background.surface",
           }}
@@ -349,7 +370,7 @@ export function NewsletterInboxReview({
           </Box>
         </Box>
         {hasFirstNameTag(subject) || hasFirstNameTag(preview) ? (
-          <Typography level="body-xs" sx={{ color: "neutral.600", mt: 1 }}>
+          <Typography level="body-xs" sx={{ color: "text.tertiary", mt: 2 }}>
             "Jane" is an example. Each customer sees their own first name.
           </Typography>
         ) : null}

@@ -17,6 +17,7 @@ const EDITOR_FILES = [
   "src/components/crm/campaign-editor/CampaignSenderStep.tsx",
   "src/components/crm/campaign-editor/NewsletterInboxReview.tsx",
   "src/components/crm/campaign-editor/ContentPreviewCard.tsx",
+  "src/components/crm/campaign-editor/CampaignSendConfirmation.tsx",
 ];
 
 const RULES: Array<{ name: string; pattern: RegExp }> = [

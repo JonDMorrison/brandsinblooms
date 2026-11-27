@@ -29,5 +29,26 @@ export const campaignEditorCardSx: SxProps = {
   boxShadow: "none",
 };
 
+/**
+ * Spacing on the theme's 4px unit (src/config/joy-theme.ts spacingScale), so
+ * 4 = 16px and 6 = 24px. Every editor card pads by the same amount, and the
+ * cards sit 16px apart.
+ */
+export const campaignEditorCardPadding = 6;
+export const campaignEditorCardGap = 4;
+
+/** Hides text visually while keeping it for screen readers and queries. */
+export const campaignEditorVisuallyHidden = {
+  position: "absolute",
+  width: 1,
+  height: 1,
+  p: 0,
+  m: -1,
+  overflow: "hidden",
+  clip: "rect(0 0 0 0)",
+  whiteSpace: "nowrap",
+  border: 0,
+} as const;
+
 /** A 3px focus outline in the theme's primary colour. */
 export const campaignEditorFocusOutline = "3px solid var(--joy-palette-primary-500)";

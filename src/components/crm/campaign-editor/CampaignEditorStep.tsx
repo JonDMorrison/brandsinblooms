@@ -4,9 +4,12 @@ import Chip from "@mui/joy/Chip";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
 import { Check, ChevronDown } from "lucide-react";
+import { mergeSx } from "@/components/joy/mergeSx";
 import {
+  campaignEditorCardPadding,
   campaignEditorCardSx,
   campaignEditorFocusOutline,
+  campaignEditorVisuallyHidden,
 } from "@/components/crm/campaign-editor/campaignEditorTheme";
 
 /** What a step header says about the step. */
@@ -19,109 +22,108 @@ export type CampaignStepState =
   /** A server check for this step has not returned yet. */
   | { kind: "checking"; label: string };
 
+const badgeSx = {
+  "--Chip-gap": "6px",
+  "--Chip-minHeight": "28px",
+  px: 1.5,
+  fontSize: "sm",
+  fontWeight: "lg",
+  lineHeight: 1.4,
+  whiteSpace: "nowrap",
+  flexShrink: 0,
+} as const;
+
+/**
+ * The status badge on the right of a step header: success soft with a check
+ * when done, warning soft with the number of things to fix, neutral soft for
+ * Optional and while a server check is still running.
+ */
 export function CampaignStepBadge({ state }: { state: CampaignStepState }) {
   if (state.kind === "done") {
     return (
-      <Typography
+      <Chip
         component="span"
-        level="body-sm"
+        size="sm"
+        variant="soft"
+        color="success"
         data-testid="campaign-step-badge-done"
-        startDecorator={
-          <Box
-            component="span"
-            aria-hidden
-            sx={{
-              width: 22,
-              height: 22,
-              borderRadius: "50%",
-              bgcolor: "success.solidBg",
-              color: "success.solidColor",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <Check size={14} strokeWidth={3} />
-          </Box>
-        }
-        sx={{ "--Typography-gap": "4px", color: "success.plainColor", fontWeight: "lg" }}
+        startDecorator={<Check size={14} strokeWidth={3} aria-hidden />}
+        sx={badgeSx}
       >
         {state.label ?? "Done"}
-      </Typography>
+      </Chip>
     );
   }
 
-  if (state.kind === "checking") {
+  if (state.kind === "checking" || state.kind === "optional") {
     return (
-      <Typography
+      <Chip
         component="span"
-        level="body-sm"
-        data-testid="campaign-step-badge-checking"
-        sx={{ color: "text.secondary", fontWeight: "md" }}
+        size="sm"
+        variant="soft"
+        color="neutral"
+        data-testid={`campaign-step-badge-${state.kind}`}
+        sx={mergeSx(badgeSx, { color: "text.secondary" })}
       >
-        {state.label}
-      </Typography>
+        {state.kind === "checking" ? state.label : "Optional"}
+      </Chip>
     );
   }
 
-  if (state.kind === "optional") {
+  if (state.kind === "required") {
     return (
-      <Typography
+      <Chip
         component="span"
-        level="body-sm"
-        data-testid="campaign-step-badge-optional"
-        sx={{ color: "text.secondary", fontWeight: "md" }}
+        size="sm"
+        variant="soft"
+        color="warning"
+        data-testid="campaign-step-badge-required"
+        sx={badgeSx}
       >
-        Optional
-      </Typography>
+        Required
+      </Chip>
     );
   }
 
-  const label =
-    state.kind === "required"
-      ? "Required"
-      : `${state.count} ${state.count === 1 ? "issue" : "issues"}`;
-
+  const issues = `${state.count} ${state.count === 1 ? "issue" : "issues"}`;
   return (
     <Chip
       component="span"
       size="sm"
       variant="soft"
       color="warning"
-      data-testid={`campaign-step-badge-${state.kind}`}
+      data-testid="campaign-step-badge-attention"
       startDecorator={
-        state.kind === "attention" ? (
-          <Box
-            component="span"
-            aria-hidden
-            sx={{
-              minWidth: 20,
-              height: 20,
-              px: 0.5,
-              borderRadius: "xl",
-              bgcolor: "warning.solidBg",
-              color: "warning.solidColor",
-              fontSize: "xs",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            {state.count}
-          </Box>
-        ) : undefined
+        <Box
+          component="span"
+          aria-hidden
+          data-testid="campaign-step-badge-count"
+          sx={{
+            minWidth: 20,
+            height: 20,
+            px: 1,
+            borderRadius: "xl",
+            bgcolor: "warning.solidBg",
+            color: "warning.solidColor",
+            fontSize: "xs",
+            fontWeight: "xl",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          {state.count}
+        </Box>
       }
-      sx={{
-        "--Chip-gap": "6px",
-        border: "1px solid",
-        borderColor: "warning.outlinedBorder",
-        fontSize: "sm",
-        fontWeight: "lg",
-        lineHeight: 1.4,
-        py: 0.25,
-      }}
+      sx={badgeSx}
     >
-      {state.kind === "attention" ? `Needs attention: ${label}` : label}
+      {/* Phones show only the number; the words stay for screen readers. */}
+      <Box component="span" aria-hidden sx={{ display: { xs: "none", sm: "inline" } }}>
+        Needs attention
+      </Box>
+      <Box component="span" sx={campaignEditorVisuallyHidden}>
+        {`Needs attention: ${issues}`}
+      </Box>
     </Chip>
   );
 }
@@ -183,12 +185,13 @@ export function CampaignEditorStep({
           all: "unset",
           boxSizing: "border-box",
           width: "100%",
-          minHeight: 64,
-          px: { xs: 2, sm: 3 },
-          py: 1.75,
+          // One header height for every step, open or closed. The summary
+          // is a single truncated line, so title and summary fit in 64px.
+          height: 64,
+          px: campaignEditorCardPadding,
           display: "flex",
           alignItems: "center",
-          gap: 1.5,
+          gap: { xs: 2, sm: 4 },
           cursor: "pointer",
           color: "text.primary",
           borderBottom: expanded ? "1px solid" : "none",
@@ -208,9 +211,8 @@ export function CampaignEditorStep({
             height: 32,
             flexShrink: 0,
             borderRadius: "50%",
-            border: "1.5px solid",
-            borderColor: "primary.solidBg",
-            color: "primary.plainColor",
+            bgcolor: "primary.softBg",
+            color: "primary.softColor",
             fontWeight: "xl",
             fontSize: "sm",
             display: "inline-flex",
@@ -220,13 +222,14 @@ export function CampaignEditorStep({
         >
           {number}
         </Box>
-        <Stack component="span" spacing={0.25} sx={{ minWidth: 0, flex: 1 }}>
+        <Stack component="span" spacing={0} sx={{ minWidth: 0, flex: 1 }}>
           <Typography
             component="span"
             level="title-lg"
-            sx={{ fontWeight: "xl", color: "text.primary", lineHeight: 1.3 }}
+            noWrap
+            sx={{ display: "block", fontWeight: "xl", color: "text.primary", lineHeight: 1.3 }}
           >
-            <Box component="span" sx={visuallyHidden}>
+            <Box component="span" sx={campaignEditorVisuallyHidden}>
               {`Step ${number}: `}
             </Box>
             {title}
@@ -235,9 +238,10 @@ export function CampaignEditorStep({
             <Typography
               component="span"
               level="body-sm"
+              data-testid="campaign-step-summary"
               sx={{
                 display: "block",
-                color: "text.secondary",
+                color: "text.tertiary",
                 overflow: "hidden",
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
@@ -267,22 +271,10 @@ export function CampaignEditorStep({
         role="region"
         aria-labelledby={headerId}
         hidden={!expanded}
-        sx={{ p: { xs: 2, sm: 3 }, minWidth: 0 }}
+        sx={{ p: campaignEditorCardPadding, minWidth: 0 }}
       >
         {expanded ? children : null}
       </Box>
     </Box>
   );
 }
-
-const visuallyHidden = {
-  position: "absolute",
-  width: 1,
-  height: 1,
-  p: 0,
-  m: -1,
-  overflow: "hidden",
-  clip: "rect(0 0 0 0)",
-  whiteSpace: "nowrap",
-  border: 0,
-} as const;
