@@ -194,15 +194,27 @@ All paths are relative to `supabase/functions/` unless they start with `src/`.
 
 ### 2.4 Security observations
 
-None of these were changed.
+All three issues below were **fixed in `9c60201c3`** ("fix: verify JWT and tenant membership in newsletter generators"). The shared check is `supabase/functions/_shared/generatorAuth.ts`. Tests: `supabase/functions/generate-*/__tests__/index.test.ts`, run by `verify-edge-functions`.
 
-- **Header-only auth with a body-supplied user:**
-  - generate-newsletter, generate-structured-newsletter, generate-cohesive-newsletter and generate-email-content only check that an Authorization header exists, then use the service-role client.
-  - All but generate-email-content take `userId` from the request body.
-  - generate-content does the same and also writes `company_profiles`.
-  - Platform `verify_jwt` is their only token check.
-- **No auth:** generate-weekly-themes has `verify_jwt = false` and checks nothing in the handler.
-- **Unscoped lookup:** `HolidayGenerationService.ts:138-149` has an unscoped `tenants … limit(1)` fallback. From the calendar it is unreachable, because `useSeasonalHolidays.ts:155-162` throws first when there is no tenant.
+- **Header-only auth with a body-supplied user** — **Fixed (`9c60201c3`).**
+  - Was: generate-newsletter, generate-structured-newsletter, generate-cohesive-newsletter and generate-email-content only checked that an Authorization header existed, then used the service-role client. All but generate-email-content took `userId` from the request body. generate-content did the same and also wrote `company_profiles`. Platform `verify_jwt` was their only token check.
+  - Now:
+    - Each handler verifies the JWT with an anon-key client carrying the request's Authorization header, and returns 401 when the token is missing or invalid.
+    - The user id comes from the verified token only. `userId` and `user_id` in the body are ignored.
+    - Before any service-key query, the handler confirms membership with `bloom_can_access_tenant` under the caller's JWT, and returns 403 when it fails. The tenant is `tenantId`/`tenant_id` from the body, or else the caller's own `users.tenant_id`.
+  - Service-key use after the checks:
+    - Reads that RLS allows now use the caller's JWT: personas, campaigns, content_tasks, company_profiles and master_campaign_templates.
+    - The service key remains only for `profile_user_id_for` (service_role only), the shared location guard, and generate-content's company-name write-back.
+    - generate-newsletter also checks that a named campaign belongs to the verified tenant (404 if not).
+- **No auth** — **Fixed (`9c60201c3`).**
+  - Was: generate-weekly-themes had `verify_jwt = false` and checked nothing in the handler.
+  - Callers re-checked: the frontend (`CompanyProfileCreator.ts`, `BackfillCampaigns.tsx`, plus the dead `useThemeGeneration.ts` and `NoCampaignStateCard.tsx`), `cron.job`, database functions (`pg_proc` source) and other edge functions. There are no cron or server callers.
+  - It now takes the same JWT and membership check. Its only table, master_campaign_templates, is read with the caller's JWT, so it no longer uses the service key. No shared secret was added, because nothing server-side calls it.
+- **Unscoped lookup** — **Fixed (`9c60201c3`).**
+  - Was: `HolidayGenerationService.ts:138-149` fell back to an unscoped `tenants … limit(1)` lookup when no tenant was passed.
+  - Now it throws instead of guessing a tenant. The only caller (`useSeasonalHolidays.ts`) always passes one, so behaviour on the calendar is unchanged.
+
+**Not fixed, found while testing:** `generate-content/prompt-builder.ts:252` references an undefined `campaignTitle`, so generate-content's built-prompt path throws a ReferenceError. The live holiday caller always sends `customPrompt` and never reaches it. This bug existed before `9c60201c3`.
 
 ---
 
