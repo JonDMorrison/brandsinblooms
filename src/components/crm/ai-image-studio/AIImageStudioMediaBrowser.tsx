@@ -12,6 +12,7 @@ import useMediaQuery from "@mui/material/useMediaQuery";
 import { useContentAssets } from "@/hooks/useContentAssets";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { textMatchesSearch } from "../../../../supabase/functions/_shared/catalogSearch";
 import {
   Image as ImageIcon,
   ImagePlus,
@@ -735,7 +736,13 @@ function LibraryEmptyState({
   );
 }
 
-function SearchEmptyState({ onClearSearch }: { onClearSearch: () => void }) {
+function SearchEmptyState({
+  onClearSearch,
+  query,
+}: {
+  onClearSearch: () => void;
+  query: string;
+}) {
   return (
     <Box
       sx={{
@@ -753,7 +760,7 @@ function SearchEmptyState({ onClearSearch }: { onClearSearch: () => void }) {
           <Search size={32} strokeWidth={1.8} />
         </Box>
         <Typography sx={{ fontSize: "14px", color: "text.secondary" }}>
-          No images match your search
+          No images match “{query}” in your image library
         </Typography>
         <Link
           component="button"
@@ -986,7 +993,8 @@ export function AIImageStudioMediaBrowser({
           .join(" ")
           .toLowerCase();
 
-        return haystack.includes(librarySearch);
+        // Case-insensitive, partial word, singular or plural.
+        return textMatchesSearch(haystack, librarySearch);
       });
 
     return combined;
@@ -1219,7 +1227,10 @@ export function AIImageStudioMediaBrowser({
               ))}
             </Box>
           ) : hasSearchResultsEmptyState ? (
-            <SearchEmptyState onClearSearch={clearLibrarySearch} />
+            <SearchEmptyState
+              onClearSearch={clearLibrarySearch}
+              query={librarySearchInput.trim()}
+            />
           ) : hasLibraryEmptyState ? (
             <LibraryEmptyState
               onGenerate={() => onTabChange?.("ai")}

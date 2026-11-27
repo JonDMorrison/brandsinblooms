@@ -34,6 +34,11 @@ import {
   type MessageCheckIssue,
 } from "@/lib/studio/newsletter/messageCheck";
 import type { StudioBlock } from "@/types/studioBlocks";
+import {
+  describeCampaignBlockLinkIssues,
+  findCampaignLinkIssues,
+} from "@/lib/email/blockLinkIssues";
+import { isValidTestRecipient, useTestSendRecipient } from "./useTestSendRecipient";
 
 type PreviewDevice = "desktop" | "tablet" | "mobile";
 type PreviewTab = "preview" | "test";
@@ -47,8 +52,6 @@ type StudioPreviewDialogProps = {
   campaignId: string;
   /** When set, the tab shown each time the dialog opens. */
   initialTab?: PreviewTab;
-  /** Fills the test recipient when the dialog opens and the field is empty. */
-  initialTestEmail?: string;
 };
 
 const DEVICE_OPTIONS: Array<{
@@ -141,12 +144,14 @@ export default function StudioPreviewDialog({
   previewText,
   campaignId,
   initialTab,
-  initialTestEmail,
 }: StudioPreviewDialogProps) {
   const { designSystem } = useDesignSystem();
   const { settings } = useNewsletterDesign();
   const [device, setDevice] = React.useState<PreviewDevice>("desktop");
   const [activeTab, setActiveTab] = React.useState<PreviewTab>("preview");
+  // Starts as the last address used for a test this session, else the
+  // signed-in user's email. Filling it in never sends anything.
+  const { getDefaultRecipient, rememberRecipient } = useTestSendRecipient();
   const [testEmail, setTestEmail] = React.useState("");
   const [isSending, setIsSending] = React.useState(false);
   const [sendStatus, setSendStatus] = React.useState<{
@@ -184,6 +189,9 @@ export default function StudioPreviewDialog({
     ],
   );
   const sanitizedHtml = React.useMemo(() => stripScriptTags(html), [html]);
+  // The same link problems that keep Send and Schedule off. A test still
+  // sends, so the person can see the email, but they are told first.
+  const linkIssues = React.useMemo(() => findCampaignLinkIssues(blocks), [blocks]);
 
   // Pre-send check: alt text, links, images and buttons. The result is tied
   // to the email it was run on and is marked out of date after any change.
@@ -210,9 +218,10 @@ export default function StudioPreviewDialog({
       setSendStatus(null);
       setCheck(null);
       if (initialTab) setActiveTab(initialTab);
-      if (initialTestEmail) setTestEmail((current) => current || initialTestEmail);
+      const recipient = getDefaultRecipient();
+      if (recipient) setTestEmail((current) => current || recipient);
     }
-  }, [initialTab, initialTestEmail, open]);
+  }, [getDefaultRecipient, initialTab, open]);
 
   const handleSendTest = React.useCallback(async () => {
     const toEmail = testEmail.trim();
@@ -221,6 +230,14 @@ export default function StudioPreviewDialog({
       setSendStatus({
         type: "danger",
         message: "Enter an email address first.",
+      });
+      return;
+    }
+
+    if (!isValidTestRecipient(toEmail)) {
+      setSendStatus({
+        type: "danger",
+        message: "Enter a valid email address, like you@yourdomain.com.",
       });
       return;
     }
@@ -262,8 +279,9 @@ export default function StudioPreviewDialog({
       return;
     }
 
+    rememberRecipient(toEmail);
     setSendStatus({ type: "success", message: "Test email sent." });
-  }, [blocks, campaignId, previewText, subjectLine, testEmail]);
+  }, [blocks, campaignId, previewText, rememberRecipient, subjectLine, testEmail]);
 
   return (
     <Modal open={open} onClose={onClose}>
@@ -480,6 +498,31 @@ export default function StudioPreviewDialog({
                 </Alert>
               ) : null}
             </Stack>
+          ) : null}
+          {activeTab === "test" && linkIssues.length > 0 ? (
+            <Alert
+              size="sm"
+              color="warning"
+              variant="soft"
+              data-testid="preview-test-link-warning"
+              sx={{ mt: 1.25, borderRadius: "8px", alignItems: "flex-start" }}
+            >
+              <Stack spacing={0.5} sx={{ minWidth: 0 }}>
+                <Typography level="body-sm" fontWeight={700} sx={{ color: "inherit" }}>
+                  {linkIssues.length === 1
+                    ? "1 block has a link to fix before you can send or schedule."
+                    : `${linkIssues.length} blocks have links to fix before you can send or schedule.`}{" "}
+                  Test emails still send.
+                </Typography>
+                <Box component="ul" sx={{ m: 0, pl: 2.5 }}>
+                  {linkIssues.map((entry) => (
+                    <Typography key={entry.blockId} component="li" level="body-xs" sx={{ color: "inherit" }}>
+                      {describeCampaignBlockLinkIssues(entry)}
+                    </Typography>
+                  ))}
+                </Box>
+              </Stack>
+            </Alert>
           ) : null}
         </Sheet>
 

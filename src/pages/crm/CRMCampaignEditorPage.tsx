@@ -26,6 +26,10 @@ import {
 import { CampaignOrganization } from "@/components/crm/campaigns/CampaignOrganization";
 import { reviewConnectedEvents } from "@/lib/connectedContent";
 import { reviewCampaignContent } from "@/lib/crm/campaignContentReview";
+import {
+  describeCampaignBlockLinkIssues,
+  findCampaignLinkIssues,
+} from "@/lib/email/blockLinkIssues";
 import { resolveStudioDraftId } from "@/lib/crm/studioEntry";
 import * as React from "react";
 import { flushSync } from "react-dom";
@@ -151,7 +155,6 @@ import {
 import { classifySender } from "@/lib/crm/senderSeverity";
 import type { SenderClassification } from "@/lib/crm/senderSeverity";
 import { useTenant } from "@/hooks/useTenant";
-import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import {
   CHECKING_AUDIENCE_LABEL,
@@ -646,12 +649,79 @@ function CampaignEditorLoadingSkeleton() {
   );
 }
 
+// The address named no campaign in this business, or it could not be read.
+// Nothing of the campaign is shown, and nothing was saved.
+function CampaignUnavailableState({
+  reason,
+  onRetry,
+}: {
+  reason: "not-found" | "error";
+  onRetry: () => void;
+}) {
+  const navigate = useNavigate();
+  const notFound = reason === "not-found";
+  return (
+    <Card
+      variant="outlined"
+      data-testid="campaign-unavailable"
+      sx={{
+        borderRadius: "xl",
+        bgcolor: "background.surface",
+        maxWidth: 560,
+        mx: "auto",
+        mt: { xs: 4, md: 8 },
+        p: { xs: 3, md: 4 },
+        alignItems: "flex-start",
+        gap: 1.5,
+      }}
+    >
+      <Typography component="h1" level="h3" sx={{ color: "text.primary" }}>
+        {notFound ? "Campaign not found" : "Campaign could not be loaded"}
+      </Typography>
+      <Typography level="body-md" sx={{ color: "text.secondary" }}>
+        {notFound
+          ? "This link does not match a campaign in this business."
+          : "Check your connection and try again."}
+      </Typography>
+      <Stack direction="row" spacing={1.5} sx={{ pt: 1 }}>
+        <Button
+          color="primary"
+          variant="solid"
+          startDecorator={<ArrowLeft size={16} />}
+          onClick={() => navigate("/crm/campaigns")}
+        >
+          Back to campaigns
+        </Button>
+        {notFound ? null : (
+          <Button color="neutral" variant="outlined" onClick={onRetry}>
+            Try again
+          </Button>
+        )}
+      </Stack>
+    </Card>
+  );
+}
+
+// The editor opens only for /new or a campaign that loaded from this
+// business. Its own effects can save, so it is not mounted otherwise.
+function CampaignEditorGate() {
+  const { loadState, reload } = useCampaignEditor();
+  if (loadState === "not-found" || loadState === "error") {
+    return (
+      <CampaignUnavailableState
+        reason={loadState}
+        onRetry={() => void reload()}
+      />
+    );
+  }
+  return <CampaignEditorScreen />;
+}
+
 function CampaignEditorScreen() {
   const navigate = useNavigate();
   const [processParams, setProcessParams] = useSearchParams();
   const reviewingNewsletter = processParams.get("step") === "review";
   const { tenant } = useTenant();
-  const { user } = useAuth();
   const { hasPermission } = useUserRole();
   const canSendCampaign = hasPermission("campaigns.send");
   const {
@@ -1281,6 +1351,12 @@ function CampaignEditorScreen() {
     }
   }, [isLoading, isLocked, canSendCampaign, pendingTemplateSave, processParams, setProcessParams, updateSchedule, openSendConfirmation]);
 
+  // Blocks whose button, image or text links would go out empty or broken.
+  const blockLinkIssues = React.useMemo(
+    () => (campaignType === "email" ? findCampaignLinkIssues(contentBlocks) : []),
+    [campaignType, contentBlocks],
+  );
+
   // Every blocker names the section that fixes it, so the checklist can
   // jump straight there. A campaign name is optional (#8) and not a blocker.
   const sendBlockers = React.useMemo(() => {
@@ -1296,6 +1372,16 @@ function CampaignEditorScreen() {
 
     if (campaignType === "email" && !hasComplianceFooter) {
       blockers.push({ message: "A compliance footer is required before sending.", section: "campaign-editor-content", fixLabel: "Add the footer" });
+    }
+
+    // One item per block with a broken or empty link; each blocks Send and
+    // Schedule until it is fixed in Design Studio.
+    for (const entry of blockLinkIssues) {
+      blockers.push({
+        message: describeCampaignBlockLinkIssues(entry),
+        section: "campaign-editor-content",
+        fixLabel: `Fix the link in block ${entry.position}`,
+      });
     }
 
     if (missingPostalAddress) {
@@ -1361,6 +1447,7 @@ function CampaignEditorScreen() {
     selectedSegments,
     selectedPersonas,
     autoSaveStatus,
+    blockLinkIssues,
     campaignType,
     hasComplianceFooter,
     meaningfulEmailBlockCount,
@@ -3552,7 +3639,6 @@ function CampaignEditorScreen() {
           previewText={preheaderText}
           campaignId={campaignId ?? ""}
           initialTab="test"
-          initialTestEmail={user?.email ?? undefined}
         />
       ) : null}
     </Box>
@@ -3581,7 +3667,7 @@ export default function CRMCampaignEditorPage() {
           }}
         >
           <PageContainer sx={{ maxWidth: `${EDITOR_MAX_WIDTH}px`, mx: "auto" }}>
-            <CampaignEditorScreen />
+            <CampaignEditorGate />
           </PageContainer>
         </Box>
       </CampaignEditorProvider>

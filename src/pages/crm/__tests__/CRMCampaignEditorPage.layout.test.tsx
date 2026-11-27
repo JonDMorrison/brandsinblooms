@@ -306,6 +306,25 @@ describe("campaign editor layout", () => {
     expect(screen.getByTestId("campaign-editor-schedule-cta")).not.toBeDisabled();
   });
 
+  it("lists a block with a broken button link and keeps Schedule off", () => {
+    editor.current = draft({
+      subjectLine: "Winter wreath workshops are back this month",
+      preheaderText: "Join us November 14.",
+      includeAllCustomers: true,
+      audienceCount: 120,
+      contentBlocks: [
+        { ...blocks[0], buttonText: "Book a seat", buttonUrl: "www shop" },
+        { ...blocks[1], businessName: "Fernhill Gardens" },
+      ],
+    });
+    renderEditor();
+    const bar = screen.getByTestId("campaign-readiness-bar");
+    expect(bar).toHaveTextContent("1 thing before you can send");
+    expect(within(bar).getByText(/^Block 1 \(.+\): Button link is not a full link/)).toBeInTheDocument();
+    expect(within(bar).getByRole("link", { name: /Fix the link in block 1/ })).toBeInTheDocument();
+    expect(screen.getByTestId("campaign-editor-schedule-cta")).toBeDisabled();
+  });
+
   it("warns about a placeholder footer business name and offers the From name", () => {
     const updateContent = vi.fn();
     editor.current = draft({
@@ -403,6 +422,27 @@ describe("campaign editor Send test", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Close preview" }));
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(testSendCalls()).toHaveLength(0);
+  });
+
+  it("still allows a test send with a broken link, and shows the same warning", () => {
+    editor.current = draft({
+      subjectLine: "Winter wreath workshops",
+      contentBlocks: [
+        { ...blocks[0], buttonText: "Book a seat", buttonUrl: "javascript:alert(1)" },
+        blocks[1],
+      ],
+    });
+    renderEditor();
+    expect(screen.getByTestId("campaign-editor-schedule-cta")).toBeDisabled();
+    const sendTest = screen.getByTestId("campaign-editor-send-test-cta");
+    expect(sendTest).not.toBeDisabled();
+    fireEvent.click(sendTest);
+
+    const dialog = screen.getByRole("dialog");
+    const warning = within(dialog).getByTestId("preview-test-link-warning");
+    expect(warning).toHaveTextContent("1 block has a link to fix before you can send or schedule.");
+    expect(warning).toHaveTextContent(/Block 1 \(.+\): Button link is a kind of link emails can't use/);
+    expect(within(dialog).getByRole("button", { name: "Send test" })).not.toBeDisabled();
   });
 
   it("is disabled with a hint when the campaign has no design", async () => {
@@ -705,5 +745,44 @@ describe("campaign editor visual polish", () => {
       // Only the scaled email renders are wider; each sits in a clipped box.
       expect(element.tagName, element.outerHTML.slice(0, 120)).toBe("IFRAME");
     }
+  });
+});
+
+describe("campaign editor for an address with no campaign", () => {
+  function renderAt(path: string) {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    return render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={[path]}>
+          <Routes>
+            <Route path="/crm/campaigns" element={<p>Campaigns list</p>} />
+            <Route path="/crm/campaigns/:campaignId" element={<CRMCampaignEditorPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+  }
+
+  it("shows Campaign not found with a navy Back to campaigns button, and no editor", () => {
+    const saveDraft = vi.fn();
+    editor.current = draft({ loadState: "not-found", campaignId: null, name: "", saveDraft, reload: vi.fn() });
+    renderAt("/crm/campaigns/6f1c2a8e-4b7d-4e2a-9c31-0a5e7d9b1f42");
+    expect(screen.getByRole("heading", { level: 1, name: "Campaign not found" })).toBeInTheDocument();
+    expect(screen.getByText("This link does not match a campaign in this business.")).toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "Campaign name" })).not.toBeInTheDocument();
+    const back = screen.getByRole("button", { name: "Back to campaigns" });
+    expect(back).toHaveClass("MuiButton-variantSolid", "MuiButton-colorPrimary");
+    fireEvent.click(back);
+    expect(screen.getByText("Campaigns list")).toBeInTheDocument();
+    expect(saveDraft).not.toHaveBeenCalled();
+  });
+
+  it("offers Try again when the campaign could not be read", () => {
+    const reload = vi.fn().mockResolvedValue(undefined);
+    editor.current = draft({ loadState: "error", campaignId: null, reload });
+    renderAt("/crm/campaigns/6f1c2a8e-4b7d-4e2a-9c31-0a5e7d9b1f42");
+    expect(screen.getByRole("heading", { level: 1, name: "Campaign could not be loaded" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    expect(reload).toHaveBeenCalledTimes(1);
   });
 });

@@ -47,7 +47,7 @@ function CampaignRow({
         borderColor: "neutral.200",
         borderRadius: "md",
         "&:hover": { borderColor: "neutral.400" },
-        "&:focus-visible": { outline: "2px solid #244d46", outlineOffset: 2 },
+        "&:focus-visible": { outline: "2px solid", outlineColor: "primary.500", outlineOffset: 2 },
       }}
     >
       <Box

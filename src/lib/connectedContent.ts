@@ -78,6 +78,30 @@ export function stripProductSizeSuffix(title:string){
   return stripped||title.trim();
 }
 
+/** "A", "A and B", "A, B and C". */
+function listNames(names:string[]){
+  if(names.length<=1)return names[0]??"";
+  return `${names.slice(0,-1).join(", ")} and ${names[names.length-1]}`;
+}
+
+/**
+ * Empty-state text for a website catalogue: says what was searched and where,
+ * e.g. No products match "hydrangea" in Northfield Garden Center's catalogue.
+ */
+export function catalogNoMatchesMessage({query,kindLabel,siteNames}:{
+  query:string;
+  /** Plural, lower case: "products", "events", "product photos". */
+  kindLabel:string;
+  siteNames:string[];
+}){
+  const names=[...new Set(siteNames.map(name=>name.trim()).filter(Boolean))];
+  const where=names.length?`${listNames(names)}'s catalogue`:"your website's catalogue";
+  const term=query.trim();
+  return term
+    ? `No ${kindLabel} match "${term}" in ${where}.`
+    : `No published ${kindLabel} were found in ${where}.`;
+}
+
 /** Cuts at a word boundary near `max` characters and adds an ellipsis. */
 export function truncateAtWord(text:string,max=180){
   const clean=text.replace(/\s+/g," ").trim();

@@ -16,7 +16,8 @@ import StudioRichTextField from "../fields/StudioRichTextField";
 import StudioSwitchField from "../fields/StudioSwitchField";
 import { ButtonPaddingFields, ImageSpacingFields, Field, NumericField, Choice, ColorField, SliderNumberRow } from "./AppearanceControls";
 import { ButtonAlignField, ElementAlignField, TextAlignField, VerticalAlignField } from "./AlignmentControls";
-import { safeEmailUrl } from "@/lib/studio/newsletter/settings";
+import { validateLinkUrl } from "@/lib/email/linkValidation";
+import { useLinkFieldState } from "../fields/useLinkFieldState";
 import { navigationLinkColor } from "@/lib/studio/newsletter/settings";
 import { useNewsletterDesign } from "./NewsletterDesignContext";
 import { BARCODE_FORMATS, barcodeImage, checkBarcode, couponBarcodeFormat, type BarcodeFormat } from "@/lib/studio/newsletter/barcode";
@@ -47,6 +48,36 @@ function tableCellsToText(rows: string[][]) {
   const text = rows.map((row) => row.join("\t")).join("\n");
   return text.replace(/[\t\n]/g, "") === "" ? "" : text;
 }
+/** A block link box with the shared link check (see StudioLinkField). */
+function LinkField({
+  label,
+  value,
+  onChange,
+  required = false,
+}: {
+  label: string;
+  value: string | undefined;
+  onChange: (value: string) => void;
+  required?: boolean;
+}) {
+  const { error, handleChange, handleFocus, handleBlur } = useLinkFieldState({
+    value,
+    onChange,
+    required,
+  });
+  return (
+    <Field
+      label={label}
+      type="url"
+      placeholder="https://..."
+      value={value}
+      onChange={handleChange}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
+      error={error}
+    />
+  );
+}
 function LinksEditor({
   block,
   update,
@@ -74,10 +105,11 @@ function LinksEditor({
             value={link.label}
             onChange={(label) => change(link.id, { label })}
           />
-          <Field
+          <LinkField
             label="Link (web address)"
             value={link.url}
             onChange={(url) => change(link.id, { url })}
+            required={Boolean(link.label?.trim())}
           />
           {block.type === "button-group" && (
             <>
@@ -240,6 +272,7 @@ function ButtonFields({
   canHide?: boolean;
 }) {
   const shown = !canHide || block.showButton !== false;
+  const buttonLink = block.buttonUrl?.trim() ? validateLinkUrl(block.buttonUrl) : null;
   return (
     <fieldset className="nl-fieldset">
       <legend>Button</legend>
@@ -259,17 +292,16 @@ function ButtonFields({
             onChange={(value) => update("buttonText", value)}
           />
           {linkEditable && (
-            <Field
+            <LinkField
               label="Link (web address)"
               value={block.buttonUrl}
               onChange={(value) => update("buttonUrl", value)}
+              required={Boolean(block.buttonText?.trim())}
             />
           )}
-          {linkEditable && block.buttonUrl?.trim() && (
+          {linkEditable && buttonLink?.status === "valid" && buttonLink.kind === "web" && (
             <div className="nl-note">
-              {safeEmailUrl(block.buttonUrl) ? (
-                <a href={safeEmailUrl(block.buttonUrl)} target="_blank" rel="noopener noreferrer">Open destination to check link</a>
-              ) : "Enter a public website address, such as example.com/page."}
+              <a href={buttonLink.href} target="_blank" rel="noopener noreferrer">Open destination to check link</a>
             </div>
           )}
           <ButtonAlignField
@@ -657,7 +689,7 @@ function GalleryFields({
             aria-pressed={block.layout === `row-${n}`}
             className="nl-quiet"
             style={{
-              borderColor: block.layout === `row-${n}` ? "#234b49" : undefined,
+              borderColor: block.layout === `row-${n}` ? "var(--joy-palette-primary-500)" : undefined,
             }}
             onClick={() => {
               update("layout", `row-${n}`);
@@ -840,7 +872,7 @@ function GalleryFields({
                     patchProduct(index, { description })
                   }
                 />
-                <Field
+                <LinkField
                   label="Image link URL"
                   value={products[index]?.linkUrl}
                   onChange={(linkUrl) => patchProduct(index, { linkUrl })}
@@ -850,10 +882,11 @@ function GalleryFields({
                   value={products[index]?.buttonText}
                   onChange={(buttonText) => patchProduct(index, { buttonText })}
                 />
-                <Field
+                <LinkField
                   label="Button URL"
                   value={products[index]?.buttonUrl}
                   onChange={(buttonUrl) => patchProduct(index, { buttonUrl })}
+                  required={Boolean(products[index]?.buttonText?.trim())}
                 />
                 <Field
                   label="Badge text"
@@ -877,7 +910,7 @@ function GalleryFields({
                   value={images[index]?.caption}
                   onChange={(caption) => patchImage(index, { caption })}
                 />
-                <Field
+                <LinkField
                   label="Image link URL"
                   value={images[index]?.linkUrl}
                   onChange={(linkUrl) => patchImage(index, { linkUrl })}
