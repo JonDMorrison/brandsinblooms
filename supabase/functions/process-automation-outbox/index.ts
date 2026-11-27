@@ -5,6 +5,7 @@ import { keepSmsEncoding } from "../_shared/smsSegmentCounter.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import {
   resolveSender,
+  resolveTenantSenderName,
   buildFromAddress,
   type SenderConfig,
 } from "../_shared/senderResolver.ts";
@@ -745,7 +746,13 @@ async function sendEmail(
     if (templateData.sender_config?.from_email) {
       senderConfig = {
         fromEmail: templateData.sender_config.from_email,
-        fromName: templateData.sender_config.from_name,
+        // Re-resolved at send time: rows enqueued before placeholder names
+        // were treated as unset may carry "Your Business".
+        fromName: await resolveTenantSenderName(
+          supabase,
+          message.tenant_id,
+          templateData.sender_config.from_name,
+        ),
         deliveryMethod: templateData.sender_config.delivery_method,
         domainId: templateData.sender_config.domain_id,
         // Extract reply-to with fallback to sender email
@@ -771,7 +778,6 @@ async function sendEmail(
       .limit(1)
       .single();
 
-    let companyName = "Your Business";
     let companyProfile: CompanyProfileShape | null = null;
     if (tenantUser?.id) {
       const profileUserId = await resolveBusinessProfileUserId(supabase, tenantUser.id);
@@ -780,7 +786,6 @@ async function sendEmail(
         .select(COMPANY_PROFILE_WITH_DESIGN_SYSTEM_SELECT)
         .eq("user_id", profileUserId)
         .single();
-      companyName = profile?.company_name || "Your Business";
       companyProfile = (profile as CompanyProfileShape | null) || null;
     }
 
@@ -832,7 +837,9 @@ async function sendEmail(
           to: message.recipient,
           subject: rendered.renderedSubject,
           html_content: rendered.renderedHtml,
-          from_name: companyName,
+          // Domain default name, else business profile, else tenant name;
+          // never a placeholder ("" sends from the bare address).
+          from_name: senderConfig.fromName,
           from_email: senderConfig.fromEmail,
           reply_to: senderConfig.replyTo,
           unsubscribe_url: rendered.actionLinks.unsubscribeUrl,

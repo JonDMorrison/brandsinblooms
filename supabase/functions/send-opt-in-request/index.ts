@@ -3,6 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { resolveSender, buildFromAddress } from "../_shared/senderResolver.ts";
 import { renderBloomSystemEmail, bloomEmailEscape } from "../../../src/lib/email/premiumBotanical.ts";
 import { resolveBusinessProfileUserId } from "../_shared/businessProfileUserId.ts";
+import { realBusinessName } from "../../../src/lib/studio/businessPlaceholders.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -49,7 +50,12 @@ serve(async (req) => {
       .eq("user_id", profileUserId)
       .single();
 
-    const companyName = companyProfile?.company_name || tenant?.name || "Our Company";
+    const realCompanyName =
+      realBusinessName(companyProfile?.company_name) ||
+      realBusinessName(tenant?.name);
+    // Body copy keeps a neutral wording when no real name exists; the From
+    // header never carries it (see fromName below).
+    const companyName = realCompanyName || "Our Company";
     const companyAddress = companyProfile?.location_info || "";
 
     // Resolve sender using the unified sender resolver
@@ -129,7 +135,9 @@ serve(async (req) => {
         if (resendApiKey) {
           const fromAddress = buildFromAddress({
             ...senderConfig,
-            fromName: companyName // Override with company name for opt-in emails
+            // Company name for opt-in emails, else the resolver's name; never
+            // a placeholder ("" sends from the bare address).
+            fromName: realCompanyName || senderConfig.fromName,
           });
           
           const emailResponse = await fetch("https://api.resend.com/emails", {
