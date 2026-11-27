@@ -20,6 +20,7 @@ vi.mock("@/contexts/DesignSystemContext", () => ({
   useOptionalDesignSystem: () => ({ designSystem: designSystem.current, isLoading: false }),
 }));
 vi.mock("@/hooks/useTenant", () => ({ useTenant: () => ({ tenant: { id: "tenant-test" }, loading: false }) }));
+vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ user: { id: "user-test", email: "owner@fernhill.com" } }) }));
 vi.mock("@/hooks/useUserRole", () => ({ useUserRole: () => ({ hasPermission: () => true, tenantId: "tenant-test" }) }));
 vi.mock("@/hooks/useEmailDomains", () => ({
   useEmailDomains: () => ({
@@ -79,6 +80,9 @@ vi.mock("@/lib/crm/campaignOrganization", () => ({
     mutation: { mutate: vi.fn(), isPending: false, error: null },
   }),
 }));
+// Every edge function call goes through this spy; nothing reaches the network,
+// and the Send test checks assert the test-send function is never called.
+const invoke = vi.hoisted(() => vi.fn());
 vi.mock("@/integrations/supabase/client", () => {
   const result = Promise.resolve({ data: [], error: null });
   const chain: Record<string, unknown> = {};
@@ -90,14 +94,14 @@ vi.mock("@/integrations/supabase/client", () => {
     supabase: {
       from: () => chain,
       rpc: () => Promise.resolve({ data: null, error: null }),
-      functions: { invoke: () => Promise.resolve({ data: { suggestions: [] }, error: null }) },
+      functions: { invoke },
     },
   };
 });
 // Dialogs that only open on request; they are covered by their own tests.
 vi.mock("@/components/crm/campaign-editor/CampaignSendConfirmation", () => ({ CampaignSendConfirmation: () => null }));
 vi.mock("@/components/crm/campaign-editor/SenderVerificationDialog", () => ({ SenderVerificationDialog: () => null }));
-vi.mock("@/components/crm/studio/StudioPreviewDialog", () => ({ default: () => null }));
+// StudioPreviewDialog is real here: the Send test checks open it.
 
 import CRMCampaignEditorPage from "../CRMCampaignEditorPage";
 
@@ -180,6 +184,7 @@ const stepToggle = (name: RegExp) =>
   screen.getAllByRole("button", { name }).find((button) => button.hasAttribute("data-campaign-step-toggle")) as HTMLElement;
 
 beforeEach(() => {
+  invoke.mockImplementation(() => Promise.resolve({ data: { suggestions: [] }, error: null }));
   designSystem.current = buildStudioDesignSystem({
     name: "Fernhill Gardens",
     streetAddress: "12 Fern Road",
@@ -331,5 +336,42 @@ describe("campaign editor layout", () => {
     });
     // Other blocks are passed through untouched.
     expect(next.find((block) => block.id === "hero-1")).toEqual(blocks[0]);
+  });
+});
+
+describe("campaign editor Send test", () => {
+  const testSendCalls = () => invoke.mock.calls.filter(([name]) => name === "send-test-email-v2");
+
+  it("opens the test-send dialog with the signed-in user's email and sends nothing", () => {
+    editor.current = draft({ subjectLine: "Winter wreath workshops" });
+    renderEditor();
+    expect(screen.queryByRole("dialog")).toBeNull();
+
+    fireEvent.click(screen.getByTestId("campaign-editor-send-test-cta"));
+
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText("Preview & Test")).toBeInTheDocument();
+    expect(within(dialog).getByRole("tab", { name: "Send test" })).toHaveAttribute("aria-selected", "true");
+    expect(within(dialog).getByRole("textbox", { name: "Test recipient" })).toHaveValue("owner@fernhill.com");
+    // Opening the dialog sends nothing; only its own Send test button would.
+    expect(testSendCalls()).toHaveLength(0);
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Close preview" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(testSendCalls()).toHaveLength(0);
+  });
+
+  it("is disabled with a hint when the campaign has no design", async () => {
+    editor.current = draft({ contentBlocks: blocks.filter((block) => block.type === "footer") });
+    renderEditor();
+    const button = screen.getByTestId("campaign-editor-send-test-cta");
+    expect(button).toBeDisabled();
+
+    fireEvent.mouseOver(screen.getByTestId("campaign-editor-send-test-wrapper"));
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("Add a design first");
+
+    fireEvent.click(button);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(testSendCalls()).toHaveLength(0);
   });
 });

@@ -104,6 +104,7 @@ import {
 import { createStudioBlock } from "@/lib/studio/blockFactory";
 import { JoyAutocomplete } from "@/components/joy/JoyAutocomplete";
 import { JoyButton } from "@/components/joy/JoyButton";
+import { JoyTooltip } from "@/components/joy/JoyTooltip";
 import { JoyChip, JoyStatusChip } from "@/components/joy/JoyChip";
 import {
   JoyDialog,
@@ -143,6 +144,7 @@ import {
 import { classifySender } from "@/lib/crm/senderSeverity";
 import type { SenderClassification } from "@/lib/crm/senderSeverity";
 import { useTenant } from "@/hooks/useTenant";
+import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import {
   CHECKING_AUDIENCE_LABEL,
@@ -640,6 +642,7 @@ function CampaignEditorScreen() {
   const [processParams, setProcessParams] = useSearchParams();
   const reviewingNewsletter = processParams.get("step") === "review";
   const { tenant } = useTenant();
+  const { user } = useAuth();
   const { hasPermission } = useUserRole();
   const canSendCampaign = hasPermission("campaigns.send");
   const {
@@ -2168,17 +2171,27 @@ function CampaignEditorScreen() {
           </Stack>
           <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }} useFlexGap flexWrap="wrap">
             {campaignType === "email" ? (
-              <JoyButton
-                variant="outlined"
-                color="neutral"
-                startDecorator={<Send size={18} aria-hidden />}
-                data-testid="campaign-editor-send-test-cta"
-                disabled={isLocked || !hasMeaningfulEmailContent}
-                onClick={() => setTestSendOpen(true)}
-                sx={{ flex: { xs: 1, md: "none" }, fontSize: 15, px: 2 }}
-              >
-                Send test
-              </JoyButton>
+              // A disabled button fires no pointer events, so the tooltip
+              // listens on the wrapper instead.
+              <JoyTooltip title={hasMeaningfulEmailContent ? "" : "Add a design first"}>
+                <Box
+                  component="span"
+                  data-testid="campaign-editor-send-test-wrapper"
+                  sx={{ display: "inline-flex", flex: { xs: 1, md: "none" } }}
+                >
+                  <JoyButton
+                    variant="outlined"
+                    color="neutral"
+                    startDecorator={<Send size={18} aria-hidden />}
+                    data-testid="campaign-editor-send-test-cta"
+                    disabled={isLocked || !hasMeaningfulEmailContent}
+                    onClick={() => setTestSendOpen(true)}
+                    sx={{ flex: 1, fontSize: 15, px: 2 }}
+                  >
+                    Send test
+                  </JoyButton>
+                </Box>
+              </JoyTooltip>
             ) : null}
             <JoyButton
               data-testid="campaign-editor-schedule-cta"
@@ -3369,6 +3382,19 @@ function CampaignEditorScreen() {
         onRename={handleRenameSavedTemplate}
         onArchive={handleArchiveSavedTemplate}
       />
+      {/* Mounted only while open: it builds the email HTML on every render. */}
+      {campaignType === "email" && testSendOpen ? (
+        <StudioPreviewDialog
+          open
+          onClose={() => setTestSendOpen(false)}
+          blocks={contentBlocks}
+          subjectLine={subjectLine}
+          previewText={preheaderText}
+          campaignId={campaignId ?? ""}
+          initialTab="test"
+          initialTestEmail={user?.email ?? undefined}
+        />
+      ) : null}
     </Box>
   );
 }

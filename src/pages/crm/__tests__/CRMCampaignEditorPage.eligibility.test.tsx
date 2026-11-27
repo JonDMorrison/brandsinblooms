@@ -22,6 +22,7 @@ vi.mock("@/contexts/DesignSystemContext", () => ({
   useOptionalDesignSystem: () => ({ designSystem: designSystem.current, isLoading: false }),
 }));
 vi.mock("@/hooks/useTenant", () => ({ useTenant: () => ({ tenant: { id: "tenant-test" }, loading: false }) }));
+vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ user: { id: "user-test", email: "owner@fernhill.com" } }) }));
 vi.mock("@/hooks/useUserRole", () => ({ useUserRole: () => ({ hasPermission: () => true, tenantId: "tenant-test" }) }));
 vi.mock("@/hooks/useEmailDomains", () => ({
   useEmailDomains: () => ({
