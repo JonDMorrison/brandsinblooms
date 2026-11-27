@@ -12,7 +12,6 @@ import Typography from "@mui/joy/Typography";
 import {
   addMonths,
   addWeeks,
-  format,
   getISOWeek,
   subMonths,
   subWeeks,
@@ -39,6 +38,7 @@ import {
 } from "@/hooks/useUnifiedCalendarData";
 import { supabase } from "@/integrations/supabase/client";
 import { persistCampaignDraft } from "@/lib/crm/campaignEditor";
+import { getISOWeekNumber, toLocalDateString } from "@/utils/dateUtils";
 import { applyTenantUserScope } from "@/utils/tenantScope";
 import { CampaignOverviewDialog } from "./calendar/CampaignOverviewDialog";
 import {
@@ -61,6 +61,14 @@ import { CalendarToolbar } from "./calendar/CalendarToolbar";
 import { CalendarWeeklyThemesDialog } from "./calendar/CalendarWeeklyThemesDialog";
 
 type ViewMode = "month" | "week" | "list";
+
+// A WeeklyTheme (Weekly Themes dialog) or a MasterWeeklyTheme (planning panel).
+type SchedulableTheme = {
+  title: string;
+  theme?: string;
+  description?: string;
+  prompt?: string;
+};
 type QuickAddType = "event" | "newsletter";
 
 type CalendarOverview = {
@@ -436,20 +444,22 @@ export const CalendarView = React.memo(function CalendarView({
   );
 
   const handleThemeSchedule = useCallback(
-    async (theme: any, date: Date) => {
+    async (theme: SchedulableTheme, date: Date) => {
       if (!user) return;
 
       try {
-        const startDate = format(date, "yyyy-MM-dd");
-        // `theme` is a WeeklyTheme from useWeeklyThemes (camelCase fields),
-        // not a master_campaign_templates row.
+        // week_number is the ISO week of the stored start_date
+        // (campaigns_week_date_consistency), never the theme's own week: the
+        // target date can sit in another ISO week (e.g. week 53 in a year that
+        // has none). The theme itself is carried by title/theme/prompt.
+        const startDate = toLocalDateString(date);
         const { error } = await supabase.from("campaigns").insert({
           title: theme.title,
           theme: theme.theme || theme.title,
           description: theme.description,
           prompt: theme.prompt || theme.description,
           start_date: startDate,
-          week_number: theme.weekNumber || getISOWeek(date),
+          week_number: getISOWeekNumber(date),
           source: "quick_action",
           user_id: user.id,
           created_by_user_id: user.id,

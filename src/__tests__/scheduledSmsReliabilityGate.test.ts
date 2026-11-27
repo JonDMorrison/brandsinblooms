@@ -49,6 +49,30 @@ describe("scheduled SMS reliability gate", () => {
     );
   });
 
+  it("pages every audience by the id cursor and applies VIP-first through job priority", () => {
+    // The saved cursor is a single customer id, so every page must be ordered
+    // by id alone; ordering by is_vip first would skip customers after page 1.
+    expect(enqueueWorker).not.toMatch(/\.order\(\s*["']is_vip["']/);
+    const idPagedQueries = enqueueWorker.match(
+      /query = query\.order\("id", \{ ascending: true \}\);\s*if \(cursorCustomerId\) \{\s*query = query\.gt\("id", cursorCustomerId\);/g,
+    );
+    expect(idPagedQueries).toHaveLength(2);
+    expect(enqueueWorker).toMatch(
+      /\.order\("customer_id", \{ ascending: true \}\)\s*\.gt\(\s*"customer_id",\s*cursorCustomerId/,
+    );
+    expect(enqueueWorker).toContain("p_after_customer_id: cursorCustomerId");
+    // VIP recipients get their own higher-priority jobs (claim orders by
+    // priority ASC) instead of a reordered page.
+    expect(enqueueWorker).toContain(
+      '(vipFirst && customer.is_vip === true ? vipMessageRows : messageRows).push({',
+    );
+    expect(enqueueWorker).toContain("{ rows: vipMessageRows, priority: VIP_JOB_PRIORITY }");
+    expect(enqueueWorker).toContain("{ rows: messageRows, priority: DEFAULT_JOB_PRIORITY }");
+    expect(enqueueWorker).toContain("priority: group.priority,");
+    expect(enqueueWorker).toContain("const VIP_JOB_PRIORITY = 10;");
+    expect(enqueueWorker).toContain("const DEFAULT_JOB_PRIORITY = 100;");
+  });
+
   it("uses the same consent-safe count for immediate and scheduled sends", () => {
     expect(sendCampaign).toContain("count_sms_campaign_recipients");
     expect(migration).toContain("customer.sms_opt_in_at IS NOT NULL");
