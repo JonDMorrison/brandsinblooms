@@ -2,6 +2,12 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { resolveBusinessProfileUserId } from "../_shared/businessProfileUserId.ts";
+import {
+  authorizeGeneratorRequest,
+  readJsonBody,
+  type GeneratorAuthDeps,
+  type GeneratorProfileClient,
+} from "../_shared/generatorAuth.ts";
 
 // Inline interfaces and functions to avoid cross-function imports
 interface CompanyProfile {
@@ -56,46 +62,62 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-serve(async (req) => {
+interface CohesiveNewsletterRequest {
+  campaignId?: string;
+  campaignTitle: string;
+  weekDescription?: string;
+}
+
+const defaultDeps: GeneratorAuthDeps = {
+  createClient: createClient as GeneratorAuthDeps["createClient"],
+  envGet: (key) => Deno.env.get(key),
+};
+
+export async function handleGenerateCohesiveNewsletter(
+  req: Request,
+  deps: GeneratorAuthDeps = defaultDeps,
+): Promise<Response> {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // SECURITY: [E16] - Add JWT authentication
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'Authorization required' }), { status: 401, headers: corsHeaders });
-    }
+    const body = await readJsonBody<CohesiveNewsletterRequest>(req);
+    // The caller's JWT and tenant membership are verified before any query.
+    // The user is the token's user; a userId in the body is ignored.
+    const auth = await authorizeGeneratorRequest(req, body, deps, corsHeaders);
+    if (!auth.ok) return auth.response;
 
-    const { campaignId, campaignTitle, userId, weekDescription } = await req.json();
+    const { campaignId, campaignTitle, weekDescription } = body;
+    const userId = auth.userId;
     
     console.log('Cohesive newsletter generation request:', { campaignId, campaignTitle, userId });
 
-    if (!userId) {
-      throw new Error('User ID is required');
-    }
-
-    const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+    const openAIApiKey = deps.envGet('OPENAI_API_KEY');
     if (!openAIApiKey) {
       throw new Error('OpenAI API key not configured');
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    // profile_user_id_for is executable by service_role only, so the service
+    // key is kept for that one call, after the checks above. The profile
+    // itself is read with the caller's JWT (RLS: own or business profile).
+    const serviceClient = deps.createClient(
+      deps.envGet('SUPABASE_URL')!,
+      deps.envGet('SUPABASE_SERVICE_ROLE_KEY')!,
+    ) as Parameters<typeof resolveBusinessProfileUserId>[0];
+    const userClient = auth.userClient as GeneratorProfileClient;
 
     // Get company profile for context
-    let companyProfile = null;
-    const profileUserId = await resolveBusinessProfileUserId(supabase, userId);
-    const { data: profile, error: profileError } = await supabase
+    let companyProfile: CompanyProfile | null = null;
+    const profileUserId = await resolveBusinessProfileUserId(serviceClient, userId);
+    const { data: profile, error: profileError } = await userClient
       .from('company_profiles')
       .select('*')
       .eq('user_id', profileUserId)
       .single();
     
     if (!profileError && profile) {
-      companyProfile = profile;
+      companyProfile = profile as CompanyProfile;
       console.log('Retrieved company profile:', companyProfile.company_name);
     }
 
@@ -155,7 +177,11 @@ serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
-});
+}
+
+if (import.meta.main) {
+  serve((req) => handleGenerateCohesiveNewsletter(req));
+}
 
 async function generateCohesiveNewsletter(
   openAIApiKey: string,

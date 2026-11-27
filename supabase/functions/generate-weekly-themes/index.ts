@@ -2,10 +2,11 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'npm:@supabase/supabase-js@2';
-
-const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
-const supabaseUrl = Deno.env.get('SUPABASE_URL');
-const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+import {
+  authorizeGeneratorRequest,
+  readJsonBody,
+  type GeneratorAuthDeps,
+} from "../_shared/generatorAuth.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -185,18 +186,63 @@ const generateAll52Themes = (startWeek: number = 1) => {
   return themes;
 };
 
-serve(async (req) => {
+interface WeeklyThemesRequest {
+  generateAll52Weeks?: boolean;
+  weekNumber?: number;
+  startWeek?: number;
+}
+
+interface MasterTemplateRow {
+  week_number: number;
+  title: string | null;
+  theme: string | null;
+  content_ideas: string | null;
+  seasonal_focus: string | null;
+}
+
+interface MasterTemplateQuery
+  extends PromiseLike<{ data: MasterTemplateRow[] | null; error: unknown }> {
+  eq(column: string, value: number): {
+    maybeSingle(): PromiseLike<{ data: MasterTemplateRow | null; error: unknown }>;
+  };
+}
+
+interface MasterTemplateClient {
+  from(table: 'master_campaign_templates'): {
+    select(columns: string): MasterTemplateQuery;
+  };
+}
+
+const defaultDeps: GeneratorAuthDeps = {
+  createClient: createClient as GeneratorAuthDeps["createClient"],
+  envGet: (key) => Deno.env.get(key),
+};
+
+// Callers are signed-in users only (onboarding and the calendar backfill);
+// no cron job, database function or other edge function calls this.
+export async function handleGenerateWeeklyThemes(
+  req: Request,
+  deps: GeneratorAuthDeps = defaultDeps,
+): Promise<Response> {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { userId, generateAll52Weeks = false, weekNumber, startWeek } = await req.json();
+    const body = await readJsonBody<WeeklyThemesRequest>(req);
+    // The caller's JWT and tenant membership are verified before any query.
+    // The user is the token's user; a userId in the body is ignored.
+    const auth = await authorizeGeneratorRequest(req, body, deps, corsHeaders);
+    if (!auth.ok) return auth.response;
+
+    const userId = auth.userId;
+    const { generateAll52Weeks = false, weekNumber, startWeek } = body;
 
     console.log(`🌱 Generating garden center themes for user: ${userId}, generateAll52Weeks: ${generateAll52Weeks}, week: ${weekNumber || 'current'}, startWeek: ${startWeek || 'current'}`);
 
-    // Initialize Supabase client
-    const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
+    // master_campaign_templates is readable by any authenticated user (RLS),
+    // so the caller's JWT-scoped client is used; no service key is needed.
+    const supabase = auth.userClient as MasterTemplateClient;
 
     // Handle bulk generation of all 52 weeks
     if (generateAll52Weeks) {
@@ -305,4 +351,8 @@ serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
-});
+}
+
+if (import.meta.main) {
+  serve((req) => handleGenerateWeeklyThemes(req));
+}

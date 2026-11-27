@@ -1,32 +1,63 @@
-
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { resolveBusinessProfileUserId } from "../_shared/businessProfileUserId.ts";
+import {
+  authorizeGeneratorRequest,
+  readJsonBody,
+  type GeneratorAuthDeps,
+  type GeneratorProfileClient,
+} from "../_shared/generatorAuth.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
-const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+interface StructuredNewsletterRequest {
+  business_name?: string;
+  businessName?: string;
+  theme?: unknown;
+  campaignTitle?: unknown;
+  title?: unknown;
+  week_focus?: string;
+  weekDescription?: string;
+  context?: string;
+  promo_items?: string[];
+  promoItems?: string[];
+  tone_note?: string;
+  toneNote?: string;
+  is_holiday?: boolean;
+  isHoliday?: boolean;
+  holiday_context?: string;
+  holidayContext?: string;
+  existingContent?: string | null;
+  personas?: Array<{ persona_name?: string; name?: string }>;
+}
 
-serve(async (req) => {
+const defaultDeps: GeneratorAuthDeps = {
+  createClient: createClient as GeneratorAuthDeps["createClient"],
+  envGet: (key) => Deno.env.get(key),
+};
+
+export async function handleGenerateStructuredNewsletter(
+  req: Request,
+  deps: GeneratorAuthDeps = defaultDeps,
+): Promise<Response> {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // SECURITY: [E19] - Add JWT authentication
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'Authorization required' }), { status: 401, headers: corsHeaders });
-    }
-
     // Normalize incoming payload keys to be resilient to different callers
-    const incoming = await req.json();
+    const incoming = await readJsonBody<StructuredNewsletterRequest>(req);
+
+    // The caller's JWT and tenant membership are verified before any query.
+    // The user is the token's user; a userId in the body is ignored.
+    const auth = await authorizeGeneratorRequest(req, incoming, deps, corsHeaders);
+    if (!auth.ok) return auth.response;
+
+    const openAIApiKey = deps.envGet('OPENAI_API_KEY');
 
     const business_name = incoming.business_name ?? incoming.businessName ?? undefined;
     const themeRaw = incoming.theme ?? incoming.campaignTitle ?? incoming.title ?? '';
@@ -34,7 +65,7 @@ serve(async (req) => {
     const week_focus = incoming.week_focus ?? incoming.weekDescription ?? incoming.context ?? '';
     const promo_items = incoming.promo_items ?? incoming.promoItems ?? [];
     const tone_note = incoming.tone_note ?? incoming.toneNote ?? '';
-    const userId = incoming.userId;
+    const userId = auth.userId;
     const is_holiday = incoming.is_holiday ?? incoming.isHoliday ?? false;
     const holiday_context = incoming.holiday_context ?? incoming.holidayContext ?? '';
     const existingContent = incoming.existingContent ?? null;
@@ -55,13 +86,20 @@ serve(async (req) => {
       throw new Error('OpenAI API key not configured');
     }
 
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    // profile_user_id_for is executable by service_role only, so the service
+    // key is kept for that one call, after the checks above. The profile
+    // itself is read with the caller's JWT (RLS: own or business profile).
+    const serviceClient = deps.createClient(
+      deps.envGet('SUPABASE_URL')!,
+      deps.envGet('SUPABASE_SERVICE_ROLE_KEY')!,
+    ) as Parameters<typeof resolveBusinessProfileUserId>[0];
+    const userClient = auth.userClient as GeneratorProfileClient;
 
     // Get company profile for additional context
     let companyProfile = null;
     if (userId) {
-      const profileUserId = await resolveBusinessProfileUserId(supabase, userId);
-      const { data: profile, error: profileError } = await supabase
+      const profileUserId = await resolveBusinessProfileUserId(serviceClient, userId);
+      const { data: profile, error: profileError } = await userClient
         .from('company_profiles')
         .select('*')
         .eq('user_id', profileUserId)
@@ -522,7 +560,11 @@ Template to follow: ${yamlTemplate}`
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
-});
+}
+
+if (import.meta.main) {
+  serve((req) => handleGenerateStructuredNewsletter(req));
+}
 
 function validateStoryBrandContent(content: string): {
   isValid: boolean;

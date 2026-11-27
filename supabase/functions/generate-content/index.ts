@@ -9,41 +9,78 @@ import { generateContentWithValidation } from './openai-client.ts';
 import { sanitizeWeekNumbers, logWeekNumberViolation } from './week-sanitizer.ts';
 import { validateLocationForGeneration, locationBlockedResponse } from '../_shared/locationGuard.ts';
 import { resolveBusinessProfileUserId } from '../_shared/businessProfileUserId.ts';
+import {
+  authorizeGeneratorRequest,
+  readJsonBody,
+  type GeneratorAuthDeps,
+  type GeneratorProfileClient,
+} from '../_shared/generatorAuth.ts';
 
-const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
-const supabaseUrl = Deno.env.get('SUPABASE_URL');
-const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+interface GenerateContentRequest {
+  postType: string;
+  campaignTitle: string;
+  weekDescription?: string;
+  enforceCompanyName?: boolean;
+  customPrompt?: string;
+}
 
+interface ProfileUpdateClient {
+  from(table: 'company_profiles'): {
+    update(values: { company_name: string }): {
+      eq(column: string, value: string): PromiseLike<unknown>;
+    };
+  };
+}
 
-serve(async (req) => {
+export interface GenerateContentDeps extends GeneratorAuthDeps {
+  validateLocation: typeof validateLocationForGeneration;
+}
+
+const defaultDeps: GenerateContentDeps = {
+  createClient: createClient as GeneratorAuthDeps['createClient'],
+  envGet: (key) => Deno.env.get(key),
+  validateLocation: validateLocationForGeneration,
+};
+
+export async function handleGenerateContent(
+  req: Request,
+  deps: GenerateContentDeps = defaultDeps,
+): Promise<Response> {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // SECURITY: [E14] - Add JWT authentication
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'Authorization required' }), { status: 401, headers: corsHeaders });
-    }
+    const body = await readJsonBody<GenerateContentRequest>(req);
+    // The caller's JWT and tenant membership are verified before any query.
+    // The user is the token's user; a userId in the body is ignored.
+    const auth = await authorizeGeneratorRequest(req, body, deps, corsHeaders);
+    if (!auth.ok) return auth.response;
 
-    const { postType, campaignTitle, userId, weekDescription, enforceCompanyName, customPrompt } = await req.json();
+    const { postType, campaignTitle, weekDescription, enforceCompanyName, customPrompt } = body;
+    const userId = auth.userId;
 
+    const openAIApiKey = deps.envGet('OPENAI_API_KEY');
     if (!openAIApiKey) {
       throw new Error('OpenAI API key not configured');
     }
 
     // Location validation guard - block legacy profiles without confirmed location
-    if (userId) {
-      const locationResult = await validateLocationForGeneration(userId);
-      if (!locationResult.isValid) {
-        console.warn(`🚫 Content generation blocked for user ${userId}: ${locationResult.error}`);
-        return locationBlockedResponse();
-      }
+    const locationResult = await deps.validateLocation(userId);
+    if (!locationResult.isValid) {
+      console.warn(`🚫 Content generation blocked for user ${userId}: ${locationResult.error}`);
+      return locationBlockedResponse();
     }
 
-    // Initialize Supabase client
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    // profile_user_id_for is executable by service_role only, and the
+    // company-name write-back below updates the business profile row, so the
+    // service key is kept for those two calls, after the checks above. The
+    // profile itself is read with the caller's JWT (RLS: own or business).
+    const serviceClient = deps.createClient(
+      deps.envGet('SUPABASE_URL')!,
+      deps.envGet('SUPABASE_SERVICE_ROLE_KEY')!,
+    );
+    const userClient = auth.userClient as GeneratorProfileClient;
 
     let prompt = '';
 
@@ -55,8 +92,11 @@ serve(async (req) => {
       // Fetch company profile for personalization with enhanced business name handling
       let companyProfile = null;
       if (userId) {
-        const profileUserId = await resolveBusinessProfileUserId(supabase, userId);
-        const { data: profileData, error: profileError } = await supabase
+        const profileUserId = await resolveBusinessProfileUserId(
+          serviceClient as Parameters<typeof resolveBusinessProfileUserId>[0],
+          userId,
+        );
+        const { data: profileData, error: profileError } = await userClient
           .from('company_profiles')
           .select('*')
           .eq('user_id', profileUserId)
@@ -74,7 +114,7 @@ serve(async (req) => {
               companyProfile.company_name = nameMatch[1].trim();
               
               // Update the database with extracted name for future consistency
-              await supabase
+              await (serviceClient as ProfileUpdateClient)
                 .from('company_profiles')
                 .update({ company_name: companyProfile.company_name })
                 .eq('user_id', profileUserId);
@@ -127,4 +167,8 @@ serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
-});
+}
+
+if (import.meta.main) {
+  serve((req) => handleGenerateContent(req));
+}
