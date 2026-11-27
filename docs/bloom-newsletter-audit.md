@@ -586,3 +586,63 @@ Reasons, from the evidence above:
 - **Holiday flow:** the calendar "Generate" button is live. Retiring generate-content or generate-structured-newsletter without changing `HolidayGenerationService.ts` breaks it.
 - **Auth defects stay open until retirement or a fix:** the header-only handlers and the no-auth generate-weekly-themes (section 2.4).
 - **Not verified:** the BloomSites side (site `f599e50e`, the catalogue contents for Lacoste) was not inspected, because that database was not accessible.
+
+---
+
+## 7. Retirement log
+
+The "retire now" functions in section 6.3 were stubbed on **2026-11-27**. Each now answers **410 Gone** and logs the caller as JSON (`event: "retired_function_called"`, function, method, `origin`, `referer`, user agent) through `supabase/functions/_shared/retiredFunction.ts`. The folders are kept: nothing is deleted before the date below. Check the function logs for `retired_function_called` before deleting. A hit means a caller was missed.
+
+Before stubbing, callers were re-checked on 2026-11-27 in the frontend (`src`, `e2e`, `scripts`, `showroom`, `api`), other edge functions (`supabase/functions`), `cron.job`, database functions (`pg_proc` source) and database triggers (`pg_trigger`). No live caller was found that the audit had missed, so no function was skipped.
+
+| Function | Stubbed | Delete after | Notes |
+|---|---|---|---|
+| generate-newsletter | 2026-11-27 | 2026-12-11 | Its JWT checks from `9c60201c3` were superseded by the stub. `content-processor.ts`, `openai-client.ts`, `prompt-builder.ts` and `company-profile-handler.ts` are now unused and go with the folder. |
+| generate-cohesive-newsletter | 2026-11-27 | 2026-12-11 | Its JWT checks from `9c60201c3` were superseded by the stub. |
+| regenerate-email-content | 2026-11-27 | 2026-12-11 | |
+| regenerate-content-block | 2026-11-27 | 2026-12-11 | |
+| generate-plan-email | 2026-11-27 | 2026-12-11 | |
+| generate-multichannel-content | 2026-11-27 | 2026-12-11 | |
+| auto-generate-weekly-campaigns | 2026-11-27 | 2026-12-11 | Cron job already removed 2026-11-23. |
+| content-generation-cache | 2026-11-27 | 2026-12-11 | |
+| generate-campaign-content | 2026-11-27 | 2026-12-11 | Already a 410 stub. It now also logs the caller, and keeps `retiredSocialFeatureResponse`, which `src/__tests__/productSimplificationGate.test.ts` asserts. The e2e mock in `e2e/suites/error-handling.spec.ts` goes when the folder is deleted. |
+| generate_campaign_content | 2026-11-27 | 2026-12-11 | Same as above. |
+| optimize-content | 2026-11-27 | 2026-12-11 | Same as above. |
+| generate-social-content | 2026-11-27 | 2026-12-11 | Same as above. bloom-assist no longer calls it (see below). |
+
+**bloom-assist social posts:** the audit names no live function that generates social posts. The `generate_content` tool with `content_type: "social_post"` now returns a clear `not_available` error before any call ("Social post generation is not available. Social media management has been retired from BloomSuite."), instead of calling the 410 stub (`bloom-assist/tools/implementations/content-generation.ts`).
+
+**Callers found that the audit missed** (none of them live, so no function was skipped):
+
+- `src/services/socialContentService.ts:107` invokes generate-social-content.
+- It is unreachable: its only importer is `src/services/seasonalPlanGenerator.ts`, part of the unrouted `/plan` wizard.
+
+**Dead frontend modules removed** (none reachable from `src/main.tsx`; `tsc -p tsconfig.app.json` is clean):
+
+- `src/utils/aiContentRegenerator.ts` (regenerate-email-content, regenerate-content-block).
+- `src/components/crm/CampaignAutomationSettings.tsx` (auto-generate-weekly-campaigns).
+- `src/components/social/ContentOptimizer.tsx` (optimize-content), with its dead importer chain `SmartPostComposer.tsx` ← `ready-to-post/EnhancedPostNowButton.tsx` ← `ready-to-post/AccordionReadyToPostItem.tsx`.
+- `src/hooks/useContentGenerationOrchestrator.ts` (generate-multichannel-content), with its dead importer chain:
+  - `create-flow/CreateFlowDialog.tsx`
+  - `create-flow/GenerationProgressDialog.tsx`
+  - `content-library/BundleLibrary.tsx`
+  - `pages/ContentLibraryPage.tsx` (`/content/library` already redirects)
+
+**Named modules kept, and why:**
+
+| Module | Reason it was kept |
+|---|---|
+| `src/components/homepage/ContentGenerationServices.ts` (generate-newsletter, generate_campaign_content) | The module itself is reachable through a re-export in `HolidayGenerationService.ts:248`. Removing it cascades into 38 other dead files across calendar, dashboard and content cards, which need their own cleanup. |
+| `src/services/emailContentService.ts` (generate-plan-email) | Its importer `seasonalPlanGenerator.ts` belongs to the dead `/plan` wizard. Removing it cascades into 21 wizard files. |
+
+In both cases the target function now answers 410, so a stray call fails loudly and is logged.
+
+**Not removed:** the other dead modules section 6.3 lists:
+
+- `NewsletterRegenerator.tsx`, `regenerateNewsletterContent.ts` and `usePersonaAwareGeneration.ts` call generate-structured-newsletter or generate-email-content.
+- `ShortenAllBlocksButton.tsx` and `ContentIntegrationSidebar.tsx` call generate-email-content.
+- `useHolidayCalendarUpdate.ts` calls update-holiday-calendar.
+- `useThemeGeneration.ts` and `NoCampaignStateCard.tsx` call generate-weekly-themes.
+- The 16 `src/components/crm/studio/blocks/*Renderer.tsx` files belong to no retired function.
+
+These belong to "migrate the live caller first" or kept functions, so they are out of this retirement's scope.
