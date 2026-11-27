@@ -50,6 +50,7 @@ import StudioRichTextField from "@/components/crm/studio/fields/StudioRichTextFi
 import StudioSliderField from "@/components/crm/studio/fields/StudioSliderField";
 import StudioSwitchField from "@/components/crm/studio/fields/StudioSwitchField";
 import StudioTextField from "@/components/crm/studio/fields/StudioTextField";
+import StudioLinkField from "@/components/crm/studio/fields/StudioLinkField";
 import StudioToggleField from "@/components/crm/studio/fields/StudioToggleField";
 import { useDesignSystem } from "@/contexts/DesignSystemContext";
 import { isFooterSocialVisible } from "@/lib/studio/socialIcons";
@@ -1407,10 +1408,9 @@ function ImageGalleryManager({
                     updateImage(activeImage.id, { alt: value })
                   }
                 />
-                <StudioTextField
+                <StudioLinkField
                   label="Link (web address)"
                   placeholder="https://..."
-                  type="url"
                   value={activeImage.linkUrl ?? ""}
                   onChange={(value) =>
                     updateImage(activeImage.id, { linkUrl: value })
@@ -1841,14 +1841,14 @@ function ProductGalleryManager({
                       updateProduct(product.id, { buttonText: value })
                     }
                   />
-                  <StudioTextField
+                  <StudioLinkField
                     label="Link (web address)"
                     placeholder="https://..."
-                    type="url"
                     value={product.buttonUrl ?? ""}
                     onChange={(value) =>
                       updateProduct(product.id, { buttonUrl: value })
                     }
+                    required={Boolean(product.buttonText?.trim())}
                   />
                 </Stack>
               ) : null}
@@ -2405,12 +2405,12 @@ function PanelContent({
                       value={block.buttonText ?? ""}
                       onChange={(value) => updateField("buttonText", value)}
                     />
-                    <StudioTextField
+                    <StudioLinkField
                       label="Link (web address)"
                       placeholder="https://..."
-                      type="url"
                       value={block.buttonUrl ?? ""}
                       onChange={(value) => updateField("buttonUrl", value)}
+                      required={Boolean(block.buttonText?.trim())}
                     />
                     <StudioToggleField
                       label="Button Size"
@@ -2518,9 +2518,8 @@ function PanelContent({
                       onChange={(value) => updateField("imageLinkEnabled", value)}
                     />
                     {(block.imageLinkEnabled ?? Boolean(block.linkUrl)) && (
-                      <StudioTextField
+                      <StudioLinkField
                         label="Image link URL"
-                        type="url"
                         placeholder="https://..."
                         value={block.linkUrl ?? ""}
                         onChange={(value) => updateField("linkUrl", value)}
@@ -2618,12 +2617,12 @@ function PanelContent({
                       value={block.buttonText ?? ""}
                       onChange={(value) => updateField("buttonText", value)}
                     />
-                    <StudioTextField
+                    <StudioLinkField
                       label="Link (web address)"
                       placeholder="https://..."
-                      type="url"
                       value={block.buttonUrl ?? ""}
                       onChange={(value) => updateField("buttonUrl", value)}
+                      required={Boolean(block.buttonText?.trim())}
                     />
                   </>
                 ),
@@ -2834,11 +2833,11 @@ function PanelContent({
                           value={block.buttonText ?? ""}
                           onChange={(value) => updateField("buttonText", value)}
                         />
-                        <StudioTextField
+                        <StudioLinkField
                           label="Link (web address)"
-                          type="url"
                           value={block.buttonUrl ?? ""}
                           onChange={(value) => updateField("buttonUrl", value)}
+                          required={Boolean(block.buttonText?.trim())}
                         />
                         <StudioColorPicker
                           label="Button colour"
@@ -2979,12 +2978,12 @@ function PanelContent({
                       value={block.buttonText ?? ""}
                       onChange={(value) => updateField("buttonText", value)}
                     />
-                    <StudioTextField
+                    <StudioLinkField
                       label="Link (web address)"
                       placeholder="https://..."
-                      type="url"
                       value={block.buttonUrl ?? ""}
                       onChange={(value) => updateField("buttonUrl", value)}
+                      required={Boolean(block.buttonText?.trim())}
                     />
                     <StudioToggleField
                       label="Button Style"
@@ -3076,14 +3075,14 @@ function PanelContent({
                         updateField("secondaryLinkText", value)
                       }
                     />
-                    <StudioTextField
+                    <StudioLinkField
                       label="Link (web address)"
                       placeholder="https://..."
-                      type="url"
                       value={block.secondaryLinkUrl ?? ""}
                       onChange={(value) =>
                         updateField("secondaryLinkUrl", value)
                       }
+                      required={Boolean(block.secondaryLinkText?.trim())}
                     />
                     <StudioColorPicker
                       label="Secondary link colour"
@@ -3156,10 +3155,9 @@ function PanelContent({
                       spacing={0.5}
                       sx={{ width: "100%", maxWidth: "100%", minWidth: 0 }}
                     >
-                      <StudioTextField
+                      <StudioLinkField
                         label="Link (web address)"
                         placeholder="https://..."
-                        type="url"
                         value={block.linkUrl ?? ""}
                         onChange={(value) => updateField("linkUrl", value)}
                       />
@@ -3343,12 +3341,12 @@ function PanelContent({
                       value={block.buttonText ?? ""}
                       onChange={(value) => updateField("buttonText", value)}
                     />
-                    <StudioTextField
+                    <StudioLinkField
                       label="Link (web address)"
                       placeholder="https://..."
-                      type="url"
                       value={block.buttonUrl ?? ""}
                       onChange={(value) => updateField("buttonUrl", value)}
+                      required={Boolean(block.buttonText?.trim())}
                     />
                     <ButtonAlignmentField block={block} updateField={updateField} fallback={block.textAlign === "left" || block.textAlign === "right" ? block.textAlign : "center"} />
                     <StudioToggleField
@@ -3518,10 +3516,9 @@ function PanelContent({
                       spacing={0.5}
                       sx={{ width: "100%", maxWidth: "100%", minWidth: 0 }}
                     >
-                      <StudioTextField
+                      <StudioLinkField
                         label="Link (web address)"
                         placeholder="https://..."
-                        type="url"
                         value={block.linkUrl ?? ""}
                         onChange={(value) => updateField("linkUrl", value)}
                       />
@@ -4891,11 +4888,12 @@ function PanelContent({
             value={block.buttonText ?? ""}
             onChange={(value) => updateField("buttonText", value)}
           />
-          <StudioTextField
+          <StudioLinkField
             label="Website link"
             value={block.buttonUrl ?? ""}
             onChange={(value) => updateField("buttonUrl", value)}
             placeholder="https://..."
+            required={Boolean(block.buttonText?.trim())}
           />
         </Stack>
       );
@@ -5098,12 +5096,12 @@ function PanelContent({
                       value={block.buttonText ?? ""}
                       onChange={(value) => updateField("buttonText", value)}
                     />
-                    <StudioTextField
+                    <StudioLinkField
                       label="Link (web address)"
                       placeholder="https://..."
-                      type="url"
                       value={block.buttonUrl ?? ""}
                       onChange={(value) => updateField("buttonUrl", value)}
+                      required={Boolean(block.buttonText?.trim())}
                     />
                     <ButtonAlignmentField
                       block={block}

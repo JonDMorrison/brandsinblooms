@@ -9,6 +9,8 @@ on:
       # bundled into functions, so a change there must redeploy them too.
       - "src/lib/studio/**"
       - "src/lib/crm/htmlContent*.ts"
+      # The shared block link check, imported by the email renderer.
+      - "src/lib/email/linkValidation.ts"
       - "src/types/**"
       - "src/config/**"
       - "supabase/config.toml"
