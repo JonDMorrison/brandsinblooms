@@ -19,7 +19,7 @@ function stripScriptTags(html: string) {
 function buildPreviewMergeData(designSystem: StudioDesignSystem) {
   const currentDate = new Date().toLocaleDateString();
   const currentYear = new Date().getFullYear().toString();
-  const companyName = designSystem.company.name || "Your Company";
+  const companyName = designSystem.company.name;
   const companyAddress = designSystem.company.addressLines || "";
   const companyPhone = designSystem.company.phone || "";
   const companyEmail = designSystem.company.email || "";
@@ -83,6 +83,7 @@ export function buildCampaignPreviewHtml({
       footer: blocks.find((block) => block.type === "footer") ?? null,
       mergeData: buildPreviewMergeData(designSystem),
       designSystem,
+      showMissingAddressPrompt: true,
     }),
   );
 }

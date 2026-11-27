@@ -116,8 +116,21 @@ describe('identity consistency (#15)', () => {
     expect(warnings.join(' ')).toMatch(/sender name .*Greenfield.*doesn’t match the sender email domain/);
     expect(warnings.join(' ')).toMatch(/sender name .*doesn’t match the footer business name/);
   });
-  it('ignores free-mail sender domains and missing values', () => {
-    expect(findIdentityMismatches({ senderName: 'Northfield', senderEmail: 'owner@gmail.com', footerBusinessName: '' })).toEqual([]);
+  it('ignores free-mail sender domains and a missing footer', () => {
+    expect(findIdentityMismatches({ senderName: 'Northfield', senderEmail: 'owner@gmail.com', footerBusinessName: undefined })).toEqual([]);
+  });
+  it('treats an empty or placeholder footer business name as a mismatch', () => {
+    expect(findIdentityMismatches({ senderName: 'Northfield', senderEmail: 'owner@gmail.com', footerBusinessName: '' }))
+      .toEqual(['The footer business name is empty. Customers may not recognise who this is from.']);
+    for (const placeholder of ['Your Company', 'Your Business', 'your business name']) {
+      const warnings = findIdentityMismatches({
+        senderName: 'Northfield Garden Center',
+        senderEmail: 'news@northfieldgardens.ca',
+        footerBusinessName: placeholder,
+      });
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0]).toMatch(/is a placeholder, not your business name/);
+    }
   });
 });
 

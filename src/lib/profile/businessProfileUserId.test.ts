@@ -1,17 +1,24 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { rpc, getSession } = vi.hoisted(() => ({
+const { rpc, getSession, memberTenant } = vi.hoisted(() => ({
   rpc: vi.fn(),
   getSession: vi.fn(),
+  memberTenant: { current: null as string | null },
 }));
 
-vi.mock("@/integrations/supabase/client", () => ({
-  supabase: { rpc, auth: { getSession } },
-}));
+vi.mock("@/integrations/supabase/client", () => {
+  const chain = {
+    select: () => chain,
+    eq: () => chain,
+    maybeSingle: () => Promise.resolve({ data: { tenant_id: memberTenant.current }, error: null }),
+  };
+  return { supabase: { rpc, auth: { getSession }, from: () => chain } };
+});
 
 import {
   clearBusinessProfileUserIdCache,
   getBusinessProfileUserId,
+  getTenantBusinessProfileUserId,
 } from "@/lib/profile/businessProfileUserId";
 import { resolveBusinessProfileUserId } from "../../../supabase/functions/_shared/businessProfileUserId.ts";
 
@@ -63,6 +70,40 @@ describe("getBusinessProfileUserId", () => {
 
     await expect(getBusinessProfileUserId("someone-else")).resolves.toBe("someone-else");
     expect(rpc).not.toHaveBeenCalled();
+  });
+});
+
+describe("getTenantBusinessProfileUserId", () => {
+  beforeEach(() => {
+    clearBusinessProfileUserIdCache();
+    rpc.mockReset();
+    getSession.mockReset();
+  });
+
+  it("uses the active tenant's profile for an admin working in another tenant, never their own", async () => {
+    signedInAs("admin");
+    memberTenant.current = "admin-home";
+    rpc.mockResolvedValue({ data: "northfield-owner", error: null });
+
+    await expect(getTenantBusinessProfileUserId("admin", "northfield")).resolves.toBe("northfield-owner");
+    expect(rpc).toHaveBeenCalledWith("tenant_profile_user_id", { p_tenant_id: "northfield" });
+  });
+
+  it("returns null rather than the admin's own profile when the tenant lookup fails", async () => {
+    signedInAs("admin");
+    memberTenant.current = "admin-home";
+    rpc.mockResolvedValue({ data: null, error: { message: "missing function" } });
+
+    await expect(getTenantBusinessProfileUserId("admin", "northfield")).resolves.toBeNull();
+  });
+
+  it("uses the business profile resolution in the user's own tenant", async () => {
+    signedInAs("teammate");
+    memberTenant.current = "northfield";
+    rpc.mockResolvedValue({ data: "owner", error: null });
+
+    await expect(getTenantBusinessProfileUserId("teammate", "northfield")).resolves.toBe("owner");
+    expect(rpc).toHaveBeenCalledWith("current_profile_user_id");
   });
 });
 

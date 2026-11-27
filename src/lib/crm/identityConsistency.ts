@@ -1,3 +1,5 @@
+import { isPlaceholderBusinessName } from "@/lib/studio/businessPlaceholders";
+
 /**
  * Pre-send identity check (warning only, never blocks a send): the sender
  * name, the sender email's domain, the footer business name and the name of
@@ -37,6 +39,10 @@ const FREE_MAIL = /^(gmail|googlemail|yahoo|hotmail|outlook|live|icloud|aol|prot
 export interface IdentityInputs {
   senderName?: string | null;
   senderEmail?: string | null;
+  /**
+   * The footer block's business name. undefined/null when there is no
+   * footer; an empty string or a placeholder ("Your Company") is a mismatch.
+   */
   footerBusinessName?: string | null;
   websiteName?: string | null;
   websiteUrl?: string | null;
@@ -77,6 +83,24 @@ export function findIdentityMismatches(inputs: IdentityInputs): string[] {
 
 /** The same warnings as findIdentityMismatches, with the fields each one names. */
 export function findIdentityMismatchDetails(inputs: IdentityInputs): IdentityMismatch[] {
+  const warnings: IdentityMismatch[] = [];
+  // An empty or placeholder footer name never identifies the business, so it
+  // never "agrees" with the sender: always warn (with the same fix button).
+  if (typeof inputs.footerBusinessName === "string") {
+    const footerName = inputs.footerBusinessName.trim();
+    if (!footerName) {
+      warnings.push({
+        fields: ["sender name", "footer business name"],
+        message: "The footer business name is empty. Customers may not recognise who this is from.",
+      });
+    } else if (isPlaceholderBusinessName(footerName)) {
+      warnings.push({
+        fields: ["sender name", "footer business name"],
+        message: `The footer business name (“${footerName}”) is a placeholder, not your business name. Customers may not recognise who this is from.`,
+      });
+    }
+  }
+
   const identities: Identity[] = [];
   const add = (label: IdentityField, value: string | null | undefined, stemSource?: string | null) => {
     const trimmed = (value ?? "").trim();
@@ -91,12 +115,13 @@ export function findIdentityMismatchDetails(inputs: IdentityInputs): IdentityMis
   if (senderDomain && !FREE_MAIL.test(domainStem(senderDomain))) {
     add("sender email domain", "", senderDomain);
   }
-  add("footer business name", inputs.footerBusinessName);
+  if (!isPlaceholderBusinessName(inputs.footerBusinessName)) {
+    add("footer business name", inputs.footerBusinessName);
+  }
   if (inputs.websiteName || inputs.websiteUrl) {
     add("website products source", inputs.websiteName ?? "", inputs.websiteUrl ?? null);
   }
 
-  const warnings: IdentityMismatch[] = [];
   for (let i = 0; i < identities.length; i += 1) {
     for (let j = i + 1; j < identities.length; j += 1) {
       const a = identities[i];

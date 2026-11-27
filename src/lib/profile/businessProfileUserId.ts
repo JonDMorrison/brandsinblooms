@@ -46,4 +46,56 @@ export function getBusinessProfileUserId(userId: string): Promise<string> {
 /** Forget resolved ids, e.g. after the user joins a team. */
 export function clearBusinessProfileUserIdCache(): void {
   cache.clear();
+  tenantCache.clear();
+}
+
+const tenantCache = new Map<string, Promise<string | null>>();
+
+/**
+ * The user_id whose company_profiles row represents `tenantId`'s business,
+ * for the signed-in `userId` working in that tenant.
+ *
+ * In the user's own tenant this is getBusinessProfileUserId. In any other
+ * tenant (a master admin using the tenant switcher) it is that tenant's
+ * profile (public.tenant_profile_user_id), never the signed-in user's own
+ * company. Returns null when that tenant's profile cannot be resolved, so
+ * callers show the tenant's own name rather than someone else's business.
+ */
+export function getTenantBusinessProfileUserId(
+  userId: string,
+  tenantId: string | null | undefined,
+): Promise<string | null> {
+  if (!tenantId) return getBusinessProfileUserId(userId);
+
+  const key = `${userId}:${tenantId}`;
+  const cached = tenantCache.get(key);
+  if (cached) return cached;
+
+  const pending = (async (): Promise<string | null> => {
+    try {
+      const { data: member, error: memberError } = await supabase
+        .from("users")
+        .select("tenant_id")
+        .eq("id", userId)
+        .maybeSingle();
+      if (!memberError && member?.tenant_id === tenantId) {
+        return await getBusinessProfileUserId(userId);
+      }
+
+      const { data, error } = await supabase.rpc("tenant_profile_user_id", {
+        p_tenant_id: tenantId,
+      });
+      if (error) {
+        tenantCache.delete(key);
+        return null;
+      }
+      return typeof data === "string" && data ? data : null;
+    } catch {
+      tenantCache.delete(key);
+      return null;
+    }
+  })();
+
+  tenantCache.set(key, pending);
+  return pending;
 }

@@ -25253,6 +25253,7 @@ export type Database = {
           messages_paused: number;
         }[];
       };
+      tenant_profile_user_id: { Args: { p_tenant_id: string }; Returns: string };
       track_content_interaction: {
         Args: {
           p_block_id?: string;

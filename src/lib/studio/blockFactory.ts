@@ -9,9 +9,15 @@ import {
   type StudioDesignSystem,
 } from "@/lib/studio/designSystem";
 import type { SocialLink, StudioBlock } from "@/types/studioBlocks";
+import {
+  realBusinessName,
+  realPostalAddress,
+} from "@/lib/studio/businessPlaceholders";
 
 const DEFAULT_COMPLIANCE_TEMPLATE =
   "You are receiving this email because you opted in at {name}. If you no longer wish to receive these emails, you can unsubscribe at any time.";
+const DEFAULT_COMPLIANCE_NO_NAME =
+  "You are receiving this email because you opted in to receive updates from our business.";
 
 function stringValue(value: string | null | undefined) {
   return typeof value === "string" ? value.trim() : "";
@@ -62,8 +68,8 @@ function getDefaultDateLabel() {
 // the field blank avoids baking "© <year> Your Company" / "Your Business"
 // into the campaign metadata where a backfill is needed to repair it.
 function getDefaultCopyrightText(companyName?: string) {
-  const trimmed = (companyName || "").trim();
-  if (!trimmed || trimmed === "Your Business" || trimmed === "Your Company") {
+  const trimmed = realBusinessName(companyName);
+  if (!trimmed) {
     return "";
   }
   return `© ${new Date().getFullYear()} ${trimmed}`;
@@ -74,7 +80,9 @@ function getFooterAddress(designSystem: StudioDesignSystem | null | undefined) {
     return "";
   }
 
-  return designSystem.company.addressLines || designSystem.company.address;
+  return realPostalAddress(
+    designSystem.company.addressLines || designSystem.company.address,
+  );
 }
 
 export function getBlockLabel(type: StudioBlockType) {
@@ -102,11 +110,16 @@ export function createStudioBlock(
   const footerTextColor = designSystem?.colors.footerText;
   const footerLinkColor = designSystem?.colors.footerLink;
   const footerDividerColor = designSystem?.colors.footerDivider;
-  const businessName = designSystem?.company.name || "Your Business";
+  // The tenant's business name, or empty until it loads: never a
+  // placeholder. An empty name is filled from the business profile when the
+  // design system loads (hydrateFooterBlockWithDesignSystem).
+  const businessName = realBusinessName(designSystem?.company.name);
   const address = getFooterAddress(designSystem);
   const complianceText =
     designSystem?.company.footerLegalText ||
-    DEFAULT_COMPLIANCE_TEMPLATE.replace("{name}", businessName);
+    (businessName
+      ? DEFAULT_COMPLIANCE_TEMPLATE.replace("{name}", businessName)
+      : DEFAULT_COMPLIANCE_NO_NAME);
   // New Footer / Social Media Links blocks start with only real page
   // addresses from brand settings; anything else starts empty for the person
   // to fill in (never a bare https://facebook.com).
@@ -588,7 +601,9 @@ export function createStudioBlock(
         // (contrastGuard); existing footers lack these.
         newsletterSettings: { version: 1, mobileImageHeight: "natural", contrastGuard: true, mobileFooterAlign: "left" },
         businessName,
-        address: address || "123 Main St\nCity, State",
+        // Empty when no address is saved: the editor blocks sending and the
+        // footer shows an "Add your address" prompt instead of fake text.
+        address,
         copyright: getDefaultCopyrightText(businessName),
         copyrightText: getDefaultCopyrightText(businessName),
         complianceText,
@@ -624,11 +639,7 @@ export function withStarterContent(
   block: StudioBlock,
   designSystem?: StudioDesignSystem | null,
 ): StudioBlock {
-  const companyName = stringValue(designSystem?.company.name);
-  const businessName =
-    companyName && companyName !== "Your Business" && companyName !== "Your Company"
-      ? companyName
-      : "";
+  const businessName = realBusinessName(designSystem?.company.name);
   const websiteUrl = stringValue(designSystem?.company.websiteUrl);
   const newsHeadline = businessName ? `News from ${businessName}` : "Our latest news";
 

@@ -7,6 +7,8 @@ import { getUserAssignedTenantId } from "@/utils/getUserAssignedTenantId";
 interface Tenant {
   id: string;
   name: string;
+  /** Sender name used when nothing else is set (tenants.fallback_from_name). */
+  fallback_from_name?: string | null;
   slug?: string;
   settings: any;
   is_active: boolean;

@@ -1,4 +1,9 @@
 import { normalizeStoreMergeFields } from "./newsletter/mergeFields.ts";
+import {
+  hasPlaceholderCopyright,
+  realBusinessName,
+  realPostalAddress,
+} from "./businessPlaceholders.ts";
 import type { NewsletterSettings } from "../../types/newsletterDesign.ts";
 import {
   applyBlockAppearance,
@@ -100,7 +105,28 @@ export type GenerateEmailHtmlParams = {
   mergeData?: Record<string, string>;
   footerLinks?: EmailFooterLinks;
   designSystem?: StudioDesignSystem | null;
+  /**
+   * Editor previews only: show an "Add your address" chip where a missing
+   * postal address would go. Sent email never shows it (sending is blocked
+   * until an address exists).
+   */
+  showMissingAddressPrompt?: boolean;
 };
+
+export type FooterRenderOptions = {
+  /** See GenerateEmailHtmlParams.showMissingAddressPrompt. */
+  showMissingAddressPrompt?: boolean;
+};
+
+/** Marks the editor-only "Add your address" chip in rendered footer HTML. */
+export const MISSING_ADDRESS_CHIP_ATTRIBUTE = "data-footer-address-missing";
+
+function renderMissingAddressChip(dark: boolean) {
+  const color = dark ? "#fde68a" : "#92400e";
+  const background = dark ? "rgba(253,230,138,0.14)" : "#fef3c7";
+  const border = dark ? "rgba(253,230,138,0.55)" : "#f59e0b";
+  return `<span ${MISSING_ADDRESS_CHIP_ATTRIBUTE}="true" style="display:inline-block;padding:2px 8px;border-radius:999px;border:1px dashed ${border};background-color:${background};color:${color};font-size:12px;line-height:1.5;font-weight:700;">Add your address</span>`;
+}
 
 type EmailFontRole = "brand" | "headline" | "subheading" | "body" | "button";
 
@@ -240,14 +266,23 @@ function stripEmailFragmentsFromAddressLine(line: string): string {
     .join(", ");
 }
 
+/** The footer's postal address: its own, else the business profile's. */
+function getFooterPostalAddress(
+  block: StudioBlock,
+  designSystem: StudioDesignSystem | null | undefined,
+) {
+  return (
+    realPostalAddress(block.address) ||
+    realPostalAddress(designSystem?.company.addressLines) ||
+    realPostalAddress(designSystem?.company.address)
+  );
+}
+
 function getFooterContactLines(
   block: StudioBlock,
   designSystem: StudioDesignSystem | null | undefined,
 ) {
-  const lines = stringValue(
-    block.address,
-    stringValue(designSystem?.company.addressLines),
-  )
+  const lines = getFooterPostalAddress(block, designSystem)
     .split(/\n+/)
     .map((line) => stripEmailFragmentsFromAddressLine(stringValue(line)))
     .filter(Boolean);
@@ -270,8 +305,13 @@ function renderFooterContactContent(
   block: StudioBlock,
   designSystem: StudioDesignSystem | null | undefined,
   inline = false,
+  missingAddressChip = "",
 ) {
   const lines = getFooterContactLines(block, designSystem);
+  if (missingAddressChip && !getFooterPostalAddress(block, designSystem)) {
+    const contact = lines.map((line) => escapeHtml(line));
+    return [missingAddressChip, ...contact].join(inline ? " &middot; " : "<br>");
+  }
   // Hours sit on their own line(s), even in the one-line footer layouts:
   // seasonal hours get long and read badly run into the address.
   const hours = stringValue(block.hoursOfOperation)
@@ -1943,7 +1983,9 @@ function renderFooterLogo(
   dark: boolean,
 ) {
   const logoUrl = safeUrl(block.logoUrl, { image: true });
-  const businessName = stringValue(block.businessName, "Your Business");
+  const businessName =
+    realBusinessName(block.businessName) ||
+    realBusinessName(designSystem?.company.name);
   // 40px read as undersized next to the business name in real inboxes; 56 is
   // the common footer logo height. An explicit block.logoSize still wins.
   const requestedSize = numberValue(block.logoSize, 64);
@@ -2078,6 +2120,7 @@ export function renderFooterBlockToEmailHtml(
   sourceBlock: StudioBlock,
   links: EmailFooterLinks = {},
   designSystem?: StudioDesignSystem | null,
+  options: FooterRenderOptions = {},
 ) {
   // Drafts carrying contrastGuard keep footer text readable (4.5:1); footers
   // without the flag (every sent campaign) render exactly as before.
@@ -2123,22 +2166,19 @@ export function renderFooterBlockToEmailHtml(
     dark ? "rgba(255,255,255,0.16)" : "#e2e8f0",
   );
   const paddingY = numberValue(block.verticalPadding, 32);
-  // Prefer the design-system / company-profile name over the literal
-  // "Your Business" placeholder. Older campaigns saved with the
-  // placeholder in block.businessName get the proper name at render.
-  const designSystemBusinessName = stringValue(designSystem?.company.name);
-  const rawBlockBusinessName = stringValue(block.businessName);
-  const blockBusinessName =
-    rawBlockBusinessName === "Your Business" ||
-    rawBlockBusinessName === "Your Company"
-      ? ""
-      : rawBlockBusinessName;
+  // The business profile's name wins over a placeholder ("Your Company",
+  // "Your Business") saved in older campaigns. Nothing made up is rendered.
   const businessName =
-    blockBusinessName || designSystemBusinessName || "Your Business";
-  const address = stringValue(block.address, "123 Main St\nCity, State");
-  const complianceText = stringValue(
+    realBusinessName(block.businessName) ||
+    realBusinessName(designSystem?.company.name);
+  const storedComplianceText = stringValue(
     block.complianceText,
     DEFAULT_COMPLIANCE_TEXT,
+  );
+  const complianceText = (
+    businessName || !storedComplianceText.includes("{name}")
+      ? storedComplianceText
+      : DEFAULT_COMPLIANCE_TEXT
   ).replace("{name}", businessName);
   const complianceHtml = sanitizeRichHtml(complianceText, designSystem);
   // If the stored copyright is a leftover placeholder (e.g. older
@@ -2149,12 +2189,10 @@ export function renderFooterBlockToEmailHtml(
   // strings will lose them too — that is intentional; nothing legitimate
   // says "Your Company" in a campaign footer.
   const storedCopyright = stringValue(block.copyright || block.copyrightText);
-  const copyrightHasPlaceholder = /Your Company|Your Business/i.test(
-    storedCopyright,
-  );
+  const copyrightHasPlaceholder = hasPlaceholderCopyright(storedCopyright);
   const copyrightText =
     !storedCopyright || copyrightHasPlaceholder
-      ? `© ${new Date().getFullYear()} ${businessName}`
+      ? `© ${new Date().getFullYear()}${businessName ? ` ${businessName}` : ""}`
       : storedCopyright;
   const socialIconsHtml = renderFooterSocialIcons(
     block,
@@ -2163,8 +2201,11 @@ export function renderFooterBlockToEmailHtml(
     backgroundColor,
   );
   const linksHtml = renderFooterLinks(block, links, designSystem, centered);
-  const contactInline = renderFooterContactContent(block, designSystem, true);
-  const contactStack = renderFooterContactContent(block, designSystem);
+  const missingAddressChip = options.showMissingAddressPrompt
+    ? renderMissingAddressChip(dark)
+    : "";
+  const contactInline = renderFooterContactContent(block, designSystem, true, missingAddressChip);
+  const contactStack = renderFooterContactContent(block, designSystem, false, missingAddressChip);
 
   const logoAlign = getAlignment(block.logoAlignment, centered ? "center" : "left");
   const logoRow = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;margin-bottom:10px;"><tr><td align="${logoAlign}" style="text-align:${logoAlign};">${renderFooterLogo(block, designSystem, dark)}</td></tr></table>`;
@@ -2188,11 +2229,10 @@ export function createFooterBlockFromDesignSystem(
     return createFooterBlockFromProfile(null, overrides);
   }
 
-  const companyName = stringValue(designSystem.company.name, "Your Business");
-  const address = stringValue(
-    designSystem.company.addressLines,
-    stringValue(designSystem.company.address),
-  );
+  const companyName = realBusinessName(designSystem.company.name);
+  const address =
+    realPostalAddress(designSystem.company.addressLines) ||
+    realPostalAddress(designSystem.company.address);
 
   return {
     id: "auto-footer",
@@ -2201,8 +2241,8 @@ export function createFooterBlockFromDesignSystem(
     order: 999,
     visible: true,
     businessName: companyName,
-    address: address || "123 Main St\nCity, State",
-    copyrightText: `© ${new Date().getFullYear()} ${companyName}`,
+    address,
+    copyrightText: companyName ? `© ${new Date().getFullYear()} ${companyName}` : "",
     complianceText:
       designSystem.company.footerLegalText || DEFAULT_COMPLIANCE_TEXT,
     logoUrl: designSystem.company.logoUrl || "",
@@ -2232,7 +2272,7 @@ export function createFooterBlockFromProfile(
   profile: StudioFooterProfile | null | undefined,
   overrides: Partial<StudioBlock> = {},
 ): StudioBlock {
-  const companyName = stringValue(profile?.company_name, "Your Business");
+  const companyName = realBusinessName(profile?.company_name);
   const address = [
     profile?.street_address,
     [profile?.city, profile?.state_province, profile?.postal_code]
@@ -2252,8 +2292,8 @@ export function createFooterBlockFromProfile(
     order: 0,
     visible: true,
     businessName: companyName,
-    address: address || "123 Main St\nCity, State",
-    copyrightText: `© ${new Date().getFullYear()} ${companyName}`,
+    address: realPostalAddress(address),
+    copyrightText: companyName ? `© ${new Date().getFullYear()} ${companyName}` : "",
     complianceText:
       profile?.footer_legal_text ||
       profile?.feature_flags?.footer_settings?.complianceText ||
@@ -2664,6 +2704,7 @@ export function generateEmailHtml({
   designSystem,
   newsletterSettings,
   audience,
+  showMissingAddressPrompt = false,
 }: GenerateEmailHtmlParams): string {
   const settings = normalizeNewsletterSettings(
     newsletterSettings ||
@@ -2697,6 +2738,7 @@ export function generateEmailHtml({
     footerBlock,
     footerLinks,
     designSystem,
+    { showMissingAddressPrompt },
   );
   const escapedSubject = escapeHtml(subject || "Campaign Preview");
   const escapedPreviewText = escapeHtml(

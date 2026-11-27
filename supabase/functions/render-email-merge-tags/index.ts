@@ -61,7 +61,7 @@ function renderEmailHtmlWithMergeTags(params: {
           name:
             typeof params.companyInfo?.company_name === "string"
               ? params.companyInfo.company_name
-              : "Your Company",
+              : "",
           address:
             typeof params.companyInfo?.street_address === "string"
               ? params.companyInfo.street_address

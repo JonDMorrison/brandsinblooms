@@ -11,6 +11,11 @@ import {
   type StudioDesignSystem,
 } from "@/lib/studio/designSystem";
 import type { StudioBlock } from "@/types/studioBlocks";
+import {
+  hasPlaceholderCopyright,
+  realBusinessName,
+  realPostalAddress,
+} from "@/lib/studio/businessPlaceholders";
 
 const DEFAULT_COMPLIANCE_TEXT =
   "You are receiving this email because you opted in to receive updates from our business.";
@@ -159,34 +164,38 @@ export function hydrateFooterBlockWithDesignSystem(
   // "custom" is never refilled from the account, even when the box is empty.
   // Refilling made a cleared address snap back while it was being edited.
   // "company" always follows the account. Unset keeps the older fill-if-empty rule.
+  // A stored placeholder ("Your Company", "123 Business St, ...") counts as
+  // empty everywhere, so older drafts pick up the tenant's real details.
+  const storedBusinessName = realBusinessName(block.businessName)
+    ? (block.businessName ?? "")
+    : "";
+  const storedAddress = realPostalAddress(block.address) ? (block.address ?? "") : "";
+  const companyName = realBusinessName(designSystem.company.name);
+  const companyAddress = realPostalAddress(designSystem.company.addressLines);
   const businessName =
     block.businessNameSource === "custom"
-      ? (block.businessName ?? "")
+      ? storedBusinessName
       : block.businessNameSource === "company"
-        ? designSystem.company.name || block.businessName
-        : block.businessName || designSystem.company.name;
+        ? companyName || storedBusinessName
+        : storedBusinessName || companyName;
   const address =
     block.addressSource === "custom"
-      ? (block.address ?? "")
+      ? storedAddress
       : block.addressSource === "company"
-        ? designSystem.company.addressLines || block.address
-        : block.address || designSystem.company.addressLines;
+        ? companyAddress || storedAddress
+        : storedAddress || companyAddress;
+  const copyrightFor = (stored: string | undefined) => {
+    if (stored && !hasPlaceholderCopyright(stored)) return stored;
+    return businessName ? `© ${new Date().getFullYear()} ${businessName}` : "";
+  };
   const websiteUrl = block.websiteUrl || designSystem.company.websiteUrl;
 
   const nextBlock = {
     ...block,
     businessName,
     address,
-    copyright:
-      block.copyright?.replace(
-        "Your Business",
-        businessName || "Your Business",
-      ) || `© ${new Date().getFullYear()} ${businessName || "Your Business"}`,
-    copyrightText:
-      block.copyrightText?.replace(
-        "Your Business",
-        businessName || "Your Business",
-      ) || `© ${new Date().getFullYear()} ${businessName || "Your Business"}`,
+    copyright: copyrightFor(block.copyright),
+    copyrightText: copyrightFor(block.copyrightText),
     complianceText:
       block.complianceText ||
       designSystem.company.footerLegalText ||

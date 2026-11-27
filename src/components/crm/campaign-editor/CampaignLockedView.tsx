@@ -228,6 +228,10 @@ function getSystemPauseCopy(snapshot: CampaignStateSnapshot) {
     return "Choose an audience, then schedule the campaign again.";
   }
 
+  if (raw.includes("physical_address_missing")) {
+    return "Add your business address in Contact & Footer settings, then schedule the campaign again.";
+  }
+
   if (
     raw.includes("intervention") ||
     raw.includes("admin") ||

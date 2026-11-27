@@ -490,7 +490,7 @@ function buildMergeData(
     email: "customer@your-domain.test",
     phone: "",
     company: {
-      name: companyProfile?.company_name || "Your Company",
+      name: companyProfile?.company_name || "",
       address: companyProfile?.location_info || "",
       phone: companyProfile?.company_phone || "",
       email: companyProfile?.company_email || "",
@@ -535,7 +535,7 @@ function appendFooter(
 
   // Build profile data for footer generator (include feature_flags for logo)
   const profileData: CompanyProfileData = {
-    company_name: companyProfile?.company_name || "Your Company",
+    company_name: companyProfile?.company_name || "",
     company_phone: companyProfile?.company_phone || "",
     company_email: companyProfile?.company_email || "",
     website_url: companyProfile?.website_url || "",

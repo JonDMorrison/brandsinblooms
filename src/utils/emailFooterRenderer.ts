@@ -90,9 +90,8 @@ export const generateFooterHTML = (
   },
 ): string => {
   const tokens = tokenData || {
-    companyName: companyInfo?.name || "Your Company",
-    companyAddress:
-      companyInfo?.address || "123 Business St, Suite 100, City, State 12345",
+    companyName: companyInfo?.name || "",
+    companyAddress: companyInfo?.address || "",
     companyPhone: companyInfo?.phone || "",
     unsubscribeUrl: "[Unsubscribe Link]",
     managePreferencesUrl: "[Manage Preferences Link]",

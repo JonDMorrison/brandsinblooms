@@ -77,7 +77,7 @@ export default function SharedEmailBlockPreview({
   const [busy, setBusy] = React.useState(false);
   const html = React.useMemo(() => {
     const markup = block.type === "footer"
-      ? renderFooterBlockToEmailHtml(block, {}, designSystem)
+      ? renderFooterBlockToEmailHtml(block, {}, designSystem, { showMissingAddressPrompt: true })
       : renderNewsletterBlock(block, designSystem, settings, { editing: true });
     return showFriendlyMergeTags(DOMPurify.sanitize(markup, {
         ADD_ATTR: [

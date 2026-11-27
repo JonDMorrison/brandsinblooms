@@ -61,8 +61,8 @@ export const processEmailTokens = (content: string, tokenData: TokenData): strin
  */
 export const getDefaultTokenData = (companyInfo?: any): TokenData => {
   return {
-    companyName: companyInfo?.name || 'Your Company',
-    companyAddress: companyInfo?.address || '123 Business St, Suite 100, City, State 12345',
+    companyName: companyInfo?.name || '',
+    companyAddress: companyInfo?.address || '',
     companyPhone: companyInfo?.phone || '(555) 123-4567',
     companyEmail: companyInfo?.emailDomain ? `hello@${companyInfo.emailDomain}` : 'hello@yourcompany.com',
     unsubscribeUrl: '[Unsubscribe Link]',

@@ -236,7 +236,7 @@ export function generateNewsletterFooterHtml(
     props.pinterestUrl ||
     props.youtubeUrl ||
     props.linkedinUrl;
-  const companyName = props.companyName || "Your Company";
+  const companyName = props.companyName || "";
   const legalText = props.legalText
     ? props.legalText.replace(
         /\{\{company\.name\}\}/g,

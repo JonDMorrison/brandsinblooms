@@ -13,6 +13,10 @@ import {
 import { EmptyBlocksNotice } from "@/components/crm/campaign-editor/EmptyBlocksNotice";
 import { CRM_COPY } from "@/lib/crm/copy";
 import { findIdentityMismatchDetails } from "@/lib/crm/identityConsistency";
+import {
+  MISSING_POSTAL_ADDRESS_MESSAGE,
+  resolveFooterPostalAddress,
+} from "@/lib/studio/businessPlaceholders";
 import { hasContentBlocks } from "@/lib/studio/emailHtmlGenerator";
 import { deriveCampaignDisplayName, isUnsetCampaignName } from "@/lib/crm/campaignDisplayName";
 import { CampaignOrganization } from "@/components/crm/campaigns/CampaignOrganization";
@@ -162,6 +166,8 @@ import { registerResourceAccessor } from "@/utils/askBloomResourceRegistry";
 const WEEKLY_THEME_TEMPLATE_PREFIX = "weekly-theme:";
 /** "Start over with a blank newsletter", sent through the same replace confirmation. */
 const BLANK_TEMPLATE_ID = "blank";
+// Where the business postal address is set (Contact & Footer settings).
+const BUSINESS_ADDRESS_SETTINGS_PATH = "/profile/contact-footer";
 
 const EDITOR_MAX_WIDTH = 1360;
 
@@ -754,6 +760,18 @@ function CampaignEditorScreen() {
     [contentBlocks],
   );
   const hasMeaningfulEmailContent = meaningfulEmailBlockCount > 0;
+  // CASL and CAN-SPAM require a postal address in every marketing email:
+  // the footer's own address, else the business profile's. Unknown while
+  // the business profile loads, so nothing is flagged until it has.
+  const missingPostalAddress = React.useMemo(() => {
+    if (campaignType !== "email" || isDesignSystemLoading) return false;
+    const footer = contentBlocks.find((block) => block.type === "footer");
+    if (!footer) return false;
+    return !resolveFooterPostalAddress(
+      footer.address,
+      designSystem.company.addressLines || designSystem.company.address,
+    );
+  }, [campaignType, contentBlocks, designSystem, isDesignSystemLoading]);
 
   React.useEffect(() => {
     if (!pendingTemplateSave) {
@@ -1187,6 +1205,16 @@ function CampaignEditorScreen() {
       blockers.push({ message: "A compliance footer is required before sending.", section: "campaign-editor-content", fixLabel: "Add the footer" });
     }
 
+    if (missingPostalAddress) {
+      blockers.push({
+        message: MISSING_POSTAL_ADDRESS_MESSAGE,
+        section: null,
+        fixLabel: "Add your business address",
+        href: BUSINESS_ADDRESS_SETTINGS_PATH,
+        inlineLink: true,
+      });
+    }
+
     if (campaignType === "sms" && !smsMessage.trim()) {
       blockers.push({ message: "SMS message is required before sending.", section: "campaign-editor-content", fixLabel: "Write the message" });
     }
@@ -1243,6 +1271,7 @@ function CampaignEditorScreen() {
     campaignType,
     hasComplianceFooter,
     meaningfulEmailBlockCount,
+    missingPostalAddress,
     senderClassification,
     senderEmail,
     sendBlockedReason,
@@ -1262,7 +1291,8 @@ function CampaignEditorScreen() {
     return findIdentityMismatchDetails({
       senderName,
       senderEmail,
-      footerBusinessName: footer?.businessName,
+      // A footer with no name is "", which the check reports as a mismatch.
+      footerBusinessName: footer ? (footer.businessName ?? "") : undefined,
       websiteName: website?.siteName,
       websiteUrl: website?.publicUrl,
     });

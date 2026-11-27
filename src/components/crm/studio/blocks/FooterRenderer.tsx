@@ -83,7 +83,7 @@ function getFooterContactLines(
     block.address ||
     designSystem?.company.addressLines ||
     designSystem?.company.address ||
-    "123 Main St\nCity, State";
+    "";
   const lines = addressSource
     .split(/\n+/)
     .map((line) => line.trim())
@@ -116,7 +116,7 @@ function LogoMark({
   } | null;
 }) {
   const businessName =
-    block.businessName || designSystem?.company.name || "Your Business";
+    block.businessName || designSystem?.company.name || "";
   const requestedSize = block.logoSize ?? 64;
   const size = requestedSize === 40 ? 64 : requestedSize;
 
@@ -337,7 +337,7 @@ export default function FooterRenderer({ block }: FooterRendererProps) {
   const dark = layout === "standard-dark";
   const centered = layout === "centered-branded";
   const businessName =
-    block.businessName || designSystem?.company.name || "Your Business";
+    block.businessName || designSystem?.company.name || "";
   const contactLines = getFooterContactLines(block, designSystem);
   const contactStack = contactLines.join("\n");
   const contactInline = contactLines.join(" · ");
