@@ -6,7 +6,9 @@ vi.mock("@/integrations/supabase/client", () => ({ supabase: { rpc } }));
 import {
   deriveEmailEligibilityGate,
   fetchCampaignEmailEligibility,
+  fetchCustomerEmailEligibility,
   toCampaignEmailEligibility,
+  toCustomerEmailEligibility,
 } from "@/hooks/useCampaignEmailEligibility";
 
 const row = (patch: Record<string, number | string | boolean | null> = {}) => ({
@@ -72,5 +74,31 @@ describe("campaign email eligibility", () => {
         tenantId: "tenant-a", includeAllCustomers: true, segmentIds: [], personaIds: [], additionalCustomerIds: [],
       }),
     ).rejects.toThrow("eligibility read failed");
+  });
+
+  it("maps per-customer verdicts to plain-English reasons and rejects unknown ones", () => {
+    const verdicts = toCustomerEmailEligibility([
+      { customer_id: "a", can_receive: true, reason: "eligible" },
+      { customer_id: "b", can_receive: false, reason: "undeliverable_address" },
+      { customer_id: "c", can_receive: false, reason: "unsubscribed" },
+    ]);
+    expect(verdicts.get("a")).toMatchObject({ canReceive: true });
+    expect(verdicts.get("b")).toMatchObject({ canReceive: false, label: "Email address can't receive mail" });
+    expect(verdicts.get("c")?.label).toBe("Unsubscribed");
+    expect(() =>
+      toCustomerEmailEligibility([{ customer_id: "d", can_receive: false, reason: "made_up" }]),
+    ).toThrow(/Unknown email eligibility reason/);
+  });
+
+  it("asks the per-customer function once per id set and skips empty lists", async () => {
+    rpc.mockReset();
+    expect((await fetchCustomerEmailEligibility("tenant-a", [])).size).toBe(0);
+    expect(rpc).not.toHaveBeenCalled();
+    rpc.mockResolvedValue({ data: [{ customer_id: "a", can_receive: true, reason: "eligible" }], error: null });
+    await fetchCustomerEmailEligibility("tenant-a", ["b", "a", "a"]);
+    expect(rpc).toHaveBeenCalledWith("email_campaign_customer_eligibility", {
+      p_tenant_id: "tenant-a",
+      p_customer_ids: ["a", "b"],
+    });
   });
 });

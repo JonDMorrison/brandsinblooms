@@ -23279,6 +23279,14 @@ export type Database = {
           subscription_id: string;
         }[];
       };
+      email_campaign_customer_eligibility: {
+        Args: { p_customer_ids: string[]; p_tenant_id: string };
+        Returns: {
+          can_receive: boolean;
+          customer_id: string;
+          reason: string;
+        }[];
+      };
       email_campaign_eligibility: {
         Args: {
           p_customer_ids?: string[];

@@ -7,8 +7,8 @@ one SQL function, and read through one React Query hook.
 | Piece | Where |
 | --- | --- |
 | Enforcement (authority) | `supabase/functions/send-email-campaign/index.ts`, `supabase/functions/_shared/canSendEmail.ts`, `supabase/functions/_shared/recipientEmailDedup.ts`, re-checked in `supabase/functions/process-email-send-queue/index.ts` |
-| Counting (mirror) | `public.email_campaign_eligibility` in `supabase/migrations/20261127120000_email_campaign_eligibility.sql` |
-| Client | `src/hooks/useCampaignEmailEligibility.ts` |
+| Counting (mirror) | `private.email_campaign_audience_contacts`, read by `public.email_campaign_eligibility` (counts) and `public.email_campaign_customer_eligibility` (per customer), in `supabase/migrations/20261127150000_email_campaign_customer_eligibility.sql` (the rule first shipped in `20261127120000_email_campaign_eligibility.sql`) |
+| Client | `src/hooks/useCampaignEmailEligibility.ts` (`useCampaignEmailEligibility`, `useCustomerEmailEligibility`) |
 
 Line numbers are for the commit that added this document.
 
@@ -101,6 +101,13 @@ or merged (L1755-1770), and applies the care follow-up guard (L1771-1786).
 
 ## How the SQL function mirrors it
 
+The rule lives once, in `private.email_campaign_audience_contacts(p_tenant_id,
+p_include_all_customers, p_segment_ids, p_persona_ids, p_customer_ids)`: one
+row per audience contact with an email address, its bucket, a reason code,
+and the per-address verdicts. Clients cannot call it (it returns addresses);
+the two public functions below read it. Change the rule there and both
+follow.
+
 `public.email_campaign_eligibility(p_tenant_id, p_include_all_customers,
 p_segment_ids, p_persona_ids, p_customer_ids)` takes the editor's current
 audience and applies steps 1-5 above, including the first-segment-only rule,
@@ -129,6 +136,35 @@ It returns one row:
 `total = eligible + waiting + asked_to_stop + never_opted_in + unsendable + duplicates`;
 the client rejects a row that does not add up.
 
+### Per customer
+
+`public.email_campaign_customer_eligibility(p_tenant_id, p_customer_ids)`
+(at most 500 ids) answers, for each live customer of the tenant in the list,
+`can_receive` and `reason`. The ids are evaluated together as a direct
+customer audience, the way "Add people > Specific people" adds them;
+`can_receive` is true for the `eligible` and `duplicate` buckets. Same
+`SECURITY DEFINER` permission check; no address is returned.
+
+| `reason` | Bucket | Shown as |
+| --- | --- | --- |
+| `eligible` | eligible | Can receive email |
+| `duplicate_address` | duplicates | Shares an email address with another customer |
+| `waiting_confirmation` | waiting | Hasn't confirmed their email address yet |
+| `unsubscribed` | asked_to_stop (tenant `unsubscribed` entry) | Unsubscribed |
+| `complained` | asked_to_stop (tenant complaint entry) | Marked an email as spam |
+| `opted_out` | asked_to_stop (opt-out on the record) | Said no to email |
+| `never_opted_in` | never_opted_in | Hasn't agreed to receive email |
+| `undeliverable_address` | unsendable (malformed, placeholder or reserved domain) | Email address can't receive mail |
+| `blocked` | unsendable (global list, or tenant `blocked`/`global_block`) | Blocked from email |
+| `bounced` | unsendable (tenant `bounced`/`hard_bounce`) | Bounced |
+| `shared_blocked_address` | unsendable (dedup drops a shared address) | Shares an email address that is blocked |
+| `no_email` | (live customer with no address) | No email address |
+
+The labels live in `CUSTOMER_EMAIL_REASON_LABELS`; an unknown code is an
+error, never guessed at. Because the ids are evaluated as one batch, two
+listed customers sharing an address affect each other (`duplicate_address`,
+`shared_blocked_address`) exactly as they would in the send.
+
 Not mirrored, so the worker can send to fewer than `eligible` when:
 
 - `BLOCK_ROLE_BASED_EMAILS` is on;
@@ -151,6 +187,13 @@ and nothing else:
 - Schedule button
 - Schedule drawer (`CampaignScheduleDrawer`, through `canConfirm` and `checking`)
 - Ready to send dialog (`CampaignSendConfirmation`)
+- "Add people" dialog count. Adding or removing a specific person changes
+  `additionalCustomerIds`, which is part of the query key, so the count and
+  the Audience badge refetch.
+
+"Add people > Specific people" search results and the added-people chips read
+`useCustomerEmailEligibility` (`email_campaign_customer_eligibility`). People
+who cannot receive email are listed with the reason and cannot be added.
 
 While the check is loading, Schedule and Send are disabled and say
 "Checking audience". "Campaign is ready" appears only after the check returns
