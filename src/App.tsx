@@ -170,6 +170,14 @@ const TermsPage = lazyNamed(
   () => import("@/pages/public/TermsPage"),
   "TermsPage",
 );
+const PosPrivacyPage = lazyNamed(
+  () => import("@/pages/public/PosPrivacyPage"),
+  "PosPrivacyPage",
+);
+const PosEulaPage = lazyNamed(
+  () => import("@/pages/public/PosEulaPage"),
+  "PosEulaPage",
+);
 const PlatformAgreementPage = lazyNamed(
   () => import("@/pages/public/PlatformAgreementPage"),
   "PlatformAgreementPage",
@@ -620,6 +628,8 @@ function App() {
               <Route path="/support/contact" element={<PublicSupportContact />} />
               <Route path="/support/track/:token" element={<PublicSupportTrack />} />
               <Route path="/terms" element={<TermsPage />} />
+              <Route path="/legal/pos-privacy" element={<PosPrivacyPage />} />
+              <Route path="/legal/pos-eula" element={<PosEulaPage />} />
               <Route
                 path="/platform-agreement"
                 element={<PlatformAgreementPage />}

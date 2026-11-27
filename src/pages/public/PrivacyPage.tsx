@@ -180,6 +180,10 @@ export const PrivacyPage = () => {
                   Terms of Service
                 </Link>
                 {' | '}
+                <Link to="/legal/pos-privacy" className="text-primary underline hover:text-primary/80">
+                  BloomSuite POS Privacy Policy
+                </Link>
+                {' | '}
                 <Link to="/sms-program" className="text-primary underline hover:text-primary/80">
                   SMS Program
                 </Link>
