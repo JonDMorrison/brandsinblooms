@@ -31,6 +31,7 @@ import { COMPANY_PROFILE_WITH_DESIGN_SYSTEM_SELECT } from "../_shared/resolveDes
 import { requireInternalApiKey } from "../_shared/requireInternalApiKey.ts";
 import { checkSmsSendEligibility } from "../_shared/smsConsentGate.ts";
 import { resolveBusinessProfileUserId } from "../_shared/businessProfileUserId.ts";
+import { resolveTenantSenderName } from "../_shared/senderDisplayName.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -771,7 +772,6 @@ async function sendEmail(
       .limit(1)
       .single();
 
-    let companyName = "Your Business";
     let companyProfile: CompanyProfileShape | null = null;
     if (tenantUser?.id) {
       const profileUserId = await resolveBusinessProfileUserId(supabase, tenantUser.id);
@@ -780,9 +780,16 @@ async function sendEmail(
         .select(COMPANY_PROFILE_WITH_DESIGN_SYSTEM_SELECT)
         .eq("user_id", profileUserId)
         .single();
-      companyName = profile?.company_name || "Your Business";
       companyProfile = (profile as CompanyProfileShape | null) || null;
     }
+
+    // Same sources as campaigns; placeholders (including a "Your Business"
+    // pre-resolved into older outbox rows) count as unset. "" sends with the
+    // bare address.
+    const fromName = await resolveTenantSenderName(supabase, message.tenant_id, {
+      domainFromName: senderConfig.fromName,
+      companyProfileName: companyProfile?.company_name ?? null,
+    });
 
     // Fetch customer data for unified rendering
     const { data: customer } = await supabase
@@ -832,7 +839,7 @@ async function sendEmail(
           to: message.recipient,
           subject: rendered.renderedSubject,
           html_content: rendered.renderedHtml,
-          from_name: companyName,
+          from_name: fromName,
           from_email: senderConfig.fromEmail,
           reply_to: senderConfig.replyTo,
           unsubscribe_url: rendered.actionLinks.unsubscribeUrl,

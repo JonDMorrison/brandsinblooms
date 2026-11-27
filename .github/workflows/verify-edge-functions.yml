@@ -140,3 +140,10 @@ jobs:
             --config supabase/functions/deno.json \
             --frozen-lockfile \
             supabase/functions/_shared/recipientEmailDedup.test.ts
+
+      - name: Test sender display name resolution
+        run: |
+          deno test \
+            --config supabase/functions/deno.json \
+            --frozen-lockfile \
+            supabase/functions/_shared/senderDisplayName.test.ts

@@ -8,6 +8,7 @@
  */
 
 import { SupabaseClient } from "npm:@supabase/supabase-js@2";
+import { formatFromAddress, resolveTenantSenderName } from "./senderDisplayName.ts";
 
 export interface SenderConfig {
   fromEmail: string;
@@ -25,6 +26,10 @@ export interface SenderResolutionOptions {
 
 /**
  * Resolves the sender configuration for a tenant.
+ *
+ * fromName is the domain's default_from_name, else the business profile
+ * name, else tenants.name, else tenants.fallback_from_name. Placeholders
+ * ("Your Business") count as unset; "" means no real name is configured.
  *
  * Priority order:
  * 1. Custom operational domain (from email_domains table)
@@ -62,7 +67,9 @@ export async function resolveSender(
       const fromEmail = domain.default_from_email || `mail@${domain.domain}`;
       return {
         fromEmail,
-        fromName: domain.default_from_name || 'Your Business',
+        fromName: await resolveTenantSenderName(supabase, tenantId, {
+          domainFromName: domain.default_from_name,
+        }),
         deliveryMethod: 'custom_domain',
         // Reply-to: prefer explicit setting, fallback to sender email
         replyTo: domain.default_reply_to || fromEmail,
@@ -90,7 +97,9 @@ export async function resolveSender(
     const fromEmail = domain.default_from_email || `mail@${domain.domain}`;
     return {
       fromEmail,
-      fromName: domain.default_from_name || 'Your Business',
+      fromName: await resolveTenantSenderName(supabase, tenantId, {
+        domainFromName: domain.default_from_name,
+      }),
       deliveryMethod: 'custom_domain',
       // Reply-to: prefer explicit setting, fallback to sender email
       replyTo: domain.default_reply_to || fromEmail,
@@ -107,10 +116,11 @@ export async function resolveSender(
  * Builds the "From" address string for email sending
  *
  * @param config - The sender configuration
- * @returns Formatted from address string like "Company Name <email@domain.com>"
+ * @returns "Company Name <email@domain.com>", or the bare address when the
+ *   name is empty or a placeholder
  */
 export function buildFromAddress(config: SenderConfig): string {
-  return `${config.fromName} <${config.fromEmail}>`;
+  return formatFromAddress(config.fromName, config.fromEmail);
 }
 
 /**

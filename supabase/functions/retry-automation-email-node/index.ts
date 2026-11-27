@@ -21,6 +21,7 @@ import {
 import { resolveSender, buildFromAddress } from "../_shared/senderResolver.ts";
 import { COMPANY_PROFILE_WITH_DESIGN_SYSTEM_SELECT } from "../_shared/resolveDesignSystem.ts";
 import { resolveBusinessProfileUserId } from "../_shared/businessProfileUserId.ts";
+import { resolveTenantSenderName } from "../_shared/senderDisplayName.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -211,6 +212,13 @@ const handler = async (req: Request): Promise<Response> => {
       companyProfile = (profile as CompanyProfileShape | null) || null;
     }
 
+    // Same sources as campaigns; never a placeholder. "" sends with the
+    // bare address.
+    const fromName = await resolveTenantSenderName(supabase, automation.tenant_id, {
+      domainFromName: senderConfig.fromName,
+      companyProfileName: companyProfile?.company_name ?? null,
+    });
+
     let sent = 0;
     let skipped = 0;
     let failed = 0;
@@ -294,7 +302,7 @@ const handler = async (req: Request): Promise<Response> => {
               to: execution.email,
               subject: rendered.renderedSubject,
               html_content: rendered.renderedHtml,
-              from_name: companyProfile?.company_name || "Your Business",
+              from_name: fromName,
               from_email: senderConfig.fromEmail,
               reply_to: senderConfig.replyTo || senderConfig.fromEmail,
               unsubscribe_url: rendered.actionLinks.unsubscribeUrl,
