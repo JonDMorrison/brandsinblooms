@@ -34,6 +34,18 @@ export const PublicFooter = () => {
               Privacy Policy
             </Link>
             <Link 
+              to="/legal/pos-privacy" 
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              POS Privacy
+            </Link>
+            <Link 
+              to="/legal/pos-eula" 
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              POS Licence
+            </Link>
+            <Link 
               to="/contact" 
               className="text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
