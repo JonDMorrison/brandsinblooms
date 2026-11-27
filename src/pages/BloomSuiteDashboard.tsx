@@ -26,6 +26,7 @@ import { QuickStartTour } from "@/components/dashboard/QuickStartTour";
 import { JoyButton } from "@/components/joy/JoyButton";
 import { PageContainer } from "@/components/joy/PageContainer";
 import { useAuth } from "@/contexts/AuthContext";
+import { greetingFirstName } from "@/utils/greetingName";
 import { useAdmin } from "@/contexts/AdminContext";
 import { useOnboardingStatus } from "@/contexts/OnboardingStatusContext";
 import { useCampaignDeliveryMetrics } from "@/hooks/analytics/useCampaignDeliveryMetrics";
@@ -266,13 +267,10 @@ export const BloomSuiteDashboard = () => {
         };
   const latestCampaign = performance.campaigns[0];
   const hasEmailData = performance.summary.totalDelivered > 0;
-  const displayName = useMemo(() => {
-    const name =
-      typeof user?.user_metadata?.full_name === "string"
-        ? user.user_metadata.full_name
-        : (user?.email?.split("@")[0] ?? "");
-    return name.trim().split(/\s+/)[0] || "there";
-  }, [user?.email, user?.user_metadata]);
+  const greetingName = useMemo(
+    () => greetingFirstName(user?.user_metadata),
+    [user?.user_metadata],
+  );
 
   const metrics = [
     ...(canSeeCustomers
@@ -341,325 +339,329 @@ export const BloomSuiteDashboard = () => {
       "& .MuiButton-root": { minHeight: 44, fontSize: "0.9375rem", fontWeight: 600 },
     }}>
       <Stack spacing={{ xs: 4, md: 5 }} sx={{ pt: { xs: 1, md: 2 }, pb: 4 }}>
-        <Stack
-          direction={{ xs: "column", sm: "row" }}
-          alignItems={{ xs: "flex-start", sm: "center" }}
-          justifyContent="space-between"
-          spacing={1.5}
-        >
-          <Stack spacing={1.25}>
+        <Stack spacing={3}>
+          <Stack
+            direction="row"
+            alignItems="center"
+            justifyContent="space-between"
+            spacing={1.5}
+          >
             <Typography
               level="h1"
-              sx={{ fontSize: { xs: "1.875rem", md: "2.25rem" }, fontWeight: 700, letterSpacing: "-0.035em", color: "neutral.900" }}
+              component="h1"
+              sx={{
+                minWidth: 0,
+                fontFamily: "display",
+                fontSize: { xs: "xl3", md: "xl4" },
+                fontWeight: "xl",
+                letterSpacing: "-0.035em",
+                color: "text.primary",
+              }}
             >
-              Welcome back, {displayName}
+              {greetingName ? `Welcome back, ${greetingName}` : "Welcome back"}
             </Typography>
-            <Typography level="body-md" sx={{ color: "neutral.600" }}>
-              Your customers, campaigns, and next steps in one place.
-            </Typography>
+            {canSend ? (
+              <JoyButton
+                variant="plain"
+                color="neutral"
+                size="sm"
+                startDecorator={<HelpCircle size={16} aria-hidden="true" />}
+                sx={dashboardPressSx}
+                onClick={() => setShowTour(true)}
+              >
+                Take a tour
+              </JoyButton>
+            ) : (
+              <JoyButton
+                variant="plain"
+                color="neutral"
+                size="sm"
+                startDecorator={<HelpCircle size={16} aria-hidden="true" />}
+                data-activating={activeAction === "support" ? "true" : undefined}
+                aria-busy={activeAction === "support"}
+                sx={dashboardPressSx}
+                onClick={() => openAnimatedRoute("support", "/support")}
+              >
+                Help
+              </JoyButton>
+            )}
           </Stack>
-          {canSend ? (
+
+
+          {showDashboardTasks && !isCompleted && !hasEverCompleted ? (
             <JoyButton
-              variant="plain"
-              color="neutral"
-              size="sm"
-              startDecorator={<HelpCircle size={16} aria-hidden="true" />}
-              sx={dashboardPressSx}
-              onClick={() => setShowTour(true)}
-            >
-              Take a tour
-            </JoyButton>
-          ) : (
-            <JoyButton
-              variant="plain"
-              color="neutral"
-              size="sm"
-              startDecorator={<HelpCircle size={16} aria-hidden="true" />}
-              data-activating={activeAction === "support" ? "true" : undefined}
-              aria-busy={activeAction === "support"}
-              sx={dashboardPressSx}
-              onClick={() => openAnimatedRoute("support", "/support")}
-            >
-              Help
-            </JoyButton>
-          )}
-        </Stack>
-
-
-        {showDashboardTasks && !isCompleted && !hasEverCompleted ? (
-          <JoyButton
-            variant="soft"
-            color="primary"
-            size="sm"
-            sx={dashboardPressSx}
-            onClick={() => setShowSetupWizard(true)}
-          >
-            Complete business setup
-          </JoyButton>
-        ) : null}
-
-        <Stack spacing={2.5} sx={{ minWidth: 0 }}>
-          <Typography
-            level="title-lg"
-            sx={{ fontSize: "1.5rem", fontWeight: 700, color: "neutral.900" }}
-          >
-            What would you like to do?
-          </Typography>
-
-          {needsCompanySelection ? (
-            <Sheet
-              variant="outlined"
-              sx={{
-                p: { xs: 2.25, sm: 3 },
-                borderRadius: "lg",
-                borderColor: "neutral.300",
-                bgcolor: "background.surface",
-              }}
-            >
-              <Stack spacing={1.5} sx={{ maxWidth: 570 }}>
-                <Stack direction="row" gap={1.25} alignItems="flex-start">
-                  <Building2
-                    size={23}
-                    color="var(--joy-palette-neutral-600)"
-                    aria-hidden="true"
-                  />
-                  <Stack spacing={1.25}>
-                    <Typography level="title-lg">
-                      Choose a company to get started
-                    </Typography>
-                    <Typography
-                      level="body-sm"
-                      sx={{ color: "neutral.700", lineHeight: 1.6 }}
-                    >
-                      Your dashboard actions and campaign data are tied to the
-                      company you're managing. Select one to see its tools.
-                      Nothing has been deleted or hidden permanently.
-                    </Typography>
-                  </Stack>
-                </Stack>
-                <Select
-                  aria-label="Company to manage"
-                  placeholder="Select a garden centre"
-                  value={activeTenantId ?? null}
-                  onChange={(_, companyId) => {
-                    if (companyId) void setActiveTenantId(companyId);
-                  }}
-                  sx={{ minHeight: 48, width: "100%" }}
-                >
-                  {availableTenants.map((company) => (
-                    <Option key={company.id} value={company.id}>
-                      {company.name}
-                    </Option>
-                  ))}
-                </Select>
-                {availableTenants.length === 0 ? (
-                  <JoyButton
-                    variant="outlined"
-                    color="neutral"
-                    size="sm"
-                    startDecorator={<RefreshCw size={15} aria-hidden="true" />}
-                    onClick={() => void refreshTenants()}
-                    sx={{ ...dashboardPressSx, alignSelf: "flex-start" }}
-                  >
-                    Refresh company list
-                  </JoyButton>
-                ) : null}
-              </Stack>
-            </Sheet>
-          ) : permissionsPending ? (
-            <Sheet
-              variant="outlined"
-              role="status"
-              aria-label="Loading dashboard actions"
-              sx={{
-                p: 2,
-                borderRadius: "lg",
-                borderColor: "neutral.200",
-              }}
-            >
-              <Stack spacing={1.25}>
-                <Typography level="body-sm" sx={{ color: "neutral.600" }}>
-                  Loading your company tools…
-                </Typography>
-                <Box
-                  sx={{
-                    display: "grid",
-                    gap: { xs: 2, md: 2.5 },
-                    gridTemplateColumns: {
-                      xs: "minmax(0, 1fr)",
-                      sm: "repeat(2, minmax(0, 1fr))",
-                      lg: "repeat(3, minmax(0, 1fr))",
-                    },
-                  }}
-                >
-                  {[0, 1, 2].map((item) => (
-                    <Skeleton
-                      key={item}
-                      variant="rectangular"
-                      sx={{ height: 78, borderRadius: "lg" }}
-                    />
-                  ))}
-                </Box>
-              </Stack>
-            </Sheet>
-          ) : accessError || permissionsUnavailable ? (
-            <Alert
-              role="alert"
-              color={accessError ? "danger" : "neutral"}
               variant="soft"
-              startDecorator={<ShieldAlert size={21} aria-hidden="true" />}
-              sx={{
-                borderRadius: "lg",
-                alignItems: "flex-start",
-                p: 2.25,
-              }}
+              color="primary"
+              size="sm"
+              sx={dashboardPressSx}
+              onClick={() => setShowSetupWizard(true)}
             >
-              <Stack spacing={1.5} sx={{ minWidth: 0, width: "100%" }}>
-                <Stack spacing={1.25}>
-                  <Typography level="title-md">
-                    {accessError
-                      ? "We couldn't load your dashboard access"
-                      : "Your dashboard tools aren't available yet"}
-                  </Typography>
-                  <Typography level="body-sm" sx={{ lineHeight: 1.6 }}>
-                    {accessError
-                      ? "Your company permissions couldn't be verified. Try again to restore your dashboard actions."
-                      : tenant?.id
-                        ? "Your account doesn't currently have access to these CRM tools. An administrator may need to review your permissions."
-                        : "We couldn't determine an active company for this account. Please refresh your access or contact your administrator."}
-                  </Typography>
-                </Stack>
-                <JoyButton
-                  size="md"
-                  variant="outlined"
-                  color="neutral"
-                  startDecorator={<RefreshCw size={16} aria-hidden="true" />}
-                  onClick={() => void refreshAccess()}
-                  sx={{
-                    ...dashboardPressSx,
-                    alignSelf: "flex-start",
-                    minHeight: 44,
-                  }}
-                >
-                  Retry dashboard access
-                </JoyButton>
-              </Stack>
-            </Alert>
+              Complete business setup
+            </JoyButton>
           ) : null}
 
-          {showDashboardTasks ? (
-            <Box
-              sx={{
-                display: "grid",
-                width: "100%",
-                minWidth: 0,
-                gridTemplateColumns: {
-                  xs: "minmax(0, 1fr)",
-                  sm: "repeat(2, minmax(0, 1fr))",
-                  lg: "repeat(3, minmax(0, 1fr))",
-                },
-                gap: { xs: 2, md: 2.5 },
-              }}
-            >
-              {quickActions.map((action) => {
-                const Icon = action.icon;
-                return (
-                  <JoyButton
-                    key={action.destination}
-                    size="lg"
-                    color={action.primary ? "primary" : "neutral"}
-                    variant={action.primary ? "solid" : "outlined"}
-                    data-dashboard-action-card
-                    data-activating={
-                      activeAction === action.destination ? "true" : undefined
-                    }
-                    aria-busy={activeAction === action.destination}
-                    onClick={() =>
-                      openAnimatedRoute(action.destination, action.destination)
-                    }
-                    sx={{
-                      ...dashboardPressSx,
-                      width: "100%",
-                      minWidth: 0,
-                      minHeight: dashboardCardSpacing.action.minHeight,
-                      px: dashboardCardSpacing.action.px,
-                      py: dashboardCardSpacing.action.py,
-                      display: "flex",
-                      justifyContent: "flex-start",
-                      columnGap: dashboardCardSpacing.action.iconGap,
-                      borderRadius: "lg",
-                      textAlign: "left",
-                    }}
-                  >
-                    <Box
-                      component="span"
-                      data-dashboard-action-icon
-                      sx={{
-                        width: dashboardCardSpacing.action.iconSize,
-                        height: dashboardCardSpacing.action.iconSize,
-                        borderRadius: dashboardCardSpacing.action.iconRadius,
-                        backgroundColor: action.primary
-                          ? "rgba(255, 255, 255, 0.16)"
-                          : "neutral.100",
-                        color: action.primary ? "inherit" : "neutral.700",
-                        display: "grid",
-                        placeItems: "center",
-                        flexShrink: 0,
-                      }}
-                    >
-                      <Icon size={22} strokeWidth={1.9} aria-hidden="true" />
-                    </Box>
-                    <Stack
-                      data-dashboard-action-content
-                      spacing={dashboardCardSpacing.action.titleGap}
-                      sx={{ flex: 1, minWidth: 0, alignItems: "flex-start" }}
-                    >
-                      <Typography
-                        sx={{
-                          fontSize: "1.25rem",
-                          fontWeight: 700,
-                          color: "inherit",
-                          lineHeight: 1.35,
-                          textAlign: "left",
-                        }}
-                      >
-                        {action.title}
+          <Stack
+            component="section"
+            aria-label="What would you like to do?"
+            spacing={2.5}
+            sx={{ minWidth: 0 }}
+          >
+
+            {needsCompanySelection ? (
+              <Sheet
+                variant="outlined"
+                sx={{
+                  p: { xs: 2.25, sm: 3 },
+                  borderRadius: "lg",
+                  borderColor: "neutral.300",
+                  bgcolor: "background.surface",
+                }}
+              >
+                <Stack spacing={1.5} sx={{ maxWidth: 570 }}>
+                  <Stack direction="row" gap={1.25} alignItems="flex-start">
+                    <Building2
+                      size={23}
+                      color="var(--joy-palette-neutral-600)"
+                      aria-hidden="true"
+                    />
+                    <Stack spacing={1.25}>
+                      <Typography level="title-lg">
+                        Choose a company to get started
                       </Typography>
                       <Typography
-                        sx={{
-                          fontSize: "1rem",
-                          color: "inherit",
-                          opacity: 0.85,
-                          fontWeight: 400,
-                          lineHeight: 1.5,
-                          textAlign: "left",
-                        }}
+                        level="body-sm"
+                        sx={{ color: "neutral.700", lineHeight: 1.6 }}
                       >
-                        {activeAction === action.destination
-                          ? "Opening…"
-                          : action.detail}
+                        Your dashboard actions and campaign data are tied to the
+                        company you're managing. Select one to see its tools.
+                        Nothing has been deleted or hidden permanently.
                       </Typography>
                     </Stack>
-                    <Box
-                      component="span"
-                      data-dashboard-action-arrow
+                  </Stack>
+                  <Select
+                    aria-label="Company to manage"
+                    placeholder="Select a garden centre"
+                    value={activeTenantId ?? null}
+                    onChange={(_, companyId) => {
+                      if (companyId) void setActiveTenantId(companyId);
+                    }}
+                    sx={{ minHeight: 48, width: "100%" }}
+                  >
+                    {availableTenants.map((company) => (
+                      <Option key={company.id} value={company.id}>
+                        {company.name}
+                      </Option>
+                    ))}
+                  </Select>
+                  {availableTenants.length === 0 ? (
+                    <JoyButton
+                      variant="outlined"
+                      color="neutral"
+                      size="sm"
+                      startDecorator={<RefreshCw size={15} aria-hidden="true" />}
+                      onClick={() => void refreshTenants()}
+                      sx={{ ...dashboardPressSx, alignSelf: "flex-start" }}
+                    >
+                      Refresh company list
+                    </JoyButton>
+                  ) : null}
+                </Stack>
+              </Sheet>
+            ) : permissionsPending ? (
+              <Sheet
+                variant="outlined"
+                role="status"
+                aria-label="Loading dashboard actions"
+                sx={{
+                  p: 2,
+                  borderRadius: "lg",
+                  borderColor: "neutral.200",
+                }}
+              >
+                <Stack spacing={1.25}>
+                  <Typography level="body-sm" sx={{ color: "neutral.600" }}>
+                    Loading your company tools…
+                  </Typography>
+                  <Box
+                    sx={{
+                      display: "grid",
+                      gap: { xs: 2, md: 2.5 },
+                      gridTemplateColumns: {
+                        xs: "minmax(0, 1fr)",
+                        sm: "repeat(2, minmax(0, 1fr))",
+                        lg: "repeat(3, minmax(0, 1fr))",
+                      },
+                    }}
+                  >
+                    {[0, 1, 2].map((item) => (
+                      <Skeleton
+                        key={item}
+                        variant="rectangular"
+                        sx={{ height: 78, borderRadius: "lg" }}
+                      />
+                    ))}
+                  </Box>
+                </Stack>
+              </Sheet>
+            ) : accessError || permissionsUnavailable ? (
+              <Alert
+                role="alert"
+                color={accessError ? "danger" : "neutral"}
+                variant="soft"
+                startDecorator={<ShieldAlert size={21} aria-hidden="true" />}
+                sx={{
+                  borderRadius: "lg",
+                  alignItems: "flex-start",
+                  p: 2.25,
+                }}
+              >
+                <Stack spacing={1.5} sx={{ minWidth: 0, width: "100%" }}>
+                  <Stack spacing={1.25}>
+                    <Typography level="title-md">
+                      {accessError
+                        ? "We couldn't load your dashboard access"
+                        : "Your dashboard tools aren't available yet"}
+                    </Typography>
+                    <Typography level="body-sm" sx={{ lineHeight: 1.6 }}>
+                      {accessError
+                        ? "Your company permissions couldn't be verified. Try again to restore your dashboard actions."
+                        : tenant?.id
+                          ? "Your account doesn't currently have access to these CRM tools. An administrator may need to review your permissions."
+                          : "We couldn't determine an active company for this account. Please refresh your access or contact your administrator."}
+                    </Typography>
+                  </Stack>
+                  <JoyButton
+                    size="md"
+                    variant="outlined"
+                    color="neutral"
+                    startDecorator={<RefreshCw size={16} aria-hidden="true" />}
+                    onClick={() => void refreshAccess()}
+                    sx={{
+                      ...dashboardPressSx,
+                      alignSelf: "flex-start",
+                      minHeight: 44,
+                    }}
+                  >
+                    Retry dashboard access
+                  </JoyButton>
+                </Stack>
+              </Alert>
+            ) : null}
+
+            {showDashboardTasks ? (
+              <Box
+                sx={{
+                  display: "grid",
+                  width: "100%",
+                  minWidth: 0,
+                  gridTemplateColumns: {
+                    xs: "minmax(0, 1fr)",
+                    sm: "repeat(2, minmax(0, 1fr))",
+                    lg: "repeat(3, minmax(0, 1fr))",
+                  },
+                  gap: { xs: 2, md: 2.5 },
+                }}
+              >
+                {quickActions.map((action) => {
+                  const Icon = action.icon;
+                  return (
+                    <JoyButton
+                      key={action.destination}
+                      size="lg"
+                      color={action.primary ? "primary" : "neutral"}
+                      variant={action.primary ? "solid" : "outlined"}
+                      data-dashboard-action-card
+                      data-activating={
+                        activeAction === action.destination ? "true" : undefined
+                      }
+                      aria-busy={activeAction === action.destination}
+                      onClick={() =>
+                        openAnimatedRoute(action.destination, action.destination)
+                      }
                       sx={{
-                        width: dashboardCardSpacing.action.arrowSize,
-                        height: dashboardCardSpacing.action.arrowSize,
-                        display: "grid",
-                        placeItems: "center",
-                        flexShrink: 0,
-                        ml: { xs: 0, sm: 0.5 },
-                        opacity: 0.88,
+                        ...dashboardPressSx,
+                        width: "100%",
+                        minWidth: 0,
+                        minHeight: dashboardCardSpacing.action.minHeight,
+                        px: dashboardCardSpacing.action.px,
+                        py: dashboardCardSpacing.action.py,
+                        display: "flex",
+                        justifyContent: "flex-start",
+                        columnGap: dashboardCardSpacing.action.iconGap,
+                        borderRadius: "lg",
+                        textAlign: "left",
                       }}
                     >
-                      <ArrowRight size={20} aria-hidden="true" />
-                    </Box>
-                  </JoyButton>
-                );
-              })}
-            </Box>
-          ) : null}
+                      <Box
+                        component="span"
+                        data-dashboard-action-icon
+                        sx={{
+                          width: dashboardCardSpacing.action.iconSize,
+                          height: dashboardCardSpacing.action.iconSize,
+                          borderRadius: dashboardCardSpacing.action.iconRadius,
+                          backgroundColor: action.primary
+                            ? "rgba(255, 255, 255, 0.16)"
+                            : "neutral.100",
+                          color: action.primary ? "inherit" : "neutral.700",
+                          display: "grid",
+                          placeItems: "center",
+                          flexShrink: 0,
+                        }}
+                      >
+                        <Icon size={22} strokeWidth={1.9} aria-hidden="true" />
+                      </Box>
+                      <Stack
+                        data-dashboard-action-content
+                        spacing={dashboardCardSpacing.action.titleGap}
+                        sx={{ flex: 1, minWidth: 0, alignItems: "flex-start" }}
+                      >
+                        <Typography
+                          sx={{
+                            fontSize: "1.25rem",
+                            fontWeight: 700,
+                            color: "inherit",
+                            lineHeight: 1.35,
+                            textAlign: "left",
+                          }}
+                        >
+                          {action.title}
+                        </Typography>
+                        <Typography
+                          sx={{
+                            fontSize: "1rem",
+                            color: "inherit",
+                            opacity: 0.85,
+                            fontWeight: 400,
+                            lineHeight: 1.5,
+                            textAlign: "left",
+                          }}
+                        >
+                          {activeAction === action.destination
+                            ? "Opening…"
+                            : action.detail}
+                        </Typography>
+                      </Stack>
+                      <Box
+                        component="span"
+                        data-dashboard-action-arrow
+                        sx={{
+                          width: dashboardCardSpacing.action.arrowSize,
+                          height: dashboardCardSpacing.action.arrowSize,
+                          display: "grid",
+                          placeItems: "center",
+                          flexShrink: 0,
+                          ml: { xs: 0, sm: 0.5 },
+                          opacity: 0.88,
+                        }}
+                      >
+                        <ArrowRight size={20} aria-hidden="true" />
+                      </Box>
+                    </JoyButton>
+                  );
+                })}
+              </Box>
+            ) : null}
+          </Stack>
         </Stack>
 
         {showDashboardTasks && metrics.length > 0 ? (
