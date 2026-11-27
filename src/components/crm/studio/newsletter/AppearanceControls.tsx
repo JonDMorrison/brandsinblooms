@@ -25,6 +25,9 @@ export function Field({
   type = "text",
   captureTab = false,
   sampleText = multiline,
+  error,
+  onBlur,
+  onFocus,
 }: {
   label: string;
   value?: string;
@@ -35,8 +38,13 @@ export function Field({
   captureTab?: boolean;
   /** Offer "Insert lorem ipsum" under an empty box. On for multi-line boxes. */
   sampleText?: boolean;
+  /** Shown under a single-line box; marks the box invalid for assistive tech. */
+  error?: string;
+  onBlur?: () => void;
+  onFocus?: () => void;
 }) {
   const id = React.useId();
+  const errorId = `${id}-error`;
   const clearable = type === "text" || type === "url" || type === "email";
   const hasValue = Boolean(value);
   return (
@@ -82,7 +90,11 @@ export function Field({
             type={type}
             value={value || ""}
             onChange={(e) => onChange(e.target.value)}
+            onBlur={onBlur}
+            onFocus={onFocus}
             placeholder={placeholder}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={error ? errorId : undefined}
           />
           {clearable && hasValue && (
             <button
@@ -97,6 +109,11 @@ export function Field({
           )}
         </div>
       )}
+      {error && !multiline ? (
+        <div id={errorId} className="nl-error">
+          {error}
+        </div>
+      ) : null}
     </div>
   );
 }

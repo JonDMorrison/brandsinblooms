@@ -2,12 +2,14 @@ import * as React from "react";
 import { isEmptyContentBlock } from "@/lib/studio/emailHtmlGenerator";
 import { isEditorEmptyBlock } from "@/lib/studio/newsletter/editorEmptyBlocks";
 import Box from "@mui/joy/Box";
+import Chip from "@mui/joy/Chip";
 import IconButton from "@mui/joy/IconButton";
 import Sheet from "@mui/joy/Sheet";
 import Typography from "@mui/joy/Typography";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
+  AlertTriangle,
   ChevronDown,
   ChevronUp,
   ChevronsDown,
@@ -18,6 +20,7 @@ import {
 } from "lucide-react";
 import { getBlockDisplayLabel } from "@/components/crm/studio/blockLibraryData";
 import BlockRenderer from "@/components/crm/studio/blocks/BlockRenderer";
+import { describeBlockLinkIssue, findBlockLinkIssues } from "@/lib/email/blockLinkIssues";
 import type {
   CanvasReorderInstruction,
   StudioBlock,
@@ -84,6 +87,10 @@ export default function CanvasBlockSlot({
   const [isHovered, setIsHovered] = React.useState(false);
   const isFooterBlock = block.type === "footer";
   const displayLabel = getBlockDisplayLabel(block);
+  // Editor chrome only: marks a block whose links would go out broken. The
+  // email itself is rendered separately and never carries this mark.
+  const linkIssues = React.useMemo(() => findBlockLinkIssues(block), [block]);
+  const linkIssueSummary = linkIssues.map(describeBlockLinkIssue).join("; ");
 
   const {
     attributes,
@@ -254,8 +261,16 @@ export default function CanvasBlockSlot({
             sx={{
               position: "relative",
               borderRadius: "4px",
-              outline: isSelected ? "2px solid" : "0 solid transparent",
-              outlineColor: isSelected ? "primary.400" : "transparent",
+              outline: isSelected
+                ? "2px solid"
+                : linkIssues.length > 0
+                  ? "2px dashed"
+                  : "0 solid transparent",
+              outlineColor: isSelected
+                ? "primary.400"
+                : linkIssues.length > 0
+                  ? "warning.outlinedBorder"
+                  : "transparent",
               outlineOffset: 0,
               transition: "all 120ms ease",
               overflow: "visible",
@@ -298,6 +313,26 @@ export default function CanvasBlockSlot({
               />
             </Sheet>
           </Box>
+
+          {linkIssues.length > 0 ? (
+            <Chip
+              size="sm"
+              variant="solid"
+              color="warning"
+              data-testid="studio-block-link-issue"
+              title={linkIssueSummary}
+              startDecorator={<AlertTriangle size={12} aria-hidden />}
+              sx={{
+                position: "absolute",
+                right: 12,
+                bottom: -12,
+                zIndex: 3,
+                fontSize: "11px",
+              }}
+            >
+              {linkIssues.length === 1 ? "Fix link" : `Fix ${linkIssues.length} links`}
+            </Chip>
+          ) : null}
 
           <Sheet
             variant="plain"

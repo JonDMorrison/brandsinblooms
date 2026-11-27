@@ -26,6 +26,10 @@ import {
 import { CampaignOrganization } from "@/components/crm/campaigns/CampaignOrganization";
 import { reviewConnectedEvents } from "@/lib/connectedContent";
 import { reviewCampaignContent } from "@/lib/crm/campaignContentReview";
+import {
+  describeCampaignBlockLinkIssues,
+  findCampaignLinkIssues,
+} from "@/lib/email/blockLinkIssues";
 import { resolveStudioDraftId } from "@/lib/crm/studioEntry";
 import * as React from "react";
 import { flushSync } from "react-dom";
@@ -1281,6 +1285,12 @@ function CampaignEditorScreen() {
     }
   }, [isLoading, isLocked, canSendCampaign, pendingTemplateSave, processParams, setProcessParams, updateSchedule, openSendConfirmation]);
 
+  // Blocks whose button, image or text links would go out empty or broken.
+  const blockLinkIssues = React.useMemo(
+    () => (campaignType === "email" ? findCampaignLinkIssues(contentBlocks) : []),
+    [campaignType, contentBlocks],
+  );
+
   // Every blocker names the section that fixes it, so the checklist can
   // jump straight there. A campaign name is optional (#8) and not a blocker.
   const sendBlockers = React.useMemo(() => {
@@ -1296,6 +1306,16 @@ function CampaignEditorScreen() {
 
     if (campaignType === "email" && !hasComplianceFooter) {
       blockers.push({ message: "A compliance footer is required before sending.", section: "campaign-editor-content", fixLabel: "Add the footer" });
+    }
+
+    // One item per block with a broken or empty link; each blocks Send and
+    // Schedule until it is fixed in Design Studio.
+    for (const entry of blockLinkIssues) {
+      blockers.push({
+        message: describeCampaignBlockLinkIssues(entry),
+        section: "campaign-editor-content",
+        fixLabel: `Fix the link in block ${entry.position}`,
+      });
     }
 
     if (missingPostalAddress) {
@@ -1361,6 +1381,7 @@ function CampaignEditorScreen() {
     selectedSegments,
     selectedPersonas,
     autoSaveStatus,
+    blockLinkIssues,
     campaignType,
     hasComplianceFooter,
     meaningfulEmailBlockCount,

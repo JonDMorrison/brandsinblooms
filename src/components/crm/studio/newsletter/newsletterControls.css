@@ -60,6 +60,10 @@
   border-color: var(--joy-palette-primary-400, #1f5b63);
   box-shadow: 0 0 0 3px var(--joy-palette-primary-100, #d9e8e6);
 }
+.nl-field input[aria-invalid="true"],
+.nl-field input[aria-invalid="true"]:focus {
+  border-color: var(--joy-palette-danger-outlinedBorder);
+}
 .nl-grid-2 {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
