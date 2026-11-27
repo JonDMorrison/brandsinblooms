@@ -140,3 +140,10 @@ jobs:
             --config supabase/functions/deno.json \
             --frozen-lockfile \
             supabase/functions/_shared/recipientEmailDedup.test.ts
+
+      - name: Test campaign segment audience (every selected segment)
+        run: |
+          deno test \
+            --config supabase/functions/deno.json \
+            --frozen-lockfile \
+            supabase/functions/_shared/campaignSegmentAudience.test.ts

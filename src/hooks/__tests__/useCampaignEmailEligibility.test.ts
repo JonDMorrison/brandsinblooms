@@ -4,6 +4,7 @@ const rpc = vi.hoisted(() => vi.fn());
 vi.mock("@/integrations/supabase/client", () => ({ supabase: { rpc } }));
 
 import {
+  campaignEmailEligibilityQueryKey,
   deriveEmailEligibilityGate,
   fetchCampaignEmailEligibility,
   fetchCustomerEmailEligibility,
@@ -65,6 +66,25 @@ describe("campaign email eligibility", () => {
       p_persona_ids: ["loyal-regulars"],
       p_customer_ids: ["cust-1"],
     });
+  });
+
+  it("counts every selected segment, not only the first, as the send worker does", async () => {
+    rpc.mockReset();
+    rpc.mockResolvedValue({ data: [row({ total: "3", eligible: "3", unsendable: "0", blocked: "0" })], error: null });
+    const audience = {
+      tenantId: "tenant-a",
+      includeAllCustomers: false,
+      segmentIds: ["seg-spring", "seg-vip", "seg-lapsed"],
+      personaIds: [],
+      additionalCustomerIds: [],
+    };
+    await fetchCampaignEmailEligibility(audience);
+    expect(rpc).toHaveBeenCalledTimes(1);
+    expect(rpc.mock.calls[0][1]).toMatchObject({ p_segment_ids: ["seg-spring", "seg-vip", "seg-lapsed"] });
+    // Adding a second segment is a new audience, so the count refetches.
+    expect(campaignEmailEligibilityQueryKey({ ...audience, segmentIds: ["seg-spring"] })).not.toEqual(
+      campaignEmailEligibilityQueryKey({ ...audience, segmentIds: ["seg-spring", "seg-vip"] }),
+    );
   });
 
   it("surfaces read failures", async () => {

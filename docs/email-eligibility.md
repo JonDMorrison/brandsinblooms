@@ -7,7 +7,7 @@ one SQL function, and read through one React Query hook.
 | Piece | Where |
 | --- | --- |
 | Enforcement (authority) | `supabase/functions/send-email-campaign/index.ts`, `supabase/functions/_shared/canSendEmail.ts`, `supabase/functions/_shared/recipientEmailDedup.ts`, re-checked in `supabase/functions/process-email-send-queue/index.ts` |
-| Counting (mirror) | `private.email_campaign_audience_contacts`, read by `public.email_campaign_eligibility` (counts) and `public.email_campaign_customer_eligibility` (per customer), in `supabase/migrations/20261127150000_email_campaign_customer_eligibility.sql` (the rule first shipped in `20261127120000_email_campaign_eligibility.sql`) |
+| Counting (mirror) | `private.email_campaign_audience_contacts`, read by `public.email_campaign_eligibility` (counts) and `public.email_campaign_customer_eligibility` (per customer). Current definition: `supabase/migrations/20261127170000_email_campaign_all_segments.sql` (all selected segments); before that `20261127150000_email_campaign_customer_eligibility.sql`, and the rule first shipped in `20261127120000_email_campaign_eligibility.sql` |
 | Client | `src/hooks/useCampaignEmailEligibility.ts` (`useCampaignEmailEligibility`, `useCustomerEmailEligibility`) |
 
 Line numbers are for the commit that added this document.
@@ -18,13 +18,17 @@ Line numbers are for the commit that added this document.
 
 `send-email-campaign/index.ts`
 
-1. Segments: `campaign.segment_id` is used if set (L1036). Only when it is null
-   are the `campaign_segments` rows read (L1038-1061). The editor saves
-   `segment_id` as the **first** selected segment
-   (`src/lib/crm/campaignDraftPersistence.ts` L787), so a campaign with several
-   segments is sent to the first one only. Members come from
-   `customer_segments` joined to a live `crm_segments` row in the campaign's
-   tenant (L1206-1242).
+1. Segments: every selected segment, the union of `crm_campaigns.segment_id`
+   and all `campaign_segments` rows for the campaign
+   (`_shared/campaignSegmentAudience.ts`, `resolveCampaignSegmentIds`). This is
+   how the editor reads a campaign's segments
+   (`src/lib/crm/campaignEditor.ts`, `fetchCampaignEditorRecord`); it saves
+   `segment_id` as the first selected segment and a `campaign_segments` row
+   for each one when there are several. Legacy rows with only `segment_id`
+   keep that one segment. Members are customers in **any** of the segments,
+   from `customer_segments` joined to a live `crm_segments` row in the
+   campaign's tenant (L1206-1242). Before migration `20261127170000` a
+   campaign with several segments went to the first one only.
 2. Personas: `crm_campaigns.persona_ids` plus `campaign_personas` (L1065-1091).
    UUID ids match `customer_personas.persona_id` and `crm_customers.persona_id`;
    other ids match `customer_personas.predefined_persona_id` (L1244-1356).
@@ -110,8 +114,8 @@ follow.
 
 `public.email_campaign_eligibility(p_tenant_id, p_include_all_customers,
 p_segment_ids, p_persona_ids, p_customer_ids)` takes the editor's current
-audience and applies steps 1-5 above, including the first-segment-only rule,
-the address dedup and the tenant suppression bypass. It is `SECURITY DEFINER`
+audience and applies steps 1-5 above, including the union of every id in
+`p_segment_ids`, the address dedup and the tenant suppression bypass. It is `SECURITY DEFINER`
 with the same tenant permission check as `email_reachability_summary`
 (`customer.read`, `campaign.read` or `campaign.write`).
 

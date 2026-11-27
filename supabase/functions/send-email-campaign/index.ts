@@ -6,6 +6,7 @@ import {
   hasPII,
 } from "../_shared/linkRewriter.ts";
 import { dedupeRecipientsByEmail } from "../_shared/recipientEmailDedup.ts";
+import { resolveCampaignSegmentIds } from "../_shared/campaignSegmentAudience.ts";
 import {
   serializeSupabaseError,
   isUuidLike,
@@ -1034,34 +1035,19 @@ serve(async (req: Request) => {
     // Get customers based on targeting (segments + personas)
     let customers: any[] = [];
 
-    // 1) Segment targeting
-    const segmentIds: string[] = [];
-    if (campaign.segment_id) segmentIds.push(campaign.segment_id);
-
-    if (segmentIds.length === 0) {
-      const { data: campaignSegments, error: campaignSegmentsError } =
-        await supabase
-          .from("campaign_segments")
-          .select("segment_id")
-          .eq("campaign_id", campaignId);
-
-      if (campaignSegmentsError) {
-        console.error(
-          "Error fetching campaign_segments:",
-          campaignSegmentsError,
-        );
-        return new Response(
-          JSON.stringify({ error: "Failed to fetch campaign segments" }),
-          {
-            status: 500,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          },
-        );
-      }
-
-      (campaignSegments || []).forEach((cs: any) => {
-        if (cs?.segment_id) segmentIds.push(cs.segment_id);
-      });
+    // 1) Segment targeting: the union of every selected segment
+    // (crm_campaigns.segment_id plus campaign_segments), as the editor reads it.
+    const { segmentIds, error: campaignSegmentsError } =
+      await resolveCampaignSegmentIds(supabase, campaign);
+    if (campaignSegmentsError) {
+      console.error("Error fetching campaign_segments:", campaignSegmentsError);
+      return new Response(
+        JSON.stringify({ error: "Failed to fetch campaign segments" }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
 
     // 2) Persona targeting
