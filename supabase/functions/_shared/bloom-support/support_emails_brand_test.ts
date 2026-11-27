@@ -31,7 +31,7 @@ Deno.test("support email headers remain readable without remote images", () => {
   for (const html of mails) {
     assertEquals(imgs(html).length, 0, "no remote images");
     assert(hrefs(html).includes("https://bloomsuite.app/"), "links to bloomsuite.app");
-    assertMatch(html, />Bloom Support<\\/td>/);
+    assert(html.includes(">Bloom Support</td>"));
     assertNotMatch(html, /mso-hide:all|display:none/);
   }
 });
