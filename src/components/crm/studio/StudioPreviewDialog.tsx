@@ -33,6 +33,10 @@ import {
   type MessageCheckIssue,
 } from "@/lib/studio/newsletter/messageCheck";
 import type { StudioBlock } from "@/types/studioBlocks";
+import {
+  describeCampaignBlockLinkIssues,
+  findCampaignLinkIssues,
+} from "@/lib/email/blockLinkIssues";
 import { isValidTestRecipient, useTestSendRecipient } from "./useTestSendRecipient";
 
 type PreviewDevice = "desktop" | "tablet" | "mobile";
@@ -184,6 +188,9 @@ export default function StudioPreviewDialog({
     ],
   );
   const sanitizedHtml = React.useMemo(() => stripScriptTags(html), [html]);
+  // The same link problems that keep Send and Schedule off. A test still
+  // sends, so the person can see the email, but they are told first.
+  const linkIssues = React.useMemo(() => findCampaignLinkIssues(blocks), [blocks]);
 
   // Pre-send check: alt text, links, images and buttons. The result is tied
   // to the email it was run on and is marked out of date after any change.
@@ -488,6 +495,31 @@ export default function StudioPreviewDialog({
                 </Alert>
               ) : null}
             </Stack>
+          ) : null}
+          {activeTab === "test" && linkIssues.length > 0 ? (
+            <Alert
+              size="sm"
+              color="warning"
+              variant="soft"
+              data-testid="preview-test-link-warning"
+              sx={{ mt: 1.25, borderRadius: "8px", alignItems: "flex-start" }}
+            >
+              <Stack spacing={0.5} sx={{ minWidth: 0 }}>
+                <Typography level="body-sm" fontWeight={700} sx={{ color: "inherit" }}>
+                  {linkIssues.length === 1
+                    ? "1 block has a link to fix before you can send or schedule."
+                    : `${linkIssues.length} blocks have links to fix before you can send or schedule.`}{" "}
+                  Test emails still send.
+                </Typography>
+                <Box component="ul" sx={{ m: 0, pl: 2.5 }}>
+                  {linkIssues.map((entry) => (
+                    <Typography key={entry.blockId} component="li" level="body-xs" sx={{ color: "inherit" }}>
+                      {describeCampaignBlockLinkIssues(entry)}
+                    </Typography>
+                  ))}
+                </Box>
+              </Stack>
+            </Alert>
           ) : null}
         </Sheet>
 

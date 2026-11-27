@@ -21,6 +21,10 @@ type StudioTextFieldProps = {
   aiDecorator?: boolean;
   startDecorator?: React.ReactNode;
   type?: React.InputHTMLAttributes<HTMLInputElement>["type"];
+  /** Shown under a single-line box; marks the box invalid for assistive tech. */
+  error?: string;
+  onBlur?: () => void;
+  onFocus?: () => void;
 };
 
 export default function StudioTextField({
@@ -34,7 +38,11 @@ export default function StudioTextField({
   aiDecorator = false,
   startDecorator,
   type = "text",
+  error,
+  onBlur,
+  onFocus,
 }: StudioTextFieldProps) {
+  const errorId = React.useId();
   // Clear and sample text only for controlled boxes: they need the current value.
   const canEdit = Boolean(onChange) && value !== undefined;
   const clearable = type === "text" || type === "url" || type === "email" || type === undefined;
@@ -125,6 +133,15 @@ export default function StudioTextField({
           defaultValue={defaultValue}
           value={value}
           onChange={(event) => onChange?.(event.target.value)}
+          onBlur={onBlur}
+          onFocus={onFocus}
+          error={Boolean(error)}
+          slotProps={{
+            input: {
+              "aria-invalid": error ? true : undefined,
+              "aria-describedby": error ? errorId : undefined,
+            },
+          }}
           startDecorator={startDecorator}
           endDecorator={
             canEdit && clearable && value && !aiDecorator ? (
@@ -198,17 +215,19 @@ export default function StudioTextField({
             "--Input-focusedHighlight": "transparent",
             border: "1.5px solid",
             bgcolor: "#ffffff",
-            borderColor: "neutral.200",
+            borderColor: error ? "danger.outlinedBorder" : "neutral.200",
             fontSize: "13px",
             "--Input-minHeight": "36px",
             transition:
               "border-color 140ms ease, box-shadow 140ms ease, background-color 140ms ease",
             "&:hover:not(:focus-within)": {
-              borderColor: "neutral.300",
+              borderColor: error ? "danger.outlinedHoverBorder" : "neutral.300",
             },
             "&:focus-within": {
-              borderColor: "primary.400",
-              boxShadow: "0 0 0 3px var(--joy-palette-primary-100)",
+              borderColor: error ? "danger.outlinedBorder" : "primary.400",
+              boxShadow: error
+                ? "0 0 0 3px var(--joy-palette-danger-100)"
+                : "0 0 0 3px var(--joy-palette-primary-100)",
               outline: "none",
             },
             "& input": {
@@ -221,6 +240,11 @@ export default function StudioTextField({
           }}
         />
       )}
+      {error && !multiline ? (
+        <Typography id={errorId} level="body-xs" color="danger" sx={{ fontSize: "12px" }}>
+          {error}
+        </Typography>
+      ) : null}
     </Stack>
   );
 }

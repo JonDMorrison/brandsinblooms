@@ -1,4 +1,5 @@
 import { getContrastingTextColor } from "../designSystem.ts";
+import { isLinkMergeTag } from "../../email/linkValidation.ts";
 import type { StudioBlock } from "../../../types/studioBlocks.ts";
 import type {
   BlockAppearance,
@@ -194,6 +195,9 @@ export function textCss(
   );
 }
 export function safeEmailUrl(value: unknown, image = false): string {
+  // A link merge tag ({{ company.website }}, {{ system.unsubscribe_url }}) is
+  // kept so the send-time merge engine can fill it in per recipient.
+  if (!image && typeof value === "string" && isLinkMergeTag(value)) return value.trim();
   if (
     typeof value !== "string" ||
     !value.trim() ||
