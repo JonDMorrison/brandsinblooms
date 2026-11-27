@@ -32,11 +32,10 @@ export function bloomEmailFact(label:string,value:string,icon:BloomEmailIcon="le
  const t=BLOOM_EMAIL;return '<tr><td valign="top" style="padding:14px 2px;border-bottom:1px solid '+t.border+';font-size:15px;line-height:1.65;color:'+t.body+'"><strong style="color:'+t.navy+'">'+bloomEmailEscape(label)+
  '</strong><span>&nbsp; · &nbsp;</span>'+bloomEmailEscape(value)+'</td></tr>';
 }
-export function bloomEmailCard(title:string,rows:Array<{label:string;value:string;icon:BloomEmailIcon}>,icon:BloomEmailIcon="leaf"):string{
+export function bloomEmailCard(title:string,rows:Array<{label:string;value:string;icon:BloomEmailIcon}>,_icon:BloomEmailIcon="leaf"):string{
  if(!rows.length)return "";const t=BLOOM_EMAIL;
  return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;margin:18px 0;border:1px solid '+t.border+';border-radius:14px;background:#FFFFFF"><tr><td style="padding:18px">'+
- '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td valign="middle" style="color:'+t.navy+';font-size:20px;line-height:1.3;font-weight:700">'+bloomEmailEscape(title)+'</td>'+
- '<td width="48" align="right">'+bloomEmailIcon(icon,42)+'</td></tr></table>'+
+ '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td valign="middle" style="color:'+t.navy+';font-size:20px;line-height:1.3;font-weight:700">'+bloomEmailEscape(title)+'</td></tr></table>'+
  '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">'+
  rows.map(row=>bloomEmailFact(row.label,row.value,row.icon)).join("")+'</table></td></tr></table>';
 }
