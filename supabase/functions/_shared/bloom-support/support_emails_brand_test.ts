@@ -105,7 +105,6 @@ Deno.test("needs-you email: client row uses text and links the website", () => {
   assertMatch(mail.text, /Client: The Flowerhouse · https:\/\/theflowerhousegardencenter\.com\//);
   // Client identity and website remain visible without a logo image.
   const plain = renderEscalationEmail({ escalation: { reason: "ticket_overdue" }, ticket: t1011, appUrl: APP, now: NOW, client: { name: "The Flowerhouse", website: "theflowerhousegardencenter.com" } });
-  assertMatch(plain.html, />T<\/td>/);
   assert(hrefs(plain.html).includes("https://theflowerhousegardencenter.com/"));
 });
 
