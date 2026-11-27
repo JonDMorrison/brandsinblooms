@@ -191,9 +191,9 @@ export const PosEulaPage = () => {
 
             <LegalSection id="law" title="13. Governing law">
               <p>
-                This agreement is governed by the laws of the province of Canada in which {legal_name} is
-                incorporated and the federal laws of Canada that apply there. The courts of that province
-                have jurisdiction over any dispute.
+                This agreement is governed by the laws of the Province of British Columbia and the federal
+                laws of Canada that apply there. The courts of British Columbia have jurisdiction over any
+                dispute.
               </p>
             </LegalSection>
 
