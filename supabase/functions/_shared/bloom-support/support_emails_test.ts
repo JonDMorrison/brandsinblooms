@@ -235,7 +235,7 @@ Deno.test("botanical palette and icon host match BloomSites premium-botanical.ts
   assert(html.includes("&lt;b&gt;t&lt;/b&gt;"));
   assertMatch(html, /<html lang="en" dir="ltr">/);
   assertMatch(html, /<body lang="en" dir="ltr"/);
-  assertNotMatch(html, /display:none|mso-hide:all|<img\\b/);
+  assertNotMatch(html, /display:none|mso-hide:all|<img\b/);
   assertMatch(html, /<table role="presentation" lang="en" dir="ltr"/);
   assertEquals((html.match(/<h1\b/g) ?? []).length, 1);
   assertEquals((html.match(/<h2\b/g) ?? []).length, 1);
