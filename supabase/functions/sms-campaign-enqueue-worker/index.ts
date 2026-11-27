@@ -39,6 +39,9 @@ const MAX_ENQUEUE_PAGES_PER_RUN = Number(
   Deno.env.get("SMS_MAX_ENQUEUE_PAGES_PER_RUN") ?? "3",
 );
 const DEFAULT_MMS_UNIT_COST = 3;
+// sms_send_jobs.priority; claim_sms_send_jobs claims lower values first.
+const VIP_JOB_PRIORITY = 10;
+const DEFAULT_JOB_PRIORITY = 100;
 const STALE_CLAIM_MINUTES = 15;
 
 const WORKER_ID = `enqueue-worker-${crypto.randomUUID().slice(0, 8)}`;
@@ -386,14 +389,9 @@ Deno.serve(async (req) => {
           // Default: all SMS-enabled customers
         }
 
-        // Apply ordering and cursor
-        if (campaign.priority_mode === "vip_first") {
-          query = query
-            .order("is_vip", { ascending: false })
-            .order("id", { ascending: true });
-        } else {
-          query = query.order("id", { ascending: true });
-        }
+        // Page by id only, matching the id cursor. VIP-first priority is
+        // applied to the send jobs below, not to the page order.
+        query = query.order("id", { ascending: true });
 
         if (cursorCustomerId) {
           query = query.gt("id", cursorCustomerId);
@@ -471,13 +469,9 @@ Deno.serve(async (req) => {
           .not("phone", "is", null)
           .not("phone", "eq", "");
 
-        if (campaign.priority_mode === "vip_first") {
-          query = query
-            .order("is_vip", { ascending: false })
-            .order("id", { ascending: true });
-        } else {
-          query = query.order("id", { ascending: true });
-        }
+        // Page by id only, matching the id cursor. VIP-first priority is
+        // applied to the send jobs below, not to the page order.
+        query = query.order("id", { ascending: true });
 
         if (cursorCustomerId) {
           query = query.gt("id", cursorCustomerId);
@@ -545,9 +539,13 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // Prepare message rows
+      // Prepare message rows. With vip_first, VIP and non-VIP recipients go
+      // into separate send jobs so VIP jobs carry the higher claim priority
+      // (claim_sms_send_jobs orders by priority ASC). Every page still follows
+      // the id cursor, so each eligible customer is queued exactly once.
+      const vipFirst = campaign.priority_mode === "vip_first";
+      const vipMessageRows: any[] = [];
       const messageRows: any[] = [];
-      let pageHasVip = false;
 
       for (const customer of eligibleCustomers) {
         const mergeTagData = createMergeTagDataFromCustomer(
@@ -557,14 +555,12 @@ Deno.serve(async (req) => {
         const renderedContent = keepSmsEncoding(messageTemplate, renderMergeTags(messageTemplate, mergeTagData));
         const formattedPhone = formatPhoneForTwilio(customer.phone);
 
-        if (customer.is_vip) pageHasVip = true;
-
         // Build media_urls array if there's an image
         const mediaUrls = campaign.image_url
           ? [campaign.image_url]
           : campaign.media_urls || null;
 
-        messageRows.push({
+        (vipFirst && customer.is_vip === true ? vipMessageRows : messageRows).push({
           tenant_id: campaign.tenant_id,
           campaign_id: campaign.id,
           customer_id: customer.id,
@@ -577,58 +573,64 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Insert messages in batches
-      const insertedMessageIds: string[] = [];
-      const messageChunks = chunkArray(messageRows, 100);
+      // Insert messages and their send jobs, VIP group first.
+      const recipientGroups = [
+        { rows: vipMessageRows, priority: VIP_JOB_PRIORITY },
+        { rows: messageRows, priority: DEFAULT_JOB_PRIORITY },
+      ];
 
-      for (const chunk of messageChunks) {
-        const { data: insertedMessages, error: insertError } = await supabase
-          .from("sms_messages")
-          .insert(chunk)
-          .select("id");
+      for (const group of recipientGroups) {
+        if (group.rows.length === 0) continue;
 
-        if (insertError) {
-          console.error(
-            "[sms-enqueue-worker] Failed to insert messages:",
-            insertError,
-          );
-          continue;
+        const insertedMessageIds: string[] = [];
+        for (const chunk of chunkArray(group.rows, 100)) {
+          const { data: insertedMessages, error: insertError } = await supabase
+            .from("sms_messages")
+            .insert(chunk)
+            .select("id");
+
+          if (insertError) {
+            console.error(
+              "[sms-enqueue-worker] Failed to insert messages:",
+              insertError,
+            );
+            continue;
+          }
+
+          insertedMessageIds.push(...(insertedMessages || []).map((m) => m.id));
         }
 
-        insertedMessageIds.push(...(insertedMessages || []).map((m) => m.id));
-      }
+        stats.messagesCreated += insertedMessageIds.length;
 
-      stats.messagesCreated += insertedMessageIds.length;
+        // Create send jobs in batches
+        const messageIdChunks = chunkArray(insertedMessageIds, JOB_BATCH_SIZE);
+        const jobRows = messageIdChunks.map((batchIds, index) => ({
+          tenant_id: campaign.tenant_id,
+          campaign_id: campaign.id,
+          from_phone: fromPhone,
+          messaging_service_sid: messagingServiceSid,
+          status: "pending",
+          recipient_message_ids: batchIds,
+          batch_index: stats.jobsCreated + index,
+          attempts: 0,
+          priority: group.priority,
+          partition_key: partitionKey,
+          scheduled_at: null,
+        }));
 
-      // Create send jobs in batches
-      const messageIdChunks = chunkArray(insertedMessageIds, JOB_BATCH_SIZE);
-      const jobRows = messageIdChunks.map((batchIds, index) => ({
-        tenant_id: campaign.tenant_id,
-        campaign_id: campaign.id,
-        from_phone: fromPhone,
-        messaging_service_sid: messagingServiceSid,
-        status: "pending",
-        recipient_message_ids: batchIds,
-        batch_index: stats.jobsCreated + index,
-        attempts: 0,
-        priority:
-          pageHasVip && campaign.priority_mode === "vip_first" ? 10 : 100,
-        partition_key: partitionKey,
-        scheduled_at: null,
-      }));
+        if (jobRows.length > 0) {
+          const { error: jobsError } = await supabase
+            .from("sms_send_jobs")
+            .insert(jobRows);
 
-      if (jobRows.length > 0) {
-        const { error: jobsError } = await supabase
-          .from("sms_send_jobs")
-          .insert(jobRows);
-
-        if (jobsError) {
-          console.error(
-            "[sms-enqueue-worker] Failed to create jobs:",
-            jobsError,
-          );
-        } else {
-          stats.jobsCreated += jobRows.length;
+          if (jobsError) {
+            console.error(
+              "[sms-enqueue-worker] Failed to create jobs:",
+              jobsError,
+            );
+          } else {
+            stats.jobsCreated += jobRows.length;
+          }
         }
       }
 
