@@ -221,9 +221,7 @@ Deno.test("botanical palette and icon host match BloomSites premium-botanical.ts
     page: "#FAF9F6", panel: "#F5F7F3", callout: "#F8F9F6", border: "#DBE3DF", white: "#FFFFFF",
   });
   for (const icon of ["sun", "water", "soil", "check", "truck", "calendar", "mail", "alert", "leaf"] as const) {
-    const img = botanicalEmailIcon(icon);
-    assert(img.includes(`src="https://bloomsites.app/email/premium-icons/${icon}.png"`), icon);
-    assert(img.includes('alt=""'), icon);
+    assertEquals(botanicalEmailIcon(icon), "", icon);
   }
   const html = renderBotanicalEmail({
     header: "Bloom Support",
@@ -237,7 +235,7 @@ Deno.test("botanical palette and icon host match BloomSites premium-botanical.ts
   assert(html.includes("&lt;b&gt;t&lt;/b&gt;"));
   assertMatch(html, /<html lang="en" dir="ltr">/);
   assertMatch(html, /<body lang="en" dir="ltr"/);
-  assertMatch(html, /<div lang="en" dir="ltr" style="display:none/);
+  assertNotMatch(html, /display:none|mso-hide:all|<img\b/);
   assertMatch(html, /<table role="presentation" lang="en" dir="ltr"/);
   assertEquals((html.match(/<h1\b/g) ?? []).length, 1);
   assertEquals((html.match(/<h2\b/g) ?? []).length, 1);

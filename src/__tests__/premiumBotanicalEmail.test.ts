@@ -5,18 +5,18 @@ import {
 } from "../lib/email/premiumBotanical";
 
 describe("premium botanical system email",()=>{
-  it("renders Outlook/Gmail-safe markup and first-party decorative icons",()=>{
+  it("renders email-safe markup without remote images or hidden preview text",()=>{
     const html=renderBloomSystemEmail({
       eyebrow:"TRIAL UPDATE",title:"Welcome to BloomSuite",preheader:"Your account is ready",
       bodyHtml:"<p>Your trial is active.</p>",icon:"leaf",
       action:{label:"Review setup",url:"https://bloomsuite.app/settings"},
     });
     expect(html).toContain('role="presentation"');
-    expect(html).toContain("premium-icons/leaf.png");
-    expect(html).toContain('alt=""');
     expect(html).toContain("Your trial is active.");
     expect(html).toContain("https://bloomsuite.app/settings");
-    expect(html).toContain("mso-hide:all");
+    expect(html).not.toContain("<img");
+    expect(html).not.toContain("mso-hide:all");
+    expect(html).not.toContain("display:none");
     expect(html).not.toContain("<svg");
     expect(html).not.toContain("fonts.googleapis");
   });
@@ -36,6 +36,7 @@ describe("premium botanical system email",()=>{
     const row=bloomEmailFact("A<script>","B <img>","water");
     expect(row).toContain("&lt;script&gt;");
     expect(row).toContain("&lt;img&gt;");
+    expect(row).not.toContain("<img");
     expect(row).not.toContain("<script>");
   });
   it("uses tasteful labels and separate facts without inventing values",()=>{
@@ -44,9 +45,7 @@ describe("premium botanical system email",()=>{
       {icon:"water",label:"Water",value:"Even moisture"},
       {icon:"soil",label:"Soil",value:"Well drained"},
     ]);
-    expect(html).toContain("premium-icons/sun.png");
-    expect(html).toContain("premium-icons/water.png");
-    expect(html).toContain("premium-icons/soil.png");
+    expect(html).not.toContain("<img");
     expect(html).toContain("Morning sun");
     expect(html).toContain("Even moisture");
     expect(html).toContain("Well drained");

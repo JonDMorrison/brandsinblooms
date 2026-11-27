@@ -20,27 +20,22 @@ export const BLOOM_EMAIL = Object.freeze({
   muted:"#5B6B79",
 });
 export type BloomEmailIcon = "sun"|"water"|"soil"|"check"|"truck"|"calendar"|"mail"|"alert"|"leaf";
-const ICONS="https://bloomsites.app/email/premium-icons/";
 export const bloomEmailEscape=(v:unknown)=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]!));
-export function bloomEmailIcon(name:BloomEmailIcon,size=44):string{
-  const n=Math.max(20,Math.min(56,Math.round(size)));
-  return '<img src="'+ICONS+name+'.png" alt="" width="'+n+'" height="'+n+
-    '" style="display:block;border:0;width:'+n+'px;height:'+n+'px;object-fit:contain"/>';
+export function bloomEmailIcon(_name:BloomEmailIcon,_size=44):string{
+  // Keep the compatibility API while avoiding remote artwork in system mail.
+  return "";
 }
 function verifiedLink(v:string):string{
   try{const u=new URL(v);return u.protocol==="https:"&&!u.username&&!u.password&&u.href.length<=2048?u.href:"";}catch{return "";}
 }
-export function bloomEmailFact(label:string,value:string,icon:BloomEmailIcon="leaf"):string{
- const t=BLOOM_EMAIL;return '<tr><td width="54" valign="top" style="width:54px;padding:12px 8px 14px 2px;border-bottom:1px solid '+
- t.border+'">'+bloomEmailIcon(icon,42)+'</td><td valign="top" style="padding:14px 2px;border-bottom:1px solid '+t.border+
- ';font-size:15px;line-height:1.65;color:'+t.body+'"><strong style="color:'+t.navy+'">'+bloomEmailEscape(label)+
+export function bloomEmailFact(label:string,value:string,_icon:BloomEmailIcon="leaf"):string{
+ const t=BLOOM_EMAIL;return '<tr><td valign="top" style="padding:14px 2px;border-bottom:1px solid '+t.border+';font-size:15px;line-height:1.65;color:'+t.body+'"><strong style="color:'+t.navy+'">'+bloomEmailEscape(label)+
  '</strong><span>&nbsp; · &nbsp;</span>'+bloomEmailEscape(value)+'</td></tr>';
 }
-export function bloomEmailCard(title:string,rows:Array<{label:string;value:string;icon:BloomEmailIcon}>,icon:BloomEmailIcon="leaf"):string{
+export function bloomEmailCard(title:string,rows:Array<{label:string;value:string;icon:BloomEmailIcon}>,_icon:BloomEmailIcon="leaf"):string{
  if(!rows.length)return "";const t=BLOOM_EMAIL;
  return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;margin:18px 0;border:1px solid '+t.border+';border-radius:14px;background:#FFFFFF"><tr><td style="padding:18px">'+
- '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td valign="middle" style="color:'+t.navy+';font-size:20px;line-height:1.3;font-weight:700">'+bloomEmailEscape(title)+'</td>'+
- '<td width="48" align="right">'+bloomEmailIcon(icon,42)+'</td></tr></table>'+
+ '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td valign="middle" style="color:'+t.navy+';font-size:20px;line-height:1.3;font-weight:700">'+bloomEmailEscape(title)+'</td></tr></table>'+
  '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">'+
  rows.map(row=>bloomEmailFact(row.label,row.value,row.icon)).join("")+'</table></td></tr></table>';
 }
@@ -58,7 +53,6 @@ export function renderBloomSystemEmail(p:BloomSystemEmail):string{
  const button=action?'<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:22px 0"><tr><td bgcolor="'+t.navy+'" style="border-radius:8px;background:'+t.navy+'"><a href="'+bloomEmailEscape(action)+'" style="display:inline-block;padding:15px 22px;color:#FFFFFF;font-size:15px;line-height:22px;font-weight:700;text-decoration:none">'+bloomEmailEscape(p.action!.label)+'</a></td></tr></table>':"";
  return '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="x-apple-disable-message-reformatting"><title>'+
  bloomEmailEscape(p.title)+'</title></head><body style="margin:0;padding:0;color:'+t.navy+';background:'+t.ivory+';font-family:Arial,Helvetica,sans-serif">'+
- '<div style="display:none;max-height:0;max-width:0;overflow:hidden;opacity:0;mso-hide:all">'+bloomEmailEscape(p.preheader||p.title)+'</div>'+
  '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:'+t.ivory+'"><tr><td align="center" style="padding:24px 12px">'+
  '<table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:600px;border:1px solid '+t.border+';border-radius:16px;background:#FFFFFF;overflow:hidden">'+
  '<tr><td bgcolor="'+t.navy+'" style="padding:25px 28px;background:'+t.navy+';color:#FFFFFF;font-size:22px;line-height:28px;font-weight:700">'+brand+'</td></tr>'+
