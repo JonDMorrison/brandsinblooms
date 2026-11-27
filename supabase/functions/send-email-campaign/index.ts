@@ -33,7 +33,7 @@ import { resolveCampaignEmailSource } from "../_shared/campaignEmailContent.ts";
 import { COMPANY_PROFILE_WITH_DESIGN_SYSTEM_SELECT } from "../_shared/resolveDesignSystem.ts";
 import { resolveCampaignSenderDisplayName } from "../_shared/campaignFromHeader.ts";
 import { canQueueCampaignForTenant } from "../../../src/lib/auth/crmAccess.ts";
-import { resolveBusinessProfileUserId } from "../_shared/businessProfileUserId.ts";
+import { resolveCampaignBusinessProfileUserId } from "../_shared/businessProfileUserId.ts";
 import { resolveCampaignPostalAddress } from "../_shared/campaignPostalAddress.ts";
 import { MISSING_POSTAL_ADDRESS_MESSAGE } from "../../../src/lib/studio/businessPlaceholders.ts";
 import type { ServerCompanyProfileShape } from "../_shared/resolveDesignSystem.ts";
@@ -1028,7 +1028,12 @@ serve(async (req: Request) => {
     const spamScoreThreshold = governanceConfig.compliance.spam_score_threshold;
 
     // Get company profile
-    const profileUserId = await resolveBusinessProfileUserId(supabase, campaign.user_id);
+    // The campaign's business, not the creator's own (a master admin working
+    // in a client's tenant creates campaigns there).
+    const profileUserId = await resolveCampaignBusinessProfileUserId(supabase, {
+      tenantId: campaignTenantId,
+      userId: campaign.user_id,
+    });
     const { data: companyProfile } = await supabase
       .from("company_profiles")
       .select(COMPANY_PROFILE_WITH_DESIGN_SYSTEM_SELECT)

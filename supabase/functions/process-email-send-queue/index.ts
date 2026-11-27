@@ -24,7 +24,7 @@ import {
   type CampaignEmailSource,
 } from "../_shared/campaignEmailContent.ts";
 import { COMPANY_PROFILE_WITH_DESIGN_SYSTEM_SELECT } from "../_shared/resolveDesignSystem.ts";
-import { resolveBusinessProfileUserId } from "../_shared/businessProfileUserId.ts";
+import { resolveCampaignBusinessProfileUserId } from "../_shared/businessProfileUserId.ts";
 import { resolveCampaignSenderDisplayName } from "../_shared/campaignFromHeader.ts";
 
 const corsHeaders = {
@@ -1839,10 +1839,15 @@ serve((req: Request) => {
 
                 if (campaign?.user_id) {
                   const campaignUserId = String(campaign.user_id);
-                  let userId = profileUserIdCache.get(campaignUserId);
+                  const campaignTenant = campaign.tenant_id ? String(campaign.tenant_id) : null;
+                  const profileCacheKey = `${campaignTenant ?? ""}:${campaignUserId}`;
+                  let userId = profileUserIdCache.get(profileCacheKey);
                   if (!userId) {
-                    userId = await resolveBusinessProfileUserId(supabase, campaignUserId);
-                    profileUserIdCache.set(campaignUserId, userId);
+                    userId = await resolveCampaignBusinessProfileUserId(supabase, {
+                      tenantId: campaignTenant,
+                      userId: campaignUserId,
+                    });
+                    profileUserIdCache.set(profileCacheKey, userId);
                   }
                   if (!companyProfileCache.has(userId)) {
                     const { data: pRow, error: pErr } = await supabase

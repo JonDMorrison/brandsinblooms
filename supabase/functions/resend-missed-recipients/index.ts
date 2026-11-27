@@ -15,7 +15,7 @@ import { rewriteLinksSync } from "../_shared/linkRewriter.ts";
 import { canSendEmailBatch, logSkippedSends } from "../_shared/canSendEmail.ts";
 import { getEmailGovernanceRuntimeConfig } from "../_shared/emailGovernanceConfig.ts";
 import { systemPauseEmailCampaignSending } from "../_shared/systemPauseCampaign.ts";
-import { resolveBusinessProfileUserId } from "../_shared/businessProfileUserId.ts";
+import { resolveCampaignBusinessProfileUserId } from "../_shared/businessProfileUserId.ts";
 import {
   resolveCampaignSegmentIds,
   resolveSegmentAudienceCustomerIds,
@@ -628,7 +628,10 @@ serve(async (req) => {
     }
 
     // Get company profile
-    const profileUserId = await resolveBusinessProfileUserId(supabase, campaign.user_id);
+    const profileUserId = await resolveCampaignBusinessProfileUserId(supabase, {
+      tenantId: campaign.tenant_id ?? null,
+      userId: campaign.user_id,
+    });
     const { data: companyProfile } = await supabase
       .from("company_profiles")
       .select(
