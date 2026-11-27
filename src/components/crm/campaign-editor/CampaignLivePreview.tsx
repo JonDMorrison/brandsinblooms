@@ -1,5 +1,6 @@
 import * as React from "react";
 import Box from "@mui/joy/Box";
+import Button from "@mui/joy/Button";
 import Skeleton from "@mui/joy/Skeleton";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
@@ -8,8 +9,8 @@ import type { StudioDesignSystem } from "@/lib/studio/designSystem";
 import type { StudioBlock } from "@/types/studioBlocks";
 import { buildCampaignPreviewHtml } from "@/lib/crm/campaignPreviewHtml";
 import {
-  CAMPAIGN_EDITOR_COLORS as C,
   campaignEditorCardSx,
+  campaignEditorFocusOutline,
 } from "@/components/crm/campaign-editor/campaignEditorTheme";
 
 /** Width the email is laid out at before it is scaled into the frame. */
@@ -21,7 +22,7 @@ const THUMBNAIL_WIDTH = 600;
  * styles of its own: colours are inverted, photos are inverted back.
  */
 const DARK_MODE_STYLE =
-  "<style data-preview-dark>html{background:#fff;filter:invert(1) hue-rotate(180deg);}img,video,[background],[style*='background-image']{filter:invert(1) hue-rotate(180deg);}</style>";
+  "<style data-preview-dark>html{background:white;filter:invert(1) hue-rotate(180deg);}img,video,[background],[style*='background-image']{filter:invert(1) hue-rotate(180deg);}</style>";
 
 function withDarkMode(html: string) {
   return html.includes("</head>")
@@ -75,9 +76,10 @@ export function CampaignEmailThumbnail({
         height,
         flexShrink: 0,
         overflow: "hidden",
-        borderRadius: "10px",
-        border: `1px solid ${C.cardBorder}`,
-        bgcolor: "#FFFFFF",
+        borderRadius: "lg",
+        border: "1px solid",
+        borderColor: "divider",
+        bgcolor: "background.surface",
         position: "relative",
       }}
     >
@@ -115,32 +117,23 @@ function ToggleButton({
   children: React.ReactNode;
 }) {
   return (
-    <Box
-      component="button"
-      type="button"
+    <Button
       aria-pressed={pressed}
       onClick={onClick}
+      color={pressed ? "primary" : "neutral"}
+      variant={pressed ? "solid" : "outlined"}
+      startDecorator={icon}
       sx={{
-        all: "unset",
-        boxSizing: "border-box",
         minHeight: 44,
         px: 1.5,
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 0.75,
-        borderRadius: "10px",
-        cursor: "pointer",
-        fontSize: 15,
-        fontWeight: 600,
-        border: `1px solid ${pressed ? C.primary : C.cardBorder}`,
-        bgcolor: pressed ? C.primary : "#FFFFFF",
-        color: pressed ? "#FFFFFF" : C.text,
-        "&:focus-visible": { outline: `3px solid ${C.primary}`, outlineOffset: 2 },
+        "--Button-gap": "6px",
+        fontSize: "md",
+        fontWeight: "lg",
+        "&:focus-visible": { outline: campaignEditorFocusOutline, outlineOffset: 2 },
       }}
     >
-      {icon}
       {children}
-    </Box>
+    </Button>
   );
 }
 
@@ -179,10 +172,30 @@ export function CampaignLivePreview({
   const frameWidth = DEVICE_WIDTH[device];
   const scale = containerWidth > 0 ? Math.min(1, containerWidth / frameWidth) : 1;
 
+  // The preview box is one scroll container kept across views, so without a
+  // reset its scroll position carries over: switching Mobile, Desktop or Dark
+  // (or the email arriving after the skeleton) left the email part-way down
+  // and the first block out of sight. Each of those starts at the top. The
+  // email is rendered fresh after Dark changes and when content first arrives,
+  // so the iframe's own document is also reset once it has loaded.
+  const resetOnNextLoadRef = React.useRef(true);
+  const showEmail = !loading && hasContent;
+  React.useLayoutEffect(() => {
+    resetOnNextLoadRef.current = true;
+  }, [dark, showEmail]);
+  React.useLayoutEffect(() => {
+    if (containerRef.current) containerRef.current.scrollTop = 0;
+  }, [containerRef, dark, device, showEmail]);
+
   const handleLoad = (event: React.SyntheticEvent<HTMLIFrameElement>) => {
     observerRef.current?.disconnect();
     const doc = event.currentTarget.contentDocument;
     if (!doc?.body) return;
+    if (resetOnNextLoadRef.current) {
+      resetOnNextLoadRef.current = false;
+      doc.scrollingElement?.scrollTo(0, 0);
+      if (containerRef.current) containerRef.current.scrollTop = 0;
+    }
     const measure = () => setFrameHeight(Math.max(400, doc.body.scrollHeight + 16));
     measure();
     doc.addEventListener("click", (clickEvent) => clickEvent.preventDefault());
@@ -200,7 +213,7 @@ export function CampaignLivePreview({
       sx={{ ...campaignEditorCardSx, p: { xs: 1.5, sm: 2 }, display: "flex", flexDirection: "column", gap: 1.5, minHeight: 0 }}
     >
       <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1} useFlexGap flexWrap="wrap">
-        <Typography component="h2" sx={{ fontSize: 16, fontWeight: 700, color: C.text }}>
+        <Typography component="h2" level="title-md" sx={{ fontWeight: "xl", color: "text.primary" }}>
           Live preview
         </Typography>
         <Stack direction="row" spacing={0.75} role="group" aria-label="Preview view">
@@ -227,14 +240,14 @@ export function CampaignLivePreview({
           </ToggleButton>
         </Stack>
       </Stack>
-      <Typography sx={{ fontSize: 14, color: C.muted }}>
+      <Typography level="body-sm" sx={{ color: "text.secondary" }}>
         Personalisation uses a sample customer.{dark ? " Dark shows roughly how dark-mode inboxes recolour this email." : ""}
       </Typography>
       <Box
         ref={containerRef}
         sx={{
-          borderRadius: "10px",
-          bgcolor: dark ? "#1E2321" : "#EFEDE7",
+          borderRadius: "lg",
+          bgcolor: dark ? "neutral.800" : "background.level2",
           p: 0,
           overflowY: "auto",
           overflowX: "hidden",
@@ -268,16 +281,19 @@ export function CampaignLivePreview({
                 height: frameHeight,
                 transform: `scale(${scale})`,
                 transformOrigin: "0 0",
-                background: "#FFFFFF",
+                background: "var(--joy-palette-background-surface)",
               }}
             />
           </Box>
         ) : (
           <Stack alignItems="center" spacing={1} sx={{ py: 6, px: 3, textAlign: "center" }}>
-            <Typography sx={{ fontSize: 16, fontWeight: 700, color: dark ? "#F6F5F1" : C.text }}>
+            <Typography
+              level="title-md"
+              sx={{ fontWeight: "xl", color: dark ? "common.white" : "text.primary" }}
+            >
               Nothing to preview yet
             </Typography>
-            <Typography sx={{ fontSize: 14, color: dark ? "#D6D3CB" : C.muted }}>
+            <Typography level="body-sm" sx={{ color: dark ? "neutral.200" : "text.secondary" }}>
               Choose a design in step 1 and your email appears here.
             </Typography>
           </Stack>

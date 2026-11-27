@@ -7,7 +7,6 @@ import { JoyButton } from "@/components/joy/JoyButton";
 import { JoyInput } from "@/components/joy/JoyInput";
 import type { IdentityField, IdentityMismatch } from "@/lib/crm/identityConsistency";
 import type { SenderClassification } from "@/lib/crm/senderSeverity";
-import { CAMPAIGN_EDITOR_COLORS as C } from "@/components/crm/campaign-editor/campaignEditorTheme";
 
 type SenderField = "senderName" | "senderEmail" | "footerBusinessName";
 
@@ -34,16 +33,19 @@ function InlineWarning({
       sx={{
         mt: 1,
         p: 1.25,
-        borderRadius: "10px",
-        bgcolor: C.warningBg,
-        border: `1px solid ${C.warningBorder}`,
-        color: C.warningText,
+        borderRadius: "lg",
+        bgcolor: "warning.softBg",
+        border: "1px solid",
+        borderColor: "warning.outlinedBorder",
+        color: "warning.softColor",
       }}
     >
       <Stack direction="row" spacing={1} alignItems="flex-start">
         <AlertTriangle size={18} aria-hidden style={{ flexShrink: 0, marginTop: 2 }} />
         <Stack spacing={1} sx={{ minWidth: 0 }}>
-          <Typography sx={{ fontSize: 15, color: C.warningText }}>{children}</Typography>
+          <Typography level="body-md" sx={{ color: "warning.softColor" }}>
+            {children}
+          </Typography>
           {action}
         </Stack>
       </Stack>
@@ -100,16 +102,22 @@ export function CampaignSenderStep({
     if (campaignType !== "email") return null;
     if (domainStatusLoading) {
       return (
-        <Typography sx={{ fontSize: 14, color: C.muted, mt: 0.75 }} role="status">
+        <Typography level="body-sm" sx={{ color: "text.secondary", mt: 0.75 }} role="status">
           Checking your sending domain…
         </Typography>
       );
     }
     if (senderClassification.status === "ready") {
       return (
-        <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mt: 0.75 }} data-testid="sender-domain-verified">
-          <CheckCircle2 size={18} color={C.success} aria-hidden />
-          <Typography sx={{ fontSize: 14, color: C.success, fontWeight: 600 }}>
+        <Stack
+          direction="row"
+          spacing={0.75}
+          alignItems="center"
+          sx={{ mt: 0.75, color: "success.plainColor" }}
+          data-testid="sender-domain-verified"
+        >
+          <CheckCircle2 size={18} aria-hidden />
+          <Typography level="body-sm" sx={{ color: "success.plainColor", fontWeight: "lg" }}>
             Sending domain verified
           </Typography>
         </Stack>

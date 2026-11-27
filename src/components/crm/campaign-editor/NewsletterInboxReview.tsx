@@ -301,7 +301,7 @@ export function NewsletterInboxReview({
             p: 1.75,
             border: "1px solid",
             borderColor: "neutral.200",
-            borderRadius: "12px",
+            borderRadius: "lg",
             bgcolor: "background.surface",
           }}
         >
@@ -312,10 +312,10 @@ export function NewsletterInboxReview({
               height: 40,
               flexShrink: 0,
               borderRadius: "50%",
-              bgcolor: "primary.500",
-              color: "#FFFFFF",
-              fontWeight: 700,
-              fontSize: 18,
+              bgcolor: "primary.solidBg",
+              color: "primary.solidColor",
+              fontWeight: "xl",
+              fontSize: "lg",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -325,14 +325,14 @@ export function NewsletterInboxReview({
           </Box>
           <Box sx={{ minWidth: 0, flex: 1 }}>
             <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="baseline">
-              <Typography sx={{ fontWeight: 700, fontSize: 15 }} noWrap>
+              <Typography level="body-md" sx={{ fontWeight: "xl", color: "text.primary" }} noWrap>
                 {fromLabel}
               </Typography>
               <Typography level="body-sm" textColor="text.secondary" sx={{ flexShrink: 0 }}>
                 {inboxTime}
               </Typography>
             </Stack>
-            <Typography sx={{ fontWeight: 700, fontSize: 15 }} noWrap>
+            <Typography level="body-md" sx={{ fontWeight: "xl", color: "text.primary" }} noWrap>
               {showSampleFirstName(subject) || "Your subject will appear here"}
             </Typography>
             <Typography level="body-sm" textColor="text.secondary" noWrap>

@@ -1,11 +1,12 @@
 import * as React from "react";
 import Box from "@mui/joy/Box";
+import Chip from "@mui/joy/Chip";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
 import { Check, ChevronDown } from "lucide-react";
 import {
-  CAMPAIGN_EDITOR_COLORS as C,
   campaignEditorCardSx,
+  campaignEditorFocusOutline,
 } from "@/components/crm/campaign-editor/campaignEditorTheme";
 
 /** What a step header says about the step. */
@@ -18,48 +19,45 @@ export type CampaignStepState =
 export function CampaignStepBadge({ state }: { state: CampaignStepState }) {
   if (state.kind === "done") {
     return (
-      <Box
+      <Typography
         component="span"
+        level="body-sm"
         data-testid="campaign-step-badge-done"
-        sx={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 0.5,
-          color: C.success,
-          fontSize: 14,
-          fontWeight: 600,
-        }}
+        startDecorator={
+          <Box
+            component="span"
+            aria-hidden
+            sx={{
+              width: 22,
+              height: 22,
+              borderRadius: "50%",
+              bgcolor: "success.solidBg",
+              color: "success.solidColor",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Check size={14} strokeWidth={3} />
+          </Box>
+        }
+        sx={{ "--Typography-gap": "4px", color: "success.plainColor", fontWeight: "lg" }}
       >
-        <Box
-          component="span"
-          aria-hidden
-          sx={{
-            width: 22,
-            height: 22,
-            borderRadius: "50%",
-            bgcolor: C.success,
-            color: "#FFFFFF",
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <Check size={14} strokeWidth={3} />
-        </Box>
         Done
-      </Box>
+      </Typography>
     );
   }
 
   if (state.kind === "optional") {
     return (
-      <Box
+      <Typography
         component="span"
+        level="body-sm"
         data-testid="campaign-step-badge-optional"
-        sx={{ color: C.muted, fontSize: 14, fontWeight: 500 }}
+        sx={{ color: "text.secondary", fontWeight: "md" }}
       >
         Optional
-      </Box>
+      </Typography>
     );
   }
 
@@ -69,46 +67,46 @@ export function CampaignStepBadge({ state }: { state: CampaignStepState }) {
       : `${state.count} ${state.count === 1 ? "issue" : "issues"}`;
 
   return (
-    <Box
+    <Chip
       component="span"
+      size="sm"
+      variant="soft"
+      color="warning"
       data-testid={`campaign-step-badge-${state.kind}`}
+      startDecorator={
+        state.kind === "attention" ? (
+          <Box
+            component="span"
+            aria-hidden
+            sx={{
+              minWidth: 20,
+              height: 20,
+              px: 0.5,
+              borderRadius: "xl",
+              bgcolor: "warning.solidBg",
+              color: "warning.solidColor",
+              fontSize: "xs",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            {state.count}
+          </Box>
+        ) : undefined
+      }
       sx={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 0.75,
-        px: 1,
-        py: 0.25,
-        borderRadius: "999px",
-        bgcolor: C.warningBg,
-        border: `1px solid ${C.warningBorder}`,
-        color: C.warningText,
-        fontSize: 14,
-        fontWeight: 600,
+        "--Chip-gap": "6px",
+        border: "1px solid",
+        borderColor: "warning.outlinedBorder",
+        fontSize: "sm",
+        fontWeight: "lg",
         lineHeight: 1.4,
+        py: 0.25,
       }}
     >
-      {state.kind === "attention" ? (
-        <Box
-          component="span"
-          aria-hidden
-          sx={{
-            minWidth: 20,
-            height: 20,
-            px: 0.5,
-            borderRadius: "999px",
-            bgcolor: C.warningText,
-            color: "#FFFFFF",
-            fontSize: 12,
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          {state.count}
-        </Box>
-      ) : null}
-      <span>{state.kind === "attention" ? `Needs attention: ${label}` : label}</span>
-    </Box>
+      {state.kind === "attention" ? `Needs attention: ${label}` : label}
+    </Chip>
   );
 }
 
@@ -173,11 +171,12 @@ export function CampaignEditorStep({
           alignItems: "center",
           gap: 1.5,
           cursor: "pointer",
-          color: C.text,
-          borderBottom: expanded ? `1px solid ${C.cardBorder}` : "none",
-          "&:hover": { bgcolor: "#FAF9F6" },
+          color: "text.primary",
+          borderBottom: expanded ? "1px solid" : "none",
+          borderColor: "divider",
+          "&:hover": { bgcolor: "background.level2" },
           "&:focus-visible": {
-            outline: `3px solid ${C.primary}`,
+            outline: campaignEditorFocusOutline,
             outlineOffset: "-3px",
           },
         }}
@@ -190,10 +189,11 @@ export function CampaignEditorStep({
             height: 32,
             flexShrink: 0,
             borderRadius: "50%",
-            border: `1.5px solid ${C.primary}`,
-            color: C.primary,
-            fontWeight: 700,
-            fontSize: 15,
+            border: "1.5px solid",
+            borderColor: "primary.solidBg",
+            color: "primary.plainColor",
+            fontWeight: "xl",
+            fontSize: "sm",
             display: "inline-flex",
             alignItems: "center",
             justifyContent: "center",
@@ -204,7 +204,8 @@ export function CampaignEditorStep({
         <Stack component="span" spacing={0.25} sx={{ minWidth: 0, flex: 1 }}>
           <Typography
             component="span"
-            sx={{ fontSize: 18, fontWeight: 700, color: C.text, lineHeight: 1.3 }}
+            level="title-lg"
+            sx={{ fontWeight: "xl", color: "text.primary", lineHeight: 1.3 }}
           >
             <Box component="span" sx={visuallyHidden}>
               {`Step ${number}: `}
@@ -214,10 +215,10 @@ export function CampaignEditorStep({
           {!expanded && summary ? (
             <Typography
               component="span"
+              level="body-sm"
               sx={{
                 display: "block",
-                fontSize: 14,
-                color: C.muted,
+                color: "text.secondary",
                 overflow: "hidden",
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
@@ -233,7 +234,7 @@ export function CampaignEditorStep({
           aria-hidden
           sx={{
             display: "inline-flex",
-            color: C.muted,
+            color: "text.secondary",
             transform: expanded ? "rotate(180deg)" : "none",
             transition: "transform 0.16s ease",
             "@media (prefers-reduced-motion: reduce)": { transition: "none" },

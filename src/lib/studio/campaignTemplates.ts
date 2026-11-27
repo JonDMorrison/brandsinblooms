@@ -94,6 +94,12 @@ type TemplateBlockOptions = {
   layout?: string;
 };
 
+/**
+ * Accent stored on the templates the campaign editor builds on the fly
+ * (blank, saved and weekly-theme designs). It is email template data.
+ */
+export const EDITOR_TEMPLATE_ACCENT_COLOR = "#1F4341";
+
 const TEMPLATE_PAPER = "#fbfaf6";
 const TEMPLATE_CREAM = "#f6f2e8";
 

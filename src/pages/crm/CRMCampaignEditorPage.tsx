@@ -79,7 +79,7 @@ import { CampaignDesignSummary } from "@/components/crm/campaign-editor/Campaign
 import { CampaignLivePreview } from "@/components/crm/campaign-editor/CampaignLivePreview";
 import { CampaignSenderStep } from "@/components/crm/campaign-editor/CampaignSenderStep";
 import {
-  CAMPAIGN_EDITOR_COLORS,
+  campaignEditorFocusOutline,
   campaignEditorPageSx,
 } from "@/components/crm/campaign-editor/campaignEditorTheme";
 import StudioPreviewDialog from "@/components/crm/studio/StudioPreviewDialog";
@@ -139,6 +139,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   applyCampaignTemplate,
   CAMPAIGN_TEMPLATES,
+  EDITOR_TEMPLATE_ACCENT_COLOR,
   getTemplateForIntent,
   type CampaignIntentKey,
   type CampaignTemplate,
@@ -511,7 +512,7 @@ function CampaignEditorLoadingSkeleton() {
           <Sheet
             variant="outlined"
             sx={{
-              borderRadius: "12px",
+              borderRadius: "lg",
               borderColor: "neutral.100",
               overflow: "hidden",
               px: 2.5,
@@ -573,7 +574,7 @@ function CampaignEditorLoadingSkeleton() {
                 </Box>
                 <Skeleton
                   variant="rectangular"
-                  sx={{ width: 64, height: 22, borderRadius: "6px" }}
+                  sx={{ width: 64, height: 22, borderRadius: "md" }}
                 />
               </Box>
             ))}
@@ -581,7 +582,7 @@ function CampaignEditorLoadingSkeleton() {
 
           <Skeleton
             variant="rectangular"
-            sx={{ width: "100%", height: 44, borderRadius: "10px", mt: 2 }}
+            sx={{ width: "100%", height: 44, borderRadius: "lg", mt: 2 }}
           />
 
           <Box
@@ -594,7 +595,7 @@ function CampaignEditorLoadingSkeleton() {
           >
             <Skeleton
               variant="rectangular"
-              sx={{ width: 240, height: 48, borderRadius: "12px" }}
+              sx={{ width: 240, height: 48, borderRadius: "lg" }}
             />
             <Skeleton variant="text" sx={{ width: 120, height: 14, mt: 1.5 }} />
           </Box>
@@ -1543,7 +1544,7 @@ function CampaignEditorScreen() {
       summary: theme.idea.description,
       season: "evergreen",
       tags: ["weekly-theme"],
-      accentColor: "#1F4341",
+      accentColor: EDITOR_TEMPLATE_ACCENT_COLOR,
       subjectLine: preview.subjectLine,
       previewText: preview.preheaderText,
       thumbnailBlocks: [],
@@ -1664,7 +1665,7 @@ function CampaignEditorScreen() {
             summary: "",
             season: "evergreen",
             tags: [],
-            accentColor: "#1F4341",
+            accentColor: EDITOR_TEMPLATE_ACCENT_COLOR,
             subjectLine,
             previewText: preheaderText,
             thumbnailBlocks: [],
@@ -1702,7 +1703,7 @@ function CampaignEditorScreen() {
           summary: template.description ?? "",
           season: "evergreen",
           tags: [],
-          accentColor: "#1F4341",
+          accentColor: EDITOR_TEMPLATE_ACCENT_COLOR,
           subjectLine: subjectLine,
           previewText: preheaderText,
           thumbnailBlocks: [],
@@ -1853,7 +1854,6 @@ function CampaignEditorScreen() {
     );
   }
 
-  const C = CAMPAIGN_EDITOR_COLORS;
   const studioDisabledReason = isLocked
     ? "This campaign has already been sent"
     : pendingTemplateSave
@@ -1916,8 +1916,9 @@ function CampaignEditorScreen() {
           position: "sticky",
           top: 0,
           zIndex: 20,
-          bgcolor: C.pageBg,
-          borderBottom: `1px solid ${C.cardBorder}`,
+          bgcolor: "background.body",
+          borderBottom: "1px solid",
+          borderColor: "divider",
           pt: { xs: 1.5, md: 2 },
           pb: 1.5,
           mb: 2,
@@ -1927,16 +1928,16 @@ function CampaignEditorScreen() {
           component={Link}
           to="/crm/campaigns"
           sx={{
-            color: C.muted,
+            typography: "body-md",
+            color: "text.secondary",
             textDecoration: "none",
             display: "inline-flex",
             alignItems: "center",
             gap: 0.5,
             minHeight: 44,
-            fontSize: 15,
-            fontWeight: 600,
-            "&:hover": { color: C.text, textDecoration: "underline" },
-            "&:focus-visible": { outline: `3px solid ${C.primary}`, outlineOffset: 2, borderRadius: "6px" },
+            fontWeight: "lg",
+            "&:hover": { color: "text.primary", textDecoration: "underline" },
+            "&:focus-visible": { outline: campaignEditorFocusOutline, outlineOffset: 2, borderRadius: "md" },
           }}
         >
           <ArrowLeft size={16} aria-hidden />
@@ -1949,14 +1950,28 @@ function CampaignEditorScreen() {
           alignItems={{ xs: "stretch", md: "flex-end" }}
         >
           <Stack spacing={0.75} sx={{ minWidth: 0, flex: 1 }}>
-            <Box
+            <Typography
               component="label"
               htmlFor="campaign-editor-name"
-              sx={{ fontSize: 13, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: C.muted }}
+              level="body-xs"
+              sx={{ fontWeight: "xl", letterSpacing: "0.06em", textTransform: "uppercase", color: "text.secondary" }}
             >
               Campaign name
-            </Box>
-            <Box component="h1" sx={{ m: 0 }}>
+            </Typography>
+            {/* The name field is the page heading: Joy's h1 level, set in the
+                theme's display font (Inter). The input inherits it. */}
+            <Typography
+              component="h1"
+              level="h1"
+              sx={(theme) => ({
+                m: 0,
+                fontFamily: theme.vars.fontFamily.display,
+                fontSize: theme.vars.fontSize.xl3,
+                fontWeight: theme.vars.fontWeight.bold,
+                lineHeight: 1.25,
+                color: "text.primary",
+              })}
+            >
               <Box
                 component="input"
                 id="campaign-editor-name"
@@ -1974,19 +1989,14 @@ function CampaignEditorScreen() {
                   minHeight: 44,
                   px: 0.75,
                   mx: -0.75,
-                  borderRadius: "8px",
-                  fontFamily: "Georgia, 'Times New Roman', serif",
-                  fontSize: 28,
-                  fontWeight: 600,
-                  lineHeight: 1.25,
-                  color: C.text,
+                  borderRadius: "lg",
                   textOverflow: "ellipsis",
-                  "&::placeholder": { color: C.muted, opacity: 1 },
-                  "&:hover:not(:disabled)": { bgcolor: "rgba(31, 77, 58, 0.06)" },
-                  "&:focus-visible": { outline: `3px solid ${C.primary}`, outlineOffset: 0, bgcolor: "#FFFFFF" },
+                  "&::placeholder": { color: "text.tertiary", opacity: 1 },
+                  "&:hover:not(:disabled)": { bgcolor: "neutral.plainHoverBg" },
+                  "&:focus-visible": { outline: campaignEditorFocusOutline, outlineOffset: 0, bgcolor: "background.surface" },
                 }}
               />
-            </Box>
+            </Typography>
             <Stack direction="row" spacing={1} alignItems="center" useFlexGap flexWrap="wrap">
               <JoyStatusChip status={status} />
               <JoyChip variant="soft" color="neutral" size="sm">
@@ -2003,7 +2013,7 @@ function CampaignEditorScreen() {
                     <Box
                       component="span"
                       aria-hidden
-                      sx={{ width: 10, height: 10, borderRadius: "3px", bgcolor: group.colour }}
+                      sx={{ width: 10, height: 10, borderRadius: "xs", bgcolor: group.colour }}
                     />
                   }
                 >
@@ -2012,8 +2022,9 @@ function CampaignEditorScreen() {
               ))}
               <Typography
                 role="status"
+                level="body-sm"
                 data-testid="campaign-editor-save-status"
-                sx={{ fontSize: 14, color: C.muted }}
+                sx={{ color: "text.secondary" }}
               >
                 {saveStatusText}
               </Typography>
@@ -2054,7 +2065,7 @@ function CampaignEditorScreen() {
                 fontSize: 15,
                 px: 2.5,
                 // Disabled until the readiness bar is clear; keep the label legible.
-                "&.Mui-disabled": { bgcolor: C.cardBorder, color: C.muted },
+                "&.Mui-disabled": { bgcolor: "neutral.200", color: "text.secondary" },
               }}
             >
               Schedule
@@ -2203,7 +2214,7 @@ function CampaignEditorScreen() {
                         >
                           {isLocked ? "View in Design Studio" : "Open Design Studio"}
                         </JoyButton>
-                        <Typography sx={{ fontSize: 14, color: C.muted }} role="status">
+                        <Typography level="body-sm" sx={{ color: "text.secondary" }} role="status">
                           {studioDisabledReason ??
                             "Edit text, add images, change colours and arrange every block."}
                         </Typography>
@@ -2228,16 +2239,15 @@ function CampaignEditorScreen() {
                         border: 0,
                         padding: 0,
                         minHeight: 44,
-                        font: "inherit",
-                        fontSize: 15,
-                        color: C.primary,
+                        typography: "body-md",
+                        color: "primary.plainColor",
                         textDecoration: "underline",
                         textUnderlineOffset: "3px",
                         cursor: "pointer",
                         "&:focus-visible": {
-                          outline: `3px solid ${C.primary}`,
+                          outline: campaignEditorFocusOutline,
                           outlineOffset: "2px",
-                          borderRadius: "4px",
+                          borderRadius: "xs",
                         },
                       }}
                     >
@@ -2755,7 +2765,7 @@ function CampaignEditorScreen() {
               {campaignId ? (
                 <CampaignOrganization campaignId={campaignId} disabled={isLocked} />
               ) : (
-                <Typography sx={{ fontSize: 15, color: C.muted }}>
+                <Typography level="body-md" sx={{ color: "text.secondary" }}>
                   Groups and a campaign colour can be added once this draft has saved.
                 </Typography>
               )}
@@ -3258,7 +3268,7 @@ export default function CRMCampaignEditorPage() {
         <Box
           sx={{
             ...campaignEditorPageSx,
-            bgcolor: CAMPAIGN_EDITOR_COLORS.pageBg,
+            bgcolor: "background.body",
             mx: { xs: -2, md: -4 },
             mt: { xs: -3, md: -4 },
             mb: { xs: -3, md: -4 },
