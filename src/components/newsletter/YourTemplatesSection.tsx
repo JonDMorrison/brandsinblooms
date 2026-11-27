@@ -85,7 +85,7 @@ export function YourTemplatesSection({
                   borderColor: "neutral.200",
                   borderRadius: "lg",
                   "&:hover": { borderColor: "neutral.400" },
-                  "&:focus-visible": { outline: "2px solid #244d46", outlineOffset: 2 },
+                  "&:focus-visible": { outline: "2px solid", outlineColor: "primary.500", outlineOffset: 2 },
                 }}
               >
                 <IntentCardThumbnail template={null} blocks={template.layout_json} />

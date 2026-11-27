@@ -938,6 +938,7 @@ export default function StudioTopBar({
             <Tooltip title="Your design is saved before you review recipients and send. This does not send your email.">
               <Button
                 variant="solid"
+                color="primary"
                 size="sm"
                 aria-label="Review & Send"
                 onClick={onExit}
@@ -959,8 +960,6 @@ export default function StudioTopBar({
                   borderRadius: "8px",
                   fontWeight: 600,
                   fontSize: 14,
-                  bgcolor: "#244d46",
-                  "&:hover": { bgcolor: "#183c35" },
                 }}
               >
                 Review &amp; Send

@@ -657,7 +657,7 @@ function GalleryFields({
             aria-pressed={block.layout === `row-${n}`}
             className="nl-quiet"
             style={{
-              borderColor: block.layout === `row-${n}` ? "#234b49" : undefined,
+              borderColor: block.layout === `row-${n}` ? "var(--joy-palette-primary-500)" : undefined,
             }}
             onClick={() => {
               update("layout", `row-${n}`);

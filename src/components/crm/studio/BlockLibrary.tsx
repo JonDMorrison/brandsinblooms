@@ -71,15 +71,15 @@ function WeeklyThemeSection({
       <summary
         style={{
           fontWeight: 750,
-          color: "#203b40",
+          color: "var(--joy-palette-text-primary)",
           padding: "12px 0",
-          borderBottom: "1px solid #b8c5c8",
+          borderBottom: "1px solid var(--joy-palette-divider)",
           cursor: "pointer",
         }}
       >
         This week's theme · {theme.weekLabel}
       </summary>
-      <Typography level="body-xs" sx={{ color: "#526b72", mt: 1 }}>
+      <Typography level="body-xs" sx={{ color: "text.secondary", mt: 1 }}>
         {theme.title}
       </Typography>
       <Stack spacing={0.5} sx={{ mt: 1 }}>
@@ -103,7 +103,7 @@ function WeeklyThemeSection({
             <span data-testid="weekly-theme-item-label">
               {name}
               {STUDIO_BLOCK_LOOKUP[block.type]?.name ? (
-                <span style={{ color: "#526b72", fontSize: 11 }}>
+                <span style={{ color: "var(--joy-palette-text-secondary)", fontSize: 11 }}>
                   {" · "}
                   {STUDIO_BLOCK_LOOKUP[block.type]?.name}
                 </span>
@@ -172,17 +172,17 @@ function LibraryCard({
         transition: "background-color 160ms ease, transform 120ms ease",
         "&:active": { transform: "scale(0.985)" },
         "@media (prefers-reduced-motion: reduce)": { transition: "none", "&:active": { transform: "none" } },
-        "&:hover": { bgcolor: "#e8f0eb" },
+        "&:hover": { bgcolor: "primary.softBg" },
         "&:focus-visible .library-add, &:hover .library-add": { opacity: 1 },
-        "&:focus-visible": { outline: "2px solid #234b49" },
+        "&:focus-visible": { outline: "2px solid", outlineColor: "primary.500" },
       }}
     >
       <Box
         sx={{
           p: 1.1,
           borderRadius: 8,
-          bgcolor: "#e0e7e7",
-          color: "#34554f",
+          bgcolor: "primary.softBg",
+          color: "primary.softColor",
           display: "flex",
         }}
       >
@@ -191,18 +191,18 @@ function LibraryCard({
       <Box sx={{ minWidth: 0 }}>
         <Typography
           level="body-sm"
-          sx={{ fontWeight: 600, color: "#263d42", fontSize: 14 }}
+          sx={{ fontWeight: 600, color: "text.primary", fontSize: 14 }}
         >
           {definition.name}
         </Typography>
         <Typography
           level="body-xs"
-          sx={{ color: "#526b72", fontSize: 13, lineHeight: 1.45 }}
+          sx={{ color: "text.secondary", fontSize: 13, lineHeight: 1.45 }}
         >
           {disabled ? "Already added. Select footer." : definition.description}
         </Typography>
       </Box>
-      {!disabled && <Typography className="library-add" aria-hidden="true" level="body-xs" sx={{ ml: "auto", color: "#315f53", fontWeight: 700, opacity: 0, transition: "opacity 150ms" }}>Add</Typography>}
+      {!disabled && <Typography className="library-add" aria-hidden="true" level="body-xs" sx={{ ml: "auto", color: "primary.plainColor", fontWeight: 700, opacity: 0, transition: "opacity 150ms" }}>Add</Typography>}
     </Sheet>
   );
 }
@@ -277,13 +277,14 @@ export default function BlockLibrary({
         height: "100%",
         display: "flex",
         flexDirection: "column",
-        borderRight: "1px solid #d6dfd9",
-        bgcolor: "#f7f9f6",
+        borderRight: "1px solid",
+        borderColor: "divider",
+        bgcolor: "neutral.50",
         minHeight: 0,
       }}
     >
-      <Box sx={{ p: 2, borderBottom: "1px solid #d6dfd9" }}>
-        <Typography level="title-md" sx={{ color: "#243c41", mb: 1.5 }}>
+      <Box sx={{ p: 2, borderBottom: "1px solid", borderColor: "divider" }}>
+        <Typography level="title-md" sx={{ color: "text.primary", mb: 1.5 }}>
           Build your email
         </Typography>
         <Box
@@ -304,8 +305,8 @@ export default function BlockLibrary({
                 minHeight: 44,
                 borderRadius: 8,
                 fontSize: 14,
-                background: tab === value ? "#254b49" : undefined,
-                color: tab === value ? "#fff" : undefined,
+                background: tab === value ? "var(--joy-palette-primary-solidBg)" : undefined,
+                color: tab === value ? "var(--joy-palette-primary-solidColor)" : undefined,
               }}
               onClick={() => setTab(value)}
             >
@@ -331,11 +332,11 @@ export default function BlockLibrary({
           startDecorator={<Search size={16} />}
           sx={{
             minHeight: 44,
-            bgcolor: "#fff",
+            bgcolor: "background.surface",
             borderRadius: 8,
-            borderColor: "#b9c9c0",
-            color: "#203137",
-            "& input::placeholder": { color: "#62777d", opacity: 1 },
+            borderColor: "neutral.300",
+            color: "text.primary",
+            "& input::placeholder": { color: "text.tertiary", opacity: 1 },
           }}
         />
       </Box>
@@ -345,7 +346,7 @@ export default function BlockLibrary({
           <>
             <Typography
               level="body-xs"
-              sx={{ fontWeight: 700, color: "#344b50", mb: 1 }}
+              sx={{ fontWeight: 700, color: "text.secondary", mb: 1 }}
             >
               Click a block to add it to your email
             </Typography>
@@ -362,9 +363,9 @@ export default function BlockLibrary({
                   style={{
                     fontSize: 14,
                     fontWeight: 750,
-                    color: "#203b40",
+                    color: "var(--joy-palette-text-primary)",
                     padding: "12px 0",
-                    borderBottom: "1px solid #b8c5c8",
+                    borderBottom: "1px solid var(--joy-palette-divider)",
                     cursor: "pointer",
                   }}
                 >
@@ -392,7 +393,7 @@ export default function BlockLibrary({
           <>
             <Typography
               level="body-xs"
-              sx={{ fontWeight: 700, color: "#344b50", mb: 1 }}
+              sx={{ fontWeight: 700, color: "text.secondary", mb: 1 }}
             >
               Newsletter outline
             </Typography>
@@ -428,9 +429,9 @@ export default function BlockLibrary({
                     mb: 1,
                     border: "1px solid",
                     borderColor:
-                      selectedBlockId === block.id ? "#315c58" : "#c2ced0",
+                      selectedBlockId === block.id ? "primary.500" : "neutral.300",
                     borderRadius: 6,
-                    bgcolor: selectedBlockId === block.id ? "#e5eeed" : "#fff",
+                    bgcolor: selectedBlockId === block.id ? "primary.softBg" : "background.surface",
                   }}
                 >
                   <button
@@ -461,7 +462,7 @@ export default function BlockLibrary({
                     return details.length ? (
                       <Typography
                         level="body-xs"
-                        sx={{ color: "#526b72", px: 1 }}
+                        sx={{ color: "text.secondary", px: 1 }}
                       >
                         {details.join(" · ")}
                       </Typography>
@@ -587,8 +588,9 @@ export default function BlockLibrary({
                     gap: 0.25,
                     mt: 1,
                     p: 0.75,
-                    bgcolor: "#fff",
-                    border: "1px solid #c2ced0",
+                    bgcolor: "background.surface",
+                    border: "1px solid",
+                    borderColor: "neutral.300",
                     borderRadius: 6,
                   }}
                 >
@@ -609,7 +611,7 @@ export default function BlockLibrary({
                       style={{
                         display: "block",
                         fontSize: 11,
-                        color: "#526b72",
+                        color: "var(--joy-palette-text-secondary)",
                       }}
                     >
                       {STUDIO_BLOCK_LOOKUP[entry.block.type]?.name}

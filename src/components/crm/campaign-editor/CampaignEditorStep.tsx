@@ -35,7 +35,8 @@ const badgeSx = {
 
 /**
  * The status badge on the right of a step header: success soft with a check
- * when done, warning soft with the number of things to fix, neutral soft for
+ * when done, primary (navy) soft with the number of things to fix, warning
+ * soft for Required, neutral soft for
  * Optional and while a server check is still running.
  */
 export function CampaignStepBadge({ state }: { state: CampaignStepState }) {
@@ -91,7 +92,7 @@ export function CampaignStepBadge({ state }: { state: CampaignStepState }) {
       component="span"
       size="sm"
       variant="soft"
-      color="warning"
+      color="primary"
       data-testid="campaign-step-badge-attention"
       startDecorator={
         <Box
@@ -103,8 +104,8 @@ export function CampaignStepBadge({ state }: { state: CampaignStepState }) {
             height: 20,
             px: 1,
             borderRadius: "xl",
-            bgcolor: "warning.solidBg",
-            color: "warning.solidColor",
+            bgcolor: "primary.solidBg",
+            color: "primary.solidColor",
             fontSize: "xs",
             fontWeight: "xl",
             display: "inline-flex",
@@ -115,7 +116,7 @@ export function CampaignStepBadge({ state }: { state: CampaignStepState }) {
           {state.count}
         </Box>
       }
-      sx={badgeSx}
+      sx={mergeSx(badgeSx, { color: "text.primary" })}
     >
       {/* Phones show only the number; the words stay for screen readers. */}
       <Box component="span" aria-hidden sx={{ display: { xs: "none", sm: "inline" } }}>
