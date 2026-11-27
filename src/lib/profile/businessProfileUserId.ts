@@ -99,3 +99,119 @@ export function getTenantBusinessProfileUserId(
   tenantCache.set(key, pending);
   return pending;
 }
+
+// A business profile saved on one page (Contact & Footer settings) must reach
+// every surface that reads it, including a campaign editor open in another
+// tab: the readiness check's "Add your business address" link opens settings
+// in a new tab, and company_profiles is not in the realtime publication.
+const BUSINESS_PROFILE_CHANGED_EVENT = "bloomsuite:business-profile-changed";
+const BUSINESS_PROFILE_CHANNEL = "bloomsuite-business-profile";
+
+export interface BusinessProfileChange {
+  /** The tenant whose business profile changed; null for a user with no tenant. */
+  tenantId: string | null;
+  /** The company_profiles.user_id of the saved row. */
+  profileUserId: string;
+}
+
+function isBusinessProfileChange(value: unknown): value is BusinessProfileChange {
+  if (!value || typeof value !== "object") return false;
+  const change = value as Record<string, unknown>;
+  return (
+    typeof change.profileUserId === "string" &&
+    (change.tenantId === null || typeof change.tenantId === "string")
+  );
+}
+
+// BroadcastChannel also delivers to other channel objects in the same tab,
+// which the window event already reached; messages carry this tab's id so
+// each listener runs once per save.
+let tabSourceId: string | null = null;
+function getTabSourceId(): string {
+  if (!tabSourceId) {
+    tabSourceId =
+      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  }
+  return tabSourceId;
+}
+
+interface BusinessProfileChannelMessage {
+  source: string;
+  change: BusinessProfileChange;
+}
+
+function isChannelMessage(value: unknown): value is BusinessProfileChannelMessage {
+  if (!value || typeof value !== "object") return false;
+  const message = value as Record<string, unknown>;
+  return typeof message.source === "string" && isBusinessProfileChange(message.change);
+}
+
+function openBusinessProfileChannel(): BroadcastChannel | null {
+  try {
+    return typeof BroadcastChannel === "undefined"
+      ? null
+      : new BroadcastChannel(BUSINESS_PROFILE_CHANNEL);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Announce that a business profile was saved. Clears the resolved-id caches
+ * (a tenant that had no profile is cached as null) and tells every listener in
+ * this tab and in other tabs to reload.
+ */
+export function notifyBusinessProfileChanged(change: BusinessProfileChange): void {
+  clearBusinessProfileUserIdCache();
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(
+      new CustomEvent<BusinessProfileChange>(BUSINESS_PROFILE_CHANGED_EVENT, {
+        detail: change,
+      }),
+    );
+  }
+  const channel = openBusinessProfileChannel();
+  if (channel) {
+    try {
+      const message: BusinessProfileChannelMessage = {
+        source: getTabSourceId(),
+        change,
+      };
+      channel.postMessage(message);
+    } finally {
+      channel.close();
+    }
+  }
+}
+
+/** Listen for saved business profiles. Returns the unsubscribe function. */
+export function subscribeBusinessProfileChanged(
+  listener: (change: BusinessProfileChange) => void,
+): () => void {
+  if (typeof window === "undefined") return () => undefined;
+
+  const onLocal = (event: Event) => {
+    const detail = (event as CustomEvent<unknown>).detail;
+    if (isBusinessProfileChange(detail)) listener(detail);
+  };
+  window.addEventListener(BUSINESS_PROFILE_CHANGED_EVENT, onLocal);
+
+  const channel = openBusinessProfileChannel();
+  const onRemote = (event: MessageEvent<unknown>) => {
+    if (!isChannelMessage(event.data) || event.data.source === getTabSourceId()) return;
+    // Another tab saved: this tab's cached ids may be stale too.
+    clearBusinessProfileUserIdCache();
+    listener(event.data.change);
+  };
+  channel?.addEventListener("message", onRemote);
+
+  return () => {
+    window.removeEventListener(BUSINESS_PROFILE_CHANGED_EVENT, onLocal);
+    if (channel) {
+      channel.removeEventListener("message", onRemote);
+      channel.close();
+    }
+  };
+}

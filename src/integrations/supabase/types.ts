@@ -25099,6 +25099,30 @@ export type Database = {
         };
         Returns: string;
       };
+      save_tenant_contact_footer: {
+        Args: {
+          p_city: string;
+          p_company_email: string;
+          p_company_phone: string;
+          p_country: string;
+          p_facebook_url: string;
+          p_footer_legal_text: string;
+          p_instagram_url: string;
+          p_linkedin_url: string;
+          p_pinterest_url: string;
+          p_postal_code: string;
+          p_state_province: string;
+          p_street_address: string;
+          p_tenant_id?: string;
+          p_tiktok_url: string;
+          p_website_url: string;
+          p_youtube_url: string;
+        };
+        Returns: {
+          profile_id: string;
+          profile_user_id: string;
+        }[];
+      };
       save_tenant_location: {
         Args: {
           p_code: string;

@@ -19,6 +19,8 @@ import {
   clearBusinessProfileUserIdCache,
   getBusinessProfileUserId,
   getTenantBusinessProfileUserId,
+  notifyBusinessProfileChanged,
+  subscribeBusinessProfileChanged,
 } from "@/lib/profile/businessProfileUserId";
 import { resolveBusinessProfileUserId } from "../../../supabase/functions/_shared/businessProfileUserId.ts";
 
@@ -104,6 +106,72 @@ describe("getTenantBusinessProfileUserId", () => {
 
     await expect(getTenantBusinessProfileUserId("teammate", "northfield")).resolves.toBe("owner");
     expect(rpc).toHaveBeenCalledWith("current_profile_user_id");
+  });
+});
+
+describe("business profile change notifications", () => {
+  beforeEach(() => {
+    clearBusinessProfileUserIdCache();
+    rpc.mockReset();
+    getSession.mockReset();
+  });
+
+  it("forgets a tenant cached as having no profile, so readers find the new row", async () => {
+    signedInAs("admin");
+    memberTenant.current = "admin-home";
+    rpc.mockResolvedValueOnce({ data: null, error: null });
+    await expect(getTenantBusinessProfileUserId("admin", "client")).resolves.toBeNull();
+    // Cached: no second lookup.
+    await expect(getTenantBusinessProfileUserId("admin", "client")).resolves.toBeNull();
+    expect(rpc).toHaveBeenCalledTimes(1);
+
+    notifyBusinessProfileChanged({ tenantId: "client", profileUserId: "client-owner" });
+
+    rpc.mockResolvedValueOnce({ data: "client-owner", error: null });
+    await expect(getTenantBusinessProfileUserId("admin", "client")).resolves.toBe("client-owner");
+    expect(rpc).toHaveBeenCalledTimes(2);
+  });
+
+  it("tells listeners in this tab, and stops after unsubscribing", () => {
+    const listener = vi.fn();
+    const unsubscribe = subscribeBusinessProfileChanged(listener);
+
+    notifyBusinessProfileChanged({ tenantId: "client", profileUserId: "client-owner" });
+    expect(listener).toHaveBeenCalledWith({ tenantId: "client", profileUserId: "client-owner" });
+
+    unsubscribe();
+    notifyBusinessProfileChanged({ tenantId: "client", profileUserId: "client-owner" });
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it("tells listeners in other tabs (the editor's settings link opens a new tab)", async () => {
+    if (typeof BroadcastChannel === "undefined") return;
+    const listener = vi.fn();
+    const unsubscribe = subscribeBusinessProfileChanged(listener);
+
+    // Simulate another tab posting on the shared channel.
+    const otherTab = new BroadcastChannel("bloomsuite-business-profile");
+    otherTab.postMessage({
+      source: "other-tab",
+      change: { tenantId: "client", profileUserId: "client-owner" },
+    });
+
+    await vi.waitFor(() =>
+      expect(listener).toHaveBeenCalledWith({ tenantId: "client", profileUserId: "client-owner" }),
+    );
+    otherTab.close();
+    unsubscribe();
+  });
+
+  it("runs a same-tab listener once per save", async () => {
+    const listener = vi.fn();
+    const unsubscribe = subscribeBusinessProfileChanged(listener);
+
+    notifyBusinessProfileChanged({ tenantId: "client", profileUserId: "client-owner" });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(listener).toHaveBeenCalledTimes(1);
+    unsubscribe();
   });
 });
 
