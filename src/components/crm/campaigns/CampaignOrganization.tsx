@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Stack, Button, Typography, Checkbox, Input, Box } from '@mui/joy';
+import { Stack, Button, Typography, Checkbox, Input, Box, FormControl, FormLabel } from '@mui/joy';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useTenant } from '@/hooks/useTenant';
 import { useCampaignOrganization } from '@/lib/crm/campaignOrganization';
@@ -26,12 +26,18 @@ export function CampaignOrganization({campaignId, disabled = false}: {campaignId
    <Button size="sm" variant="plain" disabled={busy} onClick={()=>setConfirmDelete(group.id)}>Remove</Button>
    {confirmDelete===group.id && <Button size="sm" disabled={busy} onClick={()=>mutation.mutate({type:'deleteGroup',id:group.id},{onSuccess:()=>setConfirmDelete(null)})}>Remove group from all campaigns</Button>}
   </Stack>)}
-  <Stack direction="row" spacing={1} alignItems="center">
-   <Input placeholder="New group name" value={name} disabled={busy} onChange={e=>setName(e.target.value)} slotProps={{input:{maxLength:80,'aria-label':'Group name'}}} />
-   <input aria-label="Group colour" type="color" value={colour} disabled={busy} onChange={e=>setColour(e.target.value)} />
+  <Stack direction="row" spacing={1} alignItems="flex-end" useFlexGap flexWrap="wrap">
+   <FormControl>
+    <FormLabel htmlFor="campaign-organization-group-name">{editing ? 'Group name' : 'New group name'}</FormLabel>
+    <Input placeholder="e.g. December" value={name} disabled={busy} onChange={e=>setName(e.target.value)} slotProps={{input:{maxLength:80,id:'campaign-organization-group-name'}}} />
+   </FormControl>
+   <FormControl>
+    <FormLabel htmlFor="campaign-organization-group-colour">Group colour</FormLabel>
+    <input id="campaign-organization-group-colour" type="color" value={colour} disabled={busy} onChange={e=>setColour(e.target.value)} style={{minHeight:44,minWidth:44}} />
+   </FormControl>
    <Button disabled={busy || !name.trim()} onClick={save}>{editing ? 'Save group' : 'Add group'}</Button>
    {editing && <Button variant="plain" onClick={()=>{setEditing(undefined);setName('');}}>Cancel</Button>}
   </Stack>
-  {campaignId && <Stack direction="row" spacing={1} alignItems="center"><Typography level="body-sm">Campaign colour</Typography><input aria-label="Campaign colour" type="color" disabled={busy} value={data?.colours.find(c=>c.campaign_id===campaignId)?.colour ?? '#496A51'} onChange={e=>mutation.mutate({type:'colour',campaignId,colour:e.target.value})} /></Stack>}
+  {campaignId && <Stack direction="row" spacing={1} alignItems="center"><Typography component="label" htmlFor="campaign-organization-campaign-colour" level="body-sm">Campaign colour</Typography><input id="campaign-organization-campaign-colour" type="color" style={{minHeight:44,minWidth:44}} disabled={busy} value={data?.colours.find(c=>c.campaign_id===campaignId)?.colour ?? '#496A51'} onChange={e=>mutation.mutate({type:'colour',campaignId,colour:e.target.value})} /></Stack>}
  </Stack>;
 }

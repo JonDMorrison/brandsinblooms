@@ -7,31 +7,46 @@ const source = (path: string) => readFileSync(path, "utf8");
 describe("campaign sending design and palette invariants", () => {
   it("orders campaign steps and keeps sending behind permission and confirmation", () => {
     const editor = source("src/pages/crm/CRMCampaignEditorPage.tsx");
-    const positions = ["setup", "inbox", "audience", "content", "actions"].map(id => editor.indexOf(`id="campaign-editor-${id}"`));
+    // Design, Inbox, Audience, Sender, Organize (the header holds the actions).
+    const positions = ["actions", "content", "inbox", "audience", "sender", "organize"].map(id => editor.indexOf(`id="campaign-editor-${id}"`));
     expect(positions.every(position => position > 0)).toBe(true);
     expect(positions).toEqual([...positions].sort((a,b) => a-b));
     const ast = ts.createSourceFile("editor.tsx", editor, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-    let cta: ts.JsxOpeningElement | undefined;
-    const visit = (node: ts.Node) => {
-      if (ts.isJsxOpeningElement(node) && node.attributes.properties.some(p => ts.isJsxAttribute(p) && p.name.getText(ast) === "data-testid" && p.initializer && ts.isStringLiteral(p.initializer) && p.initializer.text === "campaign-editor-review-send-cta")) cta = node;
-      ts.forEachChild(node, visit);
+    const findByTestId = (testId: string) => {
+      let found: ts.JsxOpeningElement | ts.JsxSelfClosingElement | undefined;
+      const visit = (node: ts.Node) => {
+        if ((ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) && node.attributes.properties.some(p => ts.isJsxAttribute(p) && p.name.getText(ast) === "data-testid" && p.initializer && ts.isStringLiteral(p.initializer) && p.initializer.text === testId)) found = node;
+        ts.forEachChild(node, visit);
+      };
+      visit(ast);
+      return found;
     };
-    visit(ast);
-    const expression = (name: string) => {
-      const prop = cta?.attributes.properties.find(p => ts.isJsxAttribute(p) && p.name.getText(ast) === name) as ts.JsxAttribute;
+    const expressionOf = (element: ts.JsxOpeningElement | ts.JsxSelfClosingElement | undefined, name: string) => {
+      const prop = element?.attributes.properties.find(p => ts.isJsxAttribute(p) && p.name.getText(ast) === name) as ts.JsxAttribute;
       return ((prop.initializer as ts.JsxExpression).expression!).getText(ast);
     };
-    const disabled = new Function("isLocked", "canSendCampaign", "pendingTemplateSave", "sendBlockers", `return (${expression("disabled")})`);
+    // The header's Schedule button is the way to send: it opens the schedule
+    // drawer, whose "Send now" and "Schedule" both go through the confirmation.
+    const cta = findByTestId("campaign-editor-schedule-cta");
+    const disabled = new Function("isLocked", "canSendCampaign", "pendingTemplateSave", "sendBlockers", `return (${expressionOf(cta, "disabled")})`);
     expect(disabled(false, true, null, [])).toBe(false);
     expect(disabled(true, true, null, [])).toBe(true);
     expect(disabled(false, false, null, [])).toBe(true);
     expect(disabled(false, true, {}, [])).toBe(true);
     // #10: the button waits until every blocker in the checklist is fixed.
     expect(disabled(false, true, null, [{ message: "Add a subject line" }])).toBe(true);
+    expect(expressionOf(cta, "onClick")).toBe("handleScheduleForLater");
+    let drawer: ts.JsxSelfClosingElement | undefined;
+    const findDrawer = (node: ts.Node) => {
+      if (ts.isJsxSelfClosingElement(node) && node.tagName.getText(ast) === "CampaignScheduleDrawer") drawer = node;
+      ts.forEachChild(node, findDrawer);
+    };
+    findDrawer(ast);
     const schedule = vi.fn(), review = vi.fn();
-    new Function("updateSchedule", "openSendConfirmation", `return (${expression("onClick")})`)(schedule, review)();
+    new Function("updateSchedule", "openSendConfirmation", `return (${expressionOf(drawer, "onSendNow")})`)(schedule, review)();
     expect(schedule).toHaveBeenCalledWith({sendImmediately: true, sendAt: null});
     expect(review).toHaveBeenCalledOnce();
+    expect(expressionOf(drawer, "canConfirm")).toBe("!isLocked && canSendCampaign");
     expect(editor).toContain("<CampaignSendConfirmation");
     expect(editor).toContain("builderBlockers={");
   });

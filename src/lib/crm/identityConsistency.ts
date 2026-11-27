@@ -43,7 +43,7 @@ export interface IdentityInputs {
 }
 
 interface Identity {
-  label: string;
+  label: IdentityField;
   value: string;
   tokens: string[];
   stem?: string;
@@ -57,10 +57,28 @@ function agrees(a: Identity, b: Identity) {
   return stems.some((stem) => tokens.some((token) => stem.includes(token)));
 }
 
+/** Which identity a mismatch names. */
+export type IdentityField =
+  | "sender name"
+  | "sender email domain"
+  | "footer business name"
+  | "website products source";
+
+export interface IdentityMismatch {
+  /** The two identities that disagree, in the order the message names them. */
+  fields: [IdentityField, IdentityField];
+  message: string;
+}
+
 /** Plain-language warnings for each pair of identities that disagree. */
 export function findIdentityMismatches(inputs: IdentityInputs): string[] {
+  return findIdentityMismatchDetails(inputs).map((mismatch) => mismatch.message);
+}
+
+/** The same warnings as findIdentityMismatches, with the fields each one names. */
+export function findIdentityMismatchDetails(inputs: IdentityInputs): IdentityMismatch[] {
   const identities: Identity[] = [];
-  const add = (label: string, value: string | null | undefined, stemSource?: string | null) => {
+  const add = (label: IdentityField, value: string | null | undefined, stemSource?: string | null) => {
     const trimmed = (value ?? "").trim();
     const stem = stemSource ? domainStem(stemSource) : undefined;
     const tokens = coreTokens(trimmed);
@@ -78,15 +96,16 @@ export function findIdentityMismatches(inputs: IdentityInputs): string[] {
     add("website products source", inputs.websiteName ?? "", inputs.websiteUrl ?? null);
   }
 
-  const warnings: string[] = [];
+  const warnings: IdentityMismatch[] = [];
   for (let i = 0; i < identities.length; i += 1) {
     for (let j = i + 1; j < identities.length; j += 1) {
       const a = identities[i];
       const b = identities[j];
       if (!agrees(a, b)) {
-        warnings.push(
-          `The ${a.label} (“${a.value}”) doesn’t match the ${b.label} (“${b.value}”). Customers may not recognise who this is from.`,
-        );
+        warnings.push({
+          fields: [a.label, b.label],
+          message: `The ${a.label} (“${a.value}”) doesn’t match the ${b.label} (“${b.value}”). Customers may not recognise who this is from.`,
+        });
       }
     }
   }

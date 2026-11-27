@@ -44,6 +44,8 @@ type StudioPreviewDialogProps = {
   subjectLine: string;
   previewText: string;
   campaignId: string;
+  /** When set, the tab shown each time the dialog opens. */
+  initialTab?: PreviewTab;
 };
 
 const DEVICE_OPTIONS: Array<{
@@ -135,6 +137,7 @@ export default function StudioPreviewDialog({
   subjectLine,
   previewText,
   campaignId,
+  initialTab,
 }: StudioPreviewDialogProps) {
   const { designSystem } = useDesignSystem();
   const { settings } = useNewsletterDesign();
@@ -201,8 +204,9 @@ export default function StudioPreviewDialog({
     if (open) {
       setSendStatus(null);
       setCheck(null);
+      if (initialTab) setActiveTab(initialTab);
     }
-  }, [open]);
+  }, [initialTab, open]);
 
   const handleSendTest = React.useCallback(async () => {
     const toEmail = testEmail.trim();
