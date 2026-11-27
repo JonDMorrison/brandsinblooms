@@ -341,8 +341,8 @@ export const BloomSuiteDashboard = () => {
       <Stack spacing={{ xs: 4, md: 5 }} sx={{ pt: { xs: 1, md: 2 }, pb: 4 }}>
         <Stack spacing={3}>
           <Stack
-            direction={{ xs: "column", sm: "row" }}
-            alignItems={{ xs: "flex-start", sm: "center" }}
+            direction="row"
+            alignItems="center"
             justifyContent="space-between"
             spacing={1.5}
           >
@@ -350,6 +350,7 @@ export const BloomSuiteDashboard = () => {
               level="h1"
               component="h1"
               sx={{
+                minWidth: 0,
                 fontFamily: "display",
                 fontSize: { xs: "xl3", md: "xl4" },
                 fontWeight: "xl",
