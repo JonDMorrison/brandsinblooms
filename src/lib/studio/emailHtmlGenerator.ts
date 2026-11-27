@@ -2087,7 +2087,7 @@ export function footerWebsiteLabel(url: string | null | undefined): string {
  * tenant has none or the footer's "Show Website Link" switch is off. A website
  * saved on the block itself is never used: it is a snapshot from whoever built
  * the draft, which put a master admin's own company website in a client's
- * footer. A platform address (getclear.ca, brandsinblooms.com, ...) is never
+ * footer. A platform address (getclear.ca, bloomsuite.*, ...) is never
  * rendered, whatever the design system carries.
  */
 export function resolveFooterWebsiteUrl(
