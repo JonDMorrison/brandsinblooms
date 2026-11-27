@@ -121,6 +121,13 @@ const segmentSx = {
   fontSize: "md",
   fontWeight: "lg",
   "&:focus-visible": { outline: campaignEditorFocusOutline, outlineOffset: 2, zIndex: 1 },
+  // The chosen device reads as selected, not only as a subtle tint.
+  '&[aria-pressed="true"]': {
+    bgcolor: "neutral.solidBg",
+    color: "neutral.solidColor",
+    borderColor: "neutral.solidBg",
+    "&:hover": { bgcolor: "neutral.solidHoverBg" },
+  },
 } as const;
 
 /**

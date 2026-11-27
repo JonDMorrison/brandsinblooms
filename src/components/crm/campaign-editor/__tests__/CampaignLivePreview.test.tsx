@@ -70,6 +70,30 @@ describe("CampaignLivePreview controls", () => {
     expect(within(device).getByRole("button", { name: "Mobile" })).toHaveAttribute("aria-pressed", "true");
   });
 
+  it("gives the chosen device a selected style and Dark a 44px hit area", () => {
+    render(
+      <CssVarsProvider theme={joyTheme}>
+        <CampaignLivePreview {...props} blocks={design("Wreaths")} />
+      </CssVarsProvider>,
+    );
+    const device = screen.getByTestId("campaign-live-preview-device");
+    const mobile = within(device).getByRole("button", { name: "Mobile" });
+    const desktop = within(device).getByRole("button", { name: "Desktop" });
+    const solid = "var(--joy-palette-neutral-solidBg)";
+    expect(desktop).toHaveAttribute("aria-pressed", "true");
+    expect(getComputedStyle(desktop).backgroundColor).toBe(solid);
+    expect(mobile).toHaveAttribute("aria-pressed", "false");
+    expect(getComputedStyle(mobile).backgroundColor).not.toBe(solid);
+    fireEvent.click(mobile);
+    expect(getComputedStyle(mobile).backgroundColor).toBe(solid);
+    expect(getComputedStyle(desktop).backgroundColor).not.toBe(solid);
+    // The whole "Dark" label toggles the switch.
+    const dark = screen.getByTestId("campaign-live-preview-dark");
+    expect(getComputedStyle(dark).minHeight).toBe("44px");
+    fireEvent.click(dark);
+    expect(screen.getByRole("switch", { name: "Dark" })).toBeChecked();
+  });
+
   it("shows Mobile inside a device frame and Desktop without one", () => {
     render(
       <CssVarsProvider theme={joyTheme}>

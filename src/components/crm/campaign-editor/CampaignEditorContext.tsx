@@ -168,7 +168,10 @@ interface CampaignEditorContextValue extends CampaignEditorState {
   reload: () => Promise<void>;
 }
 
-const AUTO_SAVE_MS = 3000;
+// Quiet time after the last edit before saving. Short enough that "Saving…"
+// reaches "Saved <time>" within 2 seconds of the last keystroke; at 3000 it
+// took 3 to 5 seconds.
+export const AUTO_SAVE_MS = 800;
 // Retry policy lives in autoSaveRetryPolicy.ts (extracted for unit testing).
 // New edits cancel pending retries via the keystroke debounce effect — when
 // the user edits, status flips off "error", which fires the retry effect's

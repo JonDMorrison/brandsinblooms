@@ -2148,6 +2148,7 @@ function CampaignEditorScreen() {
                 component="input"
                 id="campaign-editor-name"
                 type="text"
+                aria-label="Campaign name"
                 value={isUnsetCampaignName(name) ? "" : name}
                 placeholder={deriveCampaignDisplayName({ name: "", subjectLine, blocks: contentBlocks })}
                 disabled={isLocked}
