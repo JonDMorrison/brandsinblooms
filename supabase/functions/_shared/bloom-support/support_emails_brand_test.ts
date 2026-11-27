@@ -21,7 +21,7 @@ const customer = (client?: Parameters<typeof renderCustomerEmail>[0]["client"]) 
 const hrefs = (html: string) => [...html.matchAll(/href="([^"]*)"/g)].map((m) => m[1]);
 const imgs = (html: string) => [...html.matchAll(/<img\b[^>]*>/g)].map((m) => m[0]);
 
-Deno.test("every support email header carries the BloomSuite logo with alt text and fixed size", () => {
+Deno.test("support email headers remain readable without remote images", () => {
   const mails = [
     customer().html,
     renderEscalationEmail({ escalation: { reason: "ticket_overdue" }, ticket: t1011, appUrl: APP, now: NOW }).html,
@@ -29,16 +29,11 @@ Deno.test("every support email header carries the BloomSuite logo with alt text 
     renderDigestEmail({ needs_you: [], resolved: [{ number: 1, subject: "x", client: null, by_bloom: true, summary: null }], said: [], repairs: [], alerts: [] }, { appUrl: APP, date: "Thu" })!.html,
   ];
   for (const html of mails) {
-    const logo = imgs(html).find((i) => i.includes(BLOOMSUITE_LOGO_URL));
-    assert(logo, "header logo present");
-    assertMatch(logo, /alt="Open BloomSuite"/);
-    assertMatch(logo, /width="44"/);
-    assertMatch(logo, /height="44"/);
+    assertEquals(imgs(html).length, 0, "no remote images");
     assert(hrefs(html).includes("https://bloomsuite.app/"), "links to bloomsuite.app");
-    // The sender name is text, so the header still reads with images blocked.
-    assertMatch(html, />Bloom Support<\/td>/);
+    assertMatch(html, />Bloom Support<\\/td>/);
+    assertNotMatch(html, /mso-hide:all|display:none/);
   }
-  assertEquals(BLOOMSUITE_LOGO_URL, "https://bloomsuite.app/pos/features-assets/bloomsuite-logo.png");
 });
 
 Deno.test("clientWebsite accepts https URLs and bare hostnames, home page only", () => {
@@ -75,7 +70,7 @@ Deno.test("customer email names the client and links their website when it is kn
   assertMatch(mail.html, /Request for <strong[^>]*>The Flowerhouse<\/strong>/);
   assert(hrefs(mail.html).includes("https://theflowerhousegardencenter.com/"));
   assertMatch(mail.html, />theflowerhousegardencenter\.com<\/a>/);
-  assert(imgs(mail.html).some((i) => i.includes(FLOWERHOUSE.logoUrl) && /width="34"/.test(i) && /height="34"/.test(i)), "client logo avatar");
+  assertEquals(imgs(mail.html).length, 0, "no client logo image");
   assertMatch(mail.text, /Request for The Flowerhouse · https:\/\/theflowerhousegardencenter\.com\//);
 });
 
@@ -106,7 +101,7 @@ Deno.test("needs-you email: client row links the website and shows the logo avat
   const mail = renderEscalationEmail({ escalation: { reason: "ticket_overdue" }, ticket: t1011, appUrl: APP, now: NOW, client: FLOWERHOUSE });
   assert(hrefs(mail.html).includes("https://theflowerhousegardencenter.com/"));
   assertMatch(mail.html, /Client<\/strong>.*The Flowerhouse.*theflowerhousegardencenter\.com<\/a>/s);
-  assert(imgs(mail.html).some((i) => i.includes(FLOWERHOUSE.logoUrl) && /width="42"/.test(i)));
+  assertEquals(imgs(mail.html).length, 0, "no client logo image");
   assertMatch(mail.text, /Client: The Flowerhouse · https:\/\/theflowerhousegardencenter\.com\//);
   // No logo: initial instead, website still linked.
   const plain = renderEscalationEmail({ escalation: { reason: "ticket_overdue" }, ticket: t1011, appUrl: APP, now: NOW, client: { name: "The Flowerhouse", website: "theflowerhousegardencenter.com" } });
