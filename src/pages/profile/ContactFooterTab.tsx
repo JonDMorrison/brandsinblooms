@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui-legacy/card';
 import { Label } from '@/components/ui-legacy/label';
@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui-legacy/textarea';
 import { Button } from '@/components/ui-legacy/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTenant } from '@/hooks/useTenant';
 import { useToast } from '@/hooks/use-toast';
 import { 
   Phone, 
@@ -21,9 +22,14 @@ import {
   Edit,
   X,
   ExternalLink,
-  Shield
+  Shield,
+  Building2
 } from 'lucide-react';
-import { getBusinessProfileUserId } from "@/lib/profile/businessProfileUserId";
+import {
+  getTenantBusinessProfileUserId,
+  notifyBusinessProfileChanged,
+} from "@/lib/profile/businessProfileUserId";
+import { realBusinessName } from "@/lib/studio/businessPlaceholders";
 
 interface ContactFormData {
   company_phone: string;
@@ -43,33 +49,52 @@ interface ContactFormData {
   footer_legal_text: string;
 }
 
+const EMPTY_FORM: ContactFormData = {
+  company_phone: '',
+  company_email: '',
+  website_url: '',
+  street_address: '',
+  city: '',
+  state_province: '',
+  postal_code: '',
+  country: '',
+  facebook_url: '',
+  instagram_url: '',
+  tiktok_url: '',
+  pinterest_url: '',
+  youtube_url: '',
+  linkedin_url: '',
+  footer_legal_text: '',
+};
+
+// Errors the save RPC raises on purpose carry a message written for the user.
+const USER_FACING_SAVE_ERROR_CODES = new Set(['42501', 'P0002']);
+
 export const ContactFooterTab = () => {
   const { user } = useAuth();
+  // The page edits the active tenant's business profile: the same row the
+  // campaign editor's address check and the email footer read
+  // (getTenantBusinessProfileUserId), including a client's tenant that a
+  // master admin is working in through the tenant switcher.
+  const { tenant, loading: tenantLoading } = useTenant();
+  const tenantId = tenant?.id ?? null;
+  const tenantName =
+    realBusinessName(tenant?.name) || realBusinessName(tenant?.fallback_from_name);
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [profileId, setProfileId] = useState<string | null>(null);
-  const [formData, setFormData] = useState<ContactFormData>({
-    company_phone: '',
-    company_email: '',
-    website_url: '',
-    street_address: '',
-    city: '',
-    state_province: '',
-    postal_code: '',
-    country: '',
-    facebook_url: '',
-    instagram_url: '',
-    tiktok_url: '',
-    pinterest_url: '',
-    youtube_url: '',
-    linkedin_url: '',
-    footer_legal_text: '',
-  });
-  const [originalData, setOriginalData] = useState<ContactFormData>(formData);
+  const [hasProfile, setHasProfile] = useState(false);
+  const [profileName, setProfileName] = useState('');
+  const [formData, setFormData] = useState<ContactFormData>(EMPTY_FORM);
+  const [originalData, setOriginalData] = useState<ContactFormData>(EMPTY_FORM);
+  const loadRequestIdRef = useRef(0);
+  const businessName = profileName || tenantName;
 
   const fetchProfile = useCallback(async () => {
+    const requestId = ++loadRequestIdRef.current;
+    const isCurrent = () => requestId === loadRequestIdRef.current;
+
     if (!user?.id) {
       setIsLoading(false);
       return;
@@ -77,111 +102,129 @@ export const ContactFooterTab = () => {
 
     try {
       setIsLoading(true);
+      setIsEditing(false);
+      const profileUserId = await getTenantBusinessProfileUserId(user.id, tenantId);
+      if (!isCurrent()) return;
+
+      if (!profileUserId) {
+        // This tenant has no business profile yet; saving creates it.
+        setHasProfile(false);
+        setProfileName('');
+        setFormData(EMPTY_FORM);
+        setOriginalData(EMPTY_FORM);
+        return;
+      }
+
       const { data, error } = await supabase
         .from('company_profiles')
-        .select('id, company_phone, company_email, website_url, street_address, city, state_province, postal_code, country, facebook_url, instagram_url, tiktok_url, pinterest_url, youtube_url, linkedin_url, footer_legal_text')
-        .eq('user_id', await getBusinessProfileUserId(user.id))
+        .select('id, company_name, company_phone, company_email, website_url, street_address, city, state_province, postal_code, country, facebook_url, instagram_url, tiktok_url, pinterest_url, youtube_url, linkedin_url, footer_legal_text')
+        .eq('user_id', profileUserId)
         .maybeSingle();
+      if (!isCurrent()) return;
 
       if (error) {
         console.error('Error fetching profile:', error);
         return;
       }
 
-      if (data) {
-        setProfileId(data.id);
-        const loadedData: ContactFormData = {
-          company_phone: data.company_phone || '',
-          company_email: data.company_email || '',
-          website_url: data.website_url || '',
-          street_address: data.street_address || '',
-          city: data.city || '',
-          state_province: data.state_province || '',
-          postal_code: data.postal_code || '',
-          country: data.country || '',
-          facebook_url: data.facebook_url || '',
-          instagram_url: data.instagram_url || '',
-          tiktok_url: data.tiktok_url || '',
-          pinterest_url: data.pinterest_url || '',
-          youtube_url: data.youtube_url || '',
-          linkedin_url: data.linkedin_url || '',
-          footer_legal_text: data.footer_legal_text || '',
-        };
-        setFormData(loadedData);
-        setOriginalData(loadedData);
-      }
+      const loadedData: ContactFormData = data
+        ? {
+            company_phone: data.company_phone || '',
+            company_email: data.company_email || '',
+            website_url: data.website_url || '',
+            street_address: data.street_address || '',
+            city: data.city || '',
+            state_province: data.state_province || '',
+            postal_code: data.postal_code || '',
+            country: data.country || '',
+            facebook_url: data.facebook_url || '',
+            instagram_url: data.instagram_url || '',
+            tiktok_url: data.tiktok_url || '',
+            pinterest_url: data.pinterest_url || '',
+            youtube_url: data.youtube_url || '',
+            linkedin_url: data.linkedin_url || '',
+            footer_legal_text: data.footer_legal_text || '',
+          }
+        : EMPTY_FORM;
+      setHasProfile(Boolean(data));
+      setProfileName(realBusinessName(data?.company_name));
+      setFormData(loadedData);
+      setOriginalData(loadedData);
     } finally {
-      setIsLoading(false);
+      if (isCurrent()) {
+        setIsLoading(false);
+      }
     }
-  }, [user?.id]);
+  }, [user?.id, tenantId]);
 
   useEffect(() => {
-    fetchProfile();
-  }, [fetchProfile]);
+    // Wait for the active tenant: loading before it resolves would show a
+    // master admin's own company while they work in a client's account.
+    if (user?.id && tenantLoading) {
+      setIsLoading(true);
+      return;
+    }
+    void fetchProfile();
+  }, [fetchProfile, tenantLoading, user?.id]);
 
   const handleInputChange = (field: keyof ContactFormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   const handleSave = async () => {
-    if (!user?.id) return;
+    if (!user?.id || tenantLoading) return;
 
     setIsSaving(true);
     try {
-      const payload = {
-        user_id: await getBusinessProfileUserId(user.id),
-        company_phone: formData.company_phone || null,
-        company_email: formData.company_email || null,
-        website_url: formData.website_url || null,
-        street_address: formData.street_address || null,
-        city: formData.city || null,
-        state_province: formData.state_province || null,
-        postal_code: formData.postal_code || null,
-        country: formData.country || null,
-        facebook_url: formData.facebook_url || null,
-        instagram_url: formData.instagram_url || null,
-        tiktok_url: formData.tiktok_url || null,
-        pinterest_url: formData.pinterest_url || null,
-        youtube_url: formData.youtube_url || null,
-        linkedin_url: formData.linkedin_url || null,
-        footer_legal_text: formData.footer_legal_text || null,
-      };
+      // The RPC resolves the row for the active tenant server-side and checks
+      // that the caller may edit it; only these contact/footer columns change.
+      const { data, error } = await supabase.rpc('save_tenant_contact_footer', {
+        p_company_phone: formData.company_phone,
+        p_company_email: formData.company_email,
+        p_website_url: formData.website_url,
+        p_street_address: formData.street_address,
+        p_city: formData.city,
+        p_state_province: formData.state_province,
+        p_postal_code: formData.postal_code,
+        p_country: formData.country,
+        p_facebook_url: formData.facebook_url,
+        p_instagram_url: formData.instagram_url,
+        p_tiktok_url: formData.tiktok_url,
+        p_pinterest_url: formData.pinterest_url,
+        p_youtube_url: formData.youtube_url,
+        p_linkedin_url: formData.linkedin_url,
+        p_footer_legal_text: formData.footer_legal_text,
+        ...(tenantId ? { p_tenant_id: tenantId } : {}),
+      });
 
-      let result;
-      if (profileId) {
-        result = await supabase
-          .from('company_profiles')
-          .update(payload)
-          .eq('id', profileId)
-          .select('id')
-          .maybeSingle();
-      } else {
-        result = await supabase
-          .from('company_profiles')
-          .insert(payload)
-          .select('id')
-          .maybeSingle();
-      }
-
-      if (result.error) {
-        console.error('Error saving contact info:', result.error);
+      const saved = Array.isArray(data) ? data[0] : undefined;
+      if (error || !saved?.profile_user_id) {
+        console.error('Error saving contact info:', error);
         toast({
           title: "Error saving",
-          description: "Failed to save contact information. Please try again.",
+          description:
+            error?.code && USER_FACING_SAVE_ERROR_CODES.has(error.code)
+              ? error.message
+              : "Failed to save contact information. Please try again.",
           variant: "destructive"
         });
         return;
       }
 
-      if (result.data?.id) {
-        setProfileId(result.data.id);
-      }
-
+      setHasProfile(true);
       setOriginalData(formData);
       setIsEditing(false);
+      // Refresh every reader of this business profile (the campaign editor's
+      // address check, footers, Studio), in this tab and others.
+      notifyBusinessProfileChanged({
+        tenantId,
+        profileUserId: saved.profile_user_id,
+      });
       toast({
         title: "Saved successfully",
-        description: "Your contact and footer settings have been updated.",
+        description: businessName
+          ? `Contact and footer settings for ${businessName} have been updated.`
+          : "Your contact and footer settings have been updated.",
       });
     } finally {
       setIsSaving(false);
@@ -192,6 +235,7 @@ export const ContactFooterTab = () => {
     setFormData(originalData);
     setIsEditing(false);
   };
+
 
   if (isLoading) {
     return (
@@ -210,6 +254,20 @@ export const ContactFooterTab = () => {
           <p className="text-muted-foreground mt-1">
             Manage your contact information, address, and email footer content
           </p>
+          {businessName ? (
+            <p
+              className="mt-2 flex items-center gap-2 text-sm font-medium text-foreground"
+              data-testid="contact-footer-editing-business"
+            >
+              <Building2 className="w-4 h-4" aria-hidden />
+              Editing {businessName}
+            </p>
+          ) : null}
+          {!hasProfile ? (
+            <p className="mt-1 text-sm text-muted-foreground" data-testid="contact-footer-no-profile">
+              This business has no profile yet. Saving creates it.
+            </p>
+          ) : null}
         </div>
         <div className="flex gap-2">
           {isEditing ? (

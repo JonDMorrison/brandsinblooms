@@ -1,4 +1,5 @@
 import * as React from 'react';
+import type { ChangeEvent } from 'react';
 import { Stack, Button, Typography, Input, Box, FormControl, FormLabel } from '@mui/joy';
 import { Plus } from 'lucide-react';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -10,6 +11,23 @@ const DEFAULT_COLOUR = '#496A51';
 const COLOUR_SAVE_DELAY_MS = 400;
 
 const wrapRowSx = {minWidth: 0, maxWidth: '100%'} as const;
+
+/** Both colour pickers: the same 44px square, so they line up exactly. */
+const colourInputSx = {
+ display: 'block',
+ width: 44,
+ height: 44,
+ p: 0.5,
+ bgcolor: 'background.surface',
+ border: '1px solid',
+ borderColor: 'neutral.outlinedBorder',
+ borderRadius: 'sm',
+ cursor: 'pointer',
+ '&:disabled': {cursor: 'not-allowed', opacity: 0.6},
+ '&::-webkit-color-swatch-wrapper': {p: 0},
+ '&::-webkit-color-swatch': {border: 'none', borderRadius: 'xs'},
+ '&::-moz-color-swatch': {border: 'none', borderRadius: 'xs'},
+} as const;
 
 function Swatch({colour}: {colour: string}) {
  return <Box component="span" aria-hidden sx={{width:14,height:14,flexShrink:0,bgcolor:colour,borderRadius:'xs'}} />;
@@ -106,21 +124,34 @@ export function CampaignOrganization({campaignId, disabled = false, onSaved}: {
    {confirmDelete === group.id && <Button size="sm" color="danger" disabled={busy} onClick={() => mutation.mutate({type:'deleteGroup', id:group.id}, {onSuccess: () => setConfirmDelete(null)})}>Remove group from all campaigns</Button>}
   </>))}
 
-  <Stack direction="row" spacing={1} alignItems="flex-end" useFlexGap flexWrap="wrap" sx={wrapRowSx}>
-   <FormControl sx={{minWidth: 0, flex: '1 1 180px', maxWidth: 320}}>
+  {/* One grid for both rows so the group and campaign colour pickers share a
+      column and line up. Stacks to one column on phones. */}
+  <Box data-testid="campaign-organization-form-grid" sx={{
+   display: 'grid',
+   gridTemplateColumns: {xs: 'minmax(0, 1fr)', sm: 'minmax(0, 320px) auto auto'},
+   columnGap: 2,
+   rowGap: 2,
+   alignItems: 'end',
+   justifyContent: 'start',
+   minWidth: 0,
+  }}>
+   <FormControl sx={{minWidth: 0}}>
     <FormLabel htmlFor="campaign-organization-group-name">{editing ? 'Group name' : 'New group name'}</FormLabel>
     <Input placeholder="e.g. December" value={name} disabled={busy} onChange={e=>setName(e.target.value)} slotProps={{input:{maxLength:80,id:'campaign-organization-group-name'}}} />
    </FormControl>
    <FormControl>
     <FormLabel htmlFor="campaign-organization-group-colour">Group colour</FormLabel>
-    <input id="campaign-organization-group-colour" type="color" value={colour} disabled={busy} onChange={e=>setColour(e.target.value)} style={{minHeight:44,minWidth:44}} />
+    <Box component="input" id="campaign-organization-group-colour" type="color" value={colour} disabled={busy} onChange={(e: ChangeEvent<HTMLInputElement>)=>setColour(e.target.value)} sx={colourInputSx} />
    </FormControl>
-   <Button disabled={busy || !name.trim()} onClick={save}>{editing ? 'Save group' : 'Add group'}</Button>
-   {editing && <Button variant="plain" onClick={resetForm}>Cancel</Button>}
-  </Stack>
-  {campaignId && <Stack direction="row" spacing={1} alignItems="center" useFlexGap flexWrap="wrap" sx={wrapRowSx}>
-   <Typography component="label" htmlFor="campaign-organization-campaign-colour" level="body-sm">Campaign colour</Typography>
-   <input id="campaign-organization-campaign-colour" type="color" style={{minHeight:44,minWidth:44}} disabled={disabled || !hasPermission("campaigns.write")} value={shownCampaignColour} onChange={e=>changeCampaignColour(e.target.value)} onBlur={flushColour} />
-  </Stack>}
+   <Stack direction="row" spacing={1}>
+    <Button disabled={busy || !name.trim()} onClick={save}>{editing ? 'Save group' : 'Add group'}</Button>
+    {editing && <Button variant="plain" onClick={resetForm}>Cancel</Button>}
+   </Stack>
+   {campaignId && <>
+    <Typography component="label" htmlFor="campaign-organization-campaign-colour" level="title-sm"
+     sx={{alignSelf: 'center', textAlign: {xs: 'left', sm: 'right'}}}>Campaign colour</Typography>
+    <Box component="input" id="campaign-organization-campaign-colour" type="color" disabled={disabled || !hasPermission("campaigns.write")} value={shownCampaignColour} onChange={(e: ChangeEvent<HTMLInputElement>)=>changeCampaignColour(e.target.value)} onBlur={flushColour} sx={colourInputSx} />
+   </>}
+  </Box>
  </Stack>;
 }

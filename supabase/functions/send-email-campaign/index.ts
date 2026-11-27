@@ -7,6 +7,10 @@ import {
 } from "../_shared/linkRewriter.ts";
 import { dedupeRecipientsByEmail } from "../_shared/recipientEmailDedup.ts";
 import {
+  resolveCampaignSegmentIds,
+  resolveSegmentAudienceCustomerIds,
+} from "../_shared/campaignSegmentAudience.ts";
+import {
   serializeSupabaseError,
   isUuidLike,
 } from "../_shared/campaignHelpers.ts";
@@ -29,7 +33,7 @@ import { resolveCampaignEmailSource } from "../_shared/campaignEmailContent.ts";
 import { COMPANY_PROFILE_WITH_DESIGN_SYSTEM_SELECT } from "../_shared/resolveDesignSystem.ts";
 import { resolveCampaignSenderDisplayName } from "../_shared/campaignFromHeader.ts";
 import { canQueueCampaignForTenant } from "../../../src/lib/auth/crmAccess.ts";
-import { resolveBusinessProfileUserId } from "../_shared/businessProfileUserId.ts";
+import { resolveCampaignBusinessProfileUserId } from "../_shared/businessProfileUserId.ts";
 import { resolveCampaignPostalAddress } from "../_shared/campaignPostalAddress.ts";
 import { MISSING_POSTAL_ADDRESS_MESSAGE } from "../../../src/lib/studio/businessPlaceholders.ts";
 import type { ServerCompanyProfileShape } from "../_shared/resolveDesignSystem.ts";
@@ -1024,7 +1028,12 @@ serve(async (req: Request) => {
     const spamScoreThreshold = governanceConfig.compliance.spam_score_threshold;
 
     // Get company profile
-    const profileUserId = await resolveBusinessProfileUserId(supabase, campaign.user_id);
+    // The campaign's business, not the creator's own (a master admin working
+    // in a client's tenant creates campaigns there).
+    const profileUserId = await resolveCampaignBusinessProfileUserId(supabase, {
+      tenantId: campaignTenantId,
+      userId: campaign.user_id,
+    });
     const { data: companyProfile } = await supabase
       .from("company_profiles")
       .select(COMPANY_PROFILE_WITH_DESIGN_SYSTEM_SELECT)
@@ -1034,35 +1043,26 @@ serve(async (req: Request) => {
     // Get customers based on targeting (segments + personas)
     let customers: any[] = [];
 
-    // 1) Segment targeting
-    const segmentIds: string[] = [];
-    if (campaign.segment_id) segmentIds.push(campaign.segment_id);
-
-    if (segmentIds.length === 0) {
-      const { data: campaignSegments, error: campaignSegmentsError } =
-        await supabase
-          .from("campaign_segments")
-          .select("segment_id")
-          .eq("campaign_id", campaignId);
-
-      if (campaignSegmentsError) {
-        console.error(
-          "Error fetching campaign_segments:",
-          campaignSegmentsError,
-        );
-        return new Response(
-          JSON.stringify({ error: "Failed to fetch campaign segments" }),
-          {
-            status: 500,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          },
-        );
-      }
-
-      (campaignSegments || []).forEach((cs: any) => {
-        if (cs?.segment_id) segmentIds.push(cs.segment_id);
-      });
+    // 1) Segment targeting: every selected segment (campaign_segments rows
+    // plus the legacy segment_id), never just the first.
+    const segmentIdsResult = await resolveCampaignSegmentIds(supabase, {
+      campaignId,
+      legacySegmentId: campaign.segment_id,
+    });
+    if (!segmentIdsResult.ok) {
+      console.error(
+        "Error fetching campaign_segments:",
+        segmentIdsResult.error,
+      );
+      return new Response(
+        JSON.stringify({ error: "Failed to fetch campaign segments" }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
+    const segmentIds: string[] = segmentIdsResult.value;
 
     // 2) Persona targeting
     const personaIds = new Set<string>();
@@ -1207,40 +1207,25 @@ serve(async (req: Request) => {
     }
 
     if (!resolveAllCustomersAudience && segmentIds.length > 0) {
-      const PAGE_SIZE = 1000;
-      const segmentCustomerIds = new Set<string>();
-      for (let from = 0; ; from += PAGE_SIZE) {
-        const to = from + PAGE_SIZE - 1;
-        const { data: segmentCustomers, error: segErr } = await supabase
-          .from("customer_segments")
-          .select("customer_id, crm_segments!inner(id)")
-          .eq("crm_segments.tenant_id", campaignTenantId)
-          .is("crm_segments.deleted_at", null)
-          .in("segment_id", segmentIds)
-          .range(from, to);
-
-        if (segErr) {
-          console.error("Error fetching customer_segments:", segErr);
-          return new Response(
-            JSON.stringify({ error: "Failed to fetch segment audience" }),
-            {
-              status: 500,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            },
-          );
-        }
-
-        (segmentCustomers || []).forEach((r: any) => {
-          if (typeof r?.customer_id === "string" && isUuidLike(r.customer_id)) {
-            segmentCustomerIds.add(r.customer_id);
-          }
-        });
-
-        if (!segmentCustomers || segmentCustomers.length < PAGE_SIZE) break;
+      const segmentAudience = await resolveSegmentAudienceCustomerIds(
+        supabase,
+        { tenantId: campaignTenantId, segmentIds },
+      );
+      if (!segmentAudience.ok) {
+        console.error("Error fetching customer_segments:", segmentAudience.error);
+        return new Response(
+          JSON.stringify({ error: "Failed to fetch segment audience" }),
+          {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
       }
 
-      const ids = Array.from(segmentCustomerIds);
-      console.log(`📧 Segment audience resolved: ${ids.length} customers`);
+      const ids = segmentAudience.value;
+      console.log(
+        `📧 Segment audience resolved: ${ids.length} customers across ${segmentIds.length} segment(s)`,
+      );
       allowedCustomerIds = ids;
     }
 
@@ -2152,7 +2137,6 @@ serve(async (req: Request) => {
     }
 
     // Determine sender
-    const companyName = companyProfile?.company_name || "Your Garden Center";
     let activeDomainId: string | null = null;
 
     const domainName = quotaCheck.domain?.domain;
@@ -2204,11 +2188,22 @@ serve(async (req: Request) => {
     // From-header display name resolution lives in _shared/campaignFromHeader
     // so the test-send path and the live-send path produce identical From
     // headers from identical inputs.
+    // The tenant's own name is the last real name before the bare address,
+    // as it is for automation emails (_shared/senderResolver.ts).
+    const { data: senderTenantRow } = await supabase
+      .from("tenants")
+      .select("name, fallback_from_name")
+      .eq("id", campaignTenantId)
+      .maybeSingle();
     const senderDisplayName = resolveCampaignSenderDisplayName({
       campaignSenderName: campaign.sender_name,
       domainFromName: quotaCheck.sender?.from_name,
       companyProfileName: companyProfile?.company_name,
-      finalFallback: companyName,
+      tenantName: senderTenantRow?.name,
+      tenantFallbackFromName: senderTenantRow?.fallback_from_name,
+      // Never a placeholder name: with no real name the display name stays
+      // empty and the verified address is used on its own.
+      finalFallback: "",
     });
     const deliveryMethod = "custom_domain";
     const usesVerifiedDomain = true;

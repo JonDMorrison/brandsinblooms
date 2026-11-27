@@ -24,7 +24,8 @@ import {
   type CampaignEmailSource,
 } from "../_shared/campaignEmailContent.ts";
 import { COMPANY_PROFILE_WITH_DESIGN_SYSTEM_SELECT } from "../_shared/resolveDesignSystem.ts";
-import { resolveBusinessProfileUserId } from "../_shared/businessProfileUserId.ts";
+import { resolveCampaignBusinessProfileUserId } from "../_shared/businessProfileUserId.ts";
+import { resolveCampaignSenderDisplayName } from "../_shared/campaignFromHeader.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -1809,7 +1810,7 @@ serve((req: Request) => {
               let companyProfile: any = null;
               let campaignSource: CampaignEmailSource | null = null;
               let senderEmail: string = "";
-              let senderDisplayName: string = "Your Garden Center";
+              let senderDisplayName: string = "";
               let usesVerifiedDomain = false;
               let activeDomainId: string | null = null;
               let replyToEmail: string | undefined;
@@ -1838,10 +1839,15 @@ serve((req: Request) => {
 
                 if (campaign?.user_id) {
                   const campaignUserId = String(campaign.user_id);
-                  let userId = profileUserIdCache.get(campaignUserId);
+                  const campaignTenant = campaign.tenant_id ? String(campaign.tenant_id) : null;
+                  const profileCacheKey = `${campaignTenant ?? ""}:${campaignUserId}`;
+                  let userId = profileUserIdCache.get(profileCacheKey);
                   if (!userId) {
-                    userId = await resolveBusinessProfileUserId(supabase, campaignUserId);
-                    profileUserIdCache.set(campaignUserId, userId);
+                    userId = await resolveCampaignBusinessProfileUserId(supabase, {
+                      tenantId: campaignTenant,
+                      userId: campaignUserId,
+                    });
+                    profileUserIdCache.set(profileCacheKey, userId);
                   }
                   if (!companyProfileCache.has(userId)) {
                     const { data: pRow, error: pErr } = await supabase
@@ -1893,10 +1899,13 @@ serve((req: Request) => {
                   campaignSource = campaignSourceCache.get(campaignId) || null;
 
                   senderEmail = campaign.actual_sender_email || "";
-                  senderDisplayName =
-                    campaign.sender_display_name ||
-                    companyProfile?.company_name ||
-                    "Your Garden Center";
+                  // send-email-campaign stores the resolved display name; with
+                  // no real name the verified address is used on its own.
+                  senderDisplayName = resolveCampaignSenderDisplayName({
+                    campaignSenderName: campaign.sender_display_name,
+                    companyProfileName: companyProfile?.company_name,
+                    finalFallback: "",
+                  });
                   usesVerifiedDomain =
                     campaign.delivery_method === "custom_domain" &&
                     !!senderEmail;
@@ -2162,7 +2171,9 @@ serve((req: Request) => {
                     !payload?.to;
 
                   if (missing && campaign && campaignSource) {
-                    const fromAddress = `${senderDisplayName} <${senderEmail}>`;
+                    const fromAddress = senderDisplayName
+                      ? `${senderDisplayName} <${senderEmail}>`
+                      : senderEmail;
                     const customer = customersById.get(msg.customer_id) || {
                       id: msg.customer_id,
                       email: msg.email,

@@ -15,7 +15,11 @@ import { rewriteLinksSync } from "../_shared/linkRewriter.ts";
 import { canSendEmailBatch, logSkippedSends } from "../_shared/canSendEmail.ts";
 import { getEmailGovernanceRuntimeConfig } from "../_shared/emailGovernanceConfig.ts";
 import { systemPauseEmailCampaignSending } from "../_shared/systemPauseCampaign.ts";
-import { resolveBusinessProfileUserId } from "../_shared/businessProfileUserId.ts";
+import { resolveCampaignBusinessProfileUserId } from "../_shared/businessProfileUserId.ts";
+import {
+  resolveCampaignSegmentIds,
+  resolveSegmentAudienceCustomerIds,
+} from "../_shared/campaignSegmentAudience.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -435,19 +439,46 @@ serve(async (req) => {
     let allCustomers: any[] = [];
     let customersError: any = null;
 
-    if (campaign.segment_id) {
-      // Get customers from the segment
-      console.log(`📧 Fetching customers from segment: ${campaign.segment_id}`);
-      const { data, error } = await supabase
-        .from("crm_customers")
-        .select(
-          "id, first_name, last_name, email, suppressed, customer_segments!inner(segment_id)",
-        )
-        .eq("tenant_id", campaign.tenant_id)
-        .eq("customer_segments.segment_id", campaign.segment_id)
-        .not("email", "is", null);
-      allCustomers = data || [];
-      customersError = error;
+    // Every selected segment (campaign_segments plus the legacy segment_id),
+    // the same set send-email-campaign targets.
+    const segmentIdsResult = await resolveCampaignSegmentIds(supabase, {
+      campaignId,
+      legacySegmentId: campaign.segment_id,
+    });
+    if (!segmentIdsResult.ok) {
+      console.error("Error fetching campaign_segments:", segmentIdsResult.error);
+      return new Response(
+        JSON.stringify({ error: "Failed to fetch campaign segments" }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+    const segmentIds = segmentIdsResult.value;
+
+    if (segmentIds.length > 0) {
+      console.log(`📧 Fetching customers from ${segmentIds.length} segment(s)`);
+      const segmentAudience = await resolveSegmentAudienceCustomerIds(
+        supabase,
+        { tenantId: campaign.tenant_id, segmentIds },
+      );
+      if (!segmentAudience.ok) {
+        customersError = segmentAudience.error;
+      } else {
+        const IN_CHUNK = 100;
+        const ids = segmentAudience.value;
+        for (let i = 0; i < ids.length && !customersError; i += IN_CHUNK) {
+          const { data, error } = await supabase
+            .from("crm_customers")
+            .select("id, first_name, last_name, email, suppressed")
+            .eq("tenant_id", campaign.tenant_id)
+            .in("id", ids.slice(i, i + IN_CHUNK))
+            .not("email", "is", null);
+          if (error) customersError = error;
+          else allCustomers.push(...(data || []));
+        }
+      }
     } else {
       // Get ALL eligible customers for this tenant (no segment filter)
       const { data, error } = await supabase
@@ -597,7 +628,10 @@ serve(async (req) => {
     }
 
     // Get company profile
-    const profileUserId = await resolveBusinessProfileUserId(supabase, campaign.user_id);
+    const profileUserId = await resolveCampaignBusinessProfileUserId(supabase, {
+      tenantId: campaign.tenant_id ?? null,
+      userId: campaign.user_id,
+    });
     const { data: companyProfile } = await supabase
       .from("company_profiles")
       .select(

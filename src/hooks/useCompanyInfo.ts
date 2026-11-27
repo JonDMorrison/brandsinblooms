@@ -6,7 +6,10 @@ import type {
   BrandFooterColors,
   CompanyInfo,
 } from "@/types/company";
-import { getTenantBusinessProfileUserId } from "@/lib/profile/businessProfileUserId";
+import {
+  getTenantBusinessProfileUserId,
+  subscribeBusinessProfileChanged,
+} from "@/lib/profile/businessProfileUserId";
 import {
   realBusinessName,
   realPostalAddress,
@@ -312,6 +315,22 @@ export const useCompanyInfo = () => {
     return () => {
       active = false;
     };
+  }, [loadCompanyInfo, userId, tenantId, tenantLoading, tenantName]);
+
+  // Contact & Footer settings (possibly in another tab) announce saves:
+  // company_profiles is not in the realtime publication, so without this the
+  // campaign editor's address readiness check would keep the stale profile.
+  useEffect(() => {
+    if (!userId || tenantLoading) {
+      return;
+    }
+
+    return subscribeBusinessProfileChanged((change) => {
+      if (change.tenantId !== null && tenantId !== null && change.tenantId !== tenantId) {
+        return;
+      }
+      void loadCompanyInfo(userId, tenantId, tenantName);
+    });
   }, [loadCompanyInfo, userId, tenantId, tenantLoading, tenantName]);
 
   // Separate effect for real-time subscription to avoid dependency issues
