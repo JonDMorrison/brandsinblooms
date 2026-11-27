@@ -4,6 +4,7 @@
  */
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { mergeCatalogMatches, singularQuery } from "../_shared/catalogSearch.ts";
 
 const headers = {
   "Access-Control-Allow-Origin": "*",
@@ -162,34 +163,25 @@ serve(async (req: Request) => {
     const permittedLinks = siteId ? connectionList.filter(x=>x.cms_site_id===siteId):connectionList;
     if (siteId && permittedLinks.length===0) return ok({error:"site_not_connected"},404);
     const limit = Math.min(50,Math.max(1,Number(requested.searchParams.get("limit"))||24));
+    // Upstream page size for the unfiltered fallback page used by search.
+    const UNFILTERED_PAGE = 50;
     const outcomes=await Promise.all(permittedLinks.map(async(link)=>{
-      const upstream=new URL(`${BLOOMSITES_API_ORIGIN}/api/connected-content/catalog`);
-      upstream.searchParams.set("siteId",link.cms_site_id);
-      upstream.searchParams.set("type",kind);
-      if (itemId) upstream.searchParams.set("itemId",itemId);
-      upstream.searchParams.set("limit",String(limit));
-      if (query)upstream.searchParams.set("q",query);
-      try {
+      type Page={items:ContentItem[];hasMore:boolean;refreshedAt?:unknown;siteOrigin:string};
+      const fetchPage=async(q:string,pageLimit:number):Promise<Page|null>=>{
+        const upstream=new URL(`${BLOOMSITES_API_ORIGIN}/api/connected-content/catalog`);
+        upstream.searchParams.set("siteId",link.cms_site_id);
+        upstream.searchParams.set("type",kind);
+        if (itemId) upstream.searchParams.set("itemId",itemId);
+        upstream.searchParams.set("limit",String(pageLimit));
+        if (q)upstream.searchParams.set("q",q);
         const res=await fetch(upstream,{headers:{"Accept":"application/json", "Cache-Control":"no-cache"}, cache:"no-store",
           signal:AbortSignal.timeout(10000),redirect:"error"});
-        if(!res.ok) return {siteId:link.cms_site_id,error:"content_unavailable",items:[]};
+        if(!res.ok) return null;
         const payload=await res.json();
-        if(payload?.siteId!==link.cms_site_id ||
-           !Array.isArray(payload.items)) {
-          return {siteId:link.cms_site_id,error:"invalid_catalog",items:[]};
+        if(payload?.siteId!==link.cms_site_id || !Array.isArray(payload.items)) {
+          throw new Error("invalid_catalog");
         }
         const allowedOrigin = new URL(payload.siteOrigin).origin;
-        // The public address can change after linking (a custom domain gets
-        // verified). BloomSites is the source of truth; keep the stored copy
-        // current so Settings and Integrations show the address customers use.
-        if (/^https:\/\/[a-z0-9][a-z0-9.-]+$/i.test(allowedOrigin) && allowedOrigin!==link.site_origin) {
-          // Best effort: a failed refresh must never block the catalogue.
-          try {
-            await admin.from("crm_connected_websites").update({site_origin:allowedOrigin})
-              .eq("tenant_id",tenantId).eq("cms_site_id",link.cms_site_id).eq("status","active");
-          } catch { /* keep the stored copy; the next fetch retries */ }
-          link.site_origin=allowedOrigin;
-        }
         const items:ContentItem[]=payload.items.filter((item:ContentItem)=>{
           if (typeof item?.id!=="string" || !uuid.test(item.id) ||
               typeof item?.publicUrl!=="string" ||
@@ -201,9 +193,46 @@ serve(async (req: Request) => {
         }).map((item:ContentItem)=>({
           ...item,siteName:link.site_name,
         }));
+        return {items,hasMore:Boolean(payload.hasMore),refreshedAt:payload.refreshedAt,siteOrigin:allowedOrigin};
+      };
+      // Search never relies on the website's own matching alone. Alongside
+      // the website's results for the query (and for its singular form), an
+      // unfiltered page is matched here: case-insensitive, partial-word, on
+      // title, description, category and tags, singular or plural.
+      const searching = Boolean(query) && !itemId;
+      const alternate = searching ? singularQuery(query) : "";
+      let primary:Page|null;
+      try {
+        primary=await fetchPage(query,limit);
+      } catch (error) {
+        const code=error instanceof Error && error.message==="invalid_catalog"?"invalid_catalog":"content_unavailable";
+        return {siteId:link.cms_site_id,error:code,items:[]};
+      }
+      if(!primary) return {siteId:link.cms_site_id,error:"content_unavailable",items:[]};
+      // The public address can change after linking (a custom domain gets
+      // verified). BloomSites is the source of truth; keep the stored copy
+      // current so Settings and Integrations show the address customers use.
+      if (/^https:\/\/[a-z0-9][a-z0-9.-]+$/i.test(primary.siteOrigin) && primary.siteOrigin!==link.site_origin) {
+        // Best effort: a failed refresh must never block the catalogue.
+        try {
+          await admin.from("crm_connected_websites").update({site_origin:primary.siteOrigin})
+            .eq("tenant_id",tenantId).eq("cms_site_id",link.cms_site_id).eq("status","active");
+        } catch { /* keep the stored copy; the next fetch retries */ }
+        link.site_origin=primary.siteOrigin;
+      }
+      if (!searching) {
         return {siteId:link.cms_site_id,siteName:link.site_name,
-          refreshedAt:payload.refreshedAt,hasMore:Boolean(payload.hasMore),items};
-      }catch{return {siteId:link.cms_site_id,error:"content_unavailable",items:[]};}
+          refreshedAt:primary.refreshedAt,hasMore:primary.hasMore,items:primary.items};
+      }
+      // Fallback pages are best effort: a failure keeps the primary results.
+      const optional=(q:string,pageLimit:number)=>fetchPage(q,pageLimit).catch(()=>null);
+      const [singular,unfiltered]=await Promise.all([
+        alternate?optional(alternate,limit):Promise.resolve(null),
+        optional("",UNFILTERED_PAGE),
+      ]);
+      const items=mergeCatalogMatches(query,[primary.items,singular?.items??[]],unfiltered?.items??[],limit);
+      return {siteId:link.cms_site_id,siteName:link.site_name,
+        refreshedAt:primary.refreshedAt,hasMore:primary.hasMore,items};
     }));
     return ok({
       connections:connectionList,
