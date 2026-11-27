@@ -66,7 +66,10 @@ describe("NewsletterInboxReview", () => {
       screen.queryByText("A clear invitation with the date in preview text."),
     ).not.toBeInTheDocument();
     expect(onChange).not.toHaveBeenCalled();
-    await user.click(screen.getByRole("button", { name: "Use this" }));
+    // Suggestions are links under the subject; choosing one fills both fields.
+    await user.click(
+      screen.getByRole("button", { name: /Use suggestion: Make a winter wreath/ }),
+    );
     expect(onChange).toHaveBeenCalledWith({
       subjectLine: "Make a winter wreath",
       preheaderText: "Join us November 14.",
@@ -105,6 +108,23 @@ describe("NewsletterInboxReview", () => {
     ).toBeInTheDocument();
     expect(screen.queryByText("Winter")).not.toBeInTheDocument();
     expect(onChange).not.toHaveBeenCalled();
+  });
+  it("shows the inbox row with the sender initial, name, subject and preview", () => {
+    render(
+      <NewsletterInboxReview
+        blocks={blocks}
+        subject="Winter wreaths are here"
+        preview="Join us November 14."
+        senderName="Fernhill Gardens"
+        onChange={vi.fn()}
+      />,
+    );
+    const row = screen.getByTestId("inbox-preview-row");
+    expect(row).toHaveTextContent("F");
+    expect(row).toHaveTextContent("Fernhill Gardens");
+    expect(row).toHaveTextContent("Winter wreaths are here");
+    expect(row).toHaveTextContent("Join us November 14.");
+    expect(screen.getByText("23 characters · Aim for 40–60")).toBeInTheDocument();
   });
   it("remembers a content scan across returning from Studio and preserves manual copy", async () => {
     sessionStorage.clear();

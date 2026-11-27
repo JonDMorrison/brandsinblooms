@@ -148,12 +148,12 @@ test("a new newsletter opens Design Studio and previews Photo Banner, button and
   }
 
   await page.goto("/crm/campaigns/new?type=newsletter");
-  await page.getByRole("button", { name: /Campaign details/ }).click();
+  // The campaign name is the editable heading in the editor header.
   await page
     .getByRole("textbox", { name: "Campaign name", exact: true })
     .fill(ARTIFACT_MARKER);
   const studioEntry = page.getByRole("button", {
-    name: "Customize in Design Studio",
+    name: "Open Design Studio",
     exact: true,
   });
   await expect(studioEntry).toBeVisible();

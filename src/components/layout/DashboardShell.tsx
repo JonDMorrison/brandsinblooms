@@ -170,6 +170,10 @@ export function DashboardShell({
   const showBotanicalCanvas = mode !== "admin" &&
     /^\/(dashboard|analytics|crm)(\/|$)/.test(pathname) &&
     !/studio|email-builder/.test(pathname);
+  // The campaign editor (/crm/campaigns/new, /:id and /:id/edit) draws its
+  // own page background, without the leaf artwork.
+  const isCampaignEditorRoute =
+    /^\/crm\/campaigns\/(?!templates$|blocks$)[^/]+(\/edit)?\/?$/.test(pathname);
   const resolvedContentWidth = useMemo(
     () => contentWidth ?? resolveDashboardContentWidth(pathname, mode),
     [contentWidth, mode, pathname],
@@ -359,7 +363,7 @@ export function DashboardShell({
             scrollBehavior: "smooth",
             overscrollBehavior: "contain",
             backgroundColor: "var(--joy-palette-neutral-50)",
-            backgroundImage: showBotanicalCanvas
+            backgroundImage: showBotanicalCanvas && !isCampaignEditorRoute
               ? 'url("/images/dashboard/botanical-corner.svg"), url("/images/dashboard/botanical-corner.svg")'
               : "none",
             // Outlined/plain controls must remain opaque over the botanical canvas.

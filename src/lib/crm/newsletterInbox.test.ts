@@ -3,6 +3,8 @@ import {
   draftInboxSuggestion,
   inboxInsights,
   newsletterInboxText,
+  skipGreetingText,
+  startsWithGreeting,
 } from "./newsletterInbox";
 import {
   buildInboxPrompt,
@@ -31,6 +33,54 @@ describe("content-first inbox suggestions", () => {
       subject: lines[0],
       preview: lines[1],
     });
+  });
+  it("never drafts preview text that starts with a greeting", () => {
+    const greetings = [
+      "Hi {{first_name}},",
+      "Hello {{ first_name }}!",
+      "Hey there,",
+      "Dear friends,",
+      "Good morning, gardeners!",
+      "Hi Jane",
+      "Hello and welcome to our garden centre",
+    ];
+    for (const greeting of greetings) {
+      const draft = draftInboxSuggestion([
+        "Winter wreath workshops",
+        greeting,
+        "Join us on November 14 for a hands-on workshop.",
+      ]);
+      expect(startsWithGreeting(draft.preview)).toBe(false);
+      expect(draft.preview).toBe("Join us on November 14 for a hands-on workshop.");
+    }
+  });
+  it("keeps the news after a greeting in the same line", () => {
+    expect(
+      draftInboxSuggestion([
+        "Winter wreaths",
+        "Hi {{first_name}}, our wreath workshops are back. Book a seat today.",
+      ]).preview,
+    ).toBe("Our wreath workshops are back. Book a seat today.");
+    expect(skipGreetingText("Good morning! Fresh poinsettias arrived today.")).toBe(
+      "Fresh poinsettias arrived today.",
+    );
+    expect(skipGreetingText("Hello there. Hi again. Roses are 20% off.")).toBe(
+      "Roses are 20% off.",
+    );
+  });
+  it("leaves the preview empty when the copy is only greetings", () => {
+    expect(
+      draftInboxSuggestion(["Winter wreaths", "Hi {{first_name}},", "Dear friends,"]).preview,
+    ).toBe("");
+    expect(draftInboxSuggestion(["Hello {{first_name}}!"]).preview).toBe("");
+  });
+  it("does not treat words that only begin like a greeting as one", () => {
+    expect(startsWithGreeting("Hi-tech grow lights are here")).toBe(false);
+    expect(startsWithGreeting("Heyday of the hellebores")).toBe(false);
+    expect(startsWithGreeting("Helloween pumpkin sale")).toBe(false);
+    expect(
+      draftInboxSuggestion(["Lights", "Hi-tech grow lights are here."]).preview,
+    ).toBe("Hi-tech grow lights are here.");
   });
   it("does not invent a subject before there is content", () => {
     expect(draftInboxSuggestion([])).toEqual({ subject: "", preview: "" });

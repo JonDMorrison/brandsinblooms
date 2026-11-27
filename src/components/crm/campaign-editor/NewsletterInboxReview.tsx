@@ -1,6 +1,7 @@
 import * as React from "react";
 import Box from "@mui/joy/Box";
 import Button from "@mui/joy/Button";
+import Link from "@mui/joy/Link";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
 import { Sparkles } from "lucide-react";
@@ -31,6 +32,7 @@ export function NewsletterInboxReview({
   onChange,
   disabled = false,
   campaignId,
+  senderName,
 }: {
   blocks: StudioBlock[];
   subject: string;
@@ -38,7 +40,16 @@ export function NewsletterInboxReview({
   onChange: (fields: { subjectLine?: string; preheaderText?: string }) => void;
   disabled?: boolean;
   campaignId?: string | null;
+  /** Shown in the inbox row, as customers will see it. */
+  senderName?: string;
 }) {
+  const inboxTime = React.useMemo(
+    () =>
+      new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(
+        new Date(),
+      ),
+    [],
+  );
   const lines = React.useMemo(() => newsletterInboxText(blocks), [blocks]);
   const context = lines.join("\n").slice(0, 10000);
   const starter = React.useMemo(() => draftInboxSuggestion(lines), [lines]);
@@ -150,11 +161,14 @@ export function NewsletterInboxReview({
   }
   const tips = inboxInsights(subject, preview);
   const currentSuggestions = suggestionContext === context ? suggestions : [];
+  const subjectLength = subject.length;
+  const subjectInRange = subjectLength >= 40 && subjectLength <= 60;
+  const fromLabel = senderName?.trim() || "Your business";
   return (
     <Stack spacing={2.5}>
       <Typography level="body-md" textColor="text.secondary">
-        Now that your design is ready, choose how it appears in the inbox. We
-        draft empty fields from your newsletter. You can edit every word.
+        Choose how your email appears in the inbox. We draft empty fields from
+        your newsletter. You can edit every word.
       </Typography>
       {!context ? (
         <Typography level="body-sm">
@@ -162,51 +176,170 @@ export function NewsletterInboxReview({
           appear here when there is text to work with.
         </Typography>
       ) : null}
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
-          gap: 2,
-        }}
-      >
+      <Stack spacing={1}>
         <JoyInput
           id="campaign-editor-subject"
           label="Subject line"
           value={subject}
           disabled={disabled}
           onValueChange={(value) => onChange({ subjectLine: value })}
+          endDecorator={
+            <Typography
+              component="span"
+              data-testid="subject-character-count"
+              aria-hidden
+              sx={{
+                fontSize: 14,
+                fontWeight: 600,
+                color: subjectInRange ? "success.700" : "text.secondary",
+              }}
+            >
+              {subjectLength}
+            </Typography>
+          }
           helperText={
             hasFirstNameTag(subject)
-              ? `${subject.length} characters · {{ first_name }} becomes each customer's first name`
-              : `${subject.length} characters · Aim for 40–60`
+              ? `${subjectLength} characters · Aim for 40–60 · {{ first_name }} becomes each customer's first name`
+              : `${subjectLength} characters · Aim for 40–60`
           }
         />
-        <JoyInput
-          label="Preview text"
-          value={preview}
-          disabled={disabled}
-          onValueChange={(value) => onChange({ preheaderText: value })}
-          helperText={`${preview.length} / 150 · Add a detail that complements the subject`}
-        />
-      </Box>
-      <Box
-        sx={{
-          p: 2.5,
-          border: "1px solid",
-          borderColor: "neutral.200",
-          borderRadius: "lg",
-          bgcolor: "neutral.50",
-        }}
-      >
-        <Typography level="body-xs" sx={{ color: "neutral.600", mb: 1 }}>
-          INBOX PREVIEW
+        {currentSuggestions.length ? (
+          <Box data-testid="subject-suggestions">
+            <Typography level="body-sm" sx={{ fontWeight: 700, mb: 0.5 }}>
+              Bloom suggests
+            </Typography>
+            <Stack component="ul" spacing={0.5} sx={{ m: 0, p: 0, listStyle: "none" }}>
+              {currentSuggestions.map((s, i) => (
+                <Box component="li" key={i}>
+                  <Link
+                    component="button"
+                    type="button"
+                    disabled={disabled}
+                    underline="none"
+                    aria-label={`Use suggestion: ${s.subject}. Preview: ${s.preview}`}
+                    onClick={() =>
+                      onChange({
+                        subjectLine: s.subject,
+                        preheaderText: s.preview,
+                      })
+                    }
+                    sx={{
+                      minHeight: 44,
+                      textAlign: "left",
+                      fontSize: 16,
+                      fontWeight: 600,
+                      display: "inline-flex",
+                      flexDirection: "column",
+                      alignItems: "flex-start",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Box
+                      component="span"
+                      sx={{ textDecoration: "underline", textUnderlineOffset: "3px" }}
+                    >
+                      {s.subject}
+                    </Box>
+                    <Typography
+                      component="span"
+                      level="body-sm"
+                      textColor="text.secondary"
+                      sx={{ fontWeight: 400 }}
+                    >
+                      {s.preview}
+                    </Typography>
+                  </Link>
+                </Box>
+              ))}
+            </Stack>
+          </Box>
+        ) : null}
+        <Stack direction="row" spacing={1} alignItems="center" useFlexGap flexWrap="wrap">
+          <Button
+            variant="outlined"
+            color="neutral"
+            loading={busy}
+            disabled={disabled || !context}
+            onClick={() => void improve()}
+            startDecorator={<Sparkles size={18} />}
+            sx={{ alignSelf: "flex-start", minHeight: 44 }}
+          >
+            {contentChanged && suggestionContext !== context
+              ? "Refresh suggestions from updated content"
+              : "Help me improve this"}
+          </Button>
+        </Stack>
+        {contentChanged && suggestionContext !== context ? (
+          <Typography role="status" level="body-sm">
+            Your newsletter has changed. Refresh suggestions when you’re ready.
+            Your subject and preview text are unchanged.
+          </Typography>
+        ) : null}
+        {error ? (
+          <Typography role="status" level="body-sm">
+            {error}
+          </Typography>
+        ) : null}
+      </Stack>
+      <JoyInput
+        label="Preview text"
+        value={preview}
+        disabled={disabled}
+        onValueChange={(value) => onChange({ preheaderText: value })}
+        helperText={`${preview.length} / 150 · Add a detail that complements the subject`}
+      />
+      <Box>
+        <Typography level="body-sm" sx={{ fontWeight: 700, mb: 0.75 }}>
+          Inbox preview
         </Typography>
-        <Typography sx={{ fontWeight: 700 }}>
-          {showSampleFirstName(subject) || "Your subject will appear here"}
-        </Typography>
-        <Typography level="body-sm" textColor="text.secondary">
-          {showSampleFirstName(preview) || "Your preview text will appear here"}
-        </Typography>
+        <Box
+          data-testid="inbox-preview-row"
+          sx={{
+            display: "flex",
+            gap: 1.5,
+            alignItems: "flex-start",
+            p: 1.75,
+            border: "1px solid",
+            borderColor: "neutral.200",
+            borderRadius: "12px",
+            bgcolor: "background.surface",
+          }}
+        >
+          <Box
+            aria-hidden
+            sx={{
+              width: 40,
+              height: 40,
+              flexShrink: 0,
+              borderRadius: "50%",
+              bgcolor: "primary.500",
+              color: "#FFFFFF",
+              fontWeight: 700,
+              fontSize: 18,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            {fromLabel.charAt(0).toUpperCase()}
+          </Box>
+          <Box sx={{ minWidth: 0, flex: 1 }}>
+            <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="baseline">
+              <Typography sx={{ fontWeight: 700, fontSize: 15 }} noWrap>
+                {fromLabel}
+              </Typography>
+              <Typography level="body-sm" textColor="text.secondary" sx={{ flexShrink: 0 }}>
+                {inboxTime}
+              </Typography>
+            </Stack>
+            <Typography sx={{ fontWeight: 700, fontSize: 15 }} noWrap>
+              {showSampleFirstName(subject) || "Your subject will appear here"}
+            </Typography>
+            <Typography level="body-sm" textColor="text.secondary" noWrap>
+              {showSampleFirstName(preview) || "Your preview text will appear here"}
+            </Typography>
+          </Box>
+        </Box>
         {hasFirstNameTag(subject) || hasFirstNameTag(preview) ? (
           <Typography level="body-xs" sx={{ color: "neutral.600", mt: 1 }}>
             "Jane" is an example. Each customer sees their own first name.
@@ -219,68 +352,6 @@ export function NewsletterInboxReview({
             <Typography level="body-sm" key={tip}>
               {tip}
             </Typography>
-          ))}
-        </Stack>
-      ) : null}
-      <Button
-        variant="outlined"
-        color="neutral"
-        loading={busy}
-        disabled={disabled || !context}
-        onClick={() => void improve()}
-        startDecorator={<Sparkles size={18} />}
-        sx={{ alignSelf: "flex-start", minHeight: 44 }}
-      >
-        {contentChanged && suggestionContext !== context
-          ? "Refresh suggestions from updated content"
-          : "Help me improve this"}
-      </Button>
-      {contentChanged && suggestionContext !== context ? (
-        <Typography role="status" level="body-sm">
-          Your newsletter has changed. Refresh suggestions when you’re ready.
-          Your subject and preview text are unchanged.
-        </Typography>
-      ) : null}
-      {error ? (
-        <Typography role="status" level="body-sm">
-          {error}
-        </Typography>
-      ) : null}
-      {currentSuggestions.length ? (
-        <Stack spacing={1.5}>
-          <Typography level="title-md">
-            Suggested from your newsletter
-          </Typography>
-          {currentSuggestions.map((s, i) => (
-            <Box
-              key={i}
-              sx={{
-                p: 2.5,
-                border: "1px solid",
-                borderColor: "neutral.200",
-                borderRadius: "lg",
-                bgcolor: "background.surface",
-              }}
-            >
-              <Stack spacing={1}>
-                <Typography sx={{ fontWeight: 700 }}>{s.subject}</Typography>
-                <Typography level="body-sm">{s.preview}</Typography>
-                <Button
-                  variant="outlined"
-                  color="neutral"
-                  disabled={disabled}
-                  sx={{ alignSelf: "flex-start" }}
-                  onClick={() =>
-                    onChange({
-                      subjectLine: s.subject,
-                      preheaderText: s.preview,
-                    })
-                  }
-                >
-                  Use this
-                </Button>
-              </Stack>
-            </Box>
           ))}
         </Stack>
       ) : null}
