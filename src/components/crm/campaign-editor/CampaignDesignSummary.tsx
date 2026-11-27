@@ -1,5 +1,6 @@
 import * as React from "react";
 import Box from "@mui/joy/Box";
+import Chip from "@mui/joy/Chip";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
 import { Lock, LockOpen, Palette, RefreshCw } from "lucide-react";
@@ -8,34 +9,34 @@ import type { StudioDesignSystem } from "@/lib/studio/designSystem";
 import type { StudioBlock } from "@/types/studioBlocks";
 import type { CampaignTemplateLock } from "@/hooks/useCampaignTemplateLock";
 import { CampaignEmailThumbnail } from "@/components/crm/campaign-editor/CampaignLivePreview";
-import { CAMPAIGN_EDITOR_COLORS as C } from "@/components/crm/campaign-editor/campaignEditorTheme";
 
 /** The blue-grey pill that says whether the email is held to a locked design. */
 export function DesignLockPill({ lock }: { lock: CampaignTemplateLock | null }) {
   const locked = Boolean(lock?.locked);
   return (
-    <Box
+    <Chip
       component="span"
+      variant="soft"
+      color="primary"
       data-testid="campaign-design-lock-pill"
+      startDecorator={
+        locked ? <Lock size={14} aria-hidden /> : <LockOpen size={14} aria-hidden />
+      }
       sx={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 0.75,
+        "--Chip-gap": "6px",
         px: 1.25,
         py: 0.5,
-        borderRadius: "999px",
-        bgcolor: C.infoBg,
-        color: C.infoText,
-        fontSize: 14,
-        fontWeight: 600,
+        bgcolor: "primary.softBg",
+        color: "primary.plainColor",
+        fontSize: "sm",
+        fontWeight: "lg",
         width: "fit-content",
       }}
     >
-      {locked ? <Lock size={14} aria-hidden /> : <LockOpen size={14} aria-hidden />}
       {locked
         ? `Locked design${lock?.templateName ? `: ${lock.templateName}` : ""}`
         : "Design not locked"}
-    </Box>
+    </Chip>
   );
 }
 
@@ -91,20 +92,23 @@ export function CampaignDesignSummary({
       />
       <Stack spacing={1.25} sx={{ minWidth: 0, flex: 1 }}>
         <Box>
-          <Typography sx={{ fontSize: 13, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: C.muted }}>
+          <Typography
+            level="body-xs"
+            sx={{ fontWeight: "xl", letterSpacing: "0.06em", textTransform: "uppercase", color: "text.secondary" }}
+          >
             Design applied
           </Typography>
-          <Typography component="h3" sx={{ fontSize: 20, fontWeight: 700, color: C.text, lineHeight: 1.3 }}>
+          <Typography component="h3" level="h3" sx={{ fontSize: "xl", fontWeight: "xl", color: "text.primary", lineHeight: 1.3 }}>
             {designName}
           </Typography>
-          <Typography sx={{ fontSize: 15, color: C.muted, mt: 0.25 }}>
+          <Typography level="body-md" sx={{ color: "text.secondary", mt: 0.25 }}>
             {`${blockCount} ${blockCount === 1 ? "block" : "blocks"}`}
             {lastEditedLabel ? ` · Last edited ${lastEditedLabel}` : ""}
           </Typography>
         </Box>
         <DesignLockPill lock={lock} />
         {lock?.locked ? (
-          <Typography sx={{ fontSize: 14, color: C.muted }}>
+          <Typography level="body-sm" sx={{ color: "text.secondary" }}>
             {lock.canDesign
               ? "You can change this design. Staff who cannot change designs can only change the words, photos, prices, dates and links."
               : "You can change the words, photos, prices, dates and links. The layout, colours and styling are set by your designer."}
@@ -135,7 +139,7 @@ export function CampaignDesignSummary({
           {extraActions}
         </Stack>
         {studioDisabled && studioDisabledReason ? (
-          <Typography sx={{ fontSize: 14, color: C.muted }} role="status">
+          <Typography level="body-sm" sx={{ color: "text.secondary" }} role="status">
             {studioDisabledReason}
           </Typography>
         ) : null}

@@ -118,8 +118,6 @@ export function ContentPreviewCard({
             minHeight: 44,
             flexShrink: 0,
             px: 2.5,
-            bgcolor: "#244d46",
-            "&:hover": { bgcolor: "#183c35" },
           }}
         >
           Edit in Design Studio
@@ -164,7 +162,7 @@ export function ContentPreviewCard({
               width: "100%",
               px: { xs: 1, md: 3 },
               py: 3,
-              bgcolor: "#f0f3f2",
+              bgcolor: "background.level3",
             }}
           >
             <Box
@@ -172,12 +170,12 @@ export function ContentPreviewCard({
                 width: "100%",
                 maxWidth: device === "mobile" ? 390 : "100%",
                 mx: "auto",
-                bgcolor: "#fff",
+                bgcolor: "background.surface",
                 border: "1px solid",
                 borderColor: "neutral.200",
                 borderRadius: "md",
                 overflow: "hidden",
-                boxShadow: "0 4px 18px rgba(24,45,38,.06)",
+                boxShadow: "sm",
               }}
             >
               <iframe

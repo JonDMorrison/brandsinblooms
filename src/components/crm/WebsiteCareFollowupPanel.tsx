@@ -24,7 +24,7 @@ export function WebsiteCareFollowupPanel({tenantId}:{tenantId:string}){
  if(error||!data?.campaignId)throw Error();setDraft(data.campaignId);
  }catch{setMessage('Audience or plant identity changed. Refresh the review before creating a draft.');}finally{setBusy(false);}}
  return <section aria-label="Online plant purchase follow-ups" className="mt-6 rounded-2xl border border-[#dbe3df] bg-white p-6 shadow-sm">
- <h2 className="font-[Georgia] text-2xl">Follow up with online customers.</h2><p className="mt-2 text-sm text-[#536475]">Use completed, paid BloomSites purchases and reviewed customer identities. Only current email opt-ins are eligible; guest or unlinked purchases are excluded.</p>
+ <h2 className="font-display text-2xl">Follow up with online customers.</h2><p className="mt-2 text-sm text-[#536475]">Use completed, paid BloomSites purchases and reviewed customer identities. Only current email opt-ins are eligible; guest or unlinked purchases are excluded.</p>
  <div className="mt-4 grid gap-3 sm:grid-cols-3">
  <label className="text-sm font-semibold">Connected website<select disabled={busy} value={site} className="mt-2 w-full rounded-lg border p-3" onChange={e=>void chooseSite(e.target.value)}><option value="">Choose a reviewed website</option>{sites.map(s=><option key={s.siteId} value={s.siteId}>{s.name}</option>)}</select></label>
  <label className="text-sm font-semibold">Purchased plant<select disabled={busy} value={product} className="mt-2 w-full rounded-lg border p-3" onChange={e=>{setProduct(e.target.value);clear();}}><option value="">Choose an exact plant</option>{products.map(p=><option key={p.product_id} value={p.product_id}>{p.product_name}</option>)}</select></label>

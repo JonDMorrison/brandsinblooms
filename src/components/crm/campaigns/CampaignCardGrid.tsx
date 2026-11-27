@@ -70,8 +70,6 @@ function Thumbnail({ campaign }: { campaign: CampaignCatalogItem }) {
               level="title-md"
               aria-hidden="true"
               sx={{
-                fontFamily: "Georgia, 'Times New Roman', serif",
-                fontWeight: 400,
                 color: "primary.800",
                 lineHeight: 1.2,
                 display: "-webkit-box",

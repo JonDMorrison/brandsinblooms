@@ -3,7 +3,6 @@ import Box from "@mui/joy/Box";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
 import { AlertTriangle, ArrowDown } from "lucide-react";
-import { CAMPAIGN_EDITOR_COLORS as C } from "@/components/crm/campaign-editor/campaignEditorTheme";
 
 /** One item from the editor's send checks (sendBlockers). */
 export interface CampaignReadinessBlocker {
@@ -36,13 +35,14 @@ export function CampaignReadinessBar({
       aria-label="Before you can send"
       data-testid="campaign-readiness-bar"
       sx={{
-        bgcolor: C.warningBg,
-        border: `1px solid ${C.warningBorder}`,
+        bgcolor: "warning.softBg",
+        border: "1px solid",
+        borderColor: "warning.outlinedBorder",
         borderLeftWidth: 4,
-        borderRadius: "12px",
+        borderRadius: "lg",
         px: { xs: 2, sm: 2.5 },
         py: 1.5,
-        color: C.warningText,
+        color: "warning.softColor",
       }}
     >
       <Stack
@@ -53,7 +53,7 @@ export function CampaignReadinessBar({
         <Stack direction="row" spacing={1} alignItems="flex-start" sx={{ flex: 1, minWidth: 0 }}>
           <AlertTriangle size={20} aria-hidden style={{ flexShrink: 0, marginTop: 2 }} />
           <Box sx={{ minWidth: 0 }}>
-            <Typography component="h2" sx={{ fontSize: 16, fontWeight: 700, color: C.warningText }}>
+            <Typography component="h2" level="title-md" sx={{ fontWeight: "xl", color: "warning.softColor" }}>
               {blockers.length === 1
                 ? "1 thing to fix before you can send"
                 : `${blockers.length} things to fix before you can send`}
@@ -67,7 +67,8 @@ export function CampaignReadinessBar({
                 <Typography
                   key={blocker.message}
                   component="li"
-                  sx={{ fontSize: 15, color: C.warningText }}
+                  level="body-md"
+                  sx={{ color: "warning.softColor" }}
                 >
                   {blocker.message}
                 </Typography>
@@ -91,14 +92,17 @@ export function CampaignReadinessBar({
                 gap: 0.75,
                 minHeight: 44,
                 px: 1.5,
-                borderRadius: "10px",
-                color: C.warningText,
-                fontSize: 16,
-                fontWeight: 700,
+                borderRadius: "lg",
+                typography: "title-md",
+                color: "warning.softColor",
+                fontWeight: "xl",
                 textDecoration: "underline",
                 textUnderlineOffset: "3px",
-                "&:hover": { bgcolor: "rgba(201, 138, 27, 0.12)" },
-                "&:focus-visible": { outline: `3px solid ${C.warningText}`, outlineOffset: 2 },
+                "&:hover": { bgcolor: "warning.softHoverBg" },
+                "&:focus-visible": {
+                  outline: "3px solid var(--joy-palette-warning-softColor)",
+                  outlineOffset: 2,
+                },
               }}
             >
               {firstFixable.fixLabel}

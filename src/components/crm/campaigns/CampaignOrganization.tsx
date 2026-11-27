@@ -20,7 +20,7 @@ export function CampaignOrganization({campaignId, disabled = false}: {campaignId
   {(error || mutation.error) && <Typography color="danger">Could not save or load groups. {String((mutation.error ?? error)?.message ?? '')}</Typography>}
   {data?.groups.map(group => <Stack key={group.id} direction="row" spacing={1} alignItems="center">
    {campaignId && <Checkbox disabled={busy} checked={data.memberships.some(m=>m.campaign_id===campaignId && m.group_id===group.id)} onChange={e=>mutation.mutate({type:'membership',campaignId,groupId:group.id,selected:e.target.checked})} label={group.name} />}
-   <Box sx={{width:14,height:14,bgcolor:group.colour,borderRadius:2}} />
+   <Box sx={{width:14,height:14,bgcolor:group.colour,borderRadius:"xs"}} />
    {!campaignId && <Typography level="body-sm">{group.name}</Typography>}
    <Button size="sm" variant="plain" disabled={busy} onClick={()=>{setEditing(group.id);setName(group.name);setColour(group.colour);}}>Rename / colour</Button>
    <Button size="sm" variant="plain" disabled={busy} onClick={()=>setConfirmDelete(group.id)}>Remove</Button>
