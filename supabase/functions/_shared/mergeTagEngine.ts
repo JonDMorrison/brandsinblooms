@@ -1,4 +1,5 @@
 import { normalizeStoreMergeFields } from "../../../src/lib/studio/newsletter/mergeFields.ts";
+import { normalizeTenantWebsite } from "../../../src/lib/studio/tenantWebsite.ts";
 /**
  * Unified Merge Tag Engine for BloomSuite Edge Functions
  * 
@@ -280,7 +281,8 @@ export function createMergeTagDataFromCustomer(
       address: companyInfo?.address as string | undefined,
       phone: companyInfo?.phone as string | undefined,
       email: companyInfo?.email as string | undefined,
-      website: companyInfo?.website_url as string | undefined,
+      // Never a platform address (resolveTenantWebsite's rules).
+      website: normalizeTenantWebsite(companyInfo?.website_url) || undefined,
     },
   };
 }

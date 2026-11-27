@@ -14,6 +14,7 @@ import { resolveSender } from "../_shared/senderResolver.ts";
 import { COMPANY_PROFILE_WITH_DESIGN_SYSTEM_SELECT } from "../_shared/resolveDesignSystem.ts";
 import { resolveCampaignSenderDisplayName } from "../_shared/campaignFromHeader.ts";
 import { resolveBusinessProfileUserId } from "../_shared/businessProfileUserId.ts";
+import { profileWithTenantWebsite } from "../_shared/tenantWebsite.ts";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -39,6 +40,18 @@ interface TestSendPayload {
   campaignId?: string;
   automationId?: string;
   automationNodeId?: string;
+  /** The master admin tab's active company (x-bloom-admin-tenant value). */
+  admin_tenant_id?: unknown;
+}
+
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function normalizeAdminTenantHeader(input: unknown): string | null {
+  if (typeof input !== "string") return null;
+  const value = input.trim();
+  if (value.toLowerCase() === "none") return "none";
+  return UUID_PATTERN.test(value) ? value.toLowerCase() : null;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -61,6 +74,7 @@ const handler = async (req: Request): Promise<Response> => {
       campaignId,
       automationId,
       automationNodeId,
+      admin_tenant_id,
     } = payload;
 
     // Return 200 for all application errors so supabase.functions.invoke()
@@ -85,10 +99,22 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
+    // The company a master admin is working in for this tab. Edge function
+    // CORS does not allow the x-bloom-admin-tenant header, so the client sends
+    // it in the body; public.admin_active_tenant_id() honours it for master
+    // admins only (else their admin_session_context row, else nothing).
+    const adminTenantHeader = normalizeAdminTenantHeader(admin_tenant_id);
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      { global: { headers: { Authorization: authHeader } } },
+      {
+        global: {
+          headers: {
+            Authorization: authHeader,
+            ...(adminTenantHeader ? { "x-bloom-admin-tenant": adminTenantHeader } : {}),
+          },
+        },
+      },
     );
 
     const {
@@ -116,6 +142,16 @@ const handler = async (req: Request): Promise<Response> => {
         error: "Account setup incomplete — please complete onboarding first",
       });
     }
+
+    // The tenant whose content is being tested: a master admin's active
+    // company, otherwise the user's own.
+    const { data: adminActiveTenantId } = await supabaseClient.rpc(
+      "admin_active_tenant_id",
+    );
+    const contentTenantId: string =
+      typeof adminActiveTenantId === "string" && adminActiveTenantId
+        ? adminActiveTenantId
+        : tenantId;
 
     const typedSupabaseClient = supabaseClient as any;
     const campaignSourceClient: any = {
@@ -166,7 +202,7 @@ const handler = async (req: Request): Promise<Response> => {
             "id, metadata, content, subject_line, preheader_text, sender_name",
           )
           .eq("id", campaignId)
-          .eq("tenant_id", tenantId)
+          .eq("tenant_id", contentTenantId)
           .maybeSingle();
 
       if (campaignError) {
@@ -235,6 +271,33 @@ const handler = async (req: Request): Promise<Response> => {
       .eq("user_id", profileUserId)
       .single();
 
+    // The email body (footer name, address, website) is the business the
+    // content belongs to. A master admin testing from a client's company gets
+    // that company's profile and website, as the Studio and editor previews
+    // show, never their own company's (which put getclear.ca in client
+    // footers). Sender and reply-to below stay on the signed-in account.
+    let footerProfileRow: unknown = companyProfile;
+    if (contentTenantId !== tenantId) {
+      const { data: tenantProfileUserId } = await supabaseClient.rpc(
+        "tenant_profile_user_id",
+        { p_tenant_id: contentTenantId },
+      );
+      footerProfileRow = null;
+      if (typeof tenantProfileUserId === "string" && tenantProfileUserId) {
+        const { data: tenantProfile } = await supabaseClient
+          .from("company_profiles")
+          .select(COMPANY_PROFILE_WITH_DESIGN_SYSTEM_SELECT)
+          .eq("user_id", tenantProfileUserId)
+          .maybeSingle();
+        footerProfileRow = tenantProfile;
+      }
+    }
+    const footerProfile = await profileWithTenantWebsite(
+      supabaseClient,
+      contentTenantId,
+      footerProfileRow as CompanyProfileShape | null,
+    );
+
     // Resolve customer data
     let customer: CustomerShape | null = null;
 
@@ -270,14 +333,14 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Render using unified renderer
     const renderResult = await renderEmailForRecipient({
-      tenantId,
+      tenantId: contentTenantId,
       campaignId,
       subject: resolvedSubject,
       previewText: resolvedPreviewText,
       html: resolvedHtml,
       contentBlocks: resolvedContentBlocks,
       customer,
-      companyProfile: companyProfile as CompanyProfileShape,
+      companyProfile: footerProfile as CompanyProfileShape | null,
       mode: "send",
       includeFooter: true,
     });

@@ -25,6 +25,7 @@ import {
 import type { RenderableContentBlock } from "../_shared/campaignEmailContent.ts";
 import { COMPANY_PROFILE_WITH_DESIGN_SYSTEM_SELECT } from "../_shared/resolveDesignSystem.ts";
 import { resolveBusinessProfileUserId } from "../_shared/businessProfileUserId.ts";
+import { profileWithTenantWebsite } from "../_shared/tenantWebsite.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -332,6 +333,8 @@ serve(async (req) => {
           companyProfile = profileData as CompanyProfileShape;
         }
       }
+      // Footer website: the tenant's own (resolveTenantWebsite).
+      companyProfile = await profileWithTenantWebsite(supabase, tenantId, companyProfile);
     }
 
     const renderMode = exactSendPreview ? "send" : "preview";

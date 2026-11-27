@@ -12,6 +12,7 @@ import {
 } from "../_shared/senderResolver.ts";
 import { sanitizeEmailHtmlImageSources } from "../_shared/emailImageUrl.ts";
 import { resolveBusinessProfileUserId } from "../_shared/businessProfileUserId.ts";
+import { profileWithTenantWebsite } from "../_shared/tenantWebsite.ts";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -246,9 +247,15 @@ const handler = async (req: Request): Promise<Response> => {
         const unsubscribeUrl = "#unsubscribe-test";
         const managePreferencesUrl = "#preferences-test";
 
-        // Generate server-side footer with full profile data
+        // Generate server-side footer with full profile data. The website
+        // is the tenant's own (resolveTenantWebsite).
+        const footerProfile = await profileWithTenantWebsite(
+          supabaseAdmin,
+          tenantId,
+          companyProfile,
+        );
         const serverFooter = generateServerFooterHtml(
-          companyProfile as CompanyProfileData,
+          footerProfile as CompanyProfileData,
           unsubscribeUrl,
           managePreferencesUrl,
         );

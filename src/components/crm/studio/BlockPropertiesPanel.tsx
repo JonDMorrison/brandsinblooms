@@ -4390,14 +4390,14 @@ function PanelContent({
                         updateField("showManagePreferences", value)
                       }
                     />
-                    {/* The website is the active tenant's profile website,
-                        never one typed into this draft. */}
+                    {/* The website is the active tenant's own website
+                        (resolveTenantWebsite), never one typed into this draft. */}
                     <StudioSwitchField
                       label="Show Website Link"
                       checked={block.showWebsiteLink !== false}
                       description={
                         designSystem?.company.websiteUrl?.trim()
-                          ? `Links to ${footerWebsiteLabel(designSystem.company.websiteUrl)} from your business profile.`
+                          ? `Links to ${footerWebsiteLabel(designSystem.company.websiteUrl)}, your business website.`
                           : "Add a website in Contact & Footer settings to show this link."
                       }
                       onChange={(value) =>

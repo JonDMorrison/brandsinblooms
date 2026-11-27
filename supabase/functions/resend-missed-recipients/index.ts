@@ -16,6 +16,7 @@ import { canSendEmailBatch, logSkippedSends } from "../_shared/canSendEmail.ts";
 import { getEmailGovernanceRuntimeConfig } from "../_shared/emailGovernanceConfig.ts";
 import { systemPauseEmailCampaignSending } from "../_shared/systemPauseCampaign.ts";
 import { resolveCampaignBusinessProfileUserId } from "../_shared/businessProfileUserId.ts";
+import { profileWithTenantWebsite } from "../_shared/tenantWebsite.ts";
 import {
   resolveCampaignSegmentIds,
   resolveSegmentAudienceCustomerIds,
@@ -243,7 +244,9 @@ function buildEmailPayload(
   const mergeTagData: MergeTagData = createMergeTagDataFromCustomer(customer, {
     company_name: companyName,
     address: companyProfile?.location_info,
-    website_url: companyProfile?.custom_sender_email?.split("@")[1],
+    // The tenant's own website (resolveTenantWebsite), never the sender
+    // address's domain, which can be a platform or operator domain.
+    website_url: companyProfile?.website_url || undefined,
   });
 
   mergeTagData.system = {
@@ -632,7 +635,7 @@ serve(async (req) => {
       tenantId: campaign.tenant_id ?? null,
       userId: campaign.user_id,
     });
-    const { data: companyProfile } = await supabase
+    const { data: companyProfileRow } = await supabase
       .from("company_profiles")
       .select(
         `
@@ -640,11 +643,17 @@ serve(async (req) => {
         street_address, city, state_province, postal_code, country,
         website_url, company_email, company_phone,
         facebook_url, instagram_url, tiktok_url, pinterest_url, youtube_url, linkedin_url,
-        footer_legal_text, brand_primary_color, brand_text_color
+        footer_legal_text, brand_primary_color, brand_text_color, feature_flags
       `,
       )
       .eq("user_id", profileUserId)
       .single();
+    // Footer website: the campaign tenant's own (resolveTenantWebsite).
+    const companyProfile = await profileWithTenantWebsite(
+      supabase,
+      campaign.tenant_id ?? null,
+      companyProfileRow,
+    );
 
     // Milestone 7: campaign resend must use explicit campaign domain.
     const activeDomainId = campaign.from_email_domain_id;

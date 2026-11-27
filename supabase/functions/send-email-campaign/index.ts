@@ -34,6 +34,7 @@ import { COMPANY_PROFILE_WITH_DESIGN_SYSTEM_SELECT } from "../_shared/resolveDes
 import { resolveCampaignSenderDisplayName } from "../_shared/campaignFromHeader.ts";
 import { canQueueCampaignForTenant } from "../../../src/lib/auth/crmAccess.ts";
 import { resolveCampaignBusinessProfileUserId } from "../_shared/businessProfileUserId.ts";
+import { profileWithTenantWebsite } from "../_shared/tenantWebsite.ts";
 import { resolveCampaignPostalAddress } from "../_shared/campaignPostalAddress.ts";
 import { MISSING_POSTAL_ADDRESS_MESSAGE } from "../../../src/lib/studio/businessPlaceholders.ts";
 import type { ServerCompanyProfileShape } from "../_shared/resolveDesignSystem.ts";
@@ -1034,11 +1035,17 @@ serve(async (req: Request) => {
       tenantId: campaignTenantId,
       userId: campaign.user_id,
     });
-    const { data: companyProfile } = await supabase
+    const { data: companyProfileRow } = await supabase
       .from("company_profiles")
       .select(COMPANY_PROFILE_WITH_DESIGN_SYSTEM_SELECT)
       .eq("user_id", profileUserId)
       .single();
+    // Footer website: the campaign tenant's own (resolveTenantWebsite).
+    const companyProfile = await profileWithTenantWebsite(
+      supabase,
+      campaignTenantId,
+      companyProfileRow,
+    );
 
     // Get customers based on targeting (segments + personas)
     let customers: any[] = [];

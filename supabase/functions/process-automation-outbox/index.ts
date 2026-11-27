@@ -32,6 +32,7 @@ import { COMPANY_PROFILE_WITH_DESIGN_SYSTEM_SELECT } from "../_shared/resolveDes
 import { requireInternalApiKey } from "../_shared/requireInternalApiKey.ts";
 import { checkSmsSendEligibility } from "../_shared/smsConsentGate.ts";
 import { resolveBusinessProfileUserId } from "../_shared/businessProfileUserId.ts";
+import { profileWithTenantWebsite } from "../_shared/tenantWebsite.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -788,6 +789,8 @@ async function sendEmail(
         .single();
       companyProfile = (profile as CompanyProfileShape | null) || null;
     }
+    // Footer website: the tenant's own (resolveTenantWebsite).
+    companyProfile = await profileWithTenantWebsite(supabase, message.tenant_id, companyProfile);
 
     // Fetch customer data for unified rendering
     const { data: customer } = await supabase

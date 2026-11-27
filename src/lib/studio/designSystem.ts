@@ -11,6 +11,7 @@ import {
   realBusinessName,
   realPostalAddress,
 } from "./businessPlaceholders.ts";
+import { normalizeTenantWebsite } from "./tenantWebsite.ts";
 
 export const STUDIO_SOCIAL_PLATFORM_ORDER: StudioSocialPlatform[] = [
   "facebook",
@@ -443,7 +444,9 @@ export function buildStudioDesignSystem(companyInfo: CompanyInfo) {
       name: realBusinessName(stringValue(companyInfo.name)),
       email: stringValue(companyInfo.email),
       phone: stringValue(companyInfo.phone),
-      websiteUrl: stringValue(companyInfo.websiteUrl),
+      // The tenant's own website (resolveTenantWebsite); never a platform
+      // address, so nothing built from the design system can carry one.
+      websiteUrl: normalizeTenantWebsite(companyInfo.websiteUrl),
       address: realPostalAddress(stringValue(companyInfo.address)),
       addressLines: getAddressLines(companyInfo),
       streetAddress: stringValue(companyInfo.streetAddress),

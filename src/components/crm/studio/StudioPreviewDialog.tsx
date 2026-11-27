@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { useDesignSystem } from "@/contexts/DesignSystemContext";
 import { supabase } from "@/integrations/supabase/client";
+import { getAdminTenantHeaderValue } from "@/integrations/supabase/adminTenantScope";
 import { generateEmailHtml } from "@/lib/studio/emailHtmlGenerator";
 import {
   checkMessage,
@@ -237,6 +238,8 @@ export default function StudioPreviewDialog({
           contentBlocks: blocks,
           sampleCustomer: SAMPLE_CUSTOMER,
           campaignId: campaignId || undefined,
+          // The tab's company, so the test footer matches this preview.
+          admin_tenant_id: getAdminTenantHeaderValue() ?? null,
         },
       },
     );
