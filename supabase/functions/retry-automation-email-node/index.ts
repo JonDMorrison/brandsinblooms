@@ -294,7 +294,9 @@ const handler = async (req: Request): Promise<Response> => {
               to: execution.email,
               subject: rendered.renderedSubject,
               html_content: rendered.renderedHtml,
-              from_name: companyProfile?.company_name || "Your Business",
+              // Domain default name, else business profile, else tenant name;
+              // never a placeholder ("" sends from the bare address).
+              from_name: senderConfig.fromName,
               from_email: senderConfig.fromEmail,
               reply_to: senderConfig.replyTo || senderConfig.fromEmail,
               unsubscribe_url: rendered.actionLinks.unsubscribeUrl,
