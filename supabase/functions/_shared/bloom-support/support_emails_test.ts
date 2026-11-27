@@ -221,9 +221,7 @@ Deno.test("botanical palette and icon host match BloomSites premium-botanical.ts
     page: "#FAF9F6", panel: "#F5F7F3", callout: "#F8F9F6", border: "#DBE3DF", white: "#FFFFFF",
   });
   for (const icon of ["sun", "water", "soil", "check", "truck", "calendar", "mail", "alert", "leaf"] as const) {
-    const img = botanicalEmailIcon(icon);
-    assert(img.includes(`src="https://bloomsites.app/email/premium-icons/${icon}.png"`), icon);
-    assert(img.includes('alt=""'), icon);
+    assertEquals(botanicalEmailIcon(icon), "", icon);
   }
   const html = renderBotanicalEmail({
     header: "Bloom Support",
