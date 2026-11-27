@@ -126,12 +126,6 @@ export function clientLogoUrl(value: unknown): string {
  */
 export function botanicalClientAvatar(brand: ClientBrand, size = 42): string {
   const t = PREMIUM_BOTANICAL_EMAIL;
-  const logo = clientLogoUrl(brand.logoUrl);
-  if (logo) {
-    return '<img src="' + esc(logo) + '" width="' + size + '" height="' + size + '" alt="" ' +
-      'style="display:block;width:' + size + "px;height:" + size + "px;border:1px solid " + t.border +
-      ';border-radius:10px;background:#FFFFFF;object-fit:contain" />';
-  }
   const initial = (brand.name.match(/[\p{L}\p{N}]/u)?.[0] ?? "?").toUpperCase();
   return '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="' + size + '" style="width:' + size + 'px"><tr>' +
     '<td align="center" valign="middle" width="' + size + '" height="' + size + '" bgcolor="' + t.callout + '" ' +
@@ -308,7 +302,6 @@ export function renderBotanicalEmail(args: {
     "<style>@media only screen and (max-width:480px){.bs-pad{padding:20px 16px!important}.bs-title{font-size:24px!important}.bs-button a{display:block!important;text-align:center}}</style>" +
     "</head>" +
     '<body lang="en" dir="ltr" style="margin:0;padding:0;background:' + t.page + ";font-family:Arial,Helvetica,sans-serif;color:" + t.ink + '">' +
-    '<div lang="en" dir="ltr" style="display:none;max-width:0;max-height:0;overflow:hidden;opacity:0;mso-hide:all">' + esc(args.preheader) + "</div>" +
     '<table role="presentation" lang="en" dir="ltr" cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="' + t.page + '" style="background:' + t.page + '">' +
     '<tr><td align="center" style="padding:24px 12px">' +
     '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" ' +
