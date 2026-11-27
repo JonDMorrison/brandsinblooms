@@ -2132,7 +2132,6 @@ serve(async (req: Request) => {
     }
 
     // Determine sender
-    const companyName = companyProfile?.company_name || "Your Garden Center";
     let activeDomainId: string | null = null;
 
     const domainName = quotaCheck.domain?.domain;
@@ -2188,7 +2187,9 @@ serve(async (req: Request) => {
       campaignSenderName: campaign.sender_name,
       domainFromName: quotaCheck.sender?.from_name,
       companyProfileName: companyProfile?.company_name,
-      finalFallback: companyName,
+      // Never a placeholder name: with no real name the display name stays
+      // empty and the verified address is used on its own.
+      finalFallback: "",
     });
     const deliveryMethod = "custom_domain";
     const usesVerifiedDomain = true;
