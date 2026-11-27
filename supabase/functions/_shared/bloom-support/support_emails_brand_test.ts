@@ -70,7 +70,7 @@ Deno.test("customer email names the client and links their website when it is kn
   assertMatch(mail.html, /Request for <strong[^>]*>The Flowerhouse<\/strong>/);
   assert(hrefs(mail.html).includes("https://theflowerhousegardencenter.com/"));
   assertMatch(mail.html, />theflowerhousegardencenter\.com<\/a>/);
-  assertEquals(imgs(mail.html).length, 0, "no client logo image");
+  assertEquals(imgs(mail.html).length, 0, "no remote image");
   assertMatch(mail.text, /Request for The Flowerhouse · https:\/\/theflowerhousegardencenter\.com\//);
 });
 
@@ -97,13 +97,13 @@ Deno.test("customer email without a client or without a logo keeps its layout", 
   for (const html of [none.html, noLogo.html]) assertEquals((html.match(/<table/g) ?? []).length, (html.match(/<\/table>/g) ?? []).length);
 });
 
-Deno.test("needs-you email: client row links the website and shows the logo avatar", () => {
+Deno.test("needs-you email: client row uses text and links the website", () => {
   const mail = renderEscalationEmail({ escalation: { reason: "ticket_overdue" }, ticket: t1011, appUrl: APP, now: NOW, client: FLOWERHOUSE });
   assert(hrefs(mail.html).includes("https://theflowerhousegardencenter.com/"));
   assertMatch(mail.html, /Client<\/strong>.*The Flowerhouse.*theflowerhousegardencenter\.com<\/a>/s);
   assertEquals(imgs(mail.html).length, 0, "no client logo image");
   assertMatch(mail.text, /Client: The Flowerhouse · https:\/\/theflowerhousegardencenter\.com\//);
-  // No logo: initial instead, website still linked.
+  // Client identity and website remain visible without a logo image.
   const plain = renderEscalationEmail({ escalation: { reason: "ticket_overdue" }, ticket: t1011, appUrl: APP, now: NOW, client: { name: "The Flowerhouse", website: "theflowerhousegardencenter.com" } });
   assertMatch(plain.html, />T<\/td>/);
   assert(hrefs(plain.html).includes("https://theflowerhousegardencenter.com/"));
