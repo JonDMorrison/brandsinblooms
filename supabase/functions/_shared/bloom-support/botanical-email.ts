@@ -308,10 +308,6 @@ export function renderBotanicalEmail(args: {
     'style="width:100%;max-width:600px;background:#FFFFFF;border:1px solid ' + t.border + ';border-radius:15px;overflow:hidden">' +
     '<tr><td bgcolor="' + t.navy + '" class="bs-pad" style="padding:18px 26px;background:' + t.navy + '">' +
     '<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>' +
-    '<td width="44" valign="middle" style="width:44px;vertical-align:middle;padding-right:12px">' +
-    '<a href="' + BLOOMSUITE_SITE_URL + '" style="text-decoration:none;color:#FFFFFF">' +
-    '<img src="' + BLOOMSUITE_LOGO_URL + '" width="44" height="44" alt="Open BloomSuite" ' +
-    'style="display:block;width:44px;height:44px;border:0;outline:none;color:#FFFFFF;font-size:11px;font-weight:700;line-height:44px" /></a></td>' +
     '<td valign="middle" style="vertical-align:middle;color:#FFFFFF;font-size:21px;line-height:1.3;font-weight:700">' + esc(args.header) +
     "</td></tr></table></td></tr>" +
     '<tr><td class="bs-pad" style="padding:24px 24px 26px">' +
