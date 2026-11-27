@@ -1,3 +1,5 @@
+import { isApprovalRequiredError } from "@/lib/crm/campaignApproval";
+import { APPROVAL_REQUIRED_SCHEDULE_MESSAGE } from "@/utils/crmCampaignService";
 import { useUserRole } from "@/hooks/useUserRole";
 import { deriveCampaignDisplayName, isUnsetCampaignName } from "@/lib/crm/campaignDisplayName";
 import { CampaignOrganization } from "@/components/crm/campaigns/CampaignOrganization";
@@ -703,7 +705,7 @@ export function CRMCampaignsPage() {
       if(error)throw error;
       await queryClient.invalidateQueries({queryKey:["crm-campaign-catalog",tenant?.id]});
       setRescheduleTarget(null);toast.success("Send time updated");
-    }catch(error){toast.error(error instanceof Error ? error.message : "Could not change the send time. Refresh and try again.");}
+    }catch(error){toast.error(isApprovalRequiredError(error) ? APPROVAL_REQUIRED_SCHEDULE_MESSAGE : error instanceof Error ? error.message : "Could not change the send time. Refresh and try again.");}
     finally{setRescheduling(false);}
   };
 
