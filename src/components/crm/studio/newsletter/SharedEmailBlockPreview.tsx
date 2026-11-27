@@ -1,6 +1,8 @@
 import * as React from "react";
+import Alert from "@mui/joy/Alert";
 import Box from "@mui/joy/Box";
 import Typography from "@mui/joy/Typography";
+import { AlertTriangle } from "lucide-react";
 import DOMPurify from "dompurify";
 import type { StudioBlock } from "@/types/studioBlocks";
 import { useDesignSystem } from "@/contexts/DesignSystemContext";
@@ -371,27 +373,30 @@ export default function SharedEmailBlockPreview({
           dangerouslySetInnerHTML={{ __html: html }}
         />
       ) : (
-        <Box
+        // Editor-only notice (never part of the email HTML): the app's amber
+        // warning style so an empty block is hard to miss.
+        <Alert
+          role="note"
+          color="warning"
+          variant="soft"
+          data-testid="studio-empty-block-notice"
+          startDecorator={<AlertTriangle size={18} aria-hidden="true" />}
           sx={{
-            p: 4,
-            bgcolor: "#f1f5f4",
-            textAlign: "center",
-            border: "1px dashed #a8b8ba",
+            m: 1,
+            border: "1px solid",
+            borderColor: "warning.outlinedBorder",
+            alignItems: "flex-start",
           }}
         >
-          <Typography
-            level="body-sm"
-            sx={{ color: "#3f5b60", fontWeight: 600 }}
-          >
-            {STUDIO_BLOCK_LOOKUP[block.type]?.name || block.label}
-          </Typography>
-          <Typography level="body-xs" sx={{ mt: 0.5, color: "#526b72" }}>
-            This block is empty. Click it, then fill in the boxes on the right.
-          </Typography>
-          <Typography level="body-xs" sx={{ mt: 0.25, color: "#6b7f85" }}>
-            Customers will not see it until you add something.
-          </Typography>
-        </Box>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography level="title-sm" sx={{ color: "inherit" }}>
+              {STUDIO_BLOCK_LOOKUP[block.type]?.name || block.label}
+            </Typography>
+            <Typography level="body-sm" sx={{ color: "inherit" }}>
+              This block is empty. Add content or remove it.
+            </Typography>
+          </Box>
+        </Alert>
       )}
       {onUpdateBlockField && block.type === "graphic-hero" && (
         <Box

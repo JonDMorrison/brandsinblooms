@@ -114,7 +114,7 @@ function StartCard({
         {imageUrl ? null : <Icon size={28} strokeWidth={1.6} />}
       </Box>
       <Stack spacing={0.5} sx={{ minWidth: 0, flex: 1, justifyContent: "center" }}>
-        <Typography level="body-xs" sx={{ textTransform: "uppercase", letterSpacing: "0.06em", color: "#244d46", fontWeight: 700 }}>
+        <Typography level="body-xs" sx={{ textTransform: "uppercase", letterSpacing: "0.06em", color: "primary.plainColor", fontWeight: 700 }}>
           {eyebrow}
         </Typography>
         <Typography level="title-md" sx={{ fontSize: 18, fontWeight: 600, color: "neutral.800" }}>
@@ -200,24 +200,24 @@ const cardBaseSx = {
   borderRadius: "var(--joy-radius-lg)",
   border: "1px solid",
   borderColor: "neutral.200",
-  backgroundColor: "#FFFFFF",
+  backgroundColor: "background.surface",
   textAlign: "left",
   cursor: "pointer",
   transition:
     "transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease, background-color 150ms ease",
-  "&:focus-visible": { outline: "2px solid #244d46", outlineOffset: 4 },
+  "&:focus-visible": { outline: "2px solid", outlineColor: "primary.500", outlineOffset: 4 },
   "&:hover": {
     borderColor: "neutral.300",
     transform: "translateY(-1px)",
   },
 } as const;
 
-// Selected = a 2px green ring drawn with box-shadow, so the card's size and
+// Selected = a 2px primary ring drawn with box-shadow, so the card's size and
 // position never change when it is selected.
 const cardSelectedSx = {
-  borderColor: "#244d46",
-  backgroundColor: "#FFFFFF",
-  boxShadow: "0 0 0 1px #244d46",
+  borderColor: "primary.solidBg",
+  backgroundColor: "background.surface",
+  boxShadow: "0 0 0 1px var(--joy-palette-primary-solidBg)",
 } as const;
 
 const selectedBadgeSx = {
@@ -227,8 +227,8 @@ const selectedBadgeSx = {
   width: 22,
   height: 22,
   borderRadius: "50%",
-  bgcolor: "#244d46",
-  color: "#fff",
+  bgcolor: "primary.solidBg",
+  color: "primary.solidColor",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
@@ -818,7 +818,12 @@ export function IntentPicker({
                       sx={{
                         minHeight: 30,
                         ...(chipSelected
-                          ? { bgcolor: "#244d46", borderColor: "#244d46", color: "#fff", "&:hover": { bgcolor: "#183c35" } }
+                          ? {
+                              bgcolor: "primary.solidBg",
+                              borderColor: "primary.solidBg",
+                              color: "primary.solidColor",
+                              "&:hover": { bgcolor: "primary.solidHoverBg" },
+                            }
                           : {}),
                       }}
                     >

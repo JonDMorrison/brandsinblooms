@@ -151,7 +151,6 @@ import {
 import { classifySender } from "@/lib/crm/senderSeverity";
 import type { SenderClassification } from "@/lib/crm/senderSeverity";
 import { useTenant } from "@/hooks/useTenant";
-import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import {
   CHECKING_AUDIENCE_LABEL,
@@ -719,7 +718,6 @@ function CampaignEditorScreen() {
   const [processParams, setProcessParams] = useSearchParams();
   const reviewingNewsletter = processParams.get("step") === "review";
   const { tenant } = useTenant();
-  const { user } = useAuth();
   const { hasPermission } = useUserRole();
   const canSendCampaign = hasPermission("campaigns.send");
   const {
@@ -3620,7 +3618,6 @@ function CampaignEditorScreen() {
           previewText={preheaderText}
           campaignId={campaignId ?? ""}
           initialTab="test"
-          initialTestEmail={user?.email ?? undefined}
         />
       ) : null}
     </Box>

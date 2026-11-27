@@ -55,8 +55,10 @@ export function StudioCtaCard({
         borderRadius: "var(--joy-radius-lg)",
         backgroundColor: disabled
           ? "var(--joy-palette-neutral-100)"
-          : "#244d46",
-        color: disabled ? "var(--joy-palette-neutral-600)" : "#ffffff",
+          : "var(--joy-palette-primary-solidBg)",
+        color: disabled
+          ? "var(--joy-palette-neutral-600)"
+          : "var(--joy-palette-primary-solidColor)",
         cursor: disabled ? "not-allowed" : "pointer",
         opacity: 1,
         transition:
@@ -66,7 +68,7 @@ export function StudioCtaCard({
           ? {}
           : {
               transform: "translateY(-1px)",
-              filter: "brightness(1.04)",
+              backgroundColor: "var(--joy-palette-primary-solidHoverBg)",
               boxShadow: "var(--joy-shadow-md)",
             },
         "@media (prefers-reduced-motion: reduce)": {
@@ -75,7 +77,7 @@ export function StudioCtaCard({
           "& [data-cta-arrow]": { transition: "none", transform: "none" },
         },
         "&:focus-visible": {
-          outline: "2px solid var(--joy-palette-primary-200)",
+          outline: "2px solid var(--joy-palette-primary-400)",
           outlineOffset: "2px",
         },
         "&:hover [data-cta-arrow], &:focus-visible [data-cta-arrow]": disabled
@@ -92,7 +94,7 @@ export function StudioCtaCard({
           height: 32,
           flexShrink: 0,
           borderRadius: "var(--joy-radius-md)",
-          backgroundColor: "var(--joy-palette-common-white, #ffffff)",
+          backgroundColor: "var(--joy-palette-common-white)",
           color: "var(--joy-palette-primary-600)",
           display: "inline-flex",
           alignItems: "center",
