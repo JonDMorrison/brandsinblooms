@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenant } from "@/hooks/useTenant";
-import { getBusinessProfileUserId } from "@/lib/profile/businessProfileUserId";
+import { getTenantBusinessProfileUserId } from "@/lib/profile/businessProfileUserId";
+import { realBusinessName } from "@/lib/studio/businessPlaceholders";
 
 export interface SenderConfig {
   isVerified: boolean;
@@ -30,22 +31,33 @@ export const useSenderConfiguration = () => {
     }
 
     try {
-      // Fetch company_profiles.company_name - this is the source of truth for display name
-      const { data: companyProfile, error: companyError } = await supabase
-        .from("company_profiles")
-        .select(
-          "company_name, custom_sender_email, email_auth_status, email_domain, dns_records_verified",
-        )
-        .eq("user_id", await getBusinessProfileUserId(user.id))
-        .maybeSingle();
+      // Fetch company_profiles.company_name - this is the source of truth for
+      // display name. It is the active tenant's profile (the admin tenant
+      // switcher included), never the signed-in user's own company.
+      const profileUserId = await getTenantBusinessProfileUserId(
+        user.id,
+        tenant.id,
+      );
+      const { data: companyProfile, error: companyError } = profileUserId
+        ? await supabase
+            .from("company_profiles")
+            .select(
+              "company_name, custom_sender_email, email_auth_status, email_domain, dns_records_verified",
+            )
+            .eq("user_id", profileUserId)
+            .maybeSingle()
+        : { data: null, error: null };
 
       if (companyError) {
         console.error("Error fetching company profile:", companyError);
       }
 
-      // The display name comes from company_profiles.company_name
+      // The display name comes from company_profiles.company_name, else the
+      // tenant's own name. Never a placeholder.
       const displayName =
-        companyProfile?.company_name || tenant.name || "Your Business";
+        realBusinessName(companyProfile?.company_name) ||
+        realBusinessName(tenant.name) ||
+        realBusinessName(tenant.fallback_from_name);
 
       // Fetch tenant-level default sending domain (if configured)
       const { data: tenantRow, error: tenantRowError } = await supabase
@@ -92,7 +104,8 @@ export const useSenderConfiguration = () => {
       if (activeDomain) {
         const domainEmail =
           activeDomain.default_from_email || `mail@${activeDomain.domain}`;
-        const fromName = activeDomain.default_from_name || displayName;
+        const fromName =
+          realBusinessName(activeDomain.default_from_name) || displayName;
         const replyToEmail = activeDomain.default_reply_to || domainEmail;
 
         setSenderConfig({
@@ -163,7 +176,9 @@ export const useSenderConfiguration = () => {
       setSenderConfig({
         isVerified: false,
         senderEmail: "",
-        displayName: "Your Business",
+        displayName:
+          realBusinessName(tenant.name) ||
+          realBusinessName(tenant.fallback_from_name),
         deliveryMethod: "custom",
         fromEmailDomainId: null,
         replyToEmail: "",
@@ -171,7 +186,7 @@ export const useSenderConfiguration = () => {
     } finally {
       setLoading(false);
     }
-  }, [user?.id, tenant?.id, tenant?.name]);
+  }, [user?.id, tenant?.id, tenant?.name, tenant?.fallback_from_name]);
 
   useEffect(() => {
     fetchSenderConfiguration();

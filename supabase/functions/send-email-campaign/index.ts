@@ -30,6 +30,9 @@ import { COMPANY_PROFILE_WITH_DESIGN_SYSTEM_SELECT } from "../_shared/resolveDes
 import { resolveCampaignSenderDisplayName } from "../_shared/campaignFromHeader.ts";
 import { canQueueCampaignForTenant } from "../../../src/lib/auth/crmAccess.ts";
 import { resolveBusinessProfileUserId } from "../_shared/businessProfileUserId.ts";
+import { resolveCampaignPostalAddress } from "../_shared/campaignPostalAddress.ts";
+import { MISSING_POSTAL_ADDRESS_MESSAGE } from "../../../src/lib/studio/businessPlaceholders.ts";
+import type { ServerCompanyProfileShape } from "../_shared/resolveDesignSystem.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -2245,6 +2248,45 @@ serve(async (req: Request) => {
         campaignId,
         source: campaignEmailSource.source,
       });
+    }
+
+    // CASL and CAN-SPAM: every campaign email carries a postal address. With
+    // none on the footer or the business profile the footer would have no
+    // address (placeholder text is never rendered), so the send is held at
+    // any volume, matching the editor's "Add your business address" blocker.
+    const campaignPostalAddress = resolveCampaignPostalAddress(
+      normalizeContentBlocks(campaignEmailSource.contentBlocks),
+      companyProfile as ServerCompanyProfileShape | null,
+    );
+    if (!campaignPostalAddress) {
+      const { error: addressHoldError } = await supabase.from("crm_campaigns").update({
+        status: "paused",
+        send_blocked_reason: "physical_address_missing",
+        send_error: MISSING_POSTAL_ADDRESS_MESSAGE,
+        updated_at: new Date().toISOString(),
+      }).eq("id", campaignId).eq("tenant_id", campaignTenantId)
+        .in("status", ["sending", "queued", "partially_queued", "scheduled", "draft"]);
+      if (addressHoldError) throw addressHoldError;
+
+      await logCampaignGovernanceDecision({
+        decision: "block",
+        actionType: "campaign_send_preflight",
+        reason: "physical_address_missing",
+        policyName: "postal_address_required",
+        domainId: activeDomainId,
+        metadata: { message: MISSING_POSTAL_ADDRESS_MESSAGE },
+      });
+
+      return new Response(
+        JSON.stringify({
+          error: MISSING_POSTAL_ADDRESS_MESSAGE,
+          reason: "physical_address_missing",
+        }),
+        {
+          status: 409,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
 
     const representativeCustomer =

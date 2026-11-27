@@ -327,8 +327,9 @@ export function useStudioState({
   const [previewText, setPreviewText] = React.useState(
     "Limited-run arrangements available this week.",
   );
-  const [senderName, setSenderName] = React.useState("Your Business Name");
-  const [senderEmail, setSenderEmail] = React.useState("hello@yourdomain.com");
+  // Filled from the saved campaign; never a placeholder that could be saved.
+  const [senderName, setSenderName] = React.useState("");
+  const [senderEmail, setSenderEmail] = React.useState("");
   const [activeSidebarDragBlock, setActiveSidebarDragBlock] =
     React.useState<StudioSidebarDragBlock>(null);
   const [activeDropIndex, setActiveDropIndex] = React.useState<number | null>(

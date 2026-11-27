@@ -2,7 +2,7 @@ import * as React from "react";
 import Box from "@mui/joy/Box";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
-import { AlertTriangle, ArrowDown } from "lucide-react";
+import { AlertTriangle, ArrowDown, ExternalLink } from "lucide-react";
 
 /** One item from the editor's send checks (sendBlockers). */
 export interface CampaignReadinessBlocker {
@@ -12,6 +12,11 @@ export interface CampaignReadinessBlocker {
   fixLabel: string;
   /** Show the fix as a link on this item itself, not only on the first one. */
   inlineLink?: boolean;
+  /**
+   * A settings page that fixes it (for example the business address). Opens
+   * in a new tab so the draft stays open. Shown as this item's link.
+   */
+  href?: string;
 }
 
 const jumpLinkSx = {
@@ -57,6 +62,22 @@ function JumpLink({
     >
       {label}
       <ArrowDown size={16} aria-hidden />
+    </Box>
+  );
+}
+
+function SettingsLink({ href, label }: { href: string; label: string }) {
+  return (
+    <Box
+      component="a"
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      data-testid="campaign-readiness-settings-link"
+      sx={jumpLinkSx}
+    >
+      {label}
+      <ExternalLink size={16} aria-hidden />
     </Box>
   );
 }
@@ -147,7 +168,12 @@ export function CampaignReadinessBar({
                   sx={{ color: "warning.softColor" }}
                 >
                   {blocker.message}
-                  {blocker.inlineLink && blocker.section ? (
+                  {blocker.href ? (
+                    <>
+                      {" "}
+                      <SettingsLink href={blocker.href} label={blocker.fixLabel} />
+                    </>
+                  ) : blocker.inlineLink && blocker.section ? (
                     <>
                       {" "}
                       <JumpLink

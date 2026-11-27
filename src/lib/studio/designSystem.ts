@@ -7,6 +7,10 @@ import type {
   SocialLink,
   StudioSocialPlatform,
 } from "../../types/studioBlocks.ts";
+import {
+  realBusinessName,
+  realPostalAddress,
+} from "./businessPlaceholders.ts";
 
 export const STUDIO_SOCIAL_PLATFORM_ORDER: StudioSocialPlatform[] = [
   "facebook",
@@ -198,7 +202,9 @@ function getAddressLines(companyInfo: CompanyInfo) {
     suppressEmail(stringValue(companyInfo.country)),
   ].filter(Boolean);
 
-  return addressLines.join("\n") || stringValue(companyInfo.address);
+  return realPostalAddress(
+    addressLines.join("\n") || stringValue(companyInfo.address),
+  );
 }
 
 function parseColorChannels(color: string) {
@@ -432,11 +438,13 @@ export function buildStudioDesignSystem(companyInfo: CompanyInfo) {
 
   return {
     company: {
-      name: stringValue(companyInfo.name) || "Your Business",
+      // Empty when no real name is saved: callers show a prompt or fall
+      // back to the tenant name, never a placeholder.
+      name: realBusinessName(stringValue(companyInfo.name)),
       email: stringValue(companyInfo.email),
       phone: stringValue(companyInfo.phone),
       websiteUrl: stringValue(companyInfo.websiteUrl),
-      address: stringValue(companyInfo.address),
+      address: realPostalAddress(stringValue(companyInfo.address)),
       addressLines: getAddressLines(companyInfo),
       streetAddress: stringValue(companyInfo.streetAddress),
       city: stringValue(companyInfo.city),

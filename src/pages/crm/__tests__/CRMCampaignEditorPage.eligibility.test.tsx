@@ -185,7 +185,13 @@ const dialog = () => screen.getByRole("dialog");
 const primarySend = () => within(dialog()).getByRole("button", { name: /send to|schedule for|checking audience|no one in this audience/i });
 
 beforeEach(() => {
-  designSystem.current = buildStudioDesignSystem({ name: "Fernhill Gardens" });
+  designSystem.current = buildStudioDesignSystem({
+    name: "Fernhill Gardens",
+    streetAddress: "12 Fern Road",
+    city: "Victoria",
+    stateProvince: "BC",
+    postalCode: "V8V 1A1",
+  });
   Element.prototype.scrollIntoView = vi.fn();
   editor.current = readyDraft();
 });

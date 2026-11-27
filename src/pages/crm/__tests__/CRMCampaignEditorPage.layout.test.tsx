@@ -180,7 +180,13 @@ const stepToggle = (name: RegExp) =>
   screen.getAllByRole("button", { name }).find((button) => button.hasAttribute("data-campaign-step-toggle")) as HTMLElement;
 
 beforeEach(() => {
-  designSystem.current = buildStudioDesignSystem({ name: "Fernhill Gardens" });
+  designSystem.current = buildStudioDesignSystem({
+    name: "Fernhill Gardens",
+    streetAddress: "12 Fern Road",
+    city: "Victoria",
+    stateProvince: "BC",
+    postalCode: "V8V 1A1",
+  });
   Element.prototype.scrollIntoView = vi.fn();
 });
 afterEach(() => {
@@ -249,6 +255,60 @@ describe("campaign editor layout", () => {
     renderEditor();
     expect(screen.queryByTestId("campaign-readiness-bar")).toBeNull();
     expect(screen.getByTestId("campaign-editor-schedule-cta")).not.toBeDisabled();
+  });
+
+  it("warns about a placeholder footer business name and offers the From name", () => {
+    const updateContent = vi.fn();
+    editor.current = draft({
+      updateContent,
+      contentBlocks: blocks.map((block) =>
+        block.type === "footer" ? { ...block, businessName: "Your Company" } : block,
+      ),
+    });
+    renderEditor();
+    fireEvent.click(stepToggle(/Sender/));
+    const warning = screen.getByTestId("sender-mismatch-footerBusinessName");
+    expect(warning).toHaveTextContent("(“Your Company”) is a placeholder");
+    fireEvent.click(within(warning).getByRole("button", { name: "Use From name" }));
+    const next = updateContent.mock.calls[0][0].contentBlocks as StudioBlock[];
+    expect(next.find((block) => block.type === "footer")?.businessName).toBe("Fernhill Gardens");
+  });
+
+  it("warns about an empty footer business name", () => {
+    editor.current = draft({
+      contentBlocks: blocks.map((block) =>
+        block.type === "footer" ? { ...block, businessName: "" } : block,
+      ),
+    });
+    renderEditor();
+    fireEvent.click(stepToggle(/Sender/));
+    const warning = screen.getByTestId("sender-mismatch-footerBusinessName");
+    expect(warning).toHaveTextContent("The footer business name is empty.");
+    expect(within(warning).getByRole("button", { name: "Use From name" })).toBeInTheDocument();
+  });
+
+  it("blocks sending without a postal address and links to the address settings", () => {
+    designSystem.current = buildStudioDesignSystem({ name: "Fernhill Gardens" });
+    editor.current = draft({
+      subjectLine: "Winter wreath workshops are back this month",
+      includeAllCustomers: true,
+      audienceCount: 120,
+      contentBlocks: blocks.map((block) =>
+        block.type === "footer"
+          ? { ...block, businessName: "Fernhill Gardens", address: "123 Business St, Suite 100, City, State 12345" }
+          : block,
+      ),
+    });
+    renderEditor();
+    const bar = screen.getByTestId("campaign-readiness-bar");
+    expect(within(bar).getAllByRole("listitem")).toHaveLength(1);
+    expect(within(bar).getByText(/Add your business address\. Marketing email must include a postal address\./)).toBeInTheDocument();
+    const link = within(bar).getByTestId("campaign-readiness-settings-link");
+    expect(link).toHaveAttribute("href", "/profile/contact-footer");
+    expect(link).toHaveTextContent("Add your business address");
+    expect(screen.getByTestId("campaign-editor-schedule-cta")).toBeDisabled();
+    // The placeholder address is never rendered anywhere on the page.
+    expect(document.body.innerHTML).not.toContain("123 Business St");
   });
 
   it("copies the From name into the footer business name that does not match", () => {

@@ -1,26 +1,44 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTenant } from "@/hooks/useTenant";
 import type {
   BrandFooterColors,
   CompanyInfo,
 } from "@/types/company";
-import { getBusinessProfileUserId } from "@/lib/profile/businessProfileUserId";
+import { getTenantBusinessProfileUserId } from "@/lib/profile/businessProfileUserId";
+import {
+  realBusinessName,
+  realPostalAddress,
+} from "@/lib/studio/businessPlaceholders";
 
 // Re-exported so existing consumers can keep importing these from the hook.
 export type { BrandFooterColors, CompanyInfo };
 
+// Nothing is invented: a missing name or address stays empty, so the footer
+// shows an "Add your address" prompt and the editor blocks sending.
 const DEFAULT_COMPANY_INFO: CompanyInfo = {
-  name: "Your Company",
-  address: "123 Business St, Suite 100, City, State 12345",
-  phone: "(555) 123-4567",
+  name: "",
+  address: "",
+  phone: "",
 };
+
+function companyInfoWithName(name: string): CompanyInfo {
+  return { ...DEFAULT_COMPANY_INFO, name };
+}
 const COMPANY_PROFILE_CHANNEL_CONNECT_DELAY_MS = 2000;
 const COMPANY_PROFILE_CHANNEL_RETRY_INTERVAL_MS = 250;
 
 export const useCompanyInfo = () => {
   const { user, loading } = useAuth();
   const userId = user?.id ?? null;
+  // The business profile follows the active tenant (including the admin
+  // tenant switcher), never the signed-in user's own company.
+  const { tenant, loading: tenantLoading } = useTenant();
+  const tenantId = tenant?.id ?? null;
+  const tenantName =
+    realBusinessName(tenant?.name) ||
+    realBusinessName(tenant?.fallback_from_name);
   const [companyInfo, setCompanyInfo] =
     useState<CompanyInfo>(DEFAULT_COMPANY_INFO);
   const [isLoading, setIsLoading] = useState(true);
@@ -49,7 +67,11 @@ export const useCompanyInfo = () => {
   );
 
   const loadCompanyInfo = useCallback(
-    async (targetUserId: string | null) => {
+    async (
+      targetUserId: string | null,
+      targetTenantId: string | null,
+      fallbackName: string,
+    ) => {
       const requestId = ++loadRequestIdRef.current;
 
       if (!targetUserId) {
@@ -61,6 +83,20 @@ export const useCompanyInfo = () => {
       try {
         if (isMountedRef.current) {
           setIsLoading(true);
+        }
+
+        const profileUserId = await getTenantBusinessProfileUserId(
+          targetUserId,
+          targetTenantId,
+        );
+
+        if (!isMountedRef.current || requestId !== loadRequestIdRef.current) {
+          return;
+        }
+
+        if (!profileUserId) {
+          setCompanyInfoIfChanged(companyInfoWithName(fallbackName));
+          return;
         }
 
         const { data: profile, error } = await supabase
@@ -105,7 +141,7 @@ export const useCompanyInfo = () => {
           )
         `,
           )
-          .eq("user_id", await getBusinessProfileUserId(targetUserId))
+          .eq("user_id", profileUserId)
           .maybeSingle();
 
         if (!isMountedRef.current || requestId !== loadRequestIdRef.current) {
@@ -114,7 +150,7 @@ export const useCompanyInfo = () => {
 
         if (error) {
           console.error("Error loading company profile:", error);
-          setCompanyInfoIfChanged(DEFAULT_COMPANY_INFO);
+          setCompanyInfoIfChanged(companyInfoWithName(fallbackName));
           return;
         }
 
@@ -140,10 +176,10 @@ export const useCompanyInfo = () => {
               : profile.location_info || "";
 
           setCompanyInfoIfChanged({
-            name: profile.company_name || "",
-            // Use structured address, fallback to location_info for legacy data
-            address:
-              fullAddress || "123 Business St, Suite 100, City, State 12345",
+            name: realBusinessName(profile.company_name) || fallbackName,
+            // Use structured address, fallback to location_info for legacy
+            // data. Empty when none is saved: never a made-up address.
+            address: realPostalAddress(fullAddress),
             // Read phone from proper column, fallback to feature_flags for legacy
             phone: profile.company_phone || featureFlags?.company_phone || "",
             email: profile.company_email || "",
@@ -231,12 +267,12 @@ export const useCompanyInfo = () => {
               : undefined,
           });
         } else {
-          setCompanyInfoIfChanged(DEFAULT_COMPANY_INFO);
+          setCompanyInfoIfChanged(companyInfoWithName(fallbackName));
         }
       } catch (error) {
         console.error("Error loading company info:", error);
         if (isMountedRef.current && requestId === loadRequestIdRef.current) {
-          setCompanyInfoIfChanged(DEFAULT_COMPANY_INFO);
+          setCompanyInfoIfChanged(companyInfoWithName(fallbackName));
         }
       } finally {
         if (isMountedRef.current && requestId === loadRequestIdRef.current) {
@@ -256,12 +292,19 @@ export const useCompanyInfo = () => {
   useEffect(() => {
     let active = true;
 
+    // Wait for the active tenant: loading before it resolves would show a
+    // master admin's own company while they work in a client's account.
+    if (userId && tenantLoading) {
+      setIsLoading(true);
+      return;
+    }
+
     const runLoad = async () => {
       if (!active) {
         return;
       }
 
-      await loadCompanyInfo(userId);
+      await loadCompanyInfo(userId, tenantId, tenantName);
     };
 
     void runLoad();
@@ -269,11 +312,11 @@ export const useCompanyInfo = () => {
     return () => {
       active = false;
     };
-  }, [loadCompanyInfo, userId]);
+  }, [loadCompanyInfo, userId, tenantId, tenantLoading, tenantName]);
 
   // Separate effect for real-time subscription to avoid dependency issues
   useEffect(() => {
-    if (!userId || channelRef.current) {
+    if (!userId || tenantLoading || channelRef.current) {
       return;
     }
 
@@ -295,9 +338,9 @@ export const useCompanyInfo = () => {
 
       connectTimerId = null;
       // Teammates follow their business's profile, which belongs to the
-      // tenant owner.
-      void getBusinessProfileUserId(userId).then((profileUserId) => {
-        if (isDisposed || channelRef.current) {
+      // tenant owner; admins follow the tenant they are working in.
+      void getTenantBusinessProfileUserId(userId, tenantId).then((profileUserId) => {
+        if (isDisposed || channelRef.current || !profileUserId) {
           return;
         }
 
@@ -313,7 +356,7 @@ export const useCompanyInfo = () => {
             },
             () => {
               // Reload company info to get updated font data
-              void loadCompanyInfo(userId);
+              void loadCompanyInfo(userId, tenantId, tenantName);
             },
           )
           .subscribe();
@@ -339,7 +382,7 @@ export const useCompanyInfo = () => {
         void supabase.removeChannel(currentChannel);
       }
     };
-  }, [loadCompanyInfo, userId]);
+  }, [loadCompanyInfo, userId, tenantId, tenantLoading, tenantName]);
 
   return useMemo(
     () => ({
