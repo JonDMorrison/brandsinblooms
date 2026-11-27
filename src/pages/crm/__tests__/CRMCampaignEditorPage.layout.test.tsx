@@ -707,3 +707,42 @@ describe("campaign editor visual polish", () => {
     }
   });
 });
+
+describe("campaign editor for an address with no campaign", () => {
+  function renderAt(path: string) {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    return render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={[path]}>
+          <Routes>
+            <Route path="/crm/campaigns" element={<p>Campaigns list</p>} />
+            <Route path="/crm/campaigns/:campaignId" element={<CRMCampaignEditorPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+  }
+
+  it("shows Campaign not found with a navy Back to campaigns button, and no editor", () => {
+    const saveDraft = vi.fn();
+    editor.current = draft({ loadState: "not-found", campaignId: null, name: "", saveDraft, reload: vi.fn() });
+    renderAt("/crm/campaigns/6f1c2a8e-4b7d-4e2a-9c31-0a5e7d9b1f42");
+    expect(screen.getByRole("heading", { level: 1, name: "Campaign not found" })).toBeInTheDocument();
+    expect(screen.getByText("This link does not match a campaign in this business.")).toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "Campaign name" })).not.toBeInTheDocument();
+    const back = screen.getByRole("button", { name: "Back to campaigns" });
+    expect(back).toHaveClass("MuiButton-variantSolid", "MuiButton-colorPrimary");
+    fireEvent.click(back);
+    expect(screen.getByText("Campaigns list")).toBeInTheDocument();
+    expect(saveDraft).not.toHaveBeenCalled();
+  });
+
+  it("offers Try again when the campaign could not be read", () => {
+    const reload = vi.fn().mockResolvedValue(undefined);
+    editor.current = draft({ loadState: "error", campaignId: null, reload });
+    renderAt("/crm/campaigns/6f1c2a8e-4b7d-4e2a-9c31-0a5e7d9b1f42");
+    expect(screen.getByRole("heading", { level: 1, name: "Campaign could not be loaded" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+});

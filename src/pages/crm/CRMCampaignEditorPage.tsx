@@ -646,6 +646,74 @@ function CampaignEditorLoadingSkeleton() {
   );
 }
 
+// The address named no campaign in this business, or it could not be read.
+// Nothing of the campaign is shown, and nothing was saved.
+function CampaignUnavailableState({
+  reason,
+  onRetry,
+}: {
+  reason: "not-found" | "error";
+  onRetry: () => void;
+}) {
+  const navigate = useNavigate();
+  const notFound = reason === "not-found";
+  return (
+    <Card
+      variant="outlined"
+      data-testid="campaign-unavailable"
+      sx={{
+        borderRadius: "xl",
+        bgcolor: "background.surface",
+        maxWidth: 560,
+        mx: "auto",
+        mt: { xs: 4, md: 8 },
+        p: { xs: 3, md: 4 },
+        alignItems: "flex-start",
+        gap: 1.5,
+      }}
+    >
+      <Typography component="h1" level="h3" sx={{ color: "text.primary" }}>
+        {notFound ? "Campaign not found" : "Campaign could not be loaded"}
+      </Typography>
+      <Typography level="body-md" sx={{ color: "text.secondary" }}>
+        {notFound
+          ? "This link does not match a campaign in this business."
+          : "Check your connection and try again."}
+      </Typography>
+      <Stack direction="row" spacing={1.5} sx={{ pt: 1 }}>
+        <Button
+          color="primary"
+          variant="solid"
+          startDecorator={<ArrowLeft size={16} />}
+          onClick={() => navigate("/crm/campaigns")}
+        >
+          Back to campaigns
+        </Button>
+        {notFound ? null : (
+          <Button color="neutral" variant="outlined" onClick={onRetry}>
+            Try again
+          </Button>
+        )}
+      </Stack>
+    </Card>
+  );
+}
+
+// The editor opens only for /new or a campaign that loaded from this
+// business. Its own effects can save, so it is not mounted otherwise.
+function CampaignEditorGate() {
+  const { loadState, reload } = useCampaignEditor();
+  if (loadState === "not-found" || loadState === "error") {
+    return (
+      <CampaignUnavailableState
+        reason={loadState}
+        onRetry={() => void reload()}
+      />
+    );
+  }
+  return <CampaignEditorScreen />;
+}
+
 function CampaignEditorScreen() {
   const navigate = useNavigate();
   const [processParams, setProcessParams] = useSearchParams();
@@ -3581,7 +3649,7 @@ export default function CRMCampaignEditorPage() {
           }}
         >
           <PageContainer sx={{ maxWidth: `${EDITOR_MAX_WIDTH}px`, mx: "auto" }}>
-            <CampaignEditorScreen />
+            <CampaignEditorGate />
           </PageContainer>
         </Box>
       </CampaignEditorProvider>
