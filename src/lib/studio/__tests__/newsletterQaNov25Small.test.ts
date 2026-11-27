@@ -121,7 +121,8 @@ describe("Product Card photo proportions (Block Builder feedback)", () => {
   });
 
   it("'Fill the space' still crops into the fixed box", () => {
-    const img = (renderExtendedBlock(card({ imageFit: "cover" }), 640) ?? "").match(/<img[^>]*>/)?.[0] ?? "";
+    // The first <img> is now the whole-photo copy for desktop Outlook.
+    const img = (renderExtendedBlock(card({ imageFit: "cover" }), 640) ?? "").match(/<img data-newsletter-image[^>]*>/)?.[0] ?? "";
     expect(img).toContain("height:220px");
   });
 });

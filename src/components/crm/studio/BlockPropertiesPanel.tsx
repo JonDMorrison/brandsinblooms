@@ -1816,7 +1816,7 @@ function ProductGalleryManager({
                     }
                   />
                   <StudioTextField
-                    label="Badge Text"
+                    label="Badge text"
                     placeholder="SALE"
                     value={product.badgeText ?? ""}
                     onChange={(value) =>
@@ -1825,7 +1825,7 @@ function ProductGalleryManager({
                   />
                   {product.badgeText?.trim() ? (
                     <StudioColorPicker
-                      label="Badge Colour"
+                      label="Badge colour"
                       value={product.badgeColor ?? "#111827"}
                       onChange={(value) =>
                         updateProduct(product.id, { badgeColor: value })
@@ -2386,7 +2386,7 @@ function PanelContent({
                       </>
                     ) : null}
                     <StudioColorPicker
-                      label="Text Colour"
+                      label="Text colour"
                       value={block.textColor ?? "#ffffff"}
                       onChange={(value) => updateField("textColor", value)}
                     />
@@ -2441,12 +2441,12 @@ function PanelContent({
                       }
                     />
                     <StudioColorPicker
-                      label="Button Colour"
+                      label="Button colour"
                       value={block.buttonColor ?? "#ffffff"}
                       onChange={(value) => updateField("buttonColor", value)}
                     />
                     <StudioColorPicker
-                      label="Button Text Colour"
+                      label="Button text colour"
                       value={block.buttonTextColor ?? "#1a1a2e"}
                       onChange={(value) =>
                         updateField("buttonTextColor", value)
@@ -2555,7 +2555,7 @@ function PanelContent({
                       onChange={(value) => updateField("borderRadius", value)}
                     />
                     <StudioToggleField
-                      label="Image Ratio"
+                      label="Image ratio"
                       options={[
                         { label: "Auto", value: "auto" },
                         { label: "1:1", value: "1:1" },
@@ -2601,7 +2601,7 @@ function PanelContent({
                       placeholder="Write the main message..."
                     />
                     <StudioColorPicker
-                      label="Text Colour"
+                      label="Text colour"
                       value={block.textColor ?? "#111827"}
                       onChange={(value) => updateField("textColor", value)}
                     />
@@ -2656,14 +2656,14 @@ function PanelContent({
                             }
                           />
                           <StudioColorPicker
-                            label="Button Colour"
+                            label="Button colour"
                             value={block.buttonColor ?? "#111827"}
                             onChange={(value) =>
                               updateField("buttonColor", value)
                             }
                           />
                           <StudioColorPicker
-                            label="Button Text Colour"
+                            label="Button text colour"
                             value={block.buttonTextColor ?? "#ffffff"}
                             onChange={(value) =>
                               updateField("buttonTextColor", value)
@@ -2840,12 +2840,12 @@ function PanelContent({
                           onChange={(value) => updateField("buttonUrl", value)}
                         />
                         <StudioColorPicker
-                          label="Button Colour"
+                          label="Button colour"
                           value={block.buttonColor ?? "#111827"}
                           onChange={(value) => updateField("buttonColor", value)}
                         />
                         <StudioColorPicker
-                          label="Button Text Colour"
+                          label="Button text colour"
                           value={block.buttonTextColor ?? "#ffffff"}
                           onChange={(value) => updateField("buttonTextColor", value)}
                         />
@@ -3030,12 +3030,12 @@ function PanelContent({
                       }
                     />
                     <StudioColorPicker
-                      label="Button Colour"
+                      label="Button colour"
                       value={block.buttonColor ?? "#111827"}
                       onChange={(value) => updateField("buttonColor", value)}
                     />
                     <StudioColorPicker
-                      label="Button Text Colour"
+                      label="Button text colour"
                       value={block.buttonTextColor ?? "#ffffff"}
                       onChange={(value) =>
                         updateField("buttonTextColor", value)
@@ -3068,7 +3068,7 @@ function PanelContent({
                     }
                   >
                     <StudioTextField
-                      label="Link Text"
+                      label="Link text"
                       placeholder="Learn more"
                       value={block.secondaryLinkText ?? ""}
                       onChange={(value) =>
@@ -3315,7 +3315,7 @@ function PanelContent({
                       onChange={(value) => updateField("textAlign", value)}
                     />
                     <StudioColorPicker
-                      label="Text Colour"
+                      label="Text colour"
                       value={block.textColor ?? "#ffffff"}
                       onChange={(value) => updateField("textColor", value)}
                     />
@@ -3332,7 +3332,7 @@ function PanelContent({
                 title: "Button",
                 content: (
                   <CollapsibleSection
-                    label="Show Button"
+                    label="Show button"
                     enabled={block.showButton ?? false}
                     onToggle={(value) => updateField("showButton", value)}
                   >
@@ -3366,12 +3366,12 @@ function PanelContent({
                       }
                     />
                     <StudioColorPicker
-                      label="Button Colour"
+                      label="Button colour"
                       value={block.buttonColor ?? "#ffffff"}
                       onChange={(value) => updateField("buttonColor", value)}
                     />
                     <StudioColorPicker
-                      label="Button Text Colour"
+                      label="Button text colour"
                       value={block.buttonTextColor ?? "#000000"}
                       onChange={(value) =>
                         updateField("buttonTextColor", value)
@@ -3722,7 +3722,7 @@ function PanelContent({
                 content: (
                   <>
                     <StudioToggleField
-                      label="Line Style"
+                      label="Line style"
                       options={[
                         { label: "Solid", value: "solid" },
                         { label: "Dashed", value: "dashed" },
@@ -3741,7 +3741,7 @@ function PanelContent({
                       }}
                     />
                     <StudioColorPicker
-                      label="Line Colour"
+                      label="Line colour"
                       value={block.lineColor ?? "#d1d5db"}
                       onChange={(value) => updateField("lineColor", value)}
                     />
@@ -3802,7 +3802,7 @@ function PanelContent({
                         }
                       />
                       <StudioColorPicker
-                        label="Ornament Colour"
+                        label="Ornament colour"
                         value={block.ornamentColor ?? "#111827"}
                         onChange={(value) =>
                           updateField("ornamentColor", value)
@@ -3906,7 +3906,7 @@ function PanelContent({
                       }
                     />
                     <StudioSliderField
-                      label="Image Height"
+                      label="Image height"
                       min={120}
                       max={280}
                       step={10}
@@ -4015,7 +4015,7 @@ function PanelContent({
                       }
                     />
                     <StudioSliderField
-                      label="Image Height"
+                      label="Image height"
                       min={120}
                       max={260}
                       step={10}
@@ -4033,17 +4033,17 @@ function PanelContent({
                       onChange={(value) => updateField("cardGap", value)}
                     />
                     <StudioSwitchField
-                      label="Show Badges"
+                      label="Show badges"
                       checked={block.showBadges ?? true}
                       onChange={(value) => updateField("showBadges", value)}
                     />
                     <StudioSwitchField
-                      label="Show Prices"
+                      label="Show prices"
                       checked={block.showPrices ?? true}
                       onChange={(value) => updateField("showPrices", value)}
                     />
                     <StudioSwitchField
-                      label="Show Original Prices"
+                      label="Show original prices"
                       checked={block.showOriginalPrice ?? false}
                       onChange={(value) =>
                         updateField("showOriginalPrice", value)
@@ -4057,7 +4057,7 @@ function PanelContent({
                       }
                     />
                     <StudioSwitchField
-                      label="Show CTA Buttons"
+                      label="Show buttons"
                       checked={block.showCtaButtons ?? true}
                       onChange={(value) => updateField("showCtaButtons", value)}
                     />
@@ -4084,7 +4084,7 @@ function PanelContent({
                       }
                     />
                     <StudioSwitchField
-                      label="Show Card Border"
+                      label="Show card border"
                       checked={block.showCardBorder ?? block.showBorder ?? true}
                       onChange={(value) => {
                         updateField("showCardBorder", value);
@@ -4198,7 +4198,7 @@ function PanelContent({
                       }}
                     />
                     <StudioToggleField
-                      label="Color Mode"
+                      label="Colour mode"
                       options={[
                         { label: "Brand", value: "brand" },
                         { label: "Mono", value: "mono" },
@@ -4261,7 +4261,7 @@ function PanelContent({
                       }
                     />
                     <StudioColorPicker
-                      label="Text Colour"
+                      label="Text colour"
                       value={block.textColor ?? "#111827"}
                       onChange={(value) => updateField("textColor", value)}
                     />
@@ -4466,12 +4466,12 @@ function PanelContent({
                       }
                     />
                     <StudioColorPicker
-                      label="Text Colour"
+                      label="Text colour"
                       value={block.textColor ?? "#ffffff"}
                       onChange={(value) => updateField("textColor", value)}
                     />
                     <StudioColorPicker
-                      label="Link Colour"
+                      label="Link colour"
                       value={block.linkColor ?? "#cbd5e1"}
                       onChange={(value) => updateField("linkColor", value)}
                     />
@@ -4621,7 +4621,7 @@ function PanelContent({
                       }
                     />
                     <StudioColorPicker
-                      label="Text Colour"
+                      label="Text colour"
                       value={block.textColor ?? "#1a1a2e"}
                       onChange={(value) => updateField("textColor", value)}
                     />
@@ -4761,7 +4761,7 @@ function PanelContent({
                       }
                     />
                     <StudioColorPicker
-                      label="Text Colour"
+                      label="Text colour"
                       value={block.textColor ?? "#111827"}
                       onChange={(value) => updateField("textColor", value)}
                     />
@@ -4932,18 +4932,18 @@ function PanelContent({
                     ) : (
                       <>
                     <StudioTextField
-                      label="Badge Text"
+                      label="Badge text"
                       placeholder="SALE"
                       value={block.badgeText ?? ""}
                       onChange={(value) => updateField("badgeText", value)}
                     />
                     <StudioColorPicker
-                      label="Badge Colour"
+                      label="Badge colour"
                       value={block.badgeColor ?? "#111827"}
                       onChange={(value) => updateField("badgeColor", value)}
                     />
                     <StudioColorPicker
-                      label="Badge Text Colour"
+                      label="Badge text colour"
                       value={block.badgeTextColor ?? "#ffffff"}
                       onChange={(value) => updateField("badgeTextColor", value)}
                     />
@@ -4996,7 +4996,7 @@ function PanelContent({
                       sx={{ width: "100%", maxWidth: "100%", minWidth: 0 }}
                     >
                       <StudioTextField
-                        label="Original Price"
+                        label="Original price"
                         placeholder="$39.99"
                         value={block.originalPrice ?? ""}
                         onChange={(value) =>
@@ -5045,7 +5045,7 @@ function PanelContent({
                       })}
                     />
                     <StudioToggleField
-                      label="Image Placement"
+                      label="Image placement"
                       options={[
                         { label: "Left", value: "left" },
                         { label: "Right", value: "right" },
@@ -5127,12 +5127,12 @@ function PanelContent({
                       }
                     />
                     <StudioColorPicker
-                      label="Button Colour"
+                      label="Button colour"
                       value={block.buttonColor ?? "#111827"}
                       onChange={(value) => updateField("buttonColor", value)}
                     />
                     <StudioColorPicker
-                      label="Button Text Colour"
+                      label="Button text colour"
                       value={block.buttonTextColor ?? "#ffffff"}
                       onChange={(value) =>
                         updateField("buttonTextColor", value)
@@ -5160,7 +5160,7 @@ function PanelContent({
                       }
                     />
                     <StudioColorPicker
-                      label="Text Colour"
+                      label="Text colour"
                       value={block.textColor ?? "#111827"}
                       onChange={(value) => updateField("textColor", value)}
                     />
