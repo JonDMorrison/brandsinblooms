@@ -94,7 +94,7 @@ ${weekDescription ? `Additional seasonal context: ${weekDescription}` : ''}
 # FORMAT-SPECIFIC EXCELLENCE`;
 
   // Add format-specific guidelines based on content type
-  const formatGuidelines = getFormatGuidelines(postType.toLowerCase(), companyName);
+  const formatGuidelines = getFormatGuidelines(postType.toLowerCase(), companyName, campaignTitle);
 
   const qualityAssurancePrompt = `
 # FINAL QUALITY CHECK
@@ -131,7 +131,7 @@ ${formatGuidelines}
 ${addWeekNumberRestrictionsToPrompt(qualityAssurancePrompt)}`;
 }
 
-function getFormatGuidelines(postType: string, companyName: string): string {
+function getFormatGuidelines(postType: string, companyName: string, campaignTitle: string): string {
   switch (postType) {
     case 'instagram':
       return `
