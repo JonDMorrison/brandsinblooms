@@ -1,10 +1,10 @@
 name: Inactive customer email guards
 on:
   pull_request:
-    paths: ['supabase/functions/send-email-campaign/**', 'supabase/functions/process-email-send-queue/**', 'supabase/functions/_shared/activeEmailCustomers.ts', 'supabase/migrations/*bloom_support*', 'tests/inactive-email/**', '.github/workflows/inactive-email.yml']
+    paths: ['supabase/functions/send-email-campaign/**', 'supabase/functions/process-email-send-queue/**', 'supabase/functions/_shared/activeEmailCustomers.ts', 'supabase/functions/_shared/campaignSegmentAudience.ts', 'supabase/migrations/*bloom_support*', 'tests/inactive-email/**', '.github/workflows/inactive-email.yml']
   push:
     branches: [main]
-    paths: ['supabase/functions/send-email-campaign/**', 'supabase/functions/process-email-send-queue/**', 'supabase/functions/_shared/activeEmailCustomers.ts', 'supabase/migrations/*bloom_support*', 'tests/inactive-email/**', '.github/workflows/inactive-email.yml']
+    paths: ['supabase/functions/send-email-campaign/**', 'supabase/functions/process-email-send-queue/**', 'supabase/functions/_shared/activeEmailCustomers.ts', 'supabase/functions/_shared/campaignSegmentAudience.ts', 'supabase/migrations/*bloom_support*', 'tests/inactive-email/**', '.github/workflows/inactive-email.yml']
 permissions:
   contents: read
 jobs:
