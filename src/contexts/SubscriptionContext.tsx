@@ -10,12 +10,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { isSuperAdmin } from "@/utils/adminUtils";
-import {
-  isTestAccount,
-  ensureTestAccountHasProAccess,
-} from "@/utils/testAccountUtils";
+import { isTestAccount } from "@/utils/testAccountUtils";
 import { getBusinessProfileUserId } from "@/lib/profile/businessProfileUserId";
-import { Constants, type Tables } from "@/integrations/supabase/types";
 
 type SubscriptionPlan =
   | "free_trial"
@@ -45,29 +41,6 @@ interface Subscription {
   updated_at: string;
 }
 
-type SubscriptionRow = Tables<"subscriptions">;
-
-const SUBSCRIPTION_PLANS: readonly SubscriptionPlan[] =
-  Constants.public.Enums.subscription_plan;
-
-const isSubscriptionPlan = (
-  value: string | null | undefined,
-): value is SubscriptionPlan =>
-  typeof value === "string" &&
-  SUBSCRIPTION_PLANS.some((plan) => plan === value);
-
-const toSubscription = (row: SubscriptionRow): Subscription => ({
-  id: row.id,
-  user_id: row.user_id,
-  plan: row.plan,
-  tier: isSubscriptionPlan(row.tier) ? row.tier : null,
-  start_date: row.start_date,
-  end_date: row.end_date,
-  billing_interval: row.billing_interval,
-  created_at: row.created_at,
-  updated_at: row.updated_at,
-});
-
 interface SubscriptionContextType {
   subscription: Subscription | null;
   loading: boolean;
@@ -75,10 +48,6 @@ interface SubscriptionContextType {
   trialDaysLeft: number;
   subscriptionError: string | null;
   lastCheckTime: Date | null;
-  updateSubscription: (
-    plan: SubscriptionPlan,
-    billingInterval: BillingInterval,
-  ) => Promise<void>;
   checkAccess: (requiredPlan: SubscriptionPlan) => boolean;
   refreshSubscription: () => Promise<void>;
   clearSubscriptionError: () => void;
@@ -128,123 +97,6 @@ export const SubscriptionProvider = ({
     setSubscriptionError(null);
   }, []);
 
-  const createDefaultSubscription = async () => {
-    if (!user) return null;
-
-    try {
-      // For test accounts, create PRO subscription instead of trial
-      if (isTestUser) {
-        const startDate = new Date();
-        const endDate = new Date();
-        endDate.setFullYear(startDate.getFullYear() + 10); // 10 years
-
-        const { data, error } = await supabase
-          .from("subscriptions")
-          .insert({
-            user_id: user.id,
-            plan: "bloom", // Highest tier for test accounts
-            tier: "bloom",
-            start_date: startDate.toISOString().split("T")[0],
-            end_date: endDate.toISOString().split("T")[0],
-            billing_interval: "annual",
-          })
-          .select()
-          .single();
-
-        if (error) {
-          console.error("❌ Error creating test account subscription:", error);
-          setSubscriptionError(
-            `Failed to create test subscription: ${error.message}`,
-          );
-          return null;
-        }
-        return data;
-      }
-
-      // Regular trial subscription for non-test accounts - 7 days
-      const startDate = new Date();
-      const endDate = new Date();
-      endDate.setDate(startDate.getDate() + 7); // 7-day trial
-
-      const { data, error } = await supabase
-        .from("subscriptions")
-        .insert({
-          user_id: user.id,
-          plan: "free_trial",
-          tier: "free_trial",
-          start_date: startDate.toISOString().split("T")[0],
-          end_date: endDate.toISOString().split("T")[0],
-          billing_interval: "monthly",
-        })
-        .select()
-        .single();
-
-      if (error) {
-        console.error("❌ Error creating subscription:", error);
-        setSubscriptionError(
-          `Failed to create trial subscription: ${error.message}`,
-        );
-        return null;
-      }
-      return data;
-    } catch (error) {
-      console.error("❌ Error in createDefaultSubscription:", error);
-      setSubscriptionError(
-        `Unexpected error creating subscription: ${error instanceof Error ? error.message : "Unknown error"}`,
-      );
-      return null;
-    }
-  };
-
-  const updateSubscriptionPlan = async (
-    plan: SubscriptionPlan,
-    billingInterval: BillingInterval,
-  ) => {
-    if (!user || !subscription) return;
-
-    try {
-      const startDate = new Date();
-      let endDate = new Date();
-
-      if (plan === "free_trial") {
-        endDate.setDate(startDate.getDate() + 7); // 7-day trial
-      } else if (isPaidPlan(plan)) {
-        if (billingInterval === "annual") {
-          endDate.setFullYear(startDate.getFullYear() + 1);
-        } else {
-          endDate.setMonth(startDate.getMonth() + 1);
-        }
-      }
-
-      const { data, error } = await supabase
-        .from("subscriptions")
-        .update({
-          plan,
-          tier: plan,
-          billing_interval: billingInterval,
-          start_date: startDate.toISOString().split("T")[0],
-          end_date: endDate.toISOString().split("T")[0],
-        })
-        .eq("id", subscription.id)
-        .select()
-        .single();
-
-      if (error) {
-        console.error("❌ Error updating subscription:", error);
-        setSubscriptionError(`Failed to update subscription: ${error.message}`);
-        return;
-      }
-
-      setSubscription(toSubscription(data));
-      setSubscriptionError(null);
-    } catch (error) {
-      console.error("❌ Error in updateSubscriptionPlan:", error);
-      setSubscriptionError(
-        `Unexpected error updating subscription: ${error instanceof Error ? error.message : "Unknown error"}`,
-      );
-    }
-  };
-
   // Add request tracking to prevent duplicate requests
   const [isLoadingSubscription, setIsLoadingSubscription] = useState(false);
   const [lastFetchUser, setLastFetchUser] = useState<string | null>(null);
@@ -264,15 +116,6 @@ export const SubscriptionProvider = ({
       setIsLoadingSubscription(true);
       setSubscriptionError(null);
       setLastFetchUser(user.id);
-
-      // Ensure test accounts have PRO access (non-blocking)
-      if (isTestUser) {
-        const testAccountPromise = ensureTestAccountHasProAccess(
-          user.id,
-          user.email!,
-        );
-        testAccountPromise.catch(console.error);
-      }
 
       // Optimized query - fetch only what we need with proper timeout handling
       const queryPromise = supabase
@@ -305,60 +148,18 @@ export const SubscriptionProvider = ({
         return;
       }
 
-      let data = null;
-
-      if (allSubscriptions && allSubscriptions.length > 1) {
-        data = allSubscriptions[0]; // Use the most recent one
-
-        // Clean up duplicates asynchronously to avoid blocking
-        const duplicateIds = allSubscriptions.slice(1).map((sub) => sub.id);
-        if (duplicateIds.length > 0) {
-          (async () => {
-            try {
-              await supabase
-                .from("subscriptions")
-                .delete()
-                .in("id", duplicateIds);
-            } catch (error) {
-              console.error(
-                "Failed to cleanup duplicate subscriptions:",
-                error,
-              );
-            }
-          })();
-        }
-      } else if (allSubscriptions && allSubscriptions.length === 1) {
-        data = allSubscriptions[0];
-      }
+      // Subscription rows are written only server-side: the
+      // on_auth_user_created_subscription trigger creates the trial row at
+      // signup, and Stripe/admin/OAuth paths (service_role or SECURITY
+      // DEFINER RPCs) change plan, tier and dates. The browser only reads.
+      // If several rows exist, the most recent one is authoritative.
+      const data = allSubscriptions?.[0] ?? null;
 
       if (data) {
         setSubscription(data);
-
-        // Check expiry asynchronously to avoid blocking UI
-        const endDate = new Date(data.end_date);
-        const now = new Date();
-        const effectivePlan = data.tier ?? data.plan;
-
-        if (
-          effectivePlan === "free_trial" &&
-          now > endDate &&
-          !hasPrivilegedAccess
-        ) {
-          (async () => {
-            try {
-              await updateSubscriptionPlan("expired", data.billing_interval);
-            } catch (error) {
-              console.error("Failed to update expired subscription:", error);
-            }
-          })();
-        }
       } else {
-        // Create default subscription asynchronously
-        createDefaultSubscription()
-          .then((newSub) => {
-            if (newSub) setSubscription(toSubscription(newSub));
-          })
-          .catch(console.error);
+        console.warn("No subscription row found for user", user.id);
+        setSubscription(null);
       }
 
       setLastCheckTime(new Date());
@@ -376,7 +177,7 @@ export const SubscriptionProvider = ({
       setLoading(false);
       setIsLoadingSubscription(false);
     }
-  }, [user?.id, isTestUser, hasPrivilegedAccess]);
+  }, [user?.id]);
 
   const [isCheckingStripe, setIsCheckingStripe] = useState(false);
   const [lastStripeCheck, setLastStripeCheck] = useState<number>(0);
@@ -430,13 +231,6 @@ export const SubscriptionProvider = ({
       setIsCheckingStripe(false);
     }
   }, [user?.id, fetchSubscription]);
-
-  const updateSubscription = useCallback(
-    async (plan: SubscriptionPlan, billingInterval: BillingInterval) => {
-      await updateSubscriptionPlan(plan, billingInterval);
-    },
-    [],
-  );
 
   const refreshSubscription = useCallback(async () => {
     setLoading(true);
@@ -572,7 +366,6 @@ export const SubscriptionProvider = ({
       trialDaysLeft,
       subscriptionError,
       lastCheckTime,
-      updateSubscription,
       checkAccess,
       refreshSubscription,
       clearSubscriptionError,
@@ -584,7 +377,6 @@ export const SubscriptionProvider = ({
       trialDaysLeft,
       subscriptionError,
       lastCheckTime,
-      updateSubscription,
       checkAccess,
       refreshSubscription,
       clearSubscriptionError,
