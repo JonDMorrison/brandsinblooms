@@ -153,6 +153,9 @@ interface CampaignEditorContextValue extends CampaignEditorState {
   /** Records how a not-yet-saved draft was started (blank, a template, a
    *  theme...). Ignored once the campaign exists: origin is set at insert. */
   setOrigin: (origin: string) => void;
+  /** Records a save made outside the draft row (groups, campaign colour), so
+   *  the header's "Saved <time>" reflects it. */
+  recordExternalSave: (savedAt: Date) => void;
   captureDraftSnapshot: (trigger: DraftSnapshotTrigger) => Promise<void>;
   activate: (
     options?: CampaignActivationOptions,
@@ -1111,6 +1114,14 @@ export function CampaignEditorProvider({
     );
   }, []);
 
+  const recordExternalSave = React.useCallback((savedAt: Date) => {
+    setState((current) =>
+      current.lastSavedAt && current.lastSavedAt.getTime() >= savedAt.getTime()
+        ? current
+        : { ...current, lastSavedAt: savedAt },
+    );
+  }, []);
+
   const captureDraftSnapshot = React.useCallback(
     async (trigger: DraftSnapshotTrigger) => {
       const savedCampaignId = await saveDraft({ silent: true });
@@ -1605,6 +1616,7 @@ export function CampaignEditorProvider({
       saveDraft,
       setAutoSavePaused,
       setOrigin,
+      recordExternalSave,
       captureDraftSnapshot,
       activate,
       pause,
@@ -1622,6 +1634,7 @@ export function CampaignEditorProvider({
       saveDraft,
       setAutoSavePaused,
       setOrigin,
+      recordExternalSave,
       captureDraftSnapshot,
       syncLiveCampaign,
       state,
