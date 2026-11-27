@@ -1,4 +1,5 @@
 import "@testing-library/jest-dom/vitest";
+import { greetingFirstName } from "@/utils/greetingName";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
@@ -288,10 +289,34 @@ describe("BloomSuite task-first dashboard", () => {
     expect(screen.getByText("Recent performance")).toBeVisible();
   });
 
+  it("shows one h1 greeting with the capitalized first name and no subtitle", () => {
+    renderDashboard();
+    const headings = screen.getAllByRole("heading", { level: 1 });
+    expect(headings).toHaveLength(1);
+    expect(headings[0]).toHaveTextContent("Welcome back, Test");
+    expect(
+      screen.queryByText("Your customers, campaigns, and next steps in one place."),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("What would you like to do?")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("region", { name: "What would you like to do?" }),
+    ).toBeInTheDocument();
+  });
+
+  it("builds the greeting name from metadata without the email", () => {
+    expect(greetingFirstName({ full_name: "jon morrison" })).toBe("Jon");
+    expect(greetingFirstName({ first_name: "  émilie ", full_name: "x" })).toBe("Émilie");
+    expect(greetingFirstName({ full_name: "   " })).toBeNull();
+    expect(greetingFirstName({})).toBeNull();
+    expect(greetingFirstName(undefined)).toBeNull();
+  });
+
   it("never leaves an empty page if all permissions are absent", () => {
     dashboardAccess.permissions.clear();
     renderDashboard();
-    expect(screen.getByText("What would you like to do?")).toBeVisible();
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Welcome back, Test" }),
+    ).toBeVisible();
     expect(screen.getByRole("alert")).toHaveTextContent(
       "Your dashboard tools aren't available yet",
     );
