@@ -6,7 +6,11 @@ import {
 
 type Row = Record<string, unknown>;
 
-function fakeClient(tables: Record<string, Row[]>, profileFor: Record<string, string> = {}) {
+function fakeClient(
+  tables: Record<string, Row[]>,
+  profileFor: Record<string, string> = {},
+  failing: string[] = [],
+) {
   const calls: string[] = [];
   const client: TenantProfileClient = {
     rpc(fn: string, args?: Record<string, unknown>) {
@@ -27,9 +31,11 @@ function fakeClient(tables: Record<string, Row[]>, profileFor: Record<string, st
               rows = rows.filter((row) => values.includes(String(row[column])));
               return builder;
             },
-            then(resolve: (value: { data: Row[]; error: null }) => unknown) {
+            then(resolve: (value: { data: Row[] | null; error: { message: string } | null }) => unknown) {
               calls.push(`from:${table}`);
-              return Promise.resolve(resolve({ data: rows, error: null }));
+              return Promise.resolve(
+                resolve(failing.includes(table) ? { data: null, error: { message: "down" } } : { data: rows, error: null }),
+              );
             },
           };
           return builder;
@@ -67,12 +73,36 @@ Deno.test("a creator who belongs to the tenant keeps profile_user_id_for", async
   assertEquals(calls.includes("rpc:profile_user_id_for"), true);
 });
 
-Deno.test("a tenant with no profile row falls back to the creator", async () => {
-  const { client } = fakeClient({
-    users: [{ id: "owner", tenant_id: TENANT, role: "owner", created_at: "2026-01-01" }],
-    company_profiles: [],
+Deno.test("a tenant with no profile row never falls back to an outside creator's own company", async () => {
+  const { client, calls } = fakeClient({
+    users: [
+      { id: "staff", tenant_id: TENANT, role: "member", created_at: "2026-01-01" },
+      { id: "owner", tenant_id: TENANT, role: "owner", created_at: "2026-01-02" },
+    ],
+    company_profiles: [{ user_id: "admin", created_at: "2025-01-01" }],
   });
-  assertEquals(await resolveCampaignBusinessProfileUserId(client, { tenantId: TENANT, userId: "admin" }), "admin");
+  // The tenant's lead member: no profile row, so no admin name, website or address.
+  assertEquals(await resolveCampaignBusinessProfileUserId(client, { tenantId: TENANT, userId: "admin" }), "owner");
+  assertEquals(calls.includes("rpc:profile_user_id_for"), false);
+});
+
+Deno.test("a tenant with no members resolves to no profile, not the creator", async () => {
+  const { client } = fakeClient({ users: [], company_profiles: [{ user_id: "admin", created_at: "2025-01-01" }] });
+  assertEquals(await resolveCampaignBusinessProfileUserId(client, { tenantId: TENANT, userId: "admin" }), "");
+});
+
+Deno.test("a failed profile lookup for an outside creator still never uses their company", async () => {
+  const { client } = fakeClient(
+    { users: [{ id: "owner", tenant_id: TENANT, role: "owner", created_at: "2026-01-01" }] },
+    {},
+    ["company_profiles"],
+  );
+  assertEquals(await resolveCampaignBusinessProfileUserId(client, { tenantId: TENANT, userId: "admin" }), "owner");
+});
+
+Deno.test("unreadable membership keeps the creator-based resolution", async () => {
+  const { client } = fakeClient({}, { staff: "owner" }, ["users"]);
+  assertEquals(await resolveCampaignBusinessProfileUserId(client, { tenantId: TENANT, userId: "staff" }), "owner");
 });
 
 Deno.test("no tenant id keeps the creator-based resolution", async () => {

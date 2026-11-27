@@ -17,7 +17,8 @@ describe('footer compliance', () => {
       websiteUrl: 'https://store.example', businessName: 'My Store',
       complianceText: 'Custom text', showWebsiteLink: false } as StudioBlock;
     const saved = ensureFooterBlockCompliance([footer], { designSystem })[0];
-    expect(saved).toMatchObject({ address: footer.address, websiteUrl: footer.websiteUrl,
+    // The website is the tenant's profile website, never one saved on the draft.
+    expect(saved).toMatchObject({ address: footer.address, websiteUrl: 'https://default.example',
       businessName: footer.businessName, complianceText: footer.complianceText, showWebsiteLink: false });
     expect(ensureFooterBlockCompliance([saved], { designSystem })[0]).toMatchObject(saved);
   });

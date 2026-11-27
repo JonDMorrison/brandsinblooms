@@ -2,7 +2,7 @@ import "@testing-library/jest-dom/vitest";
 import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CampaignResultsOverview } from "../CampaignResultsOverview";
-import { resolveCampaignStats, type CampaignStats } from "@/lib/crm/campaignStats";
+import { resolveCampaignCompletedAt, resolveCampaignStats, type CampaignStats } from "@/lib/crm/campaignStats";
 import { normalizeEmailCampaignReportingSnapshot } from "@/hooks/analytics/useCampaignDerivedMetrics";
 
 const stats: CampaignStats = { recipients: 1803, sent: 1803, delivered: 1703, opens: 237, clicks: 179, deliveryRate: (1703 / 1803) * 100, openRate: 13.9, clickRate: 10.5, estimated: false };
@@ -32,11 +32,26 @@ describe("CampaignResultsOverview", () => {
     render(<CampaignResultsOverview {...props} />);
     expect(screen.getByText("1,803 emails sent.")).toBeVisible();
     expect(screen.getByText("1,703")).toBeVisible();
-    expect(screen.getByText("94.5% of sent emails")).toBeVisible();
+    expect(screen.getByText("94.5% of 1,803")).toBeVisible();
     expect(screen.getByText(/2 emails could not be sent/)).toHaveTextContent("43 sent emails bounced");
     expect(screen.queryByText("Campaign Sent with Errors")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button",{name:"Review retry options"}));
     expect(props.onRetry).toHaveBeenCalledOnce();
+  });
+  it("labels confirmed delivery with the rate and the sent count, never \"of sent emails\"", () => {
+    render(<CampaignResultsOverview {...props} stats={{ ...stats, sent: 1973, delivered: 1973, deliveryRate: 100 }} />);
+    expect(screen.getByText("100.0% of 1,973")).toBeVisible();
+    expect(screen.queryByText(/of sent emails/)).not.toBeInTheDocument();
+  });
+  it("shows the send completion time, falling back to sent_at", () => {
+    // c0f48125 after the demo refresh: send_completed_at moves with sent_at.
+    const completed = resolveCampaignCompletedAt({ sendCompletedAt: "2026-11-16T11:17:00.15478+00:00", sentAt: "2026-11-16T11:17:00.15478+00:00" });
+    render(<CampaignResultsOverview {...props} completedAt={completed ?? ""} />);
+    expect(screen.getByText(/^Completed 2026-11-16T11:17:00\.15478\+00:00 ·/)).toBeVisible();
+    cleanup();
+    const fallback = resolveCampaignCompletedAt({ sendCompletedAt: null, sentAt: "2026-11-16T11:17:00Z" });
+    render(<CampaignResultsOverview {...props} completedAt={fallback ?? ""} />);
+    expect(screen.getByText(/^Completed 2026-11-16T11:17:00Z ·/)).toBeVisible();
   });
   it("keeps missing reporting data unknown instead of displaying zero or assuming delivery", () => {
     render(<CampaignResultsOverview {...props} stats={null} />);
@@ -47,7 +62,7 @@ describe("CampaignResultsOverview", () => {
   it("avoids a success claim when no emails were sent and links the full report", () => {
     render(<CampaignResultsOverview {...props} stats={{ ...stats, sent: 0, delivered: 0, deliveryRate: 0 }} />);
     expect(screen.queryByText("Your campaign is out in the world.")).not.toBeInTheDocument();
-    expect(screen.getByText("0.0% of sent emails")).toBeVisible();
+    expect(screen.getByText("0.0% of 0")).toBeVisible();
     fireEvent.click(screen.getByRole("button",{name:"Explore full report"}));
     expect(props.onReport).toHaveBeenCalledOnce();
   });
@@ -66,7 +81,7 @@ describe("CampaignResultsOverview", () => {
     expect(screen.getByText("1,973 emails sent.")).toBeVisible();
     expect(screen.queryByText(/7,100/)).not.toBeInTheDocument();
     expect(screen.getAllByText("1,973")).toHaveLength(2);
-    expect(screen.getByText("100.0% of sent emails")).toBeVisible();
+    expect(screen.getByText("100.0% of 1,973")).toBeVisible();
     expect(screen.getByText("821")).toBeVisible();
     expect(screen.getByText("158")).toBeVisible();
     expect(screen.getByText("41.6% reported open rate")).toBeVisible();

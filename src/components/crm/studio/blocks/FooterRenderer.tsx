@@ -10,6 +10,7 @@ import {
   SOCIAL_PLATFORM_ORDER,
 } from "@/lib/studio/socialIcons";
 import { useOptionalDesignSystem } from "@/contexts/DesignSystemContext";
+import { resolveFooterWebsiteUrl } from "@/lib/studio/emailHtmlGenerator";
 import type { SocialLink, StudioBlock } from "@/types/studioBlocks";
 
 type FooterRendererProps = {
@@ -177,7 +178,7 @@ function FooterLinks({
   } | null;
 }) {
   const linkColor = block.linkColor || (centered ? "#0f766e" : "#cbd5e1");
-  const websiteUrl = block.websiteUrl || designSystem?.company.websiteUrl || "";
+  const websiteUrl = resolveFooterWebsiteUrl(block, designSystem);
   const links = [
     { label: "Unsubscribe", href: "#unsubscribe", visible: true },
     {
@@ -187,8 +188,8 @@ function FooterLinks({
     },
     {
       label: "Website",
-      href: websiteUrl || "#website",
-      visible: Boolean(block.showWebsiteLink || websiteUrl),
+      href: websiteUrl,
+      visible: Boolean(websiteUrl),
     },
   ].filter((link) => link.visible);
 

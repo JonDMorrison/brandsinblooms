@@ -61,10 +61,14 @@ import {
   type StudioDesignSystem,
 } from "./designSystem.ts";
 
+/**
+ * Per-recipient footer actions. The website link is not one of them: it
+ * always comes from the active tenant's business profile (the design
+ * system), see resolveFooterWebsiteUrl.
+ */
 export type EmailFooterLinks = {
   unsubscribeUrl?: string;
   preferencesUrl?: string;
-  websiteUrl?: string;
 };
 
 export type StudioFooterProfile = {
@@ -91,6 +95,9 @@ export type StudioFooterProfile = {
       backgroundColor?: string;
       textColor?: string;
       linkColor?: string;
+      dividerColor?: string;
+      logoBackgroundColor?: string;
+      logoTextColor?: string;
     };
   } | null;
 };
@@ -2073,6 +2080,21 @@ export function footerWebsiteLabel(url: string | null | undefined): string {
   }
 }
 
+/**
+ * The footer's website link: the active tenant's business profile website
+ * (designSystem.company.websiteUrl), or "" when the tenant has none or the
+ * footer's "Show Website Link" switch is off. A website saved on the block
+ * itself is never used: it is a snapshot from whoever built the draft, which
+ * put a master admin's own company website in a client's footer.
+ */
+export function resolveFooterWebsiteUrl(
+  block: Pick<StudioBlock, "showWebsiteLink">,
+  designSystem: { company: { websiteUrl?: string | null } } | null | undefined,
+): string {
+  if (block.showWebsiteLink === false) return "";
+  return (designSystem?.company.websiteUrl ?? "").trim();
+}
+
 function renderFooterLinks(
   block: StudioBlock,
   links: EmailFooterLinks,
@@ -2083,6 +2105,7 @@ function renderFooterLinks(
     block.linkColor,
     centered ? "#0f766e" : "#cbd5e1",
   );
+  const websiteUrl = resolveFooterWebsiteUrl(block, designSystem);
   const items = [
     {
       label: "Unsubscribe",
@@ -2096,20 +2119,9 @@ function renderFooterLinks(
     },
     {
       // Show the address itself (www.artsnursery.com), not the word "Website".
-      label: footerWebsiteLabel(
-        links.websiteUrl || block.websiteUrl || designSystem?.company.websiteUrl,
-      ),
-      href:
-        links.websiteUrl ||
-        block.websiteUrl ||
-        designSystem?.company.websiteUrl ||
-        "#website",
-      visible: Boolean(
-        block.showWebsiteLink ||
-        links.websiteUrl ||
-        block.websiteUrl ||
-        designSystem?.company.websiteUrl,
-      ),
+      label: footerWebsiteLabel(websiteUrl),
+      href: websiteUrl,
+      visible: Boolean(websiteUrl),
     },
   ].filter((item) => item.visible);
 
@@ -2250,7 +2262,9 @@ export function createFooterBlockFromDesignSystem(
     logoSize: 64,
     showUnsubscribe: true,
     showManagePreferences: true,
-    showWebsiteLink: Boolean(designSystem.company.websiteUrl),
+    // The link follows the tenant's profile website at render time and is
+    // hidden while there is none (resolveFooterWebsiteUrl).
+    showWebsiteLink: true,
     websiteUrl: designSystem.company.websiteUrl,
     showSocialInFooter: designSystem.social.hasConfiguredLinks,
     footerSocialLinks: designSystem.social.links,
@@ -2303,14 +2317,10 @@ export function createFooterBlockFromProfile(
     showUnsubscribe: true,
     showManagePreferences:
       profile?.feature_flags?.footer_settings?.showManagePreferences !== false,
-    showWebsiteLink: Boolean(
-      profile?.website_url ||
-      profile?.feature_flags?.footer_settings?.websiteUrl,
-    ),
-    websiteUrl:
-      profile?.website_url ||
-      profile?.feature_flags?.footer_settings?.websiteUrl ||
-      "",
+    // The link follows the profile website at render time and is hidden
+    // while there is none (resolveFooterWebsiteUrl).
+    showWebsiteLink: true,
+    websiteUrl: stringValue(profile?.website_url),
     backgroundColor: footerColors?.backgroundColor || "#1e293b",
     textColor: footerColors?.textColor || "#ffffff",
     linkColor: footerColors?.linkColor || "#cbd5e1",

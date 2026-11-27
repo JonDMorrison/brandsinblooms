@@ -1842,14 +1842,15 @@ serve((req: Request) => {
                   const campaignTenant = campaign.tenant_id ? String(campaign.tenant_id) : null;
                   const profileCacheKey = `${campaignTenant ?? ""}:${campaignUserId}`;
                   let userId = profileUserIdCache.get(profileCacheKey);
-                  if (!userId) {
+                  // "" (a tenant with no members) is cached too: no profile.
+                  if (userId === undefined) {
                     userId = await resolveCampaignBusinessProfileUserId(supabase, {
                       tenantId: campaignTenant,
                       userId: campaignUserId,
                     });
                     profileUserIdCache.set(profileCacheKey, userId);
                   }
-                  if (!companyProfileCache.has(userId)) {
+                  if (userId && !companyProfileCache.has(userId)) {
                     const { data: pRow, error: pErr } = await supabase
                       .from("company_profiles")
                       .select(COMPANY_PROFILE_WITH_DESIGN_SYSTEM_SELECT)

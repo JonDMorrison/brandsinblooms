@@ -3,8 +3,8 @@ import {
   createFooterBlockFromProfile,
   generateEmailHtml,
   type EmailFooterLinks,
-  type StudioFooterProfile,
 } from "../../../src/lib/studio/emailHtmlGenerator.ts";
+import { normalizeFooterProfile } from "./footerGenerator.ts";
 import type { StudioBlock } from "../../../src/types/studioBlocks.ts";
 import {
   resolveDesignSystem,
@@ -48,7 +48,7 @@ type RenderContentBlocksOptions = {
   audience?: RenderAudience;
   subject?: string;
   previewText?: string;
-  companyProfile?: (StudioFooterProfile & ServerCompanyProfileShape) | null;
+  companyProfile?: ServerCompanyProfileShape | null;
   footerLinks?: EmailFooterLinks;
 };
 
@@ -211,7 +211,9 @@ export function renderContentBlocksToEmailHtml(
 
   const footerBlock =
     normalizedBlocks.find((block) => block.type === "footer") ||
-    createFooterBlockFromProfile(options.companyProfile ?? null);
+    createFooterBlockFromProfile(
+      options.companyProfile ? normalizeFooterProfile(options.companyProfile) : null,
+    );
 
   return generateEmailHtml({
     blocks: normalizedBlocks,

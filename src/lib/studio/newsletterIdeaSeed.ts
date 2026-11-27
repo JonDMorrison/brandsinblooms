@@ -708,8 +708,9 @@ function mapTemplateBlockToStudioBlock(
       } satisfies StudioBlock;
     }
     case "footer": {
+      // The website link is the tenant's profile website (set by
+      // createStudioBlock); a template or AI-supplied website is never used.
       const block = createStudioBlock("footer", designSystem);
-      const websiteUrl = trimString(templateBlock.websiteUrl);
 
       return {
         ...block,
@@ -720,8 +721,6 @@ function mapTemplateBlockToStudioBlock(
           normalizeText(templateBlock.complianceText) ||
           body ||
           block.complianceText,
-        websiteUrl: websiteUrl || block.websiteUrl,
-        showWebsiteLink: Boolean(websiteUrl || block.websiteUrl),
         footerSocialLinks: Array.isArray(templateBlock.socialLinks)
           ? templateBlock.socialLinks
           : block.footerSocialLinks,
