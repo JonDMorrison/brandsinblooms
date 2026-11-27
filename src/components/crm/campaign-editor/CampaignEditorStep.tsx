@@ -11,7 +11,8 @@ import {
 
 /** What a step header says about the step. */
 export type CampaignStepState =
-  | { kind: "done" }
+  /** label replaces "Done", e.g. "In 2 groups". */
+  | { kind: "done"; label?: string }
   | { kind: "attention"; count: number }
   | { kind: "required" }
   | { kind: "optional" }
@@ -45,7 +46,7 @@ export function CampaignStepBadge({ state }: { state: CampaignStepState }) {
         }
         sx={{ "--Typography-gap": "4px", color: "success.plainColor", fontWeight: "lg" }}
       >
-        Done
+        {state.label ?? "Done"}
       </Typography>
     );
   }
@@ -161,9 +162,12 @@ export function CampaignEditorStep({
       sx={{
         ...campaignEditorCardSx,
         // Contains the visually hidden step label, so it never adds to the
-        // height of the page outside the shell's scroll area.
+        // height of the page outside the shell's scroll area. "clip", not
+        // "hidden": a hidden box is still a scroll container, so focusing or
+        // scrolling to a wide child shifted the card's content sideways and
+        // cut off its left edge ("paign type" in Organize).
         position: "relative",
-        overflow: "hidden",
+        overflow: "clip",
         scrollMarginTop: "calc(var(--campaign-editor-header-height, 120px) + 16px)",
       }}
     >
@@ -263,7 +267,7 @@ export function CampaignEditorStep({
         role="region"
         aria-labelledby={headerId}
         hidden={!expanded}
-        sx={{ p: { xs: 2, sm: 3 } }}
+        sx={{ p: { xs: 2, sm: 3 }, minWidth: 0 }}
       >
         {expanded ? children : null}
       </Box>

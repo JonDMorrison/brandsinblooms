@@ -664,6 +664,7 @@ function CampaignEditorScreen() {
     updateSchedule,
     saveDraft,
     setOrigin,
+    recordExternalSave,
     isTenantReady,
   } = useCampaignEditor();
 
@@ -1495,7 +1496,13 @@ function CampaignEditorScreen() {
             : withIssues(issuesIn("campaign-editor-audience"))
           : withIssues(isAudienceLoading ? 0 : issuesIn("campaign-editor-audience")),
       sender: !senderEmail.trim() ? { kind: "required" } : withIssues(senderIssues),
-      organize: campaignGroups.length > 0 ? { kind: "done" } : { kind: "optional" },
+      organize:
+        campaignGroups.length > 0
+          ? {
+              kind: "done",
+              label: `In ${campaignGroups.length} ${campaignGroups.length === 1 ? "group" : "groups"}`,
+            }
+          : { kind: "optional" },
     };
   }, [
     additionalCustomerIds.length,
@@ -2805,7 +2812,11 @@ function CampaignEditorScreen() {
                 />
               </Box>
               {campaignId ? (
-                <CampaignOrganization campaignId={campaignId} disabled={isLocked} />
+                <CampaignOrganization
+                  campaignId={campaignId}
+                  disabled={isLocked}
+                  onSaved={recordExternalSave}
+                />
               ) : (
                 <Typography level="body-md" sx={{ color: "text.secondary" }}>
                   Groups and a campaign colour can be added once this draft has saved.
