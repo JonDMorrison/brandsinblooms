@@ -171,10 +171,7 @@ export function botanicalEmailFacts(rows: BotanicalEmailFact[]): string {
   if (rows.length === 0) return "";
   return '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse">' +
     rows.map((row, index) => (
-      '<tr><td width="54" valign="top" style="width:54px;vertical-align:top;padding:' +
-      (index === 0 ? "14px" : "18px") + " 8px 15px 4px;border-bottom:1px solid " + t.border + '">' +
-      (row.avatar ? botanicalClientAvatar(row.avatar, 42) : botanicalEmailIcon(row.icon, 42)) +
-      '</td><td valign="top" style="vertical-align:top;padding:' +
+      '<tr><td valign="top" style="vertical-align:top;padding:' +
       (index === 0 ? "17px" : "21px") + " 4px 17px 4px;border-bottom:1px solid " + t.border +
       ";font-size:15px;line-height:1.65;color:" + t.body + '">' +
       '<strong style="font-weight:700;color:' + t.navy + '">' + esc(row.label) +
@@ -206,8 +203,7 @@ export function botanicalEmailHero(eyebrow: string, heading: string, copy?: stri
     esc(heading) + "</h1>" + (copy
       ? '<p style="margin:0;color:' + t.body + ';font-size:15px;line-height:1.65">' + esc(copy) + "</p>"
       : "") + "</td>" +
-    '<td width="52" align="right" valign="top" style="width:52px;vertical-align:top">' +
-    botanicalEmailIcon(icon, 48) + "</td></tr></table></td></tr></table>";
+    "</tr></table></td></tr></table>";
 }
 
 /**
