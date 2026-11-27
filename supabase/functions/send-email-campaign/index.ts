@@ -2183,10 +2183,19 @@ serve(async (req: Request) => {
     // From-header display name resolution lives in _shared/campaignFromHeader
     // so the test-send path and the live-send path produce identical From
     // headers from identical inputs.
+    // The tenant's own name is the last real name before the bare address,
+    // as it is for automation emails (_shared/senderResolver.ts).
+    const { data: senderTenantRow } = await supabase
+      .from("tenants")
+      .select("name, fallback_from_name")
+      .eq("id", campaignTenantId)
+      .maybeSingle();
     const senderDisplayName = resolveCampaignSenderDisplayName({
       campaignSenderName: campaign.sender_name,
       domainFromName: quotaCheck.sender?.from_name,
       companyProfileName: companyProfile?.company_name,
+      tenantName: senderTenantRow?.name,
+      tenantFallbackFromName: senderTenantRow?.fallback_from_name,
       // Never a placeholder name: with no real name the display name stays
       // empty and the verified address is used on its own.
       finalFallback: "",
