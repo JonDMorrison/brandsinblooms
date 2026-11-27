@@ -25099,6 +25099,10 @@ export type Database = {
         };
         Returns: string;
       };
+      save_tenant_contact_footer: {
+        Args: { p_contact: Json; p_tenant_id: string };
+        Returns: string;
+      };
       save_tenant_location: {
         Args: {
           p_code: string;
