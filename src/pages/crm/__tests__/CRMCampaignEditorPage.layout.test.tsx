@@ -220,6 +220,27 @@ describe("campaign editor layout", () => {
     expect(editor.current.updateContent).not.toHaveBeenCalled();
   });
 
+  it("drafts empty preview text from the first sentence of the first text block, greeting removed", () => {
+    const updateSetup = vi.fn();
+    editor.current = draft({
+      updateSetup,
+      contentBlocks: [
+        { ...blocks[0], body: "<p>Hi {{ first_name }}, our wreath workshops start November 14. Book early.</p>" },
+        blocks[1],
+      ],
+    });
+    renderEditor();
+    expect(updateSetup).toHaveBeenCalledWith({ preheaderText: "Our wreath workshops start November 14." });
+  });
+
+  it("names the campaign name box \"Campaign name\", not the subject", () => {
+    editor.current = draft({ name: "", subjectLine: "Winter wreath workshops" });
+    renderEditor();
+    const input = screen.getByRole("textbox", { name: "Campaign name" });
+    expect(input).toHaveAttribute("id", "campaign-editor-name");
+    expect(screen.queryByRole("textbox", { name: "Winter wreath workshops" })).toBeNull();
+  });
+
   it("shows the steps in order: Design, Inbox, Audience, Sender, Organize", () => {
     editor.current = draft();
     const { container } = renderEditor();

@@ -38,7 +38,7 @@ vi.mock("@/hooks/useSenderConfiguration", () => ({
 vi.mock("@/integrations/supabase/client", () => ({ supabase: { from: vi.fn(), rpc: vi.fn() } }));
 vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 
-import { CampaignEditorProvider, useCampaignEditor } from "../CampaignEditorContext";
+import { AUTO_SAVE_MS, CampaignEditorProvider, useCampaignEditor } from "../CampaignEditorContext";
 
 let mounts = 0;
 function Probe() {
@@ -187,6 +187,41 @@ describe("campaign name Escape", () => {
 });
 
 describe("save status", () => {
+  it("autosave reaches saved within 2 seconds of the last keystroke", async () => {
+    api.fetchCampaignEditorRecord.mockResolvedValue(record());
+    renderAt("/crm/campaigns/campaign-1");
+    await flush();
+    await flush();
+    fireEvent.click(screen.getByText("rename"));
+    expect(screen.getByTestId("state")).toHaveTextContent("dirty");
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1900);
+    });
+    expect(api.persistCampaignDraft).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId("state")).toHaveTextContent("saved");
+  });
+
+  it("waits for typing to pause before saving", async () => {
+    api.fetchCampaignEditorRecord.mockResolvedValue(record());
+    renderAt("/crm/campaigns/campaign-1");
+    await flush();
+    await flush();
+    fireEvent.click(screen.getByText("rename"));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(AUTO_SAVE_MS - 100);
+    });
+    fireEvent.click(screen.getByText("typo"));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(AUTO_SAVE_MS - 100);
+    });
+    expect(api.persistCampaignDraft).not.toHaveBeenCalled();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(200);
+    });
+    expect(api.persistCampaignDraft).toHaveBeenCalledTimes(1);
+    expect(api.persistCampaignDraft.mock.calls[0][0]).toMatchObject({ name: "Typo" });
+  });
+
   it("shows saved as soon as the save responds, skipping unchanged audience links", async () => {
     api.fetchCampaignEditorRecord.mockResolvedValue(record());
     let respond: (value: unknown) => void = () => undefined;

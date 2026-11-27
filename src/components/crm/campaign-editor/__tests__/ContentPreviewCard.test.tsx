@@ -39,6 +39,9 @@ describe("ContentPreviewCard", () => {
     expect(
       screen.queryByText("Click to edit in Studio"),
     ).not.toBeInTheDocument();
+    for (const name of ["Mobile", "Desktop"]) {
+      expect(screen.getByRole("button", { name })).toHaveStyle({ minHeight: "44px" });
+    }
   });
   it("sizes the iframe to the email content so the page handles scrolling", () => {
     render(

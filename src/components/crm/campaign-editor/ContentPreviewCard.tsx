@@ -142,7 +142,7 @@ export function ContentPreviewCard({
                 color="neutral"
                 aria-pressed={device === "desktop"}
                 onClick={() => setDevice("desktop")}
-                sx={{ minHeight: 40 }}
+                sx={{ minHeight: 44 }}
               >
                 Desktop
               </Button>
@@ -151,7 +151,7 @@ export function ContentPreviewCard({
                 color="neutral"
                 aria-pressed={device === "mobile"}
                 onClick={() => setDevice("mobile")}
-                sx={{ minHeight: 40 }}
+                sx={{ minHeight: 44 }}
               >
                 Mobile
               </Button>

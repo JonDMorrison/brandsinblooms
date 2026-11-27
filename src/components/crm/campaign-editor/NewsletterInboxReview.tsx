@@ -17,6 +17,13 @@ import { sanitizeInboxSuggestions } from "../../../../supabase/functions/generat
 
 type Suggestion = { subject: string; preview: string };
 
+/** Inboxes show roughly this much preview text before cutting it off. */
+export const PREVIEW_TEXT_WARN_LENGTH = 150;
+/** Longest preview text kept. Anything past this is cut, with a notice. */
+export const PREVIEW_TEXT_MAX_LENGTH = 200;
+/** Subject and preview boxes are touch-sized. */
+const INBOX_INPUT_SX = { minHeight: 44 } as const;
+
 // The inbox preview shows what a customer sees, so the first-name code is
 // shown as an example name. The subject box keeps the real code.
 const FIRST_NAME_TAG = /\{\{\s*first_name\s*\}\}/g;
@@ -84,6 +91,12 @@ export function NewsletterInboxReview({
   const [suggestions, setSuggestions] = React.useState<Suggestion[]>([]);
   const [error, setError] = React.useState<string | null>(null);
   const [suggestionContext, setSuggestionContext] = React.useState("");
+  const [previewTrimmed, setPreviewTrimmed] = React.useState(false);
+  const changePreview = (value: string) => {
+    const trimmed = value.length > PREVIEW_TEXT_MAX_LENGTH;
+    setPreviewTrimmed(trimmed);
+    onChange({ preheaderText: trimmed ? value.slice(0, PREVIEW_TEXT_MAX_LENGTH) : value });
+  };
   // Preview text is drafted by the editor (usePreviewTextAutoDraft), which
   // stays mounted while this step is closed. Only the subject is seeded here.
   React.useEffect(() => {
@@ -156,6 +169,7 @@ export function NewsletterInboxReview({
   const tips = inboxInsights(subject, preview);
   const currentSuggestions = suggestionContext === context ? suggestions : [];
   const subjectLength = subject.length;
+  const previewIsLong = preview.length > PREVIEW_TEXT_WARN_LENGTH;
   const lengthHint = subjectLengthHint(subjectLength);
   const hintColor =
     lengthHint.tone === "success" ? "success.plainColor" : "warning.plainColor";
@@ -178,6 +192,7 @@ export function NewsletterInboxReview({
           label="Subject line"
           value={subject}
           disabled={disabled}
+          sx={INBOX_INPUT_SX}
           onValueChange={(value) => onChange({ subjectLine: value })}
           endDecorator={
             <Typography
@@ -314,9 +329,29 @@ export function NewsletterInboxReview({
         label="Preview text"
         value={preview}
         disabled={disabled}
-        onValueChange={(value) => onChange({ preheaderText: value })}
-        helperText={`${preview.length} / 150 · Add a detail that complements the subject`}
+        sx={INBOX_INPUT_SX}
+        onValueChange={changePreview}
+        helperText={
+          <>
+            <Box
+              component="span"
+              data-testid="preview-character-count"
+              data-tone={previewIsLong ? "warning" : "neutral"}
+              sx={previewIsLong ? { color: "warning.plainColor", fontWeight: 600 } : undefined}
+            >
+              {`${preview.length} / ${PREVIEW_TEXT_WARN_LENGTH}`}
+            </Box>
+            {previewIsLong
+              ? " · Long preview text gets cut off"
+              : " · Add a detail that complements the subject"}
+          </>
+        }
       />
+      {previewTrimmed ? (
+        <Typography role="status" level="body-sm" data-testid="preview-text-trimmed" sx={{ color: "warning.plainColor" }}>
+          Preview text can be up to {PREVIEW_TEXT_MAX_LENGTH} characters. We cut the extra words.
+        </Typography>
+      ) : null}
       <Box>
         <Typography level="body-sm" sx={{ fontWeight: "xl", color: "text.primary", mb: 2 }}>
           Inbox preview

@@ -1,7 +1,7 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { NewsletterInboxReview } from "../NewsletterInboxReview";
+import { NewsletterInboxReview, PREVIEW_TEXT_MAX_LENGTH } from "../NewsletterInboxReview";
 import { subjectLengthHint } from "@/lib/crm/newsletterInbox";
 import type { StudioBlock } from "@/types/studioBlocks";
 const invoke = vi.hoisted(() => vi.fn());
@@ -20,6 +20,38 @@ const blocks: StudioBlock[] = [
   },
 ];
 describe("NewsletterInboxReview", () => {
+  it("warns when preview text is over 150 characters", () => {
+    const long = "Bulbs ".repeat(26).trim(); // 155 characters
+    const { rerender } = render(
+      <NewsletterInboxReview blocks={blocks} subject="Winter wreaths" preview="Short and sweet" onChange={vi.fn()} />,
+    );
+    expect(screen.getByTestId("preview-character-count")).toHaveAttribute("data-tone", "neutral");
+    expect(screen.queryByText(/Long preview text gets cut off/)).toBeNull();
+    rerender(<NewsletterInboxReview blocks={blocks} subject="Winter wreaths" preview={long} onChange={vi.fn()} />);
+    const count = screen.getByTestId("preview-character-count");
+    expect(count).toHaveAttribute("data-tone", "warning");
+    expect(count).toHaveTextContent(`${long.length} / 150`);
+    expect(screen.getByText(/Long preview text gets cut off/)).toBeInTheDocument();
+  });
+  it("cuts preview text over 200 characters and says so", () => {
+    const onChange = vi.fn();
+    render(<NewsletterInboxReview blocks={blocks} subject="Winter wreaths" preview="" onChange={onChange} />);
+    const input = screen.getByRole("textbox", { name: "Preview text" });
+    fireEvent.change(input, { target: { value: "x".repeat(250) } });
+    expect(onChange).toHaveBeenLastCalledWith({ preheaderText: "x".repeat(PREVIEW_TEXT_MAX_LENGTH) });
+    expect(screen.getByTestId("preview-text-trimmed")).toHaveTextContent("up to 200 characters");
+    fireEvent.change(input, { target: { value: "Short again" } });
+    expect(onChange).toHaveBeenLastCalledWith({ preheaderText: "Short again" });
+    expect(screen.queryByTestId("preview-text-trimmed")).toBeNull();
+  });
+  it("subject and preview boxes are at least 44px tall", () => {
+    render(<NewsletterInboxReview blocks={blocks} subject="Winter wreaths" preview="Join us" onChange={vi.fn()} />);
+    for (const name of ["Subject line", "Preview text"]) {
+      const root = screen.getByRole("textbox", { name }).closest(".MuiInput-root") as HTMLElement;
+      expect(getComputedStyle(root).minHeight, name).toBe("44px");
+    }
+  });
+
   it("fills an empty subject from the actual content and leaves preview text to the editor", async () => {
     const onChange = vi.fn();
     const { rerender } = render(
