@@ -204,6 +204,22 @@ afterEach(() => {
 });
 
 describe("campaign editor layout", () => {
+  it("replace-content dialog: Keep current draft is primary, Start over is destructive", () => {
+    editor.current = draft();
+    renderEditor();
+    fireEvent.click(screen.getByRole("button", { name: "Change design" }));
+    fireEvent.click(screen.getByTestId("start-mode-scratch"));
+    fireEvent.click(screen.getByTestId("intent-card-blank"));
+    const dialog = screen.getByRole("dialog");
+    const keep = within(dialog).getByRole("button", { name: "Keep current draft" });
+    const startOver = within(dialog).getByRole("button", { name: "Start over" });
+    expect(keep).toHaveClass("MuiButton-variantSolid", "MuiButton-colorPrimary");
+    expect(startOver).toHaveClass("MuiButton-variantOutlined", "MuiButton-colorDanger");
+    expect(startOver).not.toHaveClass("MuiButton-variantSolid");
+    fireEvent.click(keep);
+    expect(editor.current.updateContent).not.toHaveBeenCalled();
+  });
+
   it("shows the steps in order: Design, Inbox, Audience, Sender, Organize", () => {
     editor.current = draft();
     const { container } = renderEditor();

@@ -14,6 +14,7 @@ import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
 import { Mail, Plus } from "lucide-react";
 import CanvasBlockSlot from "@/components/crm/studio/CanvasBlockSlot";
+import { useOpenAtTop } from "@/components/crm/studio/useOpenAtTop";
 import {
   BLOCK_CATEGORIES,
   type StudioBlockType,
@@ -255,8 +256,12 @@ export default function StudioCanvas({
     },
   });
 
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+  useOpenAtTop(scrollRef);
+
   return (
     <Box
+      ref={scrollRef}
       aria-label="Newsletter block builder"
       data-newsletter-canvas=""
       onClick={() => onSelect(null)}

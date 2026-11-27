@@ -72,15 +72,28 @@ describe("inline text editing on the canvas", () => {
     expect(saved).toContain("there");
   });
 
-  it("Escape puts the old words back and saves nothing", () => {
+  it("Escape keeps the new words, leaves editing and keeps the block selected", () => {
     const update = vi.fn();
-    render(<SharedEmailBlockPreview block={announcement()} onUpdateBlockField={update} />);
+    // The page clears the selection on Escape; the edit must not reach it.
+    const pageKey = vi.fn();
+    render(
+      <div onKeyDown={pageKey}>
+        <SharedEmailBlockPreview block={announcement()} onUpdateBlockField={update} />
+      </div>,
+    );
     const headline = screen.getByRole("textbox", { name: "Edit headline" });
     fireEvent.click(headline);
-    headline.textContent = "Oops";
+    headline.textContent = "Bulbs are in";
     fireEvent.keyDown(headline, { key: "Escape" });
-    expect(headline).toHaveTextContent("Spring sale");
-    expect(update).not.toHaveBeenCalled();
+    expect(update).toHaveBeenCalledTimes(1);
+    expect(update).toHaveBeenCalledWith("a1", "headline", "Bulbs are in");
+    expect(headline).toHaveTextContent("Bulbs are in");
+    expect(headline).not.toHaveAttribute("contenteditable");
+    expect(headline).not.toHaveAttribute("data-nl-editing");
+    expect(pageKey).not.toHaveBeenCalled();
+    // The blur that follows does not save a second time.
+    fireEvent.blur(headline);
+    expect(update).toHaveBeenCalledTimes(1);
   });
 
   it("saves nothing when the words did not change", () => {

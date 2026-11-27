@@ -3365,16 +3365,18 @@ function CampaignEditorScreen() {
             </Typography>
           </DialogContent>
           <DialogActions>
+            {/* Keeping the draft is the safe choice, so it is the primary
+                button. Replacing removes work, so it reads as destructive. */}
             <Button
-              variant="plain"
-              color="neutral"
+              variant="solid"
+              color="primary"
               onClick={() => setTemplateToConfirm(null)}
             >
               Keep current draft
             </Button>
             <Button
-              variant="solid"
-              color="neutral"
+              variant="outlined"
+              color="danger"
               onClick={() => {
                 if (templateToConfirm) {
                   applyTemplateToCampaign(templateToConfirm);
