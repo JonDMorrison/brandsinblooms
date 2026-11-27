@@ -282,25 +282,6 @@ export default function StudioCanvas({
     >
       <Box
         sx={{
-          position: "sticky",
-          top: 0,
-          zIndex: 5,
-          px: 2,
-          py: 1,
-          bgcolor: "#e4eaeb",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          borderBottom: "1px solid #bbc9cc",
-        }}
-      >
-        <Typography level="body-sm" sx={{ fontWeight: 700, color: "#263d42" }}>
-          Your email
-        </Typography>
-        {/* Go to top / bottom live in the Outline panel only. */}
-      </Box>
-      <Box
-        sx={{
           width: "100%",
           maxWidth: canvasWidth,
           mx: "auto",

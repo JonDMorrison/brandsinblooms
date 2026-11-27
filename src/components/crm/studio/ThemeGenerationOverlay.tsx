@@ -69,8 +69,7 @@ export function ThemeGenerationOverlay({
         overflowY: "auto",
         bgcolor: "background.level1",
         px: 2,
-        // Clear the canvas's sticky "Your email" bar.
-        pt: 8,
+        pt: 3,
         pb: 3,
       }}
     >
