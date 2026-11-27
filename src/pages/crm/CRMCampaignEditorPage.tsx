@@ -74,7 +74,10 @@ import {
   CampaignEditorStep,
   type CampaignStepState,
 } from "@/components/crm/campaign-editor/CampaignEditorStep";
-import { CampaignReadinessBar } from "@/components/crm/campaign-editor/CampaignReadinessBar";
+import {
+  CampaignReadinessBar,
+  type CampaignReadinessBlocker,
+} from "@/components/crm/campaign-editor/CampaignReadinessBar";
 import { CampaignDesignSummary } from "@/components/crm/campaign-editor/CampaignDesignSummary";
 import { CampaignLivePreview } from "@/components/crm/campaign-editor/CampaignLivePreview";
 import { CampaignSenderStep } from "@/components/crm/campaign-editor/CampaignSenderStep";
@@ -134,7 +137,11 @@ import { classifySender } from "@/lib/crm/senderSeverity";
 import type { SenderClassification } from "@/lib/crm/senderSeverity";
 import { useTenant } from "@/hooks/useTenant";
 import { useUserRole } from "@/hooks/useUserRole";
-import { useCampaignAudienceHealth } from "@/hooks/useTenantAudienceHealth";
+import {
+  CHECKING_AUDIENCE_LABEL,
+  NO_ELIGIBLE_RECIPIENTS_MESSAGE,
+  useCampaignEmailEligibility,
+} from "@/hooks/useCampaignEmailEligibility";
 import { supabase } from "@/integrations/supabase/client";
 import {
   applyCampaignTemplate,
@@ -654,14 +661,27 @@ function CampaignEditorScreen() {
     isTenantReady,
   } = useCampaignEditor();
 
-  const audienceHealthQuery = useCampaignAudienceHealth({
+  // Email eligibility comes from one server function (the send worker's rule).
+  // Every surface below reads this query; none of them recounts.
+  const eligibilitySegmentIds = React.useMemo(
+    () => selectedSegments.map((segment) => segment.id),
+    [selectedSegments],
+  );
+  const eligibilityPersonaIds = React.useMemo(
+    () => selectedPersonas.map((persona) => persona.id),
+    [selectedPersonas],
+  );
+  const eligibilityQuery = useCampaignEmailEligibility({
     tenantId: tenant?.id,
     includeAllCustomers,
     additionalCustomerIds,
-    segmentIds: selectedSegments.map((segment) => segment.id),
-    personaIds: selectedPersonas.map((persona) => persona.id),
+    segmentIds: eligibilitySegmentIds,
+    personaIds: eligibilityPersonaIds,
     enabled: campaignType === "email",
   });
+  const eligibility = eligibilityQuery.data;
+  const emailGate = campaignType === "email" ? eligibilityQuery.gate : null;
+  const eligibilityChecking = emailGate === "checking";
 
   const [scheduleOpen, setScheduleOpen] = React.useState(false);
   const [sendConfirmOpen, setSendConfirmOpen] = React.useState(false);
@@ -920,6 +940,12 @@ function CampaignEditorScreen() {
       selectedSegments.length,
     ],
   );
+  // The step summary shows the server's eligible count, never the raw audience.
+  const emailAudienceSummary = eligibility?.audienceConfigured
+    ? `${audienceDetail} · ${eligibility.eligible.toLocaleString()} can receive email`
+    : emailGate === "checking" && audienceDetail !== "No audience selected"
+      ? `${audienceDetail} · ${CHECKING_AUDIENCE_LABEL}`
+      : audienceDetail;
 
   const buildCampaignResourceFocus = React.useCallback(() => {
     if (!campaignId) {
@@ -1147,7 +1173,7 @@ function CampaignEditorScreen() {
   // Every blocker names the section that fixes it, so the checklist can
   // jump straight there. A campaign name is optional (#8) and not a blocker.
   const sendBlockers = React.useMemo(() => {
-    const blockers: Array<{ message: string; section: string | null; fixLabel: string }> = [];
+    const blockers: CampaignReadinessBlocker[] = [];
 
     if (campaignType === "email" && !subjectLine.trim()) {
       blockers.push({ message: "Subject line is required.", section: "campaign-editor-inbox", fixLabel: "Add a subject line" });
@@ -1181,6 +1207,14 @@ function CampaignEditorScreen() {
       additionalCustomerIds.length === 0
     ) {
       blockers.push({ message: "Choose an audience before sending.", section: "campaign-editor-audience", fixLabel: "Choose an audience" });
+    } else if (campaignType === "email") {
+      // Email: only the server eligibility check decides. While it runs the
+      // send controls say "Checking audience" instead of listing a blocker.
+      if (emailGate === "none") {
+        blockers.push({ message: NO_ELIGIBLE_RECIPIENTS_MESSAGE, section: "campaign-editor-audience", fixLabel: "Go to Audience", inlineLink: true });
+      } else if (emailGate === "error") {
+        blockers.push({ message: "We couldn't check who can receive this email. Try again in a moment.", section: "campaign-editor-audience", fixLabel: "Go to Audience", inlineLink: true });
+      }
     } else if ((audienceCount ?? 0) <= 0) {
       blockers.push({ message: "At least one eligible recipient is required.", section: "campaign-editor-audience", fixLabel: "Change the audience" });
     }
@@ -1200,6 +1234,7 @@ function CampaignEditorScreen() {
     return blockers;
   }, [
     audienceCount,
+    emailGate,
     additionalCustomerIds,
     includeAllCustomers,
     selectedSegments,
@@ -1314,11 +1349,14 @@ function CampaignEditorScreen() {
     [campaignType, contentBlocks, subjectLine, contentReviewIssues, connectedEventWarnings],
   );
 
-  const sendButtonDisabled =
+  // Schedule and Send share one gate. For email it waits for the server
+  // eligibility check and stays shut when nobody can receive the email.
+  const sendControlsDisabled =
     !canSendCampaign ||
-    sendBlockerLines.length > 0 ||
+    sendBlockers.length > 0 ||
     isLocked ||
-    isAudienceLoading ||
+    eligibilityChecking ||
+    (campaignType === "sms" && isAudienceLoading) ||
     Boolean(pendingTemplateSave);
 
   const footerBlock = React.useMemo(
@@ -1421,7 +1459,11 @@ function CampaignEditorScreen() {
         : withIssues(scanSubjectForUnrenderedTokens(subjectLine).length),
       audience: noAudience
         ? { kind: "required" }
-        : withIssues(isAudienceLoading ? 0 : issuesIn("campaign-editor-audience")),
+        : campaignType === "email"
+          ? eligibilityChecking
+            ? { kind: "checking", label: CHECKING_AUDIENCE_LABEL }
+            : withIssues(issuesIn("campaign-editor-audience"))
+          : withIssues(isAudienceLoading ? 0 : issuesIn("campaign-editor-audience")),
       sender: !senderEmail.trim() ? { kind: "required" } : withIssues(senderIssues),
       organize: campaignGroups.length > 0 ? { kind: "done" } : { kind: "optional" },
     };
@@ -1429,6 +1471,7 @@ function CampaignEditorScreen() {
     additionalCustomerIds.length,
     campaignGroups.length,
     campaignType,
+    eligibilityChecking,
     hasMeaningfulEmailContent,
     identityMismatchDetails.length,
     includeAllCustomers,
@@ -2057,8 +2100,8 @@ function CampaignEditorScreen() {
             <JoyButton
               data-testid="campaign-editor-schedule-cta"
               startDecorator={<CalendarClock size={18} aria-hidden />}
-              disabled={isLocked || !canSendCampaign || Boolean(pendingTemplateSave) || sendBlockers.length > 0}
-              aria-describedby={sendBlockers.length > 0 ? "campaign-editor-readiness" : undefined}
+              disabled={sendControlsDisabled}
+              aria-describedby={sendBlockers.length > 0 || eligibilityChecking ? "campaign-editor-readiness" : undefined}
               onClick={handleScheduleForLater}
               sx={{
                 flex: { xs: 1, md: "none" },
@@ -2068,15 +2111,17 @@ function CampaignEditorScreen() {
                 "&.Mui-disabled": { bgcolor: "neutral.200", color: "text.secondary" },
               }}
             >
-              Schedule
+              {eligibilityChecking ? CHECKING_AUDIENCE_LABEL : "Schedule"}
             </JoyButton>
           </Stack>
         </Stack>
       </Box>
 
-      <Box id="campaign-editor-readiness" sx={{ mb: sendBlockers.length > 0 ? 2 : 0 }}>
+      <Box id="campaign-editor-readiness" sx={{ mb: sendBlockers.length > 0 || eligibilityChecking ? 2 : 0 }}>
         <CampaignReadinessBar
           blockers={sendBlockers}
+          checking={eligibilityChecking}
+          checkingLabel={CHECKING_AUDIENCE_LABEL}
           onJump={openEditorSection}
           extraAction={
             autoSaveStatus === "conflict" ? (
@@ -2322,11 +2367,13 @@ function CampaignEditorScreen() {
             expanded={isStepExpanded("audience")}
             onExpandedChange={(next) => setStepExpanded("audience", next)}
             summary={
-              isAudienceLoading
-                ? `${audienceDetail} · Calculating audience`
-                : (audienceCount ?? 0) > 0
-                  ? `${audienceDetail} · ${asCountLabel(audienceCount)}`
-                  : audienceDetail
+              campaignType === "email"
+                ? emailAudienceSummary
+                : isAudienceLoading
+                  ? `${audienceDetail} · Calculating audience`
+                  : (audienceCount ?? 0) > 0
+                    ? `${audienceDetail} · ${asCountLabel(audienceCount)}`
+                    : audienceDetail
             }
           >
           <Stack spacing={2}>
@@ -2376,10 +2423,11 @@ function CampaignEditorScreen() {
               onChange={(next) => updateAudience(next)}
             />
 
-            {audienceHealthQuery.data && audienceHealthQuery.data.total > 0 ? (
+            {campaignType === "email" && (eligibilityChecking || (eligibility && eligibility.total > 0)) ? (
               <Sheet
                 variant="outlined"
                 data-testid="audience-consent-breakdown"
+                aria-busy={eligibilityChecking}
                 sx={{ borderRadius: "md", p: 1.75 }}
               >
                 <Stack spacing={1.25}>
@@ -2401,7 +2449,7 @@ function CampaignEditorScreen() {
                       Who can receive this campaign
                     </Typography>
                     <Typography level="body-xs" sx={{ color: "neutral.500" }}>
-                      {audienceHealthQuery.data.total.toLocaleString()} total
+                      {eligibility ? `${eligibility.total.toLocaleString()} total` : CHECKING_AUDIENCE_LABEL}
                     </Typography>
                   </Stack>
                   <Box
@@ -2414,87 +2462,51 @@ function CampaignEditorScreen() {
                       gap: 1.25,
                     }}
                   >
-                    <Box>
-                      <Typography
-                        level="title-md"
-                        sx={{ color: "success.700", lineHeight: 1 }}
-                      >
-                        {audienceHealthQuery.data.confirmed.toLocaleString()}
-                      </Typography>
-                      <Typography
-                        level="body-xs"
-                        sx={{ color: "neutral.600", mt: 0.5 }}
-                      >
-                        Said yes to email
-                      </Typography>
-                    </Box>
-                    <Box>
-                      <Typography
-                        level="title-md"
-                        sx={{
-                          color:
-                            audienceHealthQuery.data.pending > 0
-                              ? "warning.700"
-                              : "neutral.700",
-                          lineHeight: 1,
-                        }}
-                      >
-                        {audienceHealthQuery.data.pending.toLocaleString()}
-                      </Typography>
-                      <Typography
-                        level="body-xs"
-                        sx={{ color: "neutral.600", mt: 0.5 }}
-                      >
-                        Waiting for permission
-                      </Typography>
-                    </Box>
-                    <Box>
-                      <Typography
-                        level="title-md"
-                        sx={{ color: "neutral.700", lineHeight: 1 }}
-                      >
-                        {audienceHealthQuery.data.optedOut.toLocaleString()}
-                      </Typography>
-                      <Typography
-                        level="body-xs"
-                        sx={{ color: "neutral.600", mt: 0.5 }}
-                      >
-                        {CRM_COPY.optedOutPlural}
-                      </Typography>
-                    </Box>
-                    <Box>
-                      <Typography
-                        level="title-md"
-                        sx={{ color: "neutral.700", lineHeight: 1 }}
-                      >
-                        {audienceHealthQuery.data.neverOptedIn.toLocaleString()}
-                      </Typography>
-                      <Typography
-                        level="body-xs"
-                        sx={{ color: "neutral.600", mt: 0.5 }}
-                      >
-                        {CRM_COPY.neverOptedIn}
-                      </Typography>
-                    </Box>
-                    <Box>
-                      <Typography
-                        level="title-md"
-                        sx={{ color: "neutral.700", lineHeight: 1 }}
-                      >
-                        {audienceHealthQuery.data.suppressed.toLocaleString()}
-                      </Typography>
-                      <Typography
-                        level="body-xs"
-                        sx={{ color: "neutral.600", mt: 0.5 }}
-                      >
-                        Can't be sent to
-                      </Typography>
-                    </Box>
+                    {[
+                      { id: "eligible", label: CRM_COPY.optedIn, value: eligibility?.eligible, color: "success.700" },
+                      {
+                        id: "waiting",
+                        label: "Waiting for permission",
+                        value: eligibility?.waiting,
+                        color: eligibility && eligibility.waiting > 0 ? "warning.700" : "neutral.700",
+                      },
+                      { id: "asked-to-stop", label: CRM_COPY.optedOutPlural, value: eligibility?.askedToStop, color: "neutral.700" },
+                      { id: "never-opted-in", label: CRM_COPY.neverOptedIn, value: eligibility?.neverOptedIn, color: "neutral.700" },
+                      { id: "unsendable", label: "Can't be sent to", value: eligibility?.unsendable, color: "neutral.700" },
+                    ].map((bucket) => (
+                      <Box key={bucket.id} data-testid={`audience-bucket-${bucket.id}`}>
+                        <Typography
+                          level="title-md"
+                          sx={{ color: bucket.color, lineHeight: 1 }}
+                        >
+                          {bucket.value === undefined ? (
+                            <Skeleton variant="text" sx={{ width: 40 }} />
+                          ) : (
+                            bucket.value.toLocaleString()
+                          )}
+                        </Typography>
+                        <Typography
+                          level="body-xs"
+                          sx={{ color: "neutral.600", mt: 0.5 }}
+                        >
+                          {bucket.label}
+                        </Typography>
+                      </Box>
+                    ))}
                   </Box>
-                  {audienceHealthQuery.data.pending > 0 &&
-                  audienceHealthQuery.data.pending /
-                    audienceHealthQuery.data.total >
-                    0.1 ? (
+                  {eligibility && eligibility.duplicates > 0 ? (
+                    <Typography
+                      level="body-xs"
+                      data-testid="audience-duplicate-note"
+                      sx={{ color: "neutral.600" }}
+                    >
+                      {eligibility.duplicates.toLocaleString()} more{" "}
+                      {eligibility.duplicates === 1 ? "contact shares" : "contacts share"} an
+                      address with someone above. Each address gets one copy.
+                    </Typography>
+                  ) : null}
+                  {eligibility && eligibility.waiting > 0 &&
+                  eligibility.waiting / eligibility.total > 0.1 ? (
                     <Sheet
                       variant="soft"
                       color="warning"
@@ -2511,7 +2523,7 @@ function CampaignEditorScreen() {
                           }}
                         />
                         <Typography level="body-xs" sx={{ color: "neutral.700" }}>
-                          {audienceHealthQuery.data.pending.toLocaleString()} of
+                          {eligibility.waiting.toLocaleString()} of
                           your contacts are waiting for permission to receive
                           email — they won't get this campaign. If you already
                           have permission records for them, contact support and
@@ -3118,7 +3130,11 @@ function CampaignEditorScreen() {
           updateSchedule({ sendImmediately: false, sendAt: scheduledDateTime });
           openSendConfirmation();
         }}
-        canConfirm={!isLocked && canSendCampaign}
+        canConfirm={!sendControlsDisabled}
+        checking={eligibilityChecking}
+        blockedReason={
+          sendBlockers.find((blocker) => blocker.section === "campaign-editor-audience")?.message ?? null
+        }
       />
       <CampaignSendConfirmation
         open={sendConfirmOpen}

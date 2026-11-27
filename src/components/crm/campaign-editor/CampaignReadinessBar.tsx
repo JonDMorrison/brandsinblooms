@@ -10,24 +10,100 @@ export interface CampaignReadinessBlocker {
   /** The step that fixes it, or null when nothing on the page can. */
   section: string | null;
   fixLabel: string;
+  /** Show the fix as a link on this item itself, not only on the first one. */
+  inlineLink?: boolean;
+}
+
+const jumpLinkSx = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 0.75,
+  minHeight: 44,
+  px: 1.5,
+  borderRadius: "lg",
+  typography: "title-md",
+  color: "warning.softColor",
+  fontWeight: "xl",
+  textDecoration: "underline",
+  textUnderlineOffset: "3px",
+  "&:hover": { bgcolor: "warning.softHoverBg" },
+  "&:focus-visible": {
+    outline: "3px solid var(--joy-palette-warning-softColor)",
+    outlineOffset: 2,
+  },
+} as const;
+
+function JumpLink({
+  section,
+  label,
+  testId,
+  onJump,
+}: {
+  section: string;
+  label: string;
+  testId: string;
+  onJump: (section: string) => void;
+}) {
+  return (
+    <Box
+      component="a"
+      href={`#${section}`}
+      data-testid={testId}
+      onClick={(event: React.MouseEvent<HTMLAnchorElement>) => {
+        event.preventDefault();
+        onJump(section);
+      }}
+      sx={jumpLinkSx}
+    >
+      {label}
+      <ArrowDown size={16} aria-hidden />
+    </Box>
+  );
 }
 
 /**
  * The amber bar under the header. It lists what blocks sending, straight
  * from the editor's existing send checks, and jumps to the first fix.
- * Renders nothing when nothing blocks sending.
+ * While the audience check is still running it says so instead of reading
+ * as clear. Renders nothing when nothing blocks sending.
  */
 export function CampaignReadinessBar({
   blockers,
   onJump,
   extraAction,
+  checking = false,
+  checkingLabel = "Checking audience",
 }: {
   blockers: CampaignReadinessBlocker[];
   onJump: (section: string) => void;
   /** Shown after the list, for fixes that are not a step (reload a draft). */
   extraAction?: React.ReactNode;
+  /** The email eligibility check has not returned yet. */
+  checking?: boolean;
+  checkingLabel?: string;
 }) {
-  if (blockers.length === 0) return null;
+  if (blockers.length === 0 && !checking) return null;
+  if (blockers.length === 0) {
+    return (
+      <Box
+        role="status"
+        aria-live="polite"
+        data-testid="campaign-readiness-checking"
+        sx={{
+          bgcolor: "neutral.softBg",
+          border: "1px solid",
+          borderColor: "neutral.outlinedBorder",
+          borderRadius: "lg",
+          px: { xs: 2, sm: 2.5 },
+          py: 1.5,
+        }}
+      >
+        <Typography level="title-md" sx={{ color: "text.secondary" }}>
+          {checkingLabel}
+        </Typography>
+      </Box>
+    );
+  }
   const firstFixable = blockers.find((blocker) => blocker.section);
   return (
     <Box
@@ -71,43 +147,35 @@ export function CampaignReadinessBar({
                   sx={{ color: "warning.softColor" }}
                 >
                   {blocker.message}
+                  {blocker.inlineLink && blocker.section ? (
+                    <>
+                      {" "}
+                      <JumpLink
+                        section={blocker.section}
+                        label={blocker.fixLabel}
+                        testId={`campaign-readiness-link-${blocker.section}`}
+                        onJump={onJump}
+                      />
+                    </>
+                  ) : null}
                 </Typography>
               ))}
             </Box>
+            {checking ? (
+              <Typography level="body-sm" sx={{ mt: 0.5, color: "warning.softColor" }}>
+                {checkingLabel}
+              </Typography>
+            ) : null}
           </Box>
         </Stack>
         <Stack direction="row" spacing={1} alignItems="center" sx={{ flexShrink: 0 }}>
-          {firstFixable?.section ? (
-            <Box
-              component="a"
-              href={`#${firstFixable.section}`}
-              data-testid="campaign-readiness-jump"
-              onClick={(event: React.MouseEvent<HTMLAnchorElement>) => {
-                event.preventDefault();
-                onJump(firstFixable.section as string);
-              }}
-              sx={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 0.75,
-                minHeight: 44,
-                px: 1.5,
-                borderRadius: "lg",
-                typography: "title-md",
-                color: "warning.softColor",
-                fontWeight: "xl",
-                textDecoration: "underline",
-                textUnderlineOffset: "3px",
-                "&:hover": { bgcolor: "warning.softHoverBg" },
-                "&:focus-visible": {
-                  outline: "3px solid var(--joy-palette-warning-softColor)",
-                  outlineOffset: 2,
-                },
-              }}
-            >
-              {firstFixable.fixLabel}
-              <ArrowDown size={16} aria-hidden />
-            </Box>
+          {firstFixable?.section && !firstFixable.inlineLink ? (
+            <JumpLink
+              section={firstFixable.section}
+              label={firstFixable.fixLabel}
+              testId="campaign-readiness-jump"
+              onJump={onJump}
+            />
           ) : null}
           {extraAction}
         </Stack>

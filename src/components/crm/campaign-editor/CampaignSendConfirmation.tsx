@@ -17,7 +17,6 @@ import Sheet from "@mui/joy/Sheet";
 import Skeleton from "@mui/joy/Skeleton";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
-import { useQuery } from "@tanstack/react-query";
 import Accordion from "@mui/joy/Accordion";
 import AccordionDetails from "@mui/joy/AccordionDetails";
 import AccordionGroup from "@mui/joy/AccordionGroup";
@@ -38,53 +37,11 @@ import { useTenantEmailHealthDashboard } from "@/hooks/useTenantEmailHealthDashb
 import { useTenant } from "@/hooks/useTenant";
 import { useUserRole } from "@/hooks/useUserRole";
 import {
-  isUuidLike,
-  resolveAudienceRecipientIds,
-} from "@/lib/computeAudienceRecipientCount";
-import { supabase } from "@/integrations/supabase/client";
-
-const PAGE_SIZE = 1000;
-const ACTIVE_EMAIL_SUPPRESSION_TYPES = [
-  "unsubscribed",
-  "bounced",
-  "complaint",
-  "blocked",
-  "global_block",
-  "complained",
-  "hard_bounce",
-] as const;
-const TENANT_SUPPRESSION_BYPASS_TYPES = [
-  "bounced",
-  "hard_bounce",
-  "complaint",
-  "complained",
-] as const;
-const FORCE_SEND_SOFT_SUPPRESSION_TYPES = ["bounced", "inactive"] as const;
-const HARD_SUPPRESSION_TYPES = new Set([
-  "unsubscribed",
-  "complaint",
-  "complained",
-  "hard_bounce",
-  "blocked",
-  "global_block",
-]);
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-type AudienceCustomerRow = {
-  id: string;
-  email: string | null;
-  email_opt_in: boolean | null;
-};
-
-type AudiencePreflightSummary = {
-  filteredRecipientCount: number;
-  overrideRecipientCount: number;
-  consentExcludedCount: number;
-  suppressionExcludedCount: number;
-  suppressionBypassRecipientCount: number;
-  hardSuppressionExcludedCount: number;
-  singleRecipientEmail: string | null;
-};
+  CHECKING_AUDIENCE_LABEL,
+  NO_ELIGIBLE_RECIPIENTS_MESSAGE,
+  useCampaignEmailEligibility,
+  type EmailEligibilityGate,
+} from "@/hooks/useCampaignEmailEligibility";
 
 type AcknowledgedWarning = {
   id: string;
@@ -93,324 +50,13 @@ type AcknowledgedWarning = {
   warning?: string | null;
 };
 
-function chunkIds(ids: string[], size = 100) {
-  const chunks: string[][] = [];
-  for (let index = 0; index < ids.length; index += size) {
-    chunks.push(ids.slice(index, index + size));
-  }
-  return chunks;
-}
-
-function normalizeEmail(value: string | null | undefined) {
-  if (typeof value !== "string") {
-    return null;
-  }
-
-  const normalized = value.trim().toLowerCase();
-  return normalized.length > 0 ? normalized : null;
-}
-
-/** Missing or unknown consent never grants permission to send marketing email. */
-export function hasConfirmedEmailConsent(optIn: boolean | null | undefined): boolean {
-  return optIn === true;
-}
-
-function hasBlockingSuppression(
-  suppressionTypes: string[],
-  bypassTypes: Set<string>,
-) {
-  return suppressionTypes.some(
-    (suppressionType) => !bypassTypes.has(suppressionType),
-  );
-}
-
-async function fetchAudienceCustomers(params: {
-  tenantId: string;
-  includeAllCustomers: boolean;
-  additionalCustomerIds: string[];
-  segmentIds: string[];
-  personaIds: string[];
-}) {
-  const {
-    tenantId,
-    includeAllCustomers,
-    additionalCustomerIds,
-    segmentIds,
-    personaIds,
-  } = params;
-
-  const usesFullTenantAudience =
-    includeAllCustomers ||
-    (segmentIds.length === 0 &&
-      personaIds.length === 0 &&
-      additionalCustomerIds.filter(isUuidLike).length === 0);
-
-  if (usesFullTenantAudience) {
-    const customers: AudienceCustomerRow[] = [];
-    for (let from = 0; ; from += PAGE_SIZE) {
-      const to = from + PAGE_SIZE - 1;
-      const { data, error } = await supabase
-        .from("crm_customers")
-        .select("id, email, email_opt_in")
-        .eq("tenant_id", tenantId)
-        .not("email", "is", null)
-        .range(from, to);
-
-      if (error) {
-        throw error;
-      }
-
-      customers.push(...((data ?? []) as AudienceCustomerRow[]));
-      if (!data || data.length < PAGE_SIZE) {
-        break;
-      }
-    }
-
-    return customers;
-  }
-
-  const allowedCustomerIds = await resolveAudienceRecipientIds({
-    tenantId,
-    includeAllCustomers,
-    additionalCustomerIds,
-    fallbackToAllCustomers: false,
-    segmentIds,
-    personaIds,
-  });
-
-  if (allowedCustomerIds.length === 0) {
-    return [] as AudienceCustomerRow[];
-  }
-
-  const customers: AudienceCustomerRow[] = [];
-  for (const chunk of chunkIds(allowedCustomerIds)) {
-    const { data, error } = await supabase
-      .from("crm_customers")
-      .select("id, email, email_opt_in")
-      .eq("tenant_id", tenantId)
-      .in("id", chunk)
-      .not("email", "is", null);
-
-    if (error) {
-      throw error;
-    }
-
-    customers.push(...((data ?? []) as AudienceCustomerRow[]));
-  }
-
-  return customers;
-}
-
-async function fetchTenantSuppressionBypassTypes(tenantId: string) {
-  const { data, error } = await supabase.rpc(
-    "get_tenant_suppression_bypass_state",
-    {
-      p_tenant_id: tenantId,
-    },
-  );
-
-  if (error) {
-    return [] as string[];
-  }
-
-  const row = Array.isArray(data) ? data[0] : data;
-  const record =
-    row && typeof row === "object" ? (row as Record<string, unknown>) : {};
-
-  return record.suppression_bypass_active === true
-    ? [...TENANT_SUPPRESSION_BYPASS_TYPES]
-    : [];
-}
-
-async function fetchAudienceSuppressionMap(tenantId: string, emails: string[]) {
-  const suppressionMap = new Map<string, string[]>();
-
-  if (emails.length === 0) {
-    return suppressionMap;
-  }
-
-  const nowIso = new Date().toISOString();
-
-  for (const chunk of chunkIds(emails)) {
-    const { data, error } = await supabase
-      .from("suppression_list")
-      .select("email, suppression_type, expires_at")
-      .eq("tenant_id", tenantId)
-      .in("channel", ["email", "all"])
-      .is("lifted_at", null)
-      .in("suppression_type", [...ACTIVE_EMAIL_SUPPRESSION_TYPES])
-      .in("email", chunk);
-
-    if (error) {
-      throw error;
-    }
-
-    for (const row of data ?? []) {
-      if (row.expires_at && row.expires_at <= nowIso) {
-        continue;
-      }
-
-      const normalizedEmail = normalizeEmail(row.email);
-      if (!normalizedEmail) {
-        continue;
-      }
-
-      const current = suppressionMap.get(normalizedEmail) ?? [];
-      current.push(String(row.suppression_type).toLowerCase());
-      suppressionMap.set(normalizedEmail, current);
-    }
-  }
-
-  return suppressionMap;
-}
-
-async function fetchAudiencePreflightSummary(params: {
-  tenantId: string;
-  includeAllCustomers: boolean;
-  additionalCustomerIds: string[];
-  segmentIds: string[];
-  personaIds: string[];
-}) {
-  const audienceCustomers = await fetchAudienceCustomers({
-    tenantId: params.tenantId,
-    includeAllCustomers: params.includeAllCustomers,
-    additionalCustomerIds: params.additionalCustomerIds,
-    segmentIds: params.segmentIds,
-    personaIds: params.personaIds,
-  });
-
-  const baselineBypassTypes = new Set(
-    await fetchTenantSuppressionBypassTypes(params.tenantId),
-  );
-  const overrideBypassTypes = new Set([
-    ...baselineBypassTypes,
-    ...FORCE_SEND_SOFT_SUPPRESSION_TYPES,
-  ]);
-
-  const candidates = audienceCustomers
-    .map((customer) => {
-      const normalizedEmail = normalizeEmail(customer.email);
-      return normalizedEmail &&
-        !normalizedEmail.endsWith("@noemail.local") &&
-        EMAIL_REGEX.test(normalizedEmail)
-        ? {
-            ...customer,
-            normalizedEmail,
-          }
-        : null;
-    })
-    .filter(
-      (
-        customer,
-      ): customer is AudienceCustomerRow & {
-        normalizedEmail: string;
-      } => customer !== null,
-    );
-
-  const suppressionMap = await fetchAudienceSuppressionMap(
-    params.tenantId,
-    Array.from(new Set(candidates.map((customer) => customer.normalizedEmail))),
-  );
-
-  let filteredRecipientCount = 0;
-  let overrideRecipientCount = 0;
-  let consentExcludedCount = 0;
-  let suppressionExcludedCount = 0;
-  let suppressionBypassRecipientCount = 0;
-  let hardSuppressionExcludedCount = 0;
-  let lastApprovedEmail: string | null = null;
-
-  for (const customer of candidates) {
-    const suppressionTypes = suppressionMap.get(customer.normalizedEmail) ?? [];
-    const blockedNormally = hasBlockingSuppression(
-      suppressionTypes,
-      baselineBypassTypes,
-    );
-    const blockedWithOverride = hasBlockingSuppression(
-      suppressionTypes,
-      overrideBypassTypes,
-    );
-    const isConsentExcluded = !hasConfirmedEmailConsent(customer.email_opt_in);
-
-    if (isConsentExcluded) {
-      consentExcludedCount += 1;
-    }
-
-    if (blockedNormally) {
-      suppressionExcludedCount += 1;
-    }
-
-    if (
-      blockedWithOverride &&
-      suppressionTypes.some((suppressionType) =>
-        HARD_SUPPRESSION_TYPES.has(suppressionType),
-      )
-    ) {
-      hardSuppressionExcludedCount += 1;
-    }
-
-    if (!isConsentExcluded && !blockedNormally) {
-      filteredRecipientCount += 1;
-      lastApprovedEmail = customer.normalizedEmail;
-    }
-
-    // The separate, explicitly acknowledged consent review can include
-    // otherwise-unconfirmed records. Default send counts never do.
-    if (!blockedWithOverride) {
-      overrideRecipientCount += 1;
-      if (!isConsentExcluded && blockedNormally) {
-        suppressionBypassRecipientCount += 1;
-      }
-    }
-  }
-
-  return {
-    filteredRecipientCount,
-    overrideRecipientCount,
-    consentExcludedCount,
-    suppressionExcludedCount,
-    suppressionBypassRecipientCount,
-    hardSuppressionExcludedCount,
-    singleRecipientEmail:
-      filteredRecipientCount === 1 ? lastApprovedEmail : null,
-  } satisfies AudiencePreflightSummary;
-}
-
-function useAudiencePreflightSummary(options: {
-  enabled: boolean;
-  tenantId?: string | null;
-  includeAllCustomers: boolean;
-  additionalCustomerIds: string[];
-  segmentIds: string[];
-  personaIds: string[];
-}) {
-  return useQuery({
-    queryKey: [
-      "campaign-send-preflight-summary",
-      options.tenantId,
-      options.includeAllCustomers,
-      options.additionalCustomerIds,
-      options.segmentIds,
-      options.personaIds,
-    ],
-    enabled: options.enabled && Boolean(options.tenantId),
-    staleTime: 60000,
-    queryFn: () =>
-      fetchAudiencePreflightSummary({
-        tenantId: options.tenantId as string,
-        includeAllCustomers: options.includeAllCustomers,
-        additionalCustomerIds: options.additionalCustomerIds,
-        segmentIds: options.segmentIds,
-        personaIds: options.personaIds,
-      }),
-  });
-}
-
 type ChecklistRow = {
   id: string;
   label: string;
   detail: string;
   loading?: boolean;
+  /** "warning" when the row is a problem, not a pass. */
+  tone?: "ok" | "warning";
 };
 
 function ReadyRow({ row }: { row: ChecklistRow }) {
@@ -423,6 +69,11 @@ function ReadyRow({ row }: { row: ChecklistRow }) {
           <CircularProgress
             size="sm"
             sx={{ "--CircularProgress-size": "18px" }}
+          />
+        ) : row.tone === "warning" ? (
+          <AlertTriangle
+            size={18}
+            style={{ color: "var(--joy-palette-warning-600)" }}
           />
         ) : (
           <CheckCircle2
@@ -488,12 +139,13 @@ type StatCardTone = "positive" | "informational" | "neutral";
 type StatCardProps = {
   tone: StatCardTone;
   label: string;
-  value: number;
+  /** Undefined until the eligibility check returns; shown as a skeleton. */
+  value: number | undefined;
   helper: string;
-  loading?: boolean;
+  testId?: string;
 };
 
-function StatCard({ tone, label, value, helper, loading }: StatCardProps) {
+function StatCard({ tone, label, value, helper, testId }: StatCardProps) {
   const palette =
     tone === "positive"
       ? {
@@ -554,15 +206,14 @@ function StatCard({ tone, label, value, helper, loading }: StatCardProps) {
             fontVariantNumeric: "tabular-nums",
           }}
         >
-          {loading ? (
+          {value === undefined ? (
             <Skeleton
               variant="text"
+              data-testid={testId ? `${testId}-skeleton` : undefined}
               sx={{ width: 60, display: "inline-block" }}
-            >
-              000
-            </Skeleton>
+            />
           ) : (
-            value.toLocaleString()
+            <span data-testid={testId}>{value.toLocaleString()}</span>
           )}
         </Typography>
         <Typography level="body-xs" sx={{ color: "neutral.600" }}>
@@ -1106,6 +757,8 @@ export function CampaignSendConfirmation({
   const canSendCampaign = hasPermission("campaigns.send");
   const {
     audienceCount,
+    isAudienceLoading,
+    campaignType,
     sendImmediately,
     sendAt,
     senderName,
@@ -1129,14 +782,26 @@ export function CampaignSendConfirmation({
   const healthQuery = useTenantEmailHealthDashboard(tenant?.id, {
     enabled: open,
   });
-  const audienceSummaryQuery = useAudiencePreflightSummary({
-    enabled: open,
+  const isEmail = campaignType === "email";
+  // Same query (same key) as the editor page: one server answer for both.
+  const eligibilityQuery = useCampaignEmailEligibility({
+    enabled: open && isEmail,
     tenantId: tenant?.id,
     includeAllCustomers,
     additionalCustomerIds,
     segmentIds: selectedSegments.map((segment) => segment.id),
     personaIds: selectedPersonas.map((persona) => persona.id),
   });
+  const eligibility = isEmail ? eligibilityQuery.data : undefined;
+  // SMS has no email eligibility; it keeps the editor's audience count.
+  const audienceGate: EmailEligibilityGate = isEmail
+    ? eligibilityQuery.gate
+    : isAudienceLoading
+      ? "checking"
+      : (audienceCount ?? 0) > 0
+        ? "ready"
+        : "none";
+  const audienceChecking = audienceGate === "checking";
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [inlineError, setInlineError] = React.useState<string | null>(null);
   const [reviewOpen, setReviewOpen] = React.useState(false);
@@ -1208,12 +873,14 @@ export function CampaignSendConfirmation({
     setPendingIncludeSoftSuppressions(false);
   }, []);
 
-  const filteredRecipientCount =
-    audienceSummaryQuery.data?.filteredRecipientCount ?? audienceCount ?? 0;
-  const overrideRecipientCount =
-    audienceSummaryQuery.data?.overrideRecipientCount ?? filteredRecipientCount;
-  const formattedRecipients = filteredRecipientCount.toLocaleString();
-  const formattedOverrideRecipients = overrideRecipientCount.toLocaleString();
+  // Real numbers only once the check has returned; undefined renders a
+  // skeleton, never a placeholder count.
+  const filteredRecipientCount: number | undefined = isEmail
+    ? eligibility?.eligible
+    : audienceChecking
+      ? undefined
+      : (audienceCount ?? 0);
+  const formattedRecipients = (filteredRecipientCount ?? 0).toLocaleString();
   const senderDomain = senderEmail.includes("@")
     ? senderEmail.split("@").pop()?.toLowerCase() || ""
     : "";
@@ -1226,13 +893,13 @@ export function CampaignSendConfirmation({
     );
   });
   const reputationScore = healthQuery.data?.reputation_score ?? null;
-  const suppressionTotal =
-    audienceSummaryQuery.data?.suppressionExcludedCount ?? 0;
-  const consentGap = audienceSummaryQuery.data?.consentExcludedCount ?? 0;
-  const hardSuppressionExcludedCount =
-    audienceSummaryQuery.data?.hardSuppressionExcludedCount ?? 0;
-  const suppressionBypassRecipientCount =
-    audienceSummaryQuery.data?.suppressionBypassRecipientCount ?? 0;
+  const consentGap = eligibility
+    ? eligibility.eligibleWithConsentOverride - eligibility.eligible
+    : 0;
+  const hardSuppressionExcludedCount = eligibility?.blocked ?? 0;
+  const suppressionBypassRecipientCount = eligibility
+    ? eligibility.eligibleWithSoftOverride - eligibility.eligible
+    : 0;
 
   const reputationDetail = healthQuery.isLoading
     ? "Checking health"
@@ -1248,14 +915,27 @@ export function CampaignSendConfirmation({
         detail: domainsLoading ? "Checking sender" : senderEmail || "No sender",
         loading: domainsLoading,
       },
-      {
-        id: "audience",
-        label: "Audience ready",
-        detail: audienceSummaryQuery.isLoading
-          ? "Checking audience"
-          : `${formattedRecipients} approved recipients`,
-        loading: audienceSummaryQuery.isLoading,
-      },
+      audienceGate === "ready" || audienceChecking
+        ? {
+            id: "audience",
+            label: "Audience ready",
+            detail: audienceChecking
+              ? CHECKING_AUDIENCE_LABEL
+              : `${formattedRecipients} approved recipients`,
+            loading: audienceChecking,
+          }
+        : {
+            id: "audience",
+            label:
+              audienceGate === "error"
+                ? "Audience not checked"
+                : NO_ELIGIBLE_RECIPIENTS_MESSAGE,
+            detail:
+              audienceGate === "error"
+                ? "We couldn't check who can receive this email"
+                : "0 approved recipients",
+            tone: "warning",
+          },
       {
         id: "reputation",
         label: "Reputation status",
@@ -1264,7 +944,8 @@ export function CampaignSendConfirmation({
       },
     ],
     [
-      audienceSummaryQuery.isLoading,
+      audienceChecking,
+      audienceGate,
       domainsLoading,
       formattedRecipients,
       healthQuery.isLoading,
@@ -1281,23 +962,32 @@ export function CampaignSendConfirmation({
     suppressionBypassRecipientCount > 0;
 
   const overrideActive = includeMissingConsent || includeSoftSuppressions;
-  const projectedRecipientCount = !overrideActive
+  // Each override combination is its own server count, so the total is what
+  // the worker would send with exactly those overrides.
+  const projectedRecipientCount: number | undefined = !overrideActive
     ? filteredRecipientCount
-    : includeMissingConsent && includeSoftSuppressions
-      ? overrideRecipientCount
-      : filteredRecipientCount +
-        (includeMissingConsent ? consentGap : 0) +
-        (includeSoftSuppressions ? suppressionBypassRecipientCount : 0);
-  const formattedProjectedRecipients = projectedRecipientCount.toLocaleString();
-  const overrideAddedCount = projectedRecipientCount - filteredRecipientCount;
-  const pendingOverrideAddedCount =
-    (pendingIncludeMissingConsent ? consentGap : 0) +
-    (pendingIncludeSoftSuppressions ? suppressionBypassRecipientCount : 0);
+    : !eligibility
+      ? undefined
+      : includeMissingConsent && includeSoftSuppressions
+        ? eligibility.eligibleWithBothOverrides
+        : includeMissingConsent
+          ? eligibility.eligibleWithConsentOverride
+          : eligibility.eligibleWithSoftOverride;
+  const formattedProjectedRecipients = (projectedRecipientCount ?? 0).toLocaleString();
+  const overrideAddedCount =
+    (projectedRecipientCount ?? 0) - (filteredRecipientCount ?? 0);
+  const pendingOverrideAddedCount = !eligibility
+    ? 0
+    : pendingIncludeMissingConsent && pendingIncludeSoftSuppressions
+      ? eligibility.eligibleWithBothOverrides - eligibility.eligible
+      : (pendingIncludeMissingConsent ? consentGap : 0) +
+        (pendingIncludeSoftSuppressions ? suppressionBypassRecipientCount : 0);
   const protectedExcludedTotal = consentGap + suppressionBypassRecipientCount;
-  const displayedProtectedCount = Math.max(
-    0,
-    protectedExcludedTotal - overrideAddedCount,
-  );
+  const displayedProtectedCount: number | undefined =
+    isEmail && !eligibility
+      ? undefined
+      : Math.max(0, protectedExcludedTotal - overrideAddedCount);
+  const audienceReady = audienceGate === "ready";
 
   const acknowledgedWarnings = React.useMemo<AcknowledgedWarning[]>(() => {
     const items: AcknowledgedWarning[] = [];
@@ -1348,11 +1038,15 @@ export function CampaignSendConfirmation({
   ]);
 
   const isBusy = isSaving || isSubmitting;
-  const primaryActionLabel = !sendImmediately
-    ? `Schedule for ${formattedProjectedRecipients} approved recipients`
-    : overrideActive
-      ? `Send to ${formattedProjectedRecipients} recipients`
-      : `Send to ${formattedProjectedRecipients} approved recipients`;
+  const primaryActionLabel = audienceChecking
+    ? CHECKING_AUDIENCE_LABEL
+    : !audienceReady
+      ? NO_ELIGIBLE_RECIPIENTS_MESSAGE
+      : !sendImmediately
+        ? `Schedule for ${formattedProjectedRecipients} approved recipients`
+        : overrideActive
+          ? `Send to ${formattedProjectedRecipients} recipients`
+          : `Send to ${formattedProjectedRecipients} approved recipients`;
   const primaryActionColor: "primary" | "warning" = overrideActive
     ? "warning"
     : "primary";
@@ -1368,6 +1062,8 @@ export function CampaignSendConfirmation({
     isBusy ||
     hasBuilderBlockers ||
     requiresPlaceholderAck ||
+    !audienceReady ||
+    projectedRecipientCount === undefined ||
     projectedRecipientCount === 0;
 
   const handleClose = React.useCallback(() => {
@@ -1426,7 +1122,7 @@ export function CampaignSendConfirmation({
       return;
     }
 
-    if (projectedRecipientCount <= 1) {
+    if (projectedRecipientCount !== undefined && projectedRecipientCount <= 1) {
       setLowCountConfirmOpen(true);
       return;
     }
@@ -1451,11 +1147,15 @@ export function CampaignSendConfirmation({
           <Box sx={{ px: 3, pt: 3, pb: 2 }}>
             <DialogTitle sx={{ p: 0, mb: 0.5 }}>Ready to send</DialogTitle>
             <Typography level="body-sm" sx={{ color: "neutral.600" }}>
-              {audienceSummaryQuery.isLoading
+              {audienceChecking
                 ? "BloomSuite is checking your audience..."
-                : overrideActive
-                  ? `Sending ${formattedProjectedRecipients} contacts, including ${overrideAddedCount.toLocaleString()} added from review.`
-                  : `BloomSuite checked your campaign and found ${formattedRecipients} approved recipients.`}
+                : audienceGate === "error"
+                  ? "BloomSuite couldn't check your audience. Close this and try again in a moment."
+                  : audienceGate === "none"
+                    ? `${NO_ELIGIBLE_RECIPIENTS_MESSAGE}. Change the audience before you send.`
+                    : overrideActive
+                      ? `Sending ${formattedProjectedRecipients} contacts, including ${overrideAddedCount.toLocaleString()} added from review.`
+                      : `BloomSuite checked your campaign and found ${formattedRecipients} approved recipients.`}
             </Typography>
           </Box>
 
@@ -1534,23 +1234,23 @@ export function CampaignSendConfirmation({
                 <StatCard
                   tone="positive"
                   label="Approved"
+                  testId="send-stat-approved"
                   value={projectedRecipientCount}
                   helper="Ready to receive this campaign"
-                  loading={audienceSummaryQuery.isLoading}
                 />
                 <StatCard
                   tone="informational"
                   label="Protected"
+                  testId="send-stat-protected"
                   value={displayedProtectedCount}
                   helper="Held back to protect consent and deliverability"
-                  loading={audienceSummaryQuery.isLoading}
                 />
                 <StatCard
                   tone="neutral"
                   label="Blocked"
-                  value={hardSuppressionExcludedCount}
+                  testId="send-stat-blocked"
+                  value={isEmail ? eligibility?.blocked : audienceChecking ? undefined : 0}
                   helper="Cannot be sent"
-                  loading={audienceSummaryQuery.isLoading}
                 />
               </Stack>
 
@@ -1565,7 +1265,13 @@ export function CampaignSendConfirmation({
                     letterSpacing: "0.06em",
                   }}
                 >
-                  Campaign is ready
+                  {audienceChecking
+                    ? CHECKING_AUDIENCE_LABEL
+                    : audienceReady
+                      ? "Campaign is ready"
+                      : audienceGate === "error"
+                        ? "Audience not checked"
+                        : NO_ELIGIBLE_RECIPIENTS_MESSAGE}
                 </Typography>
                 <Stack spacing={1.25}>
                   {readyRows.map((row) => (
@@ -1647,6 +1353,7 @@ export function CampaignSendConfirmation({
               {/* Audience-shrinkage warning vs previous send */}
               {previousCampaignQuery.data?.count &&
               previousCampaignQuery.data.count >= 1 &&
+              projectedRecipientCount !== undefined &&
               projectedRecipientCount > 0 &&
               projectedRecipientCount <
                 previousCampaignQuery.data.count * 0.5 ? (
@@ -1704,7 +1411,7 @@ export function CampaignSendConfirmation({
               ) : null}
 
               {/* Section C — Recommendation box */}
-              {!overrideActive ? (
+              {!overrideActive && audienceReady ? (
                 <Sheet
                   variant="soft"
                   color="neutral"
@@ -1725,7 +1432,7 @@ export function CampaignSendConfirmation({
                     </Typography>
                   </Stack>
                 </Sheet>
-              ) : (
+              ) : overrideActive ? (
                 <Sheet
                   variant="soft"
                   color="warning"
@@ -1760,7 +1467,7 @@ export function CampaignSendConfirmation({
                     </Typography>
                   </Stack>
                 </Sheet>
-              )}
+              ) : null}
 
               {hasBuilderBlockers ? (
                 <Sheet
@@ -1919,7 +1626,7 @@ export function CampaignSendConfirmation({
                   <JoyButton
                     variant="outlined"
                     color="neutral"
-                    disabled={isBusy || approvalBlocked}
+                    disabled={isBusy || approvalBlocked || !audienceReady}
                     onClick={onSchedule}
                   >
                     Choose send time
@@ -1977,9 +1684,9 @@ export function CampaignSendConfirmation({
 
       <LowCountConfirmDialog
         open={lowCountConfirmOpen}
-        count={projectedRecipientCount}
+        count={projectedRecipientCount ?? 0}
         singleRecipientEmail={
-          audienceSummaryQuery.data?.singleRecipientEmail ?? null
+          eligibility?.singleEligibleEmail ?? null
         }
         campaignName={name || "this campaign"}
         onCancel={() => {

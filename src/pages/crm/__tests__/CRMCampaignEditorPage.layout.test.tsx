@@ -29,7 +29,25 @@ vi.mock("@/hooks/useEmailDomains", () => ({
   }),
 }));
 vi.mock("@/hooks/useCustomers", () => ({ useCustomers: () => ({ data: [], totalCount: 0, isLoading: false }) }));
-vi.mock("@/hooks/useTenantAudienceHealth", () => ({ useCampaignAudienceHealth: () => ({ data: null }) }));
+vi.mock("@/hooks/useCampaignEmailEligibility", async () => {
+  const actual = await vi.importActual<typeof import("@/hooks/useCampaignEmailEligibility")>(
+    "@/hooks/useCampaignEmailEligibility",
+  );
+  return {
+    ...actual,
+    // A finished check with people to send to; eligibility gating has its own test.
+    useCampaignEmailEligibility: () => ({
+      data: {
+        audienceConfigured: true, total: 120, eligible: 120, waiting: 0, askedToStop: 0,
+        neverOptedIn: 0, unsendable: 0, duplicates: 0, blocked: 0,
+        eligibleWithConsentOverride: 120, eligibleWithSoftOverride: 120,
+        eligibleWithBothOverrides: 120, singleEligibleEmail: null,
+      },
+      isError: false,
+      gate: "ready",
+    }),
+  };
+});
 vi.mock("@/hooks/usePersonaTargetingAvailable", () => ({ usePersonaTargetingAvailable: () => ({ available: false }) }));
 vi.mock("@/hooks/useThisWeeksTheme", () => ({ useThisWeeksTheme: () => ({ data: null, isLoading: false, isFetched: true }) }));
 vi.mock("@/hooks/useSavedTemplates", () => ({

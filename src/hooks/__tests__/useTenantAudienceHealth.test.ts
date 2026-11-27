@@ -1,12 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { resolveIds, rpc } = vi.hoisted(() => ({
-  resolveIds: vi.fn(),
+const { rpc } = vi.hoisted(() => ({
   rpc: vi.fn(),
-}));
-
-vi.mock("@/lib/computeAudienceRecipientCount", () => ({
-  resolveAudienceRecipientIds: resolveIds,
 }));
 
 vi.mock("@/integrations/supabase/client", () => ({
@@ -14,7 +9,6 @@ vi.mock("@/integrations/supabase/client", () => ({
 }));
 
 import {
-  fetchCampaignAudienceHealth,
   fetchTenantAudienceHealth,
   toAudienceHealth,
 } from "@/hooks/useTenantAudienceHealth";
@@ -69,57 +63,22 @@ describe("email reachability bucket math", () => {
   });
 });
 
-describe("campaign-scoped consent health", () => {
-  const options = {
-    tenantId: "tenant-a",
-    includeAllCustomers: false,
-    additionalCustomerIds: [],
-    segmentIds: ["selected-segment"],
-    personaIds: [],
-  };
-
+describe("tenant reachability read", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    rpc.mockResolvedValue({ data: [row(4, 1, 1, 1, 1)], error: null });
   });
 
-  it("counts only the resolved customers with the shared definition", async () => {
-    resolveIds.mockResolvedValue(["a", "b", "c", "d"]);
-    expect(await fetchCampaignAudienceHealth(options)).toEqual({
+  it("counts the whole tenant with the shared definition", async () => {
+    rpc.mockResolvedValue({ data: [row(4, 1, 1, 1, 1)], error: null });
+    expect(await fetchTenantAudienceHealth("tenant-a")).toEqual({
       total: 4, confirmed: 1, eligible: 1, pending: 1, optedOut: 1, neverOptedIn: 0, suppressed: 1,
     });
-    expect(resolveIds).toHaveBeenCalledWith({ ...options, fallbackToAllCustomers: false });
-    expect(rpc).toHaveBeenCalledWith("email_reachability_summary", {
-      p_tenant_id: "tenant-a",
-      p_customer_ids: ["a", "b", "c", "d"],
-    });
-  });
-
-  it("does not replace an empty explicit audience with the whole tenant", async () => {
-    resolveIds.mockResolvedValue([]);
-    expect((await fetchCampaignAudienceHealth(options)).total).toBe(0);
-    expect(rpc).not.toHaveBeenCalled();
-  });
-
-  it("uses the whole tenant, like the dashboard, when no audience is chosen", async () => {
-    await fetchCampaignAudienceHealth({ ...options, segmentIds: [] });
-    expect(resolveIds).not.toHaveBeenCalled();
     expect(rpc).toHaveBeenCalledWith("email_reachability_summary", { p_tenant_id: "tenant-a" });
-    await fetchTenantAudienceHealth("tenant-a");
-    expect(rpc).toHaveBeenLastCalledWith("email_reachability_summary", { p_tenant_id: "tenant-a" });
-  });
-
-  it("reads large audiences in bounded batches", async () => {
-    const ids = Array.from({ length: 1001 }, (_, index) => `customer-${index}`);
-    resolveIds.mockResolvedValue(ids);
-    await fetchCampaignAudienceHealth(options);
-    expect(rpc.mock.calls.map((call) => call[1].p_customer_ids.length)).toEqual([1000, 1]);
   });
 
   it("reports read failures instead of presenting misleading partial counts", async () => {
-    resolveIds.mockResolvedValue(["a"]);
     rpc.mockResolvedValue({ data: null, error: new Error("health read failed") });
-    await expect(fetchCampaignAudienceHealth(options)).rejects.toThrow("health read failed");
+    await expect(fetchTenantAudienceHealth("tenant-a")).rejects.toThrow("health read failed");
   });
 });
 

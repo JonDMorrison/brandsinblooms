@@ -37,7 +37,6 @@ vi.mock("@/components/crm/campaign-editor/CampaignSendConfirmation", async () =>
 import {
   LowCountConfirmDialog,
   ReviewExcludedDialog,
-  hasConfirmedEmailConsent,
   // re-export the dialog for direct testing
 } from "@/components/crm/campaign-editor/CampaignSendConfirmation";
 
@@ -198,12 +197,3 @@ describe("ReviewExcludedDialog", () => {
   });
 });
 
-
-describe("email send preflight consent", () => {
-  it("includes only confirmed opt-ins by default", () => {
-    expect(hasConfirmedEmailConsent(true)).toBe(true);
-    expect(hasConfirmedEmailConsent(false)).toBe(false);
-    expect(hasConfirmedEmailConsent(null)).toBe(false);
-    expect(hasConfirmedEmailConsent(undefined)).toBe(false);
-  });
-});
