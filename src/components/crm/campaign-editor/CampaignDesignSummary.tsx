@@ -1,5 +1,4 @@
 import * as React from "react";
-import Box from "@mui/joy/Box";
 import Chip from "@mui/joy/Chip";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
@@ -24,8 +23,8 @@ export function DesignLockPill({ lock }: { lock: CampaignTemplateLock | null }) 
       }
       sx={{
         "--Chip-gap": "6px",
-        px: 1.25,
-        py: 0.5,
+        px: 2,
+        py: 1,
         bgcolor: "primary.softBg",
         color: "primary.plainColor",
         fontSize: "sm",
@@ -39,6 +38,9 @@ export function DesignLockPill({ lock }: { lock: CampaignTemplateLock | null }) 
     </Chip>
   );
 }
+
+/** Full width on phones, 44px tall everywhere. */
+const actionSx = { minHeight: 44, width: { xs: "100%", sm: "auto" } } as const;
 
 /**
  * The applied design, shown as a real rendered thumbnail with its name,
@@ -80,9 +82,9 @@ export function CampaignDesignSummary({
   return (
     <Stack
       direction={{ xs: "column", sm: "row" }}
-      spacing={2.5}
+      spacing={6}
       data-testid="campaign-design-summary"
-      alignItems={{ xs: "stretch", sm: "flex-start" }}
+      alignItems={{ xs: "flex-start", sm: "flex-start" }}
     >
       <CampaignEmailThumbnail
         blocks={blocks}
@@ -90,22 +92,28 @@ export function CampaignDesignSummary({
         previewText={previewText}
         designSystem={designSystem}
       />
-      <Stack spacing={1.25} sx={{ minWidth: 0, flex: 1 }}>
-        <Box>
+      <Stack spacing={4} sx={{ minWidth: 0, flex: 1, width: "100%" }}>
+        {/* Type scale: overline, then title, then meta. */}
+        <Stack spacing={1} data-testid="campaign-design-info">
           <Typography
             level="body-xs"
-            sx={{ fontWeight: "xl", letterSpacing: "0.06em", textTransform: "uppercase", color: "text.secondary" }}
+            data-testid="campaign-design-overline"
+            sx={{ fontWeight: "xl", letterSpacing: "0.08em", textTransform: "uppercase", color: "text.tertiary" }}
           >
             Design applied
           </Typography>
-          <Typography component="h3" level="h3" sx={{ fontSize: "xl", fontWeight: "xl", color: "text.primary", lineHeight: 1.3 }}>
+          <Typography
+            component="h3"
+            level="title-lg"
+            sx={{ fontSize: "xl", fontWeight: "xl", color: "text.primary", lineHeight: 1.3, overflowWrap: "anywhere" }}
+          >
             {designName}
           </Typography>
-          <Typography level="body-md" sx={{ color: "text.secondary", mt: 0.25 }}>
+          <Typography level="body-sm" data-testid="campaign-design-meta" sx={{ color: "text.tertiary" }}>
             {`${blockCount} ${blockCount === 1 ? "block" : "blocks"}`}
             {lastEditedLabel ? ` · Last edited ${lastEditedLabel}` : ""}
           </Typography>
-        </Box>
+        </Stack>
         <DesignLockPill lock={lock} />
         {lock?.locked ? (
           <Typography level="body-sm" sx={{ color: "text.secondary" }}>
@@ -114,7 +122,12 @@ export function CampaignDesignSummary({
               : "You can change the words, photos, prices, dates and links. The layout, colours and styling are set by your designer."}
           </Typography>
         ) : null}
-        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          spacing={2}
+          useFlexGap
+          flexWrap="wrap"
+        >
           <JoyButton
             variant="solid"
             color="primary"
@@ -123,6 +136,7 @@ export function CampaignDesignSummary({
             disabled={studioDisabled}
             title={studioDisabled ? studioDisabledReason : undefined}
             data-testid="campaign-design-edit-studio"
+            sx={actionSx}
           >
             {studioLabel}
           </JoyButton>
@@ -133,6 +147,7 @@ export function CampaignDesignSummary({
             onClick={onChangeDesign}
             disabled={changeDisabled}
             data-testid="campaign-design-change"
+            sx={actionSx}
           >
             Change design
           </JoyButton>

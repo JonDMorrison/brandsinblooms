@@ -239,8 +239,14 @@ describe("email eligibility gating (Northfield Email Subscribers shape)", () => 
     expect(screen.getByTestId("campaign-editor-schedule-cta")).not.toBeDisabled();
 
     await waitFor(() => expect(within(dialog()).getByTestId("send-stat-approved")).toHaveTextContent("1,234"));
-    expect(primarySend()).toHaveTextContent("Send to 1,234 approved recipients");
+    expect(primarySend()).toHaveTextContent("Send to 1,234 people");
     expect(primarySend()).not.toBeDisabled();
+    // "Choose send time" is an outlined button right beside the primary one.
+    const chooseTime = within(dialog()).getByRole("button", { name: "Choose send time" });
+    expect(chooseTime).toHaveClass("MuiButton-variantOutlined");
+    expect(chooseTime.nextElementSibling).toBe(primarySend());
+    // The checklist marks the audience row as passed.
+    expect(within(dialog()).getAllByTestId("send-check-icon-success").length).toBeGreaterThan(0);
     expect(within(dialog()).getByText("Campaign is ready")).toBeInTheDocument();
     // Both surfaces asked the same server function with the same audience.
     const calls = rpc.mock.calls.filter(([name]) => name === "email_campaign_eligibility");
@@ -268,7 +274,10 @@ describe("email eligibility gating (Northfield Email Subscribers shape)", () => 
 
     await waitFor(() => expect(primarySend()).toHaveTextContent("Checking audience"));
     expect(primarySend()).toBeDisabled();
-    expect(within(dialog()).getByTestId("send-stat-approved-skeleton")).toBeInTheDocument();
+    for (const stat of ["approved", "protected", "blocked"]) {
+      expect(within(dialog()).getByTestId(`send-stat-${stat}-skeleton`)).toBeInTheDocument();
+    }
+    expect(within(dialog()).getAllByTestId("send-check-icon-loading").length).toBeGreaterThan(0);
     expect(within(dialog()).queryByText("000")).toBeNull();
     expect(within(dialog()).queryByText("Campaign is ready")).toBeNull();
     expect(within(dialog()).queryByText(/7,600/)).toBeNull();

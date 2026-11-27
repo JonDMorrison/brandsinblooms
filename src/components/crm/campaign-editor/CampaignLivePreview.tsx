@@ -3,12 +3,15 @@ import Box from "@mui/joy/Box";
 import Button from "@mui/joy/Button";
 import Skeleton from "@mui/joy/Skeleton";
 import Stack from "@mui/joy/Stack";
+import ToggleButtonGroup from "@mui/joy/ToggleButtonGroup";
 import Typography from "@mui/joy/Typography";
 import { Monitor, Moon, Smartphone } from "lucide-react";
 import type { StudioDesignSystem } from "@/lib/studio/designSystem";
 import type { StudioBlock } from "@/types/studioBlocks";
 import { buildCampaignPreviewHtml } from "@/lib/crm/campaignPreviewHtml";
+import { JoySwitch } from "@/components/joy/JoySwitch";
 import {
+  campaignEditorCardPadding,
   campaignEditorCardSx,
   campaignEditorFocusOutline,
 } from "@/components/crm/campaign-editor/campaignEditorTheme";
@@ -52,8 +55,8 @@ export function CampaignEmailThumbnail({
   subjectLine,
   previewText,
   designSystem,
-  width = 168,
-  height = 210,
+  width = 160,
+  height = 200,
 }: {
   blocks: StudioBlock[];
   subjectLine: string;
@@ -76,7 +79,7 @@ export function CampaignEmailThumbnail({
         height,
         flexShrink: 0,
         overflow: "hidden",
-        borderRadius: "lg",
+        borderRadius: "md",
         border: "1px solid",
         borderColor: "divider",
         bgcolor: "background.surface",
@@ -105,37 +108,20 @@ export function CampaignEmailThumbnail({
 
 type PreviewDevice = keyof typeof DEVICE_WIDTH;
 
-function ToggleButton({
-  pressed,
-  onClick,
-  icon,
-  children,
-}: {
-  pressed: boolean;
-  onClick: () => void;
-  icon: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <Button
-      aria-pressed={pressed}
-      onClick={onClick}
-      color={pressed ? "primary" : "neutral"}
-      variant={pressed ? "solid" : "outlined"}
-      startDecorator={icon}
-      sx={{
-        minHeight: 44,
-        px: 1.5,
-        "--Button-gap": "6px",
-        fontSize: "md",
-        fontWeight: "lg",
-        "&:focus-visible": { outline: campaignEditorFocusOutline, outlineOffset: 2 },
-      }}
-    >
-      {children}
-    </Button>
-  );
-}
+/**
+ * Space the phone frame takes from the preview box: 16px of padding and an
+ * 8px bezel on each side.
+ */
+const MOBILE_FRAME_CHROME = 2 * 16 + 2 * 8;
+
+const segmentSx = {
+  minHeight: 44,
+  px: 3,
+  "--Button-gap": "8px",
+  fontSize: "md",
+  fontWeight: "lg",
+  "&:focus-visible": { outline: campaignEditorFocusOutline, outlineOffset: 2, zIndex: 1 },
+} as const;
 
 /**
  * The live preview column: the same renderer as the editor's email preview,
@@ -170,7 +156,9 @@ export function CampaignLivePreview({
   }, [blocks, dark, designSystem, previewText, subjectLine]);
 
   const frameWidth = DEVICE_WIDTH[device];
-  const scale = containerWidth > 0 ? Math.min(1, containerWidth / frameWidth) : 1;
+  const mobile = device === "mobile";
+  const availableWidth = containerWidth - (mobile ? MOBILE_FRAME_CHROME : 0);
+  const scale = availableWidth > 0 ? Math.min(1, availableWidth / frameWidth) : 1;
 
   // The preview box is one scroll container kept across views, so without a
   // reset its scroll position carries over: switching Mobile, Desktop or Dark,
@@ -213,37 +201,78 @@ export function CampaignLivePreview({
       component="aside"
       aria-label="Live preview"
       data-testid="campaign-live-preview"
-      sx={{ ...campaignEditorCardSx, p: { xs: 1.5, sm: 2 }, display: "flex", flexDirection: "column", gap: 1.5, minHeight: 0 }}
+      sx={{
+        ...campaignEditorCardSx,
+        p: campaignEditorCardPadding,
+        display: "flex",
+        flexDirection: "column",
+        gap: 4,
+        minHeight: 0,
+        minWidth: 0,
+      }}
     >
-      <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1} useFlexGap flexWrap="wrap">
-        <Typography component="h2" level="title-md" sx={{ fontWeight: "xl", color: "text.primary" }}>
+      <Stack
+        direction="row"
+        alignItems="center"
+        justifyContent="space-between"
+        useFlexGap
+        flexWrap="wrap"
+        data-testid="campaign-live-preview-header"
+        sx={{ columnGap: 4, rowGap: 2 }}
+      >
+        <Typography component="h2" level="title-lg" sx={{ fontWeight: "xl", color: "text.primary" }}>
           Live preview
         </Typography>
-        <Stack direction="row" spacing={0.75} role="group" aria-label="Preview view">
-          <ToggleButton
-            pressed={device === "mobile"}
-            onClick={() => setDevice("mobile")}
-            icon={<Smartphone size={16} aria-hidden />}
+        <Stack direction="row" alignItems="center" useFlexGap flexWrap="wrap" sx={{ columnGap: 4, rowGap: 2 }}>
+          {/* The device is one choice of two: a segmented control. */}
+          <ToggleButtonGroup
+            aria-label="Preview device"
+            data-testid="campaign-live-preview-device"
+            value={device}
+            onChange={(_event, next) => {
+              if (next === "mobile" || next === "desktop") setDevice(next);
+            }}
+            variant="outlined"
+            color="neutral"
+            sx={{ "--ButtonGroup-radius": "var(--joy-radius-lg)" }}
           >
-            Mobile
-          </ToggleButton>
-          <ToggleButton
-            pressed={device === "desktop"}
-            onClick={() => setDevice("desktop")}
-            icon={<Monitor size={16} aria-hidden />}
+            <Button
+              value="mobile"
+              startDecorator={<Smartphone size={16} aria-hidden />}
+              sx={segmentSx}
+            >
+              Mobile
+            </Button>
+            <Button
+              value="desktop"
+              startDecorator={<Monitor size={16} aria-hidden />}
+              sx={segmentSx}
+            >
+              Desktop
+            </Button>
+          </ToggleButtonGroup>
+          {/* Dark changes either device, so it is a separate switch. */}
+          <Box
+            component="label"
+            data-testid="campaign-live-preview-dark"
+            sx={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 2,
+              minHeight: 44,
+              cursor: "pointer",
+              typography: "body-md",
+              fontWeight: "lg",
+              color: "text.primary",
+            }}
           >
-            Desktop
-          </ToggleButton>
-          <ToggleButton
-            pressed={dark}
-            onClick={() => setDark((current) => !current)}
-            icon={<Moon size={16} aria-hidden />}
-          >
+            <Moon size={16} aria-hidden />
             Dark
-          </ToggleButton>
+            <JoySwitch checked={dark} onCheckedChange={setDark} />
+          </Box>
         </Stack>
       </Stack>
-      <Typography level="body-sm" sx={{ color: "text.secondary" }}>
+      <Typography level="body-sm" sx={{ color: "text.tertiary" }}>
         Personalisation uses a sample customer.{dark ? " Dark shows roughly how dark-mode inboxes recolour this email." : ""}
       </Typography>
       <Box
@@ -252,7 +281,7 @@ export function CampaignLivePreview({
         sx={{
           borderRadius: "lg",
           bgcolor: dark ? "neutral.800" : "background.level2",
-          p: 0,
+          p: mobile ? 4 : 0,
           overflowY: "auto",
           overflowX: "hidden",
           maxHeight: 640,
@@ -265,32 +294,59 @@ export function CampaignLivePreview({
           <Skeleton variant="rectangular" sx={{ height: 480 }} />
         ) : hasContent ? (
           <Box
-            sx={{
-              width: frameWidth * scale,
-              height: frameHeight * scale,
-              mx: "auto",
-              overflow: "hidden",
-            }}
+            data-testid="campaign-live-preview-frame"
+            data-device={device}
+            sx={
+              mobile
+                ? {
+                    // A phone: an 8px bezel with a speaker slot above the screen.
+                    width: "fit-content",
+                    maxWidth: "100%",
+                    mx: "auto",
+                    border: "8px solid",
+                    borderTopWidth: 0,
+                    borderColor: "neutral.800",
+                    borderRadius: "2xl",
+                    bgcolor: "neutral.800",
+                    overflow: "hidden",
+                  }
+                : { width: "100%" }
+            }
           >
-            <iframe
-              title="Campaign live preview"
-              sandbox="allow-same-origin"
-              srcDoc={html}
-              scrolling="no"
-              onLoad={handleLoad}
-              style={{
-                display: "block",
-                border: 0,
-                width: frameWidth,
-                height: frameHeight,
-                transform: `scale(${scale})`,
-                transformOrigin: "0 0",
-                background: "var(--joy-palette-background-surface)",
+            {mobile ? (
+              <Box aria-hidden sx={{ height: 24, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Box sx={{ width: 56, height: 4, borderRadius: "xl", bgcolor: "neutral.600" }} />
+              </Box>
+            ) : null}
+            <Box
+              sx={{
+                width: frameWidth * scale,
+                height: frameHeight * scale,
+                mx: "auto",
+                overflow: "hidden",
+                borderRadius: mobile ? "md" : 0,
               }}
-            />
+            >
+              <iframe
+                title="Campaign live preview"
+                sandbox="allow-same-origin"
+                srcDoc={html}
+                scrolling="no"
+                onLoad={handleLoad}
+                style={{
+                  display: "block",
+                  border: 0,
+                  width: frameWidth,
+                  height: frameHeight,
+                  transform: `scale(${scale})`,
+                  transformOrigin: "0 0",
+                  background: "var(--joy-palette-background-surface)",
+                }}
+              />
+            </Box>
           </Box>
         ) : (
-          <Stack alignItems="center" spacing={1} sx={{ py: 6, px: 3, textAlign: "center" }}>
+          <Stack alignItems="center" spacing={2} sx={{ py: 12, px: 6, textAlign: "center" }}>
             <Typography
               level="title-md"
               sx={{ fontWeight: "xl", color: dark ? "common.white" : "text.primary" }}

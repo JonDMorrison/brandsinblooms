@@ -23,6 +23,7 @@ import AccordionGroup from "@mui/joy/AccordionGroup";
 import AccordionSummary from "@mui/joy/AccordionSummary";
 import {
   AlertTriangle,
+  Check,
   CheckCircle2,
   ChevronDown,
   Lock,
@@ -59,40 +60,64 @@ type ChecklistRow = {
   tone?: "ok" | "warning";
 };
 
+/** The checklist row's icon: a soft circle that says pass, problem or still checking. */
+function ReadyRowIcon({ row }: { row: ChecklistRow }) {
+  const state = row.loading ? "loading" : row.tone === "warning" ? "warning" : "success";
+  return (
+    <Box
+      component="span"
+      data-testid={`send-check-icon-${state}`}
+      aria-hidden
+      sx={{
+        width: 28,
+        height: 28,
+        flexShrink: 0,
+        borderRadius: "50%",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        bgcolor:
+          state === "loading" ? "neutral.softBg" : state === "warning" ? "warning.softBg" : "success.softBg",
+        color:
+          state === "loading" ? "text.tertiary" : state === "warning" ? "warning.softColor" : "success.softColor",
+      }}
+    >
+      {state === "loading" ? (
+        <CircularProgress size="sm" color="neutral" sx={{ "--CircularProgress-size": "16px" }} />
+      ) : state === "warning" ? (
+        <AlertTriangle size={16} />
+      ) : (
+        <Check size={16} strokeWidth={3} />
+      )}
+    </Box>
+  );
+}
+
 function ReadyRow({ row }: { row: ChecklistRow }) {
   return (
-    <Stack direction="row" spacing={1.25} alignItems="flex-start">
-      <Box
-        sx={{ width: 20, pt: 0.25, display: "flex", justifyContent: "center" }}
-      >
-        {row.loading ? (
-          <CircularProgress
-            size="sm"
-            sx={{ "--CircularProgress-size": "18px" }}
-          />
-        ) : row.tone === "warning" ? (
-          <AlertTriangle
-            size={18}
-            style={{ color: "var(--joy-palette-warning-600)" }}
-          />
-        ) : (
-          <CheckCircle2
-            size={18}
-            style={{ color: "var(--joy-palette-success-600)" }}
-          />
-        )}
-      </Box>
+    <Stack
+      component="li"
+      direction="row"
+      spacing={3}
+      alignItems="center"
+      data-testid={`send-check-${row.id}`}
+      sx={{ minHeight: 44 }}
+    >
+      <ReadyRowIcon row={row} />
       <Stack
         direction={{ xs: "column", sm: "row" }}
-        spacing={{ xs: 0.25, sm: 1 }}
+        spacing={{ xs: 0, sm: 2 }}
         justifyContent="space-between"
         alignItems={{ xs: "flex-start", sm: "center" }}
         sx={{ width: "100%", minWidth: 0 }}
       >
-        <Typography level="body-sm" fontWeight="lg">
+        <Typography level="body-sm" fontWeight="lg" sx={{ color: "text.primary" }}>
           {row.label}
         </Typography>
-        <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+        <Typography
+          level="body-sm"
+          sx={{ color: row.tone === "warning" ? "warning.plainColor" : "text.tertiary" }}
+        >
           {row.detail}
         </Typography>
       </Stack>
@@ -148,48 +173,34 @@ type StatCardProps = {
 function StatCard({ tone, label, value, helper, testId }: StatCardProps) {
   const palette =
     tone === "positive"
-      ? {
-          border: "var(--joy-palette-success-200)",
-          bg: "var(--joy-palette-success-50)",
-          accent: "var(--joy-palette-success-700)",
-          icon: <CheckCircle2 size={18} />,
-        }
+      ? { color: "success" as const, icon: <CheckCircle2 size={18} aria-hidden /> }
       : tone === "informational"
-        ? {
-            border: "var(--joy-palette-primary-200)",
-            bg: "var(--joy-palette-primary-50)",
-            accent: "var(--joy-palette-primary-700)",
-            icon: <ShieldCheck size={18} />,
-          }
-        : {
-            border: "var(--joy-palette-neutral-200)",
-            bg: "var(--joy-palette-neutral-50)",
-            accent: "var(--joy-palette-neutral-700)",
-            icon: <Lock size={18} />,
-          };
+        ? { color: "primary" as const, icon: <ShieldCheck size={18} aria-hidden /> }
+        : { color: "neutral" as const, icon: <Lock size={18} aria-hidden /> };
 
   return (
     <Box
+      data-testid={testId ? `${testId}-card` : undefined}
       sx={{
         flex: 1,
         minWidth: 0,
-        borderRadius: "md",
+        borderRadius: "lg",
         border: "1px solid",
-        borderColor: palette.border,
-        backgroundColor: palette.bg,
-        p: 1.75,
+        borderColor: `${palette.color}.outlinedBorder`,
+        bgcolor: "background.surface",
+        p: 4,
       }}
     >
-      <Stack spacing={0.75}>
-        <Stack direction="row" spacing={1} alignItems="center">
-          <Box sx={{ color: palette.accent, display: "inline-flex" }}>
+      <Stack spacing={2}>
+        <Stack direction="row" spacing={2} alignItems="center">
+          <Box sx={{ color: `${palette.color}.plainColor`, display: "inline-flex" }}>
             {palette.icon}
           </Box>
           <Typography
             level="body-xs"
             fontWeight="lg"
             sx={{
-              color: palette.accent,
+              color: `${palette.color}.plainColor`,
               textTransform: "uppercase",
               letterSpacing: "0.06em",
             }}
@@ -198,11 +209,13 @@ function StatCard({ tone, label, value, helper, testId }: StatCardProps) {
           </Typography>
         </Stack>
         <Typography
-          level="h3"
+          component="div"
           sx={{
-            color: "neutral.900",
-            fontWeight: 700,
-            lineHeight: 1,
+            color: "text.primary",
+            fontSize: "xl2",
+            fontWeight: "xl",
+            lineHeight: 1.2,
+            minHeight: "1.2em",
             fontVariantNumeric: "tabular-nums",
           }}
         >
@@ -210,13 +223,13 @@ function StatCard({ tone, label, value, helper, testId }: StatCardProps) {
             <Skeleton
               variant="text"
               data-testid={testId ? `${testId}-skeleton` : undefined}
-              sx={{ width: 60, display: "inline-block" }}
+              sx={{ width: 64, display: "inline-block" }}
             />
           ) : (
             <span data-testid={testId}>{value.toLocaleString()}</span>
           )}
         </Typography>
-        <Typography level="body-xs" sx={{ color: "neutral.600" }}>
+        <Typography level="body-sm" sx={{ color: "text.tertiary" }}>
           {helper}
         </Typography>
       </Stack>
@@ -492,7 +505,7 @@ export function LowCountConfirmDialog({
             }}
           >
             <Stack spacing={0.5}>
-              <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+              <Typography level="body-xs" sx={{ color: "text.tertiary" }}>
                 {isZero
                   ? "Resolved recipient"
                   : "This send will go to one address"}
@@ -1038,15 +1051,16 @@ export function CampaignSendConfirmation({
   ]);
 
   const isBusy = isSaving || isSubmitting;
+  // The same count as the Approved card: the shared eligibility check, plus
+  // any contacts an override adds back.
+  const recipientCountLabel = `${formattedProjectedRecipients} ${projectedRecipientCount === 1 ? "person" : "people"}`;
   const primaryActionLabel = audienceChecking
     ? CHECKING_AUDIENCE_LABEL
     : !audienceReady
       ? NO_ELIGIBLE_RECIPIENTS_MESSAGE
       : !sendImmediately
-        ? `Schedule for ${formattedProjectedRecipients} approved recipients`
-        : overrideActive
-          ? `Send to ${formattedProjectedRecipients} recipients`
-          : `Send to ${formattedProjectedRecipients} approved recipients`;
+        ? `Schedule for ${recipientCountLabel}`
+        : `Send to ${recipientCountLabel}`;
   const primaryActionColor: "primary" | "warning" = overrideActive
     ? "warning"
     : "primary";
@@ -1141,10 +1155,17 @@ export function CampaignSendConfirmation({
         <ModalDialog
           variant="outlined"
           size="md"
-          sx={{ width: "min(680px, calc(100vw - 2rem))", p: 0 }}
+          data-testid="campaign-send-dialog"
+          sx={{
+            width: "min(680px, calc(100vw - 32px))",
+            p: 0,
+            // Every control in the dialog is at least 44px tall.
+            "& .MuiButton-root, & .MuiIconButton-root": { minHeight: 44 },
+            "& .MuiIconButton-root": { minWidth: 44 },
+          }}
         >
           {!isBusy ? <ModalClose /> : null}
-          <Box sx={{ px: 3, pt: 3, pb: 2 }}>
+          <Box sx={{ px: 6, pt: 6, pb: 4 }}>
             <DialogTitle sx={{ p: 0, mb: 0.5 }}>Ready to send</DialogTitle>
             <Typography level="body-sm" sx={{ color: "neutral.600" }}>
               {audienceChecking
@@ -1159,8 +1180,8 @@ export function CampaignSendConfirmation({
             </Typography>
           </Box>
 
-          <DialogContent sx={{ px: 3, py: 0 }}>
-            <Stack spacing={2.25}>
+          <DialogContent sx={{ px: 6, py: 0 }}>
+            <Stack spacing={4}>
               <Typography level="body-sm">
                 Nothing sends until you confirm.
               </Typography>
@@ -1176,7 +1197,7 @@ export function CampaignSendConfirmation({
               >
                 <Stack spacing={1.25}>
                   <Box>
-                    <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+                    <Typography level="body-xs" sx={{ color: "text.tertiary" }}>
                       Campaign
                     </Typography>
                     <Typography level="title-sm" fontWeight="lg">
@@ -1184,7 +1205,7 @@ export function CampaignSendConfirmation({
                     </Typography>
                   </Box>
                   <Box>
-                    <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+                    <Typography level="body-xs" sx={{ color: "text.tertiary" }}>
                       Subject line
                     </Typography>
                     <Typography level="body-sm">
@@ -1193,7 +1214,7 @@ export function CampaignSendConfirmation({
                   </Box>
                   <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
                     <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+                      <Typography level="body-xs" sx={{ color: "text.tertiary" }}>
                         From
                       </Typography>
                       <Typography
@@ -1206,7 +1227,7 @@ export function CampaignSendConfirmation({
                       </Typography>
                     </Box>
                     <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+                      <Typography level="body-xs" sx={{ color: "text.tertiary" }}>
                         Reply-to
                       </Typography>
                       <Typography
@@ -1217,7 +1238,7 @@ export function CampaignSendConfirmation({
                       </Typography>
                     </Box>
                   </Stack>
-                  <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+                  <Typography level="body-xs" sx={{ color: "text.tertiary" }}>
                     {sendImmediately
                       ? "Delivery starts as soon as the queue is accepted."
                       : `Scheduled for ${sendAt?.toLocaleString() ?? "later"}.`}
@@ -1228,7 +1249,8 @@ export function CampaignSendConfirmation({
               {/* Stat cards: Approved / Protected / Blocked */}
               <Stack
                 direction={{ xs: "column", sm: "row" }}
-                spacing={1.25}
+                spacing={4}
+                data-testid="send-stat-cards"
                 sx={{ width: "100%" }}
               >
                 <StatCard
@@ -1255,12 +1277,13 @@ export function CampaignSendConfirmation({
               </Stack>
 
               {/* Section A — Campaign is ready */}
-              <Stack spacing={1.25}>
+              <Stack spacing={2}>
                 <Typography
                   level="body-xs"
                   fontWeight="lg"
+                  data-testid="send-checklist-title"
                   sx={{
-                    color: "neutral.500",
+                    color: "text.tertiary",
                     textTransform: "uppercase",
                     letterSpacing: "0.06em",
                   }}
@@ -1273,19 +1296,19 @@ export function CampaignSendConfirmation({
                         ? "Audience not checked"
                         : NO_ELIGIBLE_RECIPIENTS_MESSAGE}
                 </Typography>
-                <Stack spacing={1.25}>
+                <Stack component="ul" spacing={1} data-testid="send-checklist" sx={{ m: 0, p: 0, listStyle: "none" }}>
                   {readyRows.map((row) => (
                     <ReadyRow key={row.id} row={row} />
                   ))}
                 </Stack>
                 {!healthQuery.isLoading && reputationScore === null ? (
-                  <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+                  <Typography level="body-xs" sx={{ color: "text.tertiary" }}>
                     Your sender reputation will appear after enough campaign
                     activity is available.
                   </Typography>
                 ) : null}
                 {!domainsLoading && domainReady ? (
-                  <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+                  <Typography level="body-xs" sx={{ color: "text.tertiary" }}>
                     Your sending domain is authenticated and ready.
                   </Typography>
                 ) : null}
@@ -1304,7 +1327,7 @@ export function CampaignSendConfirmation({
                     level="body-xs"
                     fontWeight="lg"
                     sx={{
-                      color: "neutral.500",
+                      color: "text.tertiary",
                       textTransform: "uppercase",
                       letterSpacing: "0.06em",
                     }}
@@ -1336,7 +1359,7 @@ export function CampaignSendConfirmation({
                     Holding these contacts back keeps your inbox health strong
                     and protects you from spam complaints.
                   </Typography>
-                  <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+                  <Typography level="body-xs" sx={{ color: "text.tertiary" }}>
                     Most campaigns hold a few contacts back. That's normal and
                     it's how providers keep trusting you.
                   </Typography>
@@ -1598,7 +1621,7 @@ export function CampaignSendConfirmation({
           </DialogContent>
 
           <Divider />
-          <DialogActions sx={{ px: 3, py: 2 }}>
+          <DialogActions sx={{ px: 6, py: 4 }}>
             <Box
               sx={{
                 display: "flex",
@@ -1619,19 +1642,11 @@ export function CampaignSendConfirmation({
               </JoyButton>
               <Stack
                 direction="row"
-                spacing={1}
-                sx={{ ml: "auto", flexWrap: "wrap" }}
+                spacing={2}
+                useFlexGap
+                justifyContent="flex-end"
+                sx={{ ml: "auto", flexWrap: "wrap", maxWidth: "100%" }}
               >
-                {onSchedule ? (
-                  <JoyButton
-                    variant="outlined"
-                    color="neutral"
-                    disabled={isBusy || approvalBlocked || !audienceReady}
-                    onClick={onSchedule}
-                  >
-                    Choose send time
-                  </JoyButton>
-                ) : null}
                 {hasProtectedExclusions ? (
                   <JoyButton
                     variant="outlined"
@@ -1642,13 +1657,25 @@ export function CampaignSendConfirmation({
                     Confirm permission / review contacts
                   </JoyButton>
                 ) : null}
+                {onSchedule ? (
+                  <JoyButton
+                    variant="outlined"
+                    color="neutral"
+                    disabled={isBusy || approvalBlocked || !audienceReady}
+                    onClick={onSchedule}
+                    data-testid="campaign-send-choose-time"
+                  >
+                    Choose send time
+                  </JoyButton>
+                ) : null}
                 <JoyButton
                   variant="solid"
                   color={primaryActionColor}
                   loading={isBusy}
                   disabled={primaryActionDisabled}
                   onClick={() => void handleSubmit()}
-                  startDecorator={<Send size={16} />}
+                  startDecorator={<Send size={16} aria-hidden />}
+                  data-testid="campaign-send-primary"
                   sx={{
                     transition:
                       "background-color 200ms ease, border-color 200ms ease, color 200ms ease, box-shadow 200ms ease",

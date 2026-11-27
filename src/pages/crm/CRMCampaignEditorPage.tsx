@@ -41,6 +41,7 @@ import DialogContent from "@mui/joy/DialogContent";
 import DialogTitle from "@mui/joy/DialogTitle";
 import Modal from "@mui/joy/Modal";
 import ModalDialog from "@mui/joy/ModalDialog";
+import ModalClose from "@mui/joy/ModalClose";
 import Sheet from "@mui/joy/Sheet";
 import Skeleton from "@mui/joy/Skeleton";
 import Stack from "@mui/joy/Stack";
@@ -89,6 +90,7 @@ import { CampaignDesignSummary } from "@/components/crm/campaign-editor/Campaign
 import { CampaignLivePreview } from "@/components/crm/campaign-editor/CampaignLivePreview";
 import { CampaignSenderStep } from "@/components/crm/campaign-editor/CampaignSenderStep";
 import {
+  campaignEditorCardGap,
   campaignEditorFocusOutline,
   campaignEditorPageSx,
 } from "@/components/crm/campaign-editor/campaignEditorTheme";
@@ -153,7 +155,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import {
   CHECKING_AUDIENCE_LABEL,
+  CUSTOMER_EMAIL_REASON_LABELS,
   NO_ELIGIBLE_RECIPIENTS_MESSAGE,
+  UNSENDABLE_EMAIL_REASONS,
   useCampaignEmailEligibility,
   useCustomerEmailEligibility,
 } from "@/hooks/useCampaignEmailEligibility";
@@ -759,6 +763,7 @@ function CampaignEditorScreen() {
   const [senderConfigOpen, setSenderConfigOpen] = React.useState(false);
   const [previewUnavailableOpen, setPreviewUnavailableOpen] =
     React.useState(false);
+  const [unsendableInfoOpen, setUnsendableInfoOpen] = React.useState(false);
   const [audienceExpansionOpen, setAudienceExpansionOpen] =
     React.useState(false);
   const [audienceExpansionMode, setAudienceExpansionMode] =
@@ -2083,9 +2088,9 @@ function CampaignEditorScreen() {
           bgcolor: "background.body",
           borderBottom: "1px solid",
           borderColor: "divider",
-          pt: { xs: 1.5, md: 2 },
-          pb: 1.5,
-          mb: 2,
+          pt: 4,
+          pb: 4,
+          mb: 4,
         }}
       >
         <Box
@@ -2107,13 +2112,16 @@ function CampaignEditorScreen() {
           <ArrowLeft size={16} aria-hidden />
           Back to campaigns
         </Box>
+        {/* Title block and controls share one row from md up; the controls
+            sit on the chip row's line (flex-end). Below 600px the buttons
+            stack full width under the title. */}
         <Stack
           direction={{ xs: "column", md: "row" }}
-          spacing={{ xs: 1.5, md: 3 }}
+          spacing={{ xs: 4, md: 6 }}
           justifyContent="space-between"
           alignItems={{ xs: "stretch", md: "flex-end" }}
         >
-          <Stack spacing={0.75} sx={{ minWidth: 0, flex: 1 }}>
+          <Stack spacing={1} sx={{ minWidth: 0, flex: 1 }}>
             <Typography
               component="label"
               htmlFor="campaign-editor-name"
@@ -2174,25 +2182,38 @@ function CampaignEditorScreen() {
                 Using a default name
               </Typography>
             ) : null}
-            <Stack direction="row" spacing={1} alignItems="center" useFlexGap flexWrap="wrap">
-              <JoyStatusChip status={status} />
-              <JoyChip variant="soft" color="neutral" size="sm">
+            <Stack
+              direction="row"
+              spacing={2}
+              alignItems="center"
+              useFlexGap
+              flexWrap="wrap"
+              data-testid="campaign-editor-header-meta"
+              sx={{ minHeight: 44 }}
+            >
+              {/* Status and type are facts, not alerts: soft neutral. */}
+              <JoyStatusChip status={status} tone="neutral" data-testid="campaign-editor-status-chip" />
+              <JoyChip variant="soft" color="neutral" size="sm" data-testid="campaign-editor-type-chip">
                 {campaignType === "email" ? "Email" : "SMS"}
               </JoyChip>
               {campaignGroups.map((group) => (
                 <Chip
                   key={group.id}
-                  variant="outlined"
+                  variant="soft"
                   color="neutral"
                   size="sm"
                   data-testid="campaign-editor-group-chip"
                   startDecorator={
+                    // The group's own colour, as an 8px dot only. The chip
+                    // and its text stay neutral so any colour reads.
                     <Box
                       component="span"
                       aria-hidden
-                      sx={{ width: 10, height: 10, borderRadius: "xs", bgcolor: group.colour }}
+                      data-testid="campaign-editor-group-dot"
+                      sx={{ width: 8, height: 8, flexShrink: 0, borderRadius: "50%", bgcolor: group.colour }}
                     />
                   }
+                  sx={{ "--Chip-gap": "8px", maxWidth: "100%" }}
                 >
                   {group.name}
                 </Chip>
@@ -2211,13 +2232,20 @@ function CampaignEditorScreen() {
                   color="neutral"
                   size="sm"
                   onClick={() => void saveDraft({ silent: false })}
+                  sx={{ minHeight: 44 }}
                 >
                   Couldn’t save · Retry
                 </JoyButton>
               ) : null}
             </Stack>
           </Stack>
-          <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }} useFlexGap flexWrap="wrap">
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={2}
+            alignItems={{ xs: "stretch", sm: "center" }}
+            data-testid="campaign-editor-header-actions"
+            sx={{ flexShrink: 0, width: { xs: "100%", md: "auto" } }}
+          >
             {campaignType === "email" ? (
               // A disabled button fires no pointer events, so the tooltip
               // listens on the wrapper instead.
@@ -2225,7 +2253,7 @@ function CampaignEditorScreen() {
                 <Box
                   component="span"
                   data-testid="campaign-editor-send-test-wrapper"
-                  sx={{ display: "inline-flex", flex: { xs: 1, md: "none" } }}
+                  sx={{ display: "inline-flex", flex: { xs: "none", sm: 1, md: "none" }, width: { xs: "100%", sm: "auto" } }}
                 >
                   <JoyButton
                     variant="outlined"
@@ -2234,7 +2262,7 @@ function CampaignEditorScreen() {
                     data-testid="campaign-editor-send-test-cta"
                     disabled={isLocked || !hasMeaningfulEmailContent}
                     onClick={() => setTestSendOpen(true)}
-                    sx={{ flex: 1, fontSize: 15, px: 2 }}
+                    sx={{ flex: 1, minHeight: 44, fontSize: "md", px: 4 }}
                   >
                     Send test
                   </JoyButton>
@@ -2248,9 +2276,11 @@ function CampaignEditorScreen() {
               aria-describedby={sendBlockers.length > 0 || eligibilityChecking ? "campaign-editor-readiness" : undefined}
               onClick={handleScheduleForLater}
               sx={{
-                flex: { xs: 1, md: "none" },
-                fontSize: 15,
-                px: 2.5,
+                flex: { xs: "none", sm: 1, md: "none" },
+                width: { xs: "100%", sm: "auto" },
+                minHeight: 44,
+                fontSize: "md",
+                px: 5,
                 // Disabled until the readiness bar is clear; keep the label legible.
                 "&.Mui-disabled": { bgcolor: "neutral.200", color: "text.secondary" },
               }}
@@ -2261,7 +2291,8 @@ function CampaignEditorScreen() {
         </Stack>
       </Box>
 
-      <Box id="campaign-editor-readiness" sx={{ mb: sendBlockers.length > 0 || eligibilityChecking ? 2 : 0 }}>
+      {/* Always one row: what is left to fix, "Checking audience", or ready. */}
+      <Box id="campaign-editor-readiness" sx={{ mb: campaignEditorCardGap }}>
         <CampaignReadinessBar
           blockers={sendBlockers}
           checking={eligibilityChecking}
@@ -2281,7 +2312,7 @@ function CampaignEditorScreen() {
         sx={{
           display: "grid",
           gridTemplateColumns: "minmax(0, 1fr)",
-          gap: 3,
+          gap: campaignEditorCardGap,
           alignItems: "start",
           "@media (min-width: 1100px)": {
             gridTemplateColumns:
@@ -2289,7 +2320,7 @@ function CampaignEditorScreen() {
           },
         }}
       >
-        <Stack spacing={2} data-testid="campaign-editor-steps" sx={{ minWidth: 0 }}>
+        <Stack spacing={campaignEditorCardGap} data-testid="campaign-editor-steps" sx={{ minWidth: 0 }}>
           <CampaignEditorStep
             id="campaign-editor-content"
             number={stepNumber.content}
@@ -2572,77 +2603,125 @@ function CampaignEditorScreen() {
                 variant="outlined"
                 data-testid="audience-consent-breakdown"
                 aria-busy={eligibilityChecking}
-                sx={{ borderRadius: "md", p: 1.75 }}
+                sx={{ borderRadius: "lg", borderColor: "divider", p: 4 }}
               >
-                <Stack spacing={1.25}>
+                <Stack spacing={4}>
                   <Stack
                     direction="row"
-                    spacing={1}
+                    spacing={2}
                     alignItems="center"
                     justifyContent="space-between"
+                    useFlexGap
+                    flexWrap="wrap"
                   >
                     <Typography
                       level="body-xs"
                       fontWeight="lg"
                       sx={{
-                        color: "neutral.500",
+                        color: "text.tertiary",
                         textTransform: "uppercase",
                         letterSpacing: "0.06em",
                       }}
                     >
                       Who can receive this campaign
                     </Typography>
-                    <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+                    <Typography level="body-sm" sx={{ color: "text.tertiary" }}>
                       {eligibility ? `${eligibility.total.toLocaleString()} total` : CHECKING_AUDIENCE_LABEL}
                     </Typography>
                   </Stack>
                   <Box
+                    data-testid="audience-bucket-grid"
                     sx={{
                       display: "grid",
+                      // Five columns from 600px; two on phones so the labels
+                      // keep whole words.
                       gridTemplateColumns: {
                         xs: "repeat(2, minmax(0, 1fr))",
                         sm: "repeat(5, minmax(0, 1fr))",
                       },
-                      gap: 1.25,
+                      gap: 4,
                     }}
                   >
                     {[
-                      { id: "eligible", label: CRM_COPY.optedIn, value: eligibility?.eligible, color: "success.700" },
-                      {
-                        id: "waiting",
-                        label: "Waiting for permission",
-                        value: eligibility?.waiting,
-                        color: eligibility && eligibility.waiting > 0 ? "warning.700" : "neutral.700",
-                      },
-                      { id: "asked-to-stop", label: CRM_COPY.optedOutPlural, value: eligibility?.askedToStop, color: "neutral.700" },
-                      { id: "never-opted-in", label: CRM_COPY.neverOptedIn, value: eligibility?.neverOptedIn, color: "neutral.700" },
-                      { id: "unsendable", label: "Can't be sent to", value: eligibility?.unsendable, color: "neutral.700" },
-                    ].map((bucket) => (
-                      <Box key={bucket.id} data-testid={`audience-bucket-${bucket.id}`}>
-                        <Typography
-                          level="title-md"
-                          sx={{ color: bucket.color, lineHeight: 1 }}
+                      { id: "eligible", label: CRM_COPY.optedIn, value: eligibility?.eligible, activeColor: "success.plainColor" },
+                      { id: "waiting", label: "Waiting for permission", value: eligibility?.waiting, activeColor: "warning.plainColor" },
+                      { id: "asked-to-stop", label: CRM_COPY.optedOutPlural, value: eligibility?.askedToStop, activeColor: "text.primary" },
+                      { id: "never-opted-in", label: CRM_COPY.neverOptedIn, value: eligibility?.neverOptedIn, activeColor: "text.primary" },
+                      { id: "unsendable", label: "Can't be sent to", value: eligibility?.unsendable, activeColor: "warning.plainColor" },
+                    ].map((bucket) => {
+                      // A bucket with nobody in it is muted; one with people
+                      // takes its colour. Labels follow the number, so the
+                      // warning buckets read as warnings when above 0.
+                      const empty = bucket.value === 0;
+                      const tone = empty ? "text.tertiary" : bucket.activeColor;
+                      return (
+                        <Box
+                          key={bucket.id}
+                          data-testid={`audience-bucket-${bucket.id}`}
+                          data-empty={empty || undefined}
+                          sx={{ minWidth: 0 }}
                         >
-                          {bucket.value === undefined ? (
-                            <Skeleton variant="text" sx={{ width: 40 }} />
-                          ) : (
-                            bucket.value.toLocaleString()
-                          )}
-                        </Typography>
-                        <Typography
-                          level="body-xs"
-                          sx={{ color: "neutral.600", mt: 0.5 }}
-                        >
-                          {bucket.label}
-                        </Typography>
-                      </Box>
-                    ))}
+                          <Typography
+                            component="div"
+                            data-testid={`audience-bucket-${bucket.id}-value`}
+                            sx={{
+                              fontSize: "xl",
+                              fontWeight: empty ? "md" : "xl",
+                              lineHeight: 1.2,
+                              color: tone,
+                              fontVariantNumeric: "tabular-nums",
+                            }}
+                          >
+                            {bucket.value === undefined ? (
+                              <Skeleton variant="text" sx={{ width: 40 }} />
+                            ) : (
+                              bucket.value.toLocaleString()
+                            )}
+                          </Typography>
+                          <Typography
+                            level="body-sm"
+                            data-testid={`audience-bucket-${bucket.id}-label`}
+                            sx={{ color: empty || bucket.activeColor === "text.primary" ? "text.tertiary" : tone, mt: 1 }}
+                          >
+                            {bucket.label}
+                          </Typography>
+                          {bucket.id === "unsendable" && (bucket.value ?? 0) > 0 ? (
+                            <Box
+                              component="button"
+                              type="button"
+                              data-testid="audience-unsendable-why"
+                              aria-haspopup="dialog"
+                              onClick={() => setUnsendableInfoOpen(true)}
+                              sx={{
+                                all: "unset",
+                                boxSizing: "border-box",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 1,
+                                minHeight: 44,
+                                cursor: "pointer",
+                                typography: "body-sm",
+                                fontWeight: "lg",
+                                color: "warning.plainColor",
+                                textDecoration: "underline",
+                                textUnderlineOffset: "3px",
+                                borderRadius: "md",
+                                "&:focus-visible": { outline: campaignEditorFocusOutline, outlineOffset: 2 },
+                              }}
+                            >
+                              <Info size={16} aria-hidden />
+                              Why?
+                            </Box>
+                          ) : null}
+                        </Box>
+                      );
+                    })}
                   </Box>
                   {eligibility && eligibility.duplicates > 0 ? (
                     <Typography
-                      level="body-xs"
+                      level="body-sm"
                       data-testid="audience-duplicate-note"
-                      sx={{ color: "neutral.600" }}
+                      sx={{ color: "text.tertiary" }}
                     >
                       {eligibility.duplicates.toLocaleString()} more{" "}
                       {eligibility.duplicates === 1 ? "contact shares" : "contacts share"} an
@@ -2911,6 +2990,36 @@ function CampaignEditorScreen() {
           </Box>
         ) : null}
       </Box>
+      <Modal open={unsendableInfoOpen} onClose={() => setUnsendableInfoOpen(false)}>
+        <ModalDialog
+          aria-labelledby="audience-unsendable-title"
+          data-testid="audience-unsendable-info"
+          sx={{ width: "min(520px, calc(100vw - 32px))", p: 6 }}
+        >
+          <ModalClose />
+          <DialogTitle id="audience-unsendable-title">Why some contacts can&apos;t be sent to</DialogTitle>
+          <DialogContent>
+            <Stack spacing={4}>
+              <Typography level="body-md" sx={{ color: "text.secondary" }}>
+                These contacts have an email address, but the send would skip it.
+                The send applies the same check, so they are left out of the count above.
+              </Typography>
+              <Stack component="ul" spacing={3} sx={{ m: 0, p: 0, listStyle: "none" }}>
+                {UNSENDABLE_EMAIL_REASONS.map(({ reason, detail }) => (
+                  <Box component="li" key={reason}>
+                    <Typography level="title-sm" sx={{ fontWeight: "xl", color: "text.primary" }}>
+                      {CUSTOMER_EMAIL_REASON_LABELS[reason]}
+                    </Typography>
+                    <Typography level="body-sm" sx={{ color: "text.secondary" }}>
+                      {detail}
+                    </Typography>
+                  </Box>
+                ))}
+              </Stack>
+            </Stack>
+          </DialogContent>
+        </ModalDialog>
+      </Modal>
       <Modal
         open={audienceExpansionOpen}
         onClose={() => setAudienceExpansionOpen(false)}

@@ -177,6 +177,30 @@ export const CUSTOMER_EMAIL_REASON_LABELS = {
 
 export type CustomerEmailReason = keyof typeof CUSTOMER_EMAIL_REASON_LABELS;
 
+/**
+ * The reasons counted in the "Can't be sent to" (unsendable) bucket, in the
+ * order docs/email-eligibility.md lists them, each with a one-line
+ * explanation for the Audience panel.
+ */
+export const UNSENDABLE_EMAIL_REASONS = [
+  {
+    reason: "undeliverable_address",
+    detail: "The address is malformed, a placeholder, or on a reserved test domain such as example.com.",
+  },
+  {
+    reason: "blocked",
+    detail: "The address is on a block list, so email to it is never sent.",
+  },
+  {
+    reason: "bounced",
+    detail: "Earlier email to this address bounced.",
+  },
+  {
+    reason: "shared_blocked_address",
+    detail: "Another contact with the same address has email turned off or is suppressed, so the address is skipped.",
+  },
+] as const satisfies ReadonlyArray<{ reason: CustomerEmailReason; detail: string }>;
+
 export interface CustomerEmailEligibility {
   customerId: string;
   canReceive: boolean;
