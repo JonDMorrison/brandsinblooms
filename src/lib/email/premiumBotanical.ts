@@ -28,7 +28,7 @@ export function bloomEmailIcon(_name:BloomEmailIcon,_size=44):string{
 function verifiedLink(v:string):string{
   try{const u=new URL(v);return u.protocol==="https:"&&!u.username&&!u.password&&u.href.length<=2048?u.href:"";}catch{return "";}
 }
-export function bloomEmailFact(label:string,value:string,icon:BloomEmailIcon="leaf"):string{
+export function bloomEmailFact(label:string,value:string,_icon:BloomEmailIcon="leaf"):string{
  const t=BLOOM_EMAIL;return '<tr><td valign="top" style="padding:14px 2px;border-bottom:1px solid '+t.border+';font-size:15px;line-height:1.65;color:'+t.body+'"><strong style="color:'+t.navy+'">'+bloomEmailEscape(label)+
  '</strong><span>&nbsp; · &nbsp;</span>'+bloomEmailEscape(value)+'</td></tr>';
 }
