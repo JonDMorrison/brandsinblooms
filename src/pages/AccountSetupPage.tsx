@@ -24,6 +24,7 @@ import {
 import { SetupStepCard } from '@/components/account-setup/SetupStepCard';
 import { SetupCelebration } from '@/components/account-setup/SetupCelebration';
 import { useAccountSetupProgress } from '@/hooks/useAccountSetupProgress';
+import { PageTitle } from "@/components/joy/PageHeader";
 
 const AccountSetupPage: React.FC = () => {
   const navigate = useNavigate();
@@ -88,7 +89,7 @@ const AccountSetupPage: React.FC = () => {
           <span className="font-medium text-primary">Account Setup</span>
         </div>
         
-        <h1 className="text-3xl font-bold">Let's get you set up for success!</h1>
+        <PageTitle>Let's get you set up for success!</PageTitle>
         <p className="text-muted-foreground max-w-lg mx-auto">
           Complete these steps to unlock the full power of BloomSuite. 
           Don't worry — you can skip any step and come back later.

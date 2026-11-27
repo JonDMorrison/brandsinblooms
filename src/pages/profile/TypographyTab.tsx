@@ -218,7 +218,7 @@ export const TypographyTab = () => {
         </CardHeader>
         <CardContent className="space-y-6 bg-muted/30 p-8 rounded-lg">
           {currentHeadline && (
-            <h1 
+            <h2
               style={{ 
                 fontFamily: currentHeadline.fontFamilyCss,
                 fontSize: '32px',
@@ -228,7 +228,7 @@ export const TypographyTab = () => {
               }}
             >
               Main Headline Goes Here
-            </h1>
+            </h2>
           )}
           
           {currentSubheading && (

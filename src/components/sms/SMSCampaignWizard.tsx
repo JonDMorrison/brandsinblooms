@@ -71,6 +71,7 @@ import {
 } from "@/lib/sms/smsSegmentCounter";
 
 import { loadConnectedSmsDraft, saveConnectedSmsDraft, type SmsCampaignDraft, type SmsDraftAudience } from "@/lib/sms/campaignDraft";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 type WizardStepKey = "details" | "audience" | "content" | "schedule" | "review";
 
@@ -1277,12 +1278,7 @@ export function SMSCampaignWizard() {
               >
                 Guided Campaign Builder
               </Chip>
-              <Typography
-                level="h2"
-                sx={{ fontWeight: 700, letterSpacing: "-0.03em" }}
-              >
-                Launch SMS campaigns with a deliberate, review-first workflow.
-              </Typography>
+              <PageTitle>Launch SMS campaigns with a deliberate, review-first workflow.</PageTitle>
               <Typography
                 level="body-sm"
                 color="neutral"

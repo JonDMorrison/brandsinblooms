@@ -32,6 +32,7 @@ import {
 } from "@/components/joy/JoyTable";
 import { useProducts, useProductMutations } from "@/hooks/useProducts";
 import { ProductFilters, ProductSource, ProductStatus } from "@/types/product";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 const SOURCE_LABELS: Record<ProductSource, string> = {
   platform: "Platform",
@@ -273,18 +274,7 @@ export default function ProductsPage() {
           alignItems={{ xs: "flex-start", sm: "center" }}
         >
           <Stack spacing={0.75} sx={{ minWidth: 0 }}>
-            <Typography
-              level="h1"
-              sx={{
-                fontSize: "22px",
-                fontWeight: 700,
-                color: "neutral.900",
-                fontFamily: "var(--joy-fontFamily-body)",
-                letterSpacing: "-0.01em",
-              }}
-            >
-              Products
-            </Typography>
+            <PageTitle>Products</PageTitle>
             <Typography
               level="body-sm"
               sx={{

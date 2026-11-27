@@ -525,15 +525,15 @@ export const joyTheme = extendTheme({
   },
   typography: {
     h1: {
-      fontFamily: "var(--joy-fontFamily-body)",
+      fontFamily: "var(--joy-fontFamily-display)",
       fontSize: "1.5rem",
       fontWeight: "var(--joy-fontWeight-bold)",
       lineHeight: 1.2,
       letterSpacing: "-0.02em",
-      color: "var(--joy-palette-neutral-900)",
+      color: "var(--joy-palette-text-primary)",
     },
     h2: {
-      fontFamily: "var(--joy-fontFamily-body)",
+      fontFamily: "var(--joy-fontFamily-display)",
       fontSize: "1.125rem",
       fontWeight: "var(--joy-fontWeight-semibold)",
       lineHeight: 1.2,
@@ -541,14 +541,14 @@ export const joyTheme = extendTheme({
       color: "var(--joy-palette-neutral-800)",
     },
     h3: {
-      fontFamily: "var(--joy-fontFamily-body)",
+      fontFamily: "var(--joy-fontFamily-display)",
       fontSize: "1rem",
       fontWeight: "var(--joy-fontWeight-semibold)",
       lineHeight: 1.4,
       color: "var(--joy-palette-neutral-800)",
     },
     h4: {
-      fontFamily: "var(--joy-fontFamily-body)",
+      fontFamily: "var(--joy-fontFamily-display)",
       fontSize: "var(--joy-fontSize-sm)",
       fontWeight: "var(--joy-fontWeight-semibold)",
       lineHeight: 1.4,

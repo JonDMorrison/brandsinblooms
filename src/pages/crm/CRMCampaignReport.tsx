@@ -77,6 +77,7 @@ import {
   type CampaignCatalogItem,
   type CampaignEditorRecord,
 } from "@/lib/crm/campaignEditor";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 type ReportTimelinePoint = {
   hour: number;
@@ -1349,18 +1350,12 @@ export default function CRMCampaignReport() {
                   <ReportHeaderTitleSkeleton />
                 ) : (
                   <Stack spacing={0.75} sx={{ minWidth: 0, flex: 1 }}>
-                    <Typography
-                      level="h3"
-                      fontWeight="lg"
+                    <PageTitle
                       title={report?.campaign.name}
-                      sx={{
-                        lineHeight: 1.05,
-                        letterSpacing: 0,
-                        wordBreak: "break-word",
-                      }}
+                      sx={{ wordBreak: "break-word" }}
                     >
                       {displayCampaignName}
-                    </Typography>
+                    </PageTitle>
                     <Stack
                       direction="row"
                       spacing={1}

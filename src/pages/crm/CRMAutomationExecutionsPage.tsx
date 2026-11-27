@@ -35,6 +35,7 @@ import {
   useAutomationRuns,
   type AutomationRun,
 } from "@/hooks/useScheduledAutomationTasks";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 const STATUS_OPTIONS = [
   { value: "all", label: "All statuses" },
@@ -136,7 +137,7 @@ export const CRMAutomationExecutionsPage: React.FC = () => {
                   <History size={18} />
                 </Avatar>
                 <Box>
-                  <Typography level="h2">Execution history</Typography>
+                  <PageTitle>Execution history</PageTitle>
                   <Typography
                     level="body-sm"
                     sx={{ color: "neutral.600", mt: 0.5 }}

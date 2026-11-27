@@ -46,6 +46,7 @@ import {
   MoreHorizontal,
 } from "lucide-react";
 import { toast } from "sonner";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 interface HealthMetric {
   name: string;
@@ -332,7 +333,7 @@ const AnalyticsHealthPage = () => {
           spacing={2}
         >
           <Stack spacing={0.5}>
-            <Typography level="h2">Data pipeline health</Typography>
+            <PageTitle>Data pipeline health</PageTitle>
             <Typography level="body-sm" color="neutral">
               Whether email results (opens, clicks, bounces) are arriving from
               the email providers and being counted. For developers.

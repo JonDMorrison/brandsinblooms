@@ -35,6 +35,7 @@ import { SMSComposer } from "@/components/sms/SMSComposer";
 import { useAuth } from "@/hooks/useAuth";
 import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 interface AutomationStep {
   id: string;
@@ -1088,9 +1089,7 @@ export default function SMSAutomationWizard() {
               </Breadcrumbs>
 
               <Stack spacing={0.5}>
-                <Typography level="h3" fontWeight="lg">
-                  {title}
-                </Typography>
+                <PageTitle>{title}</PageTitle>
                 <Typography level="body-sm" color="neutral">
                   {subtitle}
                 </Typography>

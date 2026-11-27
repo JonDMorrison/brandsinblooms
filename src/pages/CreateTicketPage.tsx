@@ -12,6 +12,7 @@ import { NativeSelect } from '@/components/ui-legacy/NativeSelect';
 import { ArrowLeft } from 'lucide-react';
 import { useCreateTicket } from '@/hooks/helpdesk/useCreateTicket';
 import { useCategories } from '@/hooks/helpdesk/useCategories';
+import { PageTitle } from "@/components/joy/PageHeader";
 
 const formSchema = z.object({
   subject: z.string().min(5, 'Subject must be at least 5 characters').max(200),
@@ -57,7 +58,7 @@ const CreateTicketPage = () => {
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Create Internal Ticket</h1>
+          <PageTitle>Create Internal Ticket</PageTitle>
           <p className="text-muted-foreground mt-1">
             Track an issue inside your own team's help desk. These tickets are not sent to BloomSuite.
           </p>

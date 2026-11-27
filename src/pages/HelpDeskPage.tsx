@@ -8,6 +8,7 @@ import { useIsSuperAdmin } from '@/hooks/useIsSuperAdmin';
 import { useAuth } from '@/contexts/AuthContext';
 import { TicketStatusBadge } from '@/components/helpdesk/TicketStatusBadge';
 import { TicketPriorityBadge } from '@/components/helpdesk/TicketPriorityBadge';
+import { PageTitle } from "@/components/joy/PageHeader";
 
 const HelpDeskPage = () => {
   const navigate = useNavigate();
@@ -25,7 +26,7 @@ const HelpDeskPage = () => {
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Help Desk</h1>
+          <PageTitle>Help Desk</PageTitle>
           <p className="text-muted-foreground mt-1">
             Your team's internal tickets. These are not sent to BloomSuite.
           </p>

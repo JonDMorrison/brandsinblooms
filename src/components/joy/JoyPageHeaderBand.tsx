@@ -4,6 +4,7 @@ import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
 import type { SxProps } from "@mui/joy/styles/types";
 import { mergeSx } from "@/components/joy/mergeSx";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 export type JoyPageHeaderBandProps = {
   title: React.ReactNode;
@@ -45,18 +46,7 @@ export function JoyPageHeaderBand({
         sx={contentSx}
       >
         <Stack spacing={1} sx={{ minWidth: 0, flex: 1 }}>
-          <Typography
-            level="h3"
-            sx={{
-              fontFamily: "var(--joy-fontFamily-body)",
-              fontSize: "24px",
-              fontWeight: 700,
-              lineHeight: 1.2,
-              color: "neutral.900",
-            }}
-          >
-            {title}
-          </Typography>
+          <PageTitle>{title}</PageTitle>
           {description ? (
             <Typography
               level="body-sm"

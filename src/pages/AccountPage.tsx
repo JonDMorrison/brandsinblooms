@@ -35,6 +35,7 @@ import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { getBusinessProfileUserId } from "@/lib/profile/businessProfileUserId";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 type AccountTabValue = "general" | "business" | "billing" | "usage" | "danger";
 type LoadStatus = "idle" | "loading" | "ready";
@@ -695,9 +696,7 @@ const AccountPage = () => {
   return (
     <ProtectedPageWrapper>
       <Box sx={{ maxWidth: 900, mx: "auto", py: 4, px: { xs: 2, sm: 3 } }}>
-        <Typography level="h3" fontWeight={700} sx={{ mb: 0.5 }}>
-          Account
-        </Typography>
+        <PageTitle sx={{ mb: 0.5 }}>Account</PageTitle>
         <Typography level="body-sm" sx={{ color: "text.tertiary", mb: 3 }}>
           Manage your profile, business details, billing, and account settings.
         </Typography>

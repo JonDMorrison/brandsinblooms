@@ -13,6 +13,7 @@ import { PageContainer } from "@/components/joy/PageContainer";
 import { bloomSupport } from "@/lib/bloomSupport/api";
 import { supabase } from "@/integrations/supabase/client";
 import { SUPABASE_URL } from "@/integrations/supabase/config";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 const ROLE_LABEL: Record<string, string> = {
   platform_admin: "Platform administrator",
@@ -77,7 +78,7 @@ export default function BloomSupportConnectPage() {
     <PageContainer sx={{ maxWidth: 560 }}>
       <Sheet variant="outlined" sx={{ p: 3, borderRadius: "lg" }}>
         <Stack spacing={2}>
-          <Typography level="h3">Connect {request.client_name} to Bloom Support</Typography>
+          <PageTitle>Connect {request.client_name} to Bloom Support</PageTitle>
           {!valid && <Alert color="danger">This link is incomplete. Start the connection again from your assistant.</Alert>}
           {me.isLoading && <Skeleton variant="rectangular" height={80} />}
           {me.data && me.data.role === "client" && <Alert color="danger">Only Brands in Blooms staff can connect an assistant to Bloom Support.</Alert>}

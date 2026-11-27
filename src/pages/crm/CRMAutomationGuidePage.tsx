@@ -14,6 +14,7 @@ import { PageContainer } from "@/components/joy/PageContainer";
 import { getTemplatesForTrigger } from "@/lib/campaignTemplates";
 import { getPresetFlowById } from "@/utils/automationPresetFlows";
 import { useLocation } from "react-router-dom";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 const GuidedAutomationBuilder = lazy(() =>
   import("@/components/automation/GuidedAutomationBuilder").then((m) => ({
@@ -262,7 +263,7 @@ export const CRMAutomationGuidePage: React.FC = () => {
             alignItems={{ xs: "flex-start", md: "center" }}
           >
             <div>
-              <Typography level="h2">Build Your Custom Automation</Typography>
+              <PageTitle>Build Your Custom Automation</PageTitle>
               <Typography
                 level="body-sm"
                 sx={{ color: "neutral.600", mt: 0.5 }}

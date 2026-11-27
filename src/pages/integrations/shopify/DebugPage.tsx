@@ -13,6 +13,7 @@ import { Button } from "@/components/ui-legacy/button";
 import { useToast } from "@/hooks/use-toast";
 import { useIsSuperAdmin } from "@/hooks/useIsSuperAdmin";
 import { supabase } from "@/integrations/supabase/client";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 type DiagnosticStatus = "pass" | "warn" | "fail";
 
@@ -169,7 +170,7 @@ export default function ShopifyDebugPage() {
     return (
       <div className="container mx-auto max-w-5xl space-y-6 px-4 py-8">
         <Card className="p-6">
-          <h1 className="text-xl font-semibold">Checking permissions...</h1>
+          <PageTitle>Checking permissions...</PageTitle>
           <p className="mt-2 text-sm text-muted-foreground">
             Verifying admin access for Shopify diagnostics.
           </p>
@@ -182,7 +183,7 @@ export default function ShopifyDebugPage() {
     return (
       <div className="container mx-auto max-w-5xl space-y-6 px-4 py-8">
         <Card className="p-6">
-          <h1 className="text-xl font-semibold">Access Denied</h1>
+          <PageTitle>Access Denied</PageTitle>
           <p className="mt-2 text-sm text-muted-foreground">
             Shopify diagnostics are available to admins only.
           </p>
@@ -194,7 +195,7 @@ export default function ShopifyDebugPage() {
   return (
     <div className="container mx-auto max-w-5xl space-y-6 px-4 py-8">
       <div className="space-y-2">
-        <h1 className="text-3xl font-bold">Shopify Diagnostics</h1>
+        <PageTitle>Shopify Diagnostics</PageTitle>
         <p className="text-muted-foreground">
           Verify the real Shopify customer, order, product, webhook, and sync
           queue paths for this tenant.

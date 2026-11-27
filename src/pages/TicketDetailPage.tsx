@@ -15,6 +15,7 @@ import { TicketPriorityBadge } from '@/components/helpdesk/TicketPriorityBadge';
 import { CommentThread } from '@/components/helpdesk/CommentThread';
 import { UpdateStatusDialog } from '@/components/helpdesk/UpdateStatusDialog';
 import { format } from 'date-fns';
+import { PageTitle } from "@/components/joy/PageHeader";
 
 const TicketDetailPage = () => {
   const navigate = useNavigate();
@@ -72,7 +73,7 @@ const TicketDetailPage = () => {
             <TicketStatusBadge status={ticket.status} />
             <TicketPriorityBadge priority={ticket.priority} />
           </div>
-          <h1 className="text-2xl font-bold">{ticket.subject}</h1>
+          <PageTitle>{ticket.subject}</PageTitle>
         </div>
         {isAdmin && (
           <Button variant="outline" onClick={() => setStatusDialogOpen(true)}>

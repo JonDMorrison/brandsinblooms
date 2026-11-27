@@ -157,6 +157,7 @@ import {
 } from "@/hooks/useIntegrationDetailData";
 import { cn } from "@/lib/utils";
 import NotFound from "@/pages/NotFound";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 const REQUEST_INTEGRATION_MAILTO =
   "mailto:bloom@bloomsuite.app?subject=Request%20an%20Integration&body=Hi%20BloomSuite%20team%2C%0A%0AI'd%20like%20to%20request%20support%20for%20the%20following%20integration%3A%0A";
@@ -4180,9 +4181,7 @@ export default function IntegrationDetailPage() {
                     </div>
                     <div className="space-y-3">
                       <div className="flex flex-wrap items-center gap-3">
-                        <h1 className="text-xl font-semibold text-foreground sm:text-2xl">
-                          {item.name}
-                        </h1>
+                        <PageTitle>{item.name}</PageTitle>
                         <DetailStatusBadge
                           label={squarePageStatus.label}
                           tone={squarePageStatus.tone}
@@ -4379,9 +4378,7 @@ export default function IntegrationDetailPage() {
                     </div>
                     <div className="space-y-3">
                       <div className="flex flex-wrap items-center gap-3">
-                        <h1 className="text-xl font-semibold text-foreground sm:text-2xl">
-                          {item.name}
-                        </h1>
+                        <PageTitle>{item.name}</PageTitle>
                         <DetailStatusBadge
                           label={cloverPageStatus.label}
                           tone={cloverPageStatus.tone}
@@ -4588,9 +4585,7 @@ export default function IntegrationDetailPage() {
                     </div>
                     <div className="space-y-3">
                       <div className="flex flex-wrap items-center gap-3">
-                        <h1 className="text-xl font-semibold text-foreground sm:text-2xl">
-                          {item.name}
-                        </h1>
+                        <PageTitle>{item.name}</PageTitle>
                         <DetailStatusBadge
                           label={lightspeedPageStatus.label}
                           tone={lightspeedPageStatus.tone}
@@ -4855,9 +4850,7 @@ export default function IntegrationDetailPage() {
                     </div>
                     <div className="space-y-3">
                       <div className="flex flex-wrap items-center gap-3">
-                        <h1 className="text-xl font-semibold text-foreground sm:text-2xl">
-                          {item.name}
-                        </h1>
+                        <PageTitle>{item.name}</PageTitle>
                         <DetailStatusBadge
                           label={shopifyPageStatus.label}
                           tone={shopifyPageStatus.tone}
@@ -5086,9 +5079,7 @@ export default function IntegrationDetailPage() {
                     </div>
                     <div className="space-y-3">
                       <div className="flex flex-wrap items-center gap-3">
-                        <h1 className="text-3xl font-semibold tracking-tight text-slate-950">
-                          {item.name}
-                        </h1>
+                        <PageTitle>{item.name}</PageTitle>
                         <DetailStatusBadge
                           label={
                             comingSoonDetail?.statusLabel ??

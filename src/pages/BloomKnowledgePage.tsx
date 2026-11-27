@@ -50,6 +50,7 @@ import type {
   BloomKnowledgeDocumentStatus,
 } from "@/hooks/bloom/types";
 import { useTenant } from "@/hooks/useTenant";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 const MOUNT_SKELETON_MS = 260;
 const numberFormatter = new Intl.NumberFormat("en-US");
@@ -639,9 +640,7 @@ function BloomKnowledgeManagementContent() {
           alignItems={{ xs: "stretch", md: "flex-start" }}
         >
           <Stack spacing={0.75} sx={{ minWidth: 0 }}>
-            <Typography level="h2" sx={{ color: "neutral.900" }}>
-              Knowledge Base
-            </Typography>
+            <PageTitle>Knowledge Base</PageTitle>
           </Stack>
           <JoyButton
             color="primary"

@@ -49,6 +49,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui-legacy/tooltip";
 import { cn } from "@/lib/utils";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 const DOC_SECTIONS = [
   { id: "overview", label: "Overview" },
@@ -245,9 +246,7 @@ export default function FormDocumentationPage() {
             </Link>
 
             <div className="mt-6 max-w-3xl">
-              <h1 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-                {form.name}
-              </h1>
+              <PageTitle>{form.name}</PageTitle>
               <p className="mt-1 text-lg font-light text-gray-400">
                 Developer Integration Reference
               </p>
@@ -782,7 +781,7 @@ function DocumentationErrorState({
             <AlertCircle className="h-5 w-5" />
           </div>
           <div className="space-y-2">
-            <h1 className="text-2xl font-semibold text-slate-950">{title}</h1>
+            <PageTitle>{title}</PageTitle>
             <p className="text-sm leading-6 text-slate-600">{description}</p>
             <Button variant="outline" asChild className="mt-3">
               <Link to="/crm/forms">

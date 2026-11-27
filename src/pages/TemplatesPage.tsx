@@ -2,6 +2,7 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui-legacy/card";
 import { Button } from "@/components/ui-legacy/button";
 import { FileText, Mail, MessageSquare, Sparkles } from "lucide-react";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 export const TemplatesPage = () => {
   const templateCategories = [
@@ -37,7 +38,7 @@ export const TemplatesPage = () => {
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-4">
             <FileText className="w-8 h-8 text-gray-700" />
-            <h1 className="text-4xl font-bold text-gray-900">Templates</h1>
+            <PageTitle>Templates</PageTitle>
           </div>
           <p className="text-xl text-gray-600 mb-6">
             Professional templates to jumpstart your marketing campaigns

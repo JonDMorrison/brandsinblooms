@@ -33,6 +33,7 @@ import { useAdmin } from "@/contexts/AdminContext";
 import { showIdealReportNotice } from "@/lib/idealNoticeScope";
 import { useTenantAudienceHealth } from "@/hooks/useTenantAudienceHealth";
 import { useUserRole } from "@/hooks/useUserRole";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 type AnalyticsView = "overview" | "campaigns" | "customers" | "sales";
 
@@ -182,7 +183,7 @@ const AnalyticsPage = () => {
     }}>
       <Stack spacing={3} sx={{ pb: 4 }}>
         <Stack spacing={0.5}>
-          <Typography level="h1" sx={{ fontSize: { xs: "1.9rem", md: "2.25rem" }, fontWeight: 700, letterSpacing: "-.035em" }}>Analytics</Typography>
+          <PageTitle>Analytics</PageTitle>
           <Typography level="body-md" sx={{ color: "neutral.600", maxWidth: 650 }}>
             See what’s connecting with your customers.
           </Typography>

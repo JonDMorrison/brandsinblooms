@@ -313,6 +313,7 @@ export default function StudioTopBar({
             />
           ) : (
             <Typography
+              component="h1"
               level="title-sm"
               noWrap
               fontWeight={600}

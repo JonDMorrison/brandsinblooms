@@ -38,6 +38,7 @@ import {
   type SmsCampaignMetricSource,
 } from "@/lib/sms/smsCampaignMetrics";
 import { formatAttributedRevenue } from "@/lib/crm/campaignRevenueMetrics";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 const PAGE_SIZE = 20;
 const MOUNT_SKELETON_MS = 260;
@@ -496,16 +497,7 @@ export default function SMSCampaignDetail() {
                       </Chip>
                     ) : null}
                   </Stack>
-                  <Typography
-                    level="h1"
-                    sx={{
-                      fontSize: { xs: "2rem", md: "2.6rem" },
-                      fontWeight: 700,
-                      letterSpacing: "-0.04em",
-                    }}
-                  >
-                    {campaign.name}
-                  </Typography>
+                  <PageTitle>{campaign.name}</PageTitle>
                   <Typography
                     level="body-sm"
                     color="neutral"

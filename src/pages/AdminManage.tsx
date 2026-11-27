@@ -42,6 +42,7 @@ import {
   Users,
 } from "lucide-react";
 import { format, isValid, subDays } from "date-fns";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 type AdminManageTenant = {
   id: string;
@@ -184,7 +185,7 @@ export default function AdminManage() {
                   <Shield className="h-6 w-6" />
                 </Sheet>
                 <Stack spacing={0.75}>
-                  <Typography level="h2">Client tools</Typography>
+                  <PageTitle>Client tools</PageTitle>
                   <Typography level="body-sm" color="neutral">
                     Choose a client, then use the tools below to import data or
                     fix their account.

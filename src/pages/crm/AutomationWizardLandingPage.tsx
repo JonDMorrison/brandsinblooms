@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { PageContainer } from "@/components/joy/PageContainer";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 type CreationOptionCardProps = {
   icon: React.ReactNode;
@@ -128,9 +129,7 @@ export const AutomationWizardLandingPage = () => {
         </Typography>
 
         <Stack spacing={0.5}>
-          <Typography level="h3" fontWeight="bold">
-            Create an Automation
-          </Typography>
+          <PageTitle>Create an Automation</PageTitle>
           <Typography level="body-sm" sx={{ color: "neutral.600" }}>
             Choose how you&apos;d like to build your workflow.
           </Typography>

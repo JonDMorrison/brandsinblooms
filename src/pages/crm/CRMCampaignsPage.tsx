@@ -99,6 +99,7 @@ import {
 import { retryFailedEmailMessages } from "@/lib/email/emailRetryService";
 import { unscheduleCampaign } from "@/utils/crmCampaignService";
 import { toast } from "@/utils/toast";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 type StatusFilter =
   | "all"
@@ -1267,9 +1268,7 @@ export function CRMCampaignsPage() {
               alignItems={{ xs: "stretch", md: "flex-end" }}
             >
               <Stack spacing={0.75}>
-                <Typography level="h2" sx={{ letterSpacing: 0 }}>
-                  Campaigns
-                </Typography>
+                <PageTitle>Campaigns</PageTitle>
                 <Typography level="body-sm" sx={{ color: "neutral.500" }}>
                   {totalCount.toLocaleString()} {totalCount === 1 ? "campaign" : "campaigns"} -{" "}
                   {activeCount.toLocaleString()} active {activeCount === 1 ? "send" : "sends"}

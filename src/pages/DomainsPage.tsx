@@ -6,6 +6,7 @@ import Typography from "@mui/joy/Typography";
 import { Plus } from "lucide-react";
 import { EmailDomainsList } from "@/components/domains/EmailDomainsList";
 import { PageContainer } from "@/components/joy/PageContainer";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 const DomainsPage = () => {
   const [addDomainOpen, setAddDomainOpen] = useState(false);
@@ -23,9 +24,7 @@ const DomainsPage = () => {
             sx={{ mb: 3 }}
           >
             <Stack spacing={0.75}>
-              <Typography level="h3" sx={{ fontWeight: 700 }}>
-                Email Domains
-              </Typography>
+              <PageTitle>Email Domains</PageTitle>
               <Typography level="body-sm" color="neutral">
                 Manage branded sending domains to improve deliverability and
                 keep DMARC compliance on track.

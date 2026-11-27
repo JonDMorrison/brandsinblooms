@@ -27,6 +27,7 @@ import { buildImpersonationStartUrl } from "@/hooks/useImpersonation";
 import { toast as sonnerToast } from "sonner";
 import { JoyButton } from "@/components/joy/JoyButton";
 import { removeAllInertAttributes } from "@/utils/emergency-cleanup";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 const AdminPage = () => {
   const navigate = useNavigate();
@@ -202,7 +203,7 @@ const AdminPage = () => {
                     <Shield className="h-6 w-6" />
                   </Sheet>
                   <Stack spacing={0.75}>
-                    <Typography level="h2">All clients</Typography>
+                    <PageTitle>All clients</PageTitle>
                     <Typography level="body-sm" color="neutral">
                       Every client account, their plan and trial status. Open a
                       client to see details or make changes.

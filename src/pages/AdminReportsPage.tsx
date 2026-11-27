@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useIsSuperAdmin } from "@/hooks/useIsSuperAdmin";
 import { PageContainer } from "@/components/joy/PageContainer";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 const INCLUDED = ["Email addresses", "Full names", "Company names", "Sign-up dates", "Trial end dates", "Days left", "Whether the trial is active or has ended"];
 
@@ -50,7 +51,7 @@ export const AdminReportsPage = () => {
     <PageContainer>
       <Stack spacing={3}>
         <Stack spacing={0.5}>
-          <Typography level="h2">Trial reports</Typography>
+          <PageTitle>Trial reports</PageTitle>
           <Typography level="body-md" textColor="text.secondary">
             Email Jon and Jeff a list of everyone on a free trial, so you can follow up before trials end.
           </Typography>

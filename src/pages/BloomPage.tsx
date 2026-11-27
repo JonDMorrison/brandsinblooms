@@ -21,6 +21,7 @@ import {
   type BloomProactiveInsightRow,
 } from "@/hooks/bloom/types";
 import { useTenant } from "@/hooks/useTenant";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 const isUuid = (value: string) =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
@@ -334,6 +335,8 @@ export default function BloomPage() {
   return (
     <>
       <BloomPageParamHandler />
+      {/* The conversation is the page; its title is for screen readers. */}
+      <PageTitle className="sr-only">Bloom</PageTitle>
       {/* The page is a column: the return control row, then the stage that
           holds the conversation and the floating composer. The conversation
           fills the stage, so its dotted grid backdrop spans the space behind

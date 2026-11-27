@@ -13,6 +13,7 @@ import { JoyChip } from "@/components/joy/JoyChip";
 import { Copy, Check, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { SMS_BRAND_CONFIG, getProgramNumberDisplay } from "@/config/smsConfig";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 // All Twilio copy blocks
 const getTwilioCopyBlocks = () => {
@@ -256,7 +257,7 @@ ${blocks.helpMessage}
           spacing={2}
         >
           <Stack spacing={0.5}>
-            <Typography level="h2">Twilio Campaign Copy</Typography>
+            <PageTitle>Twilio Campaign Copy</PageTitle>
             <Typography level="body-sm" color="neutral">
               Paste-ready text for Twilio 10DLC campaign submission
             </Typography>

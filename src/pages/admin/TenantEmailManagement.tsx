@@ -48,6 +48,7 @@ import {
   JoyTableRow,
 } from "@/components/joy/JoyTable";
 import Skeleton from "@mui/joy/Skeleton";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 interface MetricBucket {
   sent: number;
@@ -999,7 +1000,7 @@ export default function TenantEmailManagement() {
           <Stack direction="row" spacing={1.5} alignItems="center">
             <Mail className="h-7 w-7 text-primary" />
             <Stack spacing={0.5}>
-              <Typography level="h2">Client email health</Typography>
+              <PageTitle>Client email health</PageTitle>
               <Typography level="body-md" color="neutral">
                 {panel.company_name || "This client"}: how their emails are being delivered, who is blocked from receiving them, and their sending limits.
               </Typography>

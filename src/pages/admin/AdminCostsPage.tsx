@@ -28,6 +28,7 @@ import {
   Activity,
 } from "lucide-react";
 import { format, subDays, startOfMonth } from "date-fns";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 interface TenantUsage {
   tenant_id: string;
@@ -299,7 +300,7 @@ export default function AdminCostsPage() {
             </JoyButton>
             <DollarSign className="w-8 h-8 text-blue-700" />
             <Stack spacing={0.5}>
-              <Typography level="h2">Running costs</Typography>
+              <PageTitle>Running costs</PageTitle>
               <Typography level="body-sm" color="neutral">
                 What it costs to run BloomSuite, and which clients use the most.
               </Typography>

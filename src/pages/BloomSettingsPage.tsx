@@ -57,6 +57,7 @@ import {
   normalizeBloomWorkspaceMemory,
 } from "@/hooks/bloom/workspaceMemory";
 import { useTenant } from "@/hooks/useTenant";
+import { PageHeader } from "@/components/joy/PageHeader";
 
 const SAVE_SUCCESS_TIMEOUT_MS = 1_500;
 const TEXTAREA_BLUR_DEBOUNCE_MS = 300;
@@ -686,16 +687,10 @@ function BloomSettingsContent() {
   return (
     <PageContainer sx={{ px: { xs: 2, md: 3 }, py: { xs: 3, md: 4 } }}>
       <Stack spacing={2.5}>
-        <Stack spacing={0.75}>
-          <Typography level="h1">Bloom Settings</Typography>
-          <Typography
-            level="body-sm"
-            sx={{ color: "neutral.500", maxWidth: 640 }}
-          >
-            Set Bloom&apos;s default response behavior, tailor its instructions,
-            and manage your data footprint.
-          </Typography>
-        </Stack>
+        <PageHeader
+          title="Bloom Settings"
+          subtitle="Set Bloom's default response behavior, tailor its instructions, and manage your data footprint."
+        />
 
         <JoyCard variant="outlined">
           <JoyCardHeader

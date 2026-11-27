@@ -21,6 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Users, Building2, Calendar, DollarSign } from "lucide-react";
 import { DomainReputationDashboard } from "@/components/admin/DomainReputationDashboard";
 import { DeliverabilityMonitor } from "@/components/admin/DeliverabilityMonitor";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 export default function AdminDashboard() {
   const [searchEmail, setSearchEmail] = useState("");
@@ -119,7 +120,7 @@ export default function AdminDashboard() {
     <PageContainer fullWidth>
       <Stack spacing={3}>
         <Stack spacing={0.75}>
-          <Typography level="h2">Find a client</Typography>
+          <PageTitle>Find a client</PageTitle>
           <Typography level="body-md" color="neutral">
             Look up a client by the email address they sign in with.
           </Typography>

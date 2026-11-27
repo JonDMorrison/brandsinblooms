@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { PageContainer } from "@/components/joy/PageContainer";
 import { useAskDialog } from "@/components/bloomSupport/useAskDialog";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 interface SeedResult { tenantId: string; personasCreated: number; customersCreated: number }
 
@@ -49,7 +50,7 @@ export default function SeedDemoCustomers() {
       {dialog}
       <Stack spacing={3}>
         <Stack spacing={0.5}>
-          <Typography level="h2">Demo data</Typography>
+          <PageTitle>Demo data</PageTitle>
           <Typography level="body-md" textColor="text.secondary">
             For developers: fill the Plant Addicts demo account with made-up customers so features can be shown with realistic data.
           </Typography>

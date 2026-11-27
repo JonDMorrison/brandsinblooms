@@ -34,6 +34,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { useAuth } from "@/hooks/useAuth";
 import { useTenant } from "@/hooks/useTenant";
 import { toast } from "sonner";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 const MOUNT_SKELETON_MS = 260;
 
@@ -370,9 +371,7 @@ export default function SMSAutomationDashboard() {
                   </Breadcrumbs>
 
                   <Stack spacing={0.5}>
-                    <Typography level="h3" fontWeight="lg">
-                      SMS Automations
-                    </Typography>
+                    <PageTitle>SMS Automations</PageTitle>
                     <Typography level="body-sm" color="neutral">
                       Set up automated SMS workflows triggered by customer
                       actions

@@ -36,6 +36,7 @@ import {
 } from "@/lib/studio/newsletterIdeaSeed";
 import { NewsletterIdea } from "@/types/newsletter";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
+import { PageTitle } from "@/components/joy/PageHeader";
 // Token scope side-effect import — without this, the
 // .hp-token-scope wrapper added below has no token definitions to
 // resolve. Same pattern as PricingPage.tsx.
@@ -497,17 +498,7 @@ export const NewsletterNewPage = () => {
           <Stack spacing={{ xs: 5, md: 6 }}>
             <Stack spacing={{ xs: 4, md: 5 }}>
               <Stack spacing={1.25}>
-                <Typography
-                  level="h1"
-                  sx={{
-                    fontSize: { xs: "1.875rem", md: "2.25rem" },
-                    letterSpacing: "-0.035em",
-                    fontWeight: 700,
-                    color: "var(--hp-green-900, #11302E)",
-                  }}
-                >
-                  Create a Newsletter
-                </Typography>
+                <PageTitle>Create a Newsletter</PageTitle>
                 <Typography level="body-md" sx={{ color: "text.secondary" }}>
                   Start from this week's theme, from scratch, or explore ideas.
                 </Typography>

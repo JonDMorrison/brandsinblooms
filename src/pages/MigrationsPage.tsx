@@ -11,6 +11,7 @@ import { ReportStep } from "@/components/migrations/ReportStep";
 import { supabase } from "@/integrations/supabase/client";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 type Provider = "klaviyo" | "constant_contact";
 
@@ -205,7 +206,7 @@ const MigrationsPage = () => {
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       <div>
-        <h1 className="text-3xl font-bold mb-2">One-Time Migration</h1>
+        <PageTitle sx={{ mb: 1 }}>One-Time Migration</PageTitle>
         <p className="text-muted-foreground">
           Import contacts, consent, tags, and segments from Klaviyo or Constant
           Contact
