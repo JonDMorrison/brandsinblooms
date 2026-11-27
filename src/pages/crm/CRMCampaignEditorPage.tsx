@@ -1357,9 +1357,18 @@ function CampaignEditorScreen() {
   React.useEffect(() => {
     const templateId = lockedTemplateToRecordRef.current;
     if (!campaignId || !templateId || isSaving) return;
-    lockedTemplateToRecordRef.current = null;
-    void recordTemplateLock(templateId);
-  }, [campaignId, isSaving, recordTemplateLock, contentBlocks]);
+    let cancelled = false;
+    // The email gets its id before its first save. Keep the template noted
+    // until the write lands, and try again after each save.
+    void recordTemplateLock(templateId).then((recorded) => {
+      if (recorded && !cancelled && lockedTemplateToRecordRef.current === templateId) {
+        lockedTemplateToRecordRef.current = null;
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [campaignId, isSaving, recordTemplateLock, contentBlocks, lastSavedAt]);
 
   const applyTemplateToCampaign = React.useCallback(
     (template: CampaignTemplate) => {
