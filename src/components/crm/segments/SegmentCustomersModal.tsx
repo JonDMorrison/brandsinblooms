@@ -73,7 +73,11 @@ export const SegmentCustomersModal: React.FC<SegmentCustomersModalProps> = ({
   );
   const { user } = useAuth();
   const { tenant } = useTenant();
-  const { data: allCustomers, isLoading: customersLoading } = useCustomers();
+  // The active tenant (the admin tenant switcher wins over the home tenant).
+  const { data: allCustomers, isLoading: customersLoading } = useCustomers({
+    tenantId: tenant?.id,
+    enabled: Boolean(tenant?.id),
+  });
 
   // Fetch customers in this segment
   const fetchSegmentCustomers = async () => {

@@ -152,3 +152,100 @@ export function useCampaignEmailEligibility(
   });
   return { ...query, gate: deriveEmailEligibilityGate(query) };
 }
+
+/**
+ * Whether each listed customer can receive a campaign email, and why not,
+ * from public.email_campaign_customer_eligibility. That function reads the
+ * same rule rows as email_campaign_eligibility
+ * (private.email_campaign_audience_contacts), so a person marked "can
+ * receive" here is one the campaign count would include as a direct customer.
+ */
+export const CUSTOMER_EMAIL_REASON_LABELS = {
+  eligible: "Can receive email",
+  duplicate_address: "Shares an email address with another customer",
+  waiting_confirmation: "Hasn't confirmed their email address yet",
+  unsubscribed: "Unsubscribed",
+  complained: "Marked an email as spam",
+  opted_out: "Said no to email",
+  never_opted_in: "Hasn't agreed to receive email",
+  undeliverable_address: "Email address can't receive mail",
+  blocked: "Blocked from email",
+  bounced: "Bounced",
+  shared_blocked_address: "Shares an email address that is blocked",
+  no_email: "No email address",
+} as const;
+
+export type CustomerEmailReason = keyof typeof CUSTOMER_EMAIL_REASON_LABELS;
+
+export interface CustomerEmailEligibility {
+  customerId: string;
+  canReceive: boolean;
+  reason: CustomerEmailReason;
+  /** Plain-English reason, shown when the customer cannot receive email. */
+  label: string;
+}
+
+type CustomerEligibilityRow =
+  Database["public"]["Functions"]["email_campaign_customer_eligibility"]["Returns"][number];
+
+function isCustomerEmailReason(value: string): value is CustomerEmailReason {
+  return Object.prototype.hasOwnProperty.call(CUSTOMER_EMAIL_REASON_LABELS, value);
+}
+
+/** Maps the RPC rows. An unknown reason is rejected, never guessed at. */
+export function toCustomerEmailEligibility(
+  rows: CustomerEligibilityRow[],
+): Map<string, CustomerEmailEligibility> {
+  const result = new Map<string, CustomerEmailEligibility>();
+  for (const row of rows) {
+    if (!isCustomerEmailReason(row.reason)) {
+      throw new Error(`Unknown email eligibility reason: ${row.reason}`);
+    }
+    result.set(row.customer_id, {
+      customerId: row.customer_id,
+      canReceive: row.can_receive === true,
+      reason: row.reason,
+      label: CUSTOMER_EMAIL_REASON_LABELS[row.reason],
+    });
+  }
+  return result;
+}
+
+export function customerEmailEligibilityQueryKey(
+  tenantId: string | null | undefined,
+  customerIds: readonly string[],
+) {
+  return [
+    "campaign-customer-email-eligibility",
+    tenantId ?? null,
+    [...new Set(customerIds)].sort(),
+  ] as const;
+}
+
+export async function fetchCustomerEmailEligibility(
+  tenantId: string,
+  customerIds: readonly string[],
+): Promise<Map<string, CustomerEmailEligibility>> {
+  const ids = [...new Set(customerIds)].sort();
+  if (ids.length === 0) return new Map();
+  const { data, error } = await supabase.rpc("email_campaign_customer_eligibility", {
+    p_tenant_id: tenantId,
+    p_customer_ids: ids,
+  });
+  if (error) throw error;
+  return toCustomerEmailEligibility(data ?? []);
+}
+
+export function useCustomerEmailEligibility(params: {
+  tenantId: string | null | undefined;
+  customerIds: readonly string[];
+  enabled?: boolean;
+}) {
+  return useQuery({
+    queryKey: customerEmailEligibilityQueryKey(params.tenantId, params.customerIds),
+    enabled:
+      (params.enabled ?? true) && Boolean(params.tenantId) && params.customerIds.length > 0,
+    staleTime: 60_000,
+    queryFn: () => fetchCustomerEmailEligibility(params.tenantId as string, params.customerIds),
+  });
+}

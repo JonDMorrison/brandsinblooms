@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-legacy
 import { Badge } from '@/components/ui-legacy/badge';
 import { Monitor, Smartphone, User } from 'lucide-react';
 import { useCustomers } from '@/hooks/useCustomers';
+import { useTenant } from '@/hooks/useTenant';
 import { useAllPersonas } from '@/hooks/useAllPersonas';
 import { renderMergeTags, createPreviewData, type MergeTagData } from '@/lib/mergeTagEngine';
 import { SafeHtml } from '@/components/ui-legacy/safe-html';
@@ -37,7 +38,12 @@ export const MergeTagsPreviewDialog: React.FC<MergeTagsPreviewDialogProps> = ({
   const [viewMode, setViewMode] = useState<'desktop' | 'mobile'>('desktop');
   const [previewMode, setPreviewMode] = useState<'email' | 'fields'>('email');
   
-  const { data: customers, isLoading } = useCustomers();
+  const { tenant } = useTenant();
+  // The active tenant (the admin tenant switcher wins over the home tenant).
+  const { data: customers, isLoading } = useCustomers({
+    tenantId: tenant?.id,
+    enabled: Boolean(tenant?.id),
+  });
   const { personas } = useAllPersonas();
 
   // Get merge data based on selection

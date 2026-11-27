@@ -31,7 +31,6 @@ import Button from "@mui/joy/Button";
 import Card from "@mui/joy/Card";
 import Checkbox from "@mui/joy/Checkbox";
 import Chip from "@mui/joy/Chip";
-import ChipDelete from "@mui/joy/ChipDelete";
 import Divider from "@mui/joy/Divider";
 import DialogActions from "@mui/joy/DialogActions";
 import DialogContent from "@mui/joy/DialogContent";
@@ -137,6 +136,10 @@ import {
 } from "@/contexts/DesignSystemContext";
 import { useEmailDomains } from "@/hooks/useEmailDomains";
 import { useCustomers } from "@/hooks/useCustomers";
+import {
+  SpecificPeopleChips,
+  type SpecificPerson,
+} from "@/components/crm/campaign-editor/SpecificPeopleChips";
 import { classifySender } from "@/lib/crm/senderSeverity";
 import type { SenderClassification } from "@/lib/crm/senderSeverity";
 import { useTenant } from "@/hooks/useTenant";
@@ -145,6 +148,7 @@ import {
   CHECKING_AUDIENCE_LABEL,
   NO_ELIGIBLE_RECIPIENTS_MESSAGE,
   useCampaignEmailEligibility,
+  useCustomerEmailEligibility,
 } from "@/hooks/useCampaignEmailEligibility";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -307,12 +311,25 @@ function formatAudienceDetail(params: {
 
   if (params.additionalCustomerCount > 0) {
     parts.push(
-      `${params.additionalCustomerCount} direct customer${params.additionalCustomerCount === 1 ? "" : "s"}`,
+      `${formatPeopleCount(params.additionalCustomerCount)} added`,
     );
   }
 
   return parts.length > 0 ? parts.join(" · ") : "No audience selected";
 }
+
+function formatPeopleCount(count: number) {
+  return `${count.toLocaleString()} ${count === 1 ? "person" : "people"}`;
+}
+
+const visuallyHiddenSx = {
+  position: "absolute",
+  width: 1,
+  height: 1,
+  overflow: "hidden",
+  clip: "rect(0 0 0 0)",
+  whiteSpace: "nowrap",
+} as const;
 
 function formatStatusLabel(value: string) {
   return value
@@ -705,10 +722,6 @@ function CampaignEditorScreen() {
   const [audienceCustomerSearch, setAudienceCustomerSearch] =
     React.useState("");
   const [audienceCustomerPage, setAudienceCustomerPage] = React.useState(1);
-  const [draftIncludeAllCustomers, setDraftIncludeAllCustomers] =
-    React.useState(false);
-  const [draftAdditionalCustomerIds, setDraftAdditionalCustomerIds] =
-    React.useState<string[]>([]);
   const [templateToConfirm, setTemplateToConfirm] =
     React.useState<CampaignTemplate | null>(null);
   const [selectedIntent, setSelectedIntent] =
@@ -877,16 +890,23 @@ function CampaignEditorScreen() {
     [segmentsQuery.data],
   );
 
+  // Search the ACTIVE tenant. Without tenantId the hook falls back to the
+  // signed-in user's home tenant (users.tenant_id), which for a master admin
+  // working in another business is a different company: every search there
+  // came back "No customers matched".
   const {
     data: audienceCustomers = [],
     totalCount: audienceCustomerTotalCount = 0,
     isLoading: audienceCustomersLoading,
+    error: audienceCustomersError,
   } = useCustomers({
+    tenantId: tenant?.id,
     search: audienceCustomerSearch,
     page: audienceCustomerPage,
     pageSize: AUDIENCE_CUSTOMER_PAGE_SIZE,
     enabled:
       campaignType === "email" &&
+      Boolean(tenant?.id) &&
       audienceExpansionOpen &&
       audienceExpansionMode === "add-customers",
   });
@@ -905,6 +925,8 @@ function CampaignEditorScreen() {
       tenant?.id,
       additionalCustomerIds,
     ],
+    // Keep the chips on screen while an add or remove refetches.
+    placeholderData: (previous) => previous,
     enabled:
       campaignType === "email" &&
       Boolean(tenant?.id) &&
@@ -926,22 +948,61 @@ function CampaignEditorScreen() {
     },
   });
 
-  const selectedAdditionalCustomers = React.useMemo(() => {
-    const customerById = new Map(
-      (selectedAdditionalCustomersQuery.data ?? []).map((customer) => [
+  // Per-customer answers from the shared eligibility rule
+  // (public.email_campaign_customer_eligibility), for the search page and for
+  // the people already added.
+  const audienceCustomerIds = React.useMemo(
+    () => audienceCustomerOptions.map((customer) => customer.id),
+    [audienceCustomerOptions],
+  );
+  const searchEligibilityQuery = useCustomerEmailEligibility({
+    tenantId: tenant?.id,
+    customerIds: audienceCustomerIds,
+    enabled:
+      campaignType === "email" &&
+      audienceExpansionOpen &&
+      audienceExpansionMode === "add-customers",
+  });
+  const selectedEligibilityQuery = useCustomerEmailEligibility({
+    tenantId: tenant?.id,
+    customerIds: additionalCustomerIds,
+    enabled: campaignType === "email",
+  });
+
+  const selectedAdditionalCustomers = React.useMemo<SpecificPerson[]>(() => {
+    const customerById = new Map<string, AudienceCustomerSummary>();
+    // A person just added from the search shows straight away; the saved
+    // lookup below fills in anyone added earlier.
+    for (const customer of audienceCustomerOptions) {
+      customerById.set(customer.id, customer);
+    }
+    for (const customer of selectedAdditionalCustomersQuery.data ?? []) {
+      customerById.set(
         customer.id,
         toAudienceCustomerSummary(customer, customerSegmentNameById),
-      ]),
-    );
+      );
+    }
 
     return additionalCustomerIds.flatMap((customerId) => {
       const customer = customerById.get(customerId);
-      return customer ? [customer] : [];
+      if (!customer) return [];
+      const verdict = selectedEligibilityQuery.data?.get(customerId);
+      return [
+        {
+          id: customer.id,
+          name: customer.name,
+          email: customer.email,
+          cannotReceiveReason:
+            verdict && !verdict.canReceive ? verdict.label : null,
+        },
+      ];
     });
   }, [
     additionalCustomerIds,
+    audienceCustomerOptions,
     customerSegmentNameById,
     selectedAdditionalCustomersQuery.data,
+    selectedEligibilityQuery.data,
   ]);
 
   const audienceDetail = React.useMemo(
@@ -1015,41 +1076,26 @@ function CampaignEditorScreen() {
     });
   }, [buildCampaignResourceFocus, campaignId]);
 
-  React.useEffect(() => {
-    if (!audienceExpansionOpen) {
-      return;
-    }
-
-    setDraftIncludeAllCustomers(includeAllCustomers);
-    setDraftAdditionalCustomerIds(additionalCustomerIds);
+  // "Add people" changes the audience as you go, so the eligible count and the
+  // Audience badge (both from useCampaignEmailEligibility) follow every add
+  // and remove.
+  const openAudienceExpansion = React.useCallback(() => {
     setAudienceExpansionMode(
-      includeAllCustomers
-        ? "all-customers"
-        : additionalCustomerIds.length > 0
-          ? "add-customers"
-          : "all-customers",
+      includeAllCustomers ? "all-customers" : "add-customers",
     );
     setAudienceCustomerSearch("");
     setAudienceCustomerPage(1);
-  }, [additionalCustomerIds, audienceExpansionOpen, includeAllCustomers]);
+    setAudienceExpansionOpen(true);
+  }, [includeAllCustomers]);
 
-  const handleSaveAudienceExpansion = React.useCallback(() => {
-    updateAudience({
-      includeAllCustomers: draftIncludeAllCustomers,
-      additionalCustomerIds: draftAdditionalCustomerIds,
-    });
-    setAudienceExpansionOpen(false);
-  }, [draftAdditionalCustomerIds, draftIncludeAllCustomers, updateAudience]);
-
-  const toggleDraftAdditionalCustomer = React.useCallback(
+  const handleAddAdditionalCustomer = React.useCallback(
     (customerId: string) => {
-      setDraftAdditionalCustomerIds((current) =>
-        current.includes(customerId)
-          ? current.filter((existingId) => existingId !== customerId)
-          : [...current, customerId],
-      );
+      if (additionalCustomerIds.includes(customerId)) return;
+      updateAudience({
+        additionalCustomerIds: [...additionalCustomerIds, customerId],
+      });
     },
-    [],
+    [additionalCustomerIds, updateAudience],
   );
 
   const handleRemoveAdditionalCustomer = React.useCallback(
@@ -2612,7 +2658,7 @@ function CampaignEditorScreen() {
                   color="neutral"
                   size="sm"
                   startDecorator={<UserPlus size={15} aria-hidden />}
-                  onClick={() => setAudienceExpansionOpen(true)}
+                  onClick={openAudienceExpansion}
                   disabled={isLocked}
                   data-testid="audience-add-people"
                   sx={{ alignSelf: "flex-start" }}
@@ -2628,126 +2674,84 @@ function CampaignEditorScreen() {
                     it shows specific user-added customer IDs that the
                     pseudo-pill does not describe. */}
                 {additionalCustomerIds.length > 0 ? (
-                  <Stack spacing={1}>
-                    {additionalCustomerIds.length > 0 ? (
-                      <Sheet
-                        variant="outlined"
-                        sx={{
-                          borderRadius: "md",
-                          p: 1.5,
-                          bgcolor: "background.surface",
-                          borderColor: "primary.200",
-                        }}
+                  <Sheet
+                    variant="outlined"
+                    data-testid="audience-specific-people"
+                    sx={{
+                      borderRadius: "md",
+                      p: 1.5,
+                      bgcolor: "background.surface",
+                      borderColor: "primary.200",
+                    }}
+                  >
+                    <Stack spacing={1.25}>
+                      <Stack
+                        direction={{ xs: "column", sm: "row" }}
+                        spacing={1}
+                        justifyContent="space-between"
+                        alignItems={{ xs: "flex-start", sm: "center" }}
                       >
-                        <Stack spacing={1.25}>
-                          <Stack
-                            direction={{ xs: "column", sm: "row" }}
-                            spacing={1}
-                            justifyContent="space-between"
-                            alignItems={{ xs: "flex-start", sm: "center" }}
+                        <Stack spacing={0.25} sx={{ minWidth: 0 }}>
+                          <Typography level="body-sm" fontWeight="md">
+                            Specific people
+                          </Typography>
+                          <Typography
+                            level="body-xs"
+                            sx={{ color: "neutral.600" }}
+                            data-testid="audience-specific-people-count"
                           >
-                            <Stack spacing={0.25} sx={{ minWidth: 0 }}>
-                              <Typography level="body-sm" fontWeight="md">
-                                Direct additions
-                              </Typography>
-                              <Typography
-                                level="body-xs"
-                                sx={{ color: "neutral.600" }}
-                              >
-                                {additionalCustomerIds.length} customer
-                                {additionalCustomerIds.length === 1
-                                  ? ""
-                                  : "s"}{" "}
-                                attached directly to this campaign.
-                              </Typography>
-                            </Stack>
-                            <Button
-                              size="sm"
-                              variant="plain"
-                              color="neutral"
-                              disabled={isLocked}
-                              onClick={() =>
-                                updateAudience({ additionalCustomerIds: [] })
-                              }
-                            >
-                              Clear all
-                            </Button>
-                          </Stack>
-
-                          {selectedAdditionalCustomersQuery.isLoading ? (
-                            <Stack
-                              direction="row"
-                              spacing={1}
-                              useFlexGap
-                              flexWrap="wrap"
-                            >
-                              <Skeleton
-                                variant="rectangular"
-                                width={176}
-                                height={28}
-                              />
-                              <Skeleton
-                                variant="rectangular"
-                                width={188}
-                                height={28}
-                              />
-                            </Stack>
-                          ) : selectedAdditionalCustomers.length > 0 ? (
-                            <Stack
-                              direction="row"
-                              spacing={1}
-                              useFlexGap
-                              flexWrap="wrap"
-                            >
-                              {selectedAdditionalCustomers.map((customer) => (
-                                <Chip
-                                  key={customer.id}
-                                  variant="soft"
-                                  color="neutral"
-                                  endDecorator={
-                                    isLocked ? undefined : (
-                                      <ChipDelete
-                                        aria-label={`Remove ${customer.name}`}
-                                        onDelete={() =>
-                                          handleRemoveAdditionalCustomer(
-                                            customer.id,
-                                          )
-                                        }
-                                      />
-                                    )
-                                  }
-                                  sx={{ maxWidth: "100%" }}
-                                >
-                                  {customer.email
-                                    ? `${customer.name} · ${customer.email}`
-                                    : customer.name}
-                                </Chip>
-                              ))}
-                            </Stack>
-                          ) : (
-                            <Typography
-                              level="body-xs"
-                              sx={{ color: "neutral.600" }}
-                            >
-                              Direct additions are saved, but the customer details
-                              are not available right now.
-                            </Typography>
-                          )}
-
-                          {selectedAdditionalCustomers.length !==
-                          additionalCustomerIds.length ? (
-                            <Typography
-                              level="body-xs"
-                              sx={{ color: "neutral.500" }}
-                            >
-                              Some saved customer IDs are no longer available in
-                              this tenant.
-                            </Typography>
-                          ) : null}
+                            {formatPeopleCount(additionalCustomerIds.length)} added
+                            to this campaign.
+                          </Typography>
                         </Stack>
-                      </Sheet>
-                    ) : null}
-                  </Stack>
+                        <Button
+                          size="sm"
+                          variant="plain"
+                          color="neutral"
+                          disabled={isLocked}
+                          onClick={() =>
+                            updateAudience({ additionalCustomerIds: [] })
+                          }
+                        >
+                          Clear all
+                        </Button>
+                      </Stack>
+
+                      {selectedAdditionalCustomers.length > 0 ||
+                      selectedAdditionalCustomersQuery.isLoading ? (
+                        <SpecificPeopleChips
+                          people={selectedAdditionalCustomers}
+                          loading={
+                            selectedAdditionalCustomers.length === 0 &&
+                            selectedAdditionalCustomersQuery.isLoading
+                          }
+                          disabled={isLocked}
+                          onRemove={handleRemoveAdditionalCustomer}
+                        />
+                      ) : (
+                        <Typography
+                          level="body-xs"
+                          sx={{ color: "neutral.600" }}
+                        >
+                          These people are saved, but their details are not
+                          available right now.
+                        </Typography>
+                      )}
+
+                      {!selectedAdditionalCustomersQuery.isLoading &&
+                      !selectedAdditionalCustomersQuery.isPlaceholderData &&
+                      selectedAdditionalCustomers.length !==
+                        additionalCustomerIds.length ? (
+                        <Typography
+                          level="body-xs"
+                          sx={{ color: "neutral.500" }}
+                        >
+                          Some people added earlier are no longer in this
+                          business&apos;s customer list.
+                        </Typography>
+                      ) : null}
+                    </Stack>
+                  </Sheet>
                 ) : null}
               </Stack>
             ) : null}
@@ -2850,72 +2854,100 @@ function CampaignEditorScreen() {
         open={audienceExpansionOpen}
         onClose={() => setAudienceExpansionOpen(false)}
       >
-        <ModalDialog sx={{ width: "min(960px, 96vw)", maxWidth: "96vw" }}>
-          <DialogTitle>Expand Your Reach</DialogTitle>
+        <ModalDialog
+          aria-labelledby="audience-add-people-title"
+          sx={{ width: "min(960px, 96vw)", maxWidth: "96vw", overflowY: "auto" }}
+        >
+          <DialogTitle id="audience-add-people-title">Add people</DialogTitle>
           <DialogContent>
-            Extend this campaign with an explicit all-customers overlay or a
-            short list of one-off direct additions.
+            Send to everyone who can receive email, or pick specific people.
+            Changes apply as you make them.
           </DialogContent>
 
           <Stack spacing={2.5}>
             <Stack
               direction={{ xs: "column", md: "row" }}
               spacing={1.5}
+              role="radiogroup"
+              aria-label="Who to add"
               sx={{ width: "100%" }}
             >
-              <Card
-                variant="outlined"
-                onClick={() => setAudienceExpansionMode("all-customers")}
-                sx={{
-                  flex: 1,
-                  cursor: "pointer",
-                  borderRadius: "lg",
-                  borderColor:
-                    audienceExpansionMode === "all-customers"
-                      ? "primary.400"
-                      : "neutral.200",
-                  boxShadow:
-                    audienceExpansionMode === "all-customers" ? "sm" : "none",
-                }}
-              >
-                <Stack spacing={0.75}>
-                  <Typography level="title-sm" fontWeight="lg">
-                    Send to All Customers
-                  </Typography>
-                  <Typography level="body-sm" sx={{ color: "neutral.600" }}>
-                    Union every eligible customer in this tenant into the send
-                    audience while keeping your current segment and persona
-                    filters intact.
-                  </Typography>
-                </Stack>
-              </Card>
-
-              <Card
-                variant="outlined"
-                onClick={() => setAudienceExpansionMode("add-customers")}
-                sx={{
-                  flex: 1,
-                  cursor: "pointer",
-                  borderRadius: "lg",
-                  borderColor:
-                    audienceExpansionMode === "add-customers"
-                      ? "primary.400"
-                      : "neutral.200",
-                  boxShadow:
-                    audienceExpansionMode === "add-customers" ? "sm" : "none",
-                }}
-              >
-                <Stack spacing={0.75}>
-                  <Typography level="title-sm" fontWeight="lg">
-                    Add Customers to This Campaign
-                  </Typography>
-                  <Typography level="body-sm" sx={{ color: "neutral.600" }}>
-                    Hand-pick specific contacts for this send without changing
-                    the saved segments that normally define the audience.
-                  </Typography>
-                </Stack>
-              </Card>
+              {(
+                [
+                  {
+                    mode: "all-customers",
+                    title: "Everyone who can receive email",
+                    body: "Every customer in this business who can receive email. Segments, personas and specific people are then not needed.",
+                  },
+                  {
+                    mode: "add-customers",
+                    title: "Specific people",
+                    body: "Search for customers by name, email or phone and add them one by one.",
+                  },
+                ] as const
+              ).map((option) => {
+                const active = audienceExpansionMode === option.mode;
+                return (
+                  <Card
+                    key={option.mode}
+                    variant="outlined"
+                    role="radio"
+                    aria-checked={active}
+                    tabIndex={0}
+                    data-testid={`audience-add-option-${option.mode}`}
+                    onClick={() => setAudienceExpansionMode(option.mode)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        setAudienceExpansionMode(option.mode);
+                      }
+                    }}
+                    sx={{
+                      flex: 1,
+                      cursor: "pointer",
+                      borderRadius: "lg",
+                      borderColor: active ? "primary.400" : "neutral.200",
+                      boxShadow: active ? "sm" : "none",
+                      "&:focus-visible": {
+                        outline: campaignEditorFocusOutline,
+                        outlineOffset: 2,
+                      },
+                    }}
+                  >
+                    <Stack spacing={0.75}>
+                      <Typography level="title-sm" fontWeight="lg">
+                        {option.title}
+                      </Typography>
+                      <Typography level="body-sm" sx={{ color: "neutral.600" }}>
+                        {option.body}
+                      </Typography>
+                    </Stack>
+                  </Card>
+                );
+              })}
             </Stack>
+
+            <Sheet
+              variant="soft"
+              color="neutral"
+              sx={{ borderRadius: "lg", p: 1.5 }}
+            >
+              <Typography
+                level="body-sm"
+                fontWeight="lg"
+                aria-live="polite"
+                data-testid="audience-add-people-eligible"
+              >
+                {eligibility?.audienceConfigured
+                  ? `${eligibility.eligible.toLocaleString()} in this campaign can receive email`
+                  : eligibilityQuery.isError
+                    ? "Couldn't check who can receive email"
+                    : eligibilityChecking &&
+                        audienceDetail !== "No audience selected"
+                      ? CHECKING_AUDIENCE_LABEL
+                      : "No audience chosen yet"}
+              </Typography>
+            </Sheet>
 
             {audienceExpansionMode === "all-customers" ? (
               <Card
@@ -2925,27 +2957,19 @@ function CampaignEditorScreen() {
               >
                 <Stack spacing={1.25}>
                   <Checkbox
-                    checked={draftIncludeAllCustomers}
+                    checked={includeAllCustomers}
                     disabled={isLocked}
-                    label="Include all eligible customers in this email send"
+                    label="Send to everyone who can receive email"
                     onChange={(event) =>
-                      setDraftIncludeAllCustomers(event.target.checked)
+                      updateAudience({
+                        includeAllCustomers: event.target.checked,
+                      })
                     }
                   />
                   <Typography level="body-sm" sx={{ color: "neutral.700" }}>
-                    This setting is additive. Your segments, personas, and any
-                    direct customer additions remain attached to the campaign,
-                    and the send worker unions them at delivery time.
+                    People who can&apos;t receive email (unsubscribed, bounced,
+                    or no working address) are left out automatically.
                   </Typography>
-                  {draftAdditionalCustomerIds.length > 0 ? (
-                    <Typography level="body-xs" sx={{ color: "neutral.500" }}>
-                      {draftAdditionalCustomerIds.length} direct customer
-                      {draftAdditionalCustomerIds.length === 1
-                        ? " is"
-                        : "s are"}{" "}
-                      also attached to this campaign.
-                    </Typography>
-                  ) : null}
                 </Stack>
               </Card>
             ) : (
@@ -2960,35 +2984,26 @@ function CampaignEditorScreen() {
                   }}
                 />
 
-                <Sheet
-                  variant="soft"
-                  color="neutral"
-                  sx={{ borderRadius: "lg", p: 1.5 }}
-                >
-                  <Stack
-                    direction={{ xs: "column", sm: "row" }}
-                    spacing={1}
-                    justifyContent="space-between"
-                    alignItems={{ xs: "flex-start", sm: "center" }}
+                <Stack spacing={1}>
+                  <Typography
+                    level="body-sm"
+                    fontWeight="lg"
+                    data-testid="audience-add-people-selected-count"
                   >
-                    <Typography level="body-sm" fontWeight="lg">
-                      {draftAdditionalCustomerIds.length} direct customer
-                      {draftAdditionalCustomerIds.length === 1 ? "" : "s"}{" "}
-                      selected
-                    </Typography>
-                    {draftAdditionalCustomerIds.length > 0 ? (
-                      <Button
-                        size="sm"
-                        variant="plain"
-                        color="neutral"
-                        disabled={isLocked}
-                        onClick={() => setDraftAdditionalCustomerIds([])}
-                      >
-                        Clear selection
-                      </Button>
-                    ) : null}
-                  </Stack>
-                </Sheet>
+                    {formatPeopleCount(additionalCustomerIds.length)} added
+                  </Typography>
+                  {additionalCustomerIds.length > 0 ? (
+                    <SpecificPeopleChips
+                      people={selectedAdditionalCustomers}
+                      loading={
+                        selectedAdditionalCustomers.length === 0 &&
+                        selectedAdditionalCustomersQuery.isLoading
+                      }
+                      disabled={isLocked}
+                      onRemove={handleRemoveAdditionalCustomer}
+                    />
+                  ) : null}
+                </Stack>
 
                 <Sheet
                   variant="outlined"
@@ -3000,56 +3015,71 @@ function CampaignEditorScreen() {
                       <Skeleton variant="rectangular" height={42} />
                       <Skeleton variant="rectangular" height={42} />
                     </Stack>
+                  ) : audienceCustomersError ? (
+                    <Box sx={{ p: 2.5 }}>
+                      <Typography
+                        level="body-sm"
+                        role="alert"
+                        sx={{ color: "danger.700" }}
+                      >
+                        Couldn&apos;t search customers right now. Try again.
+                      </Typography>
+                    </Box>
                   ) : audienceCustomerOptions.length > 0 ? (
                     <>
                       <JoyTable>
                         <JoyTableHead>
                           <JoyTableRow>
-                            <JoyTableHeaderCell sx={{ width: 56 }}>
-                              Select
-                            </JoyTableHeaderCell>
                             <JoyTableHeaderCell>Customer</JoyTableHeaderCell>
                             <JoyTableHeaderCell>Email</JoyTableHeaderCell>
                             <JoyTableHeaderCell>Segments</JoyTableHeaderCell>
+                            <JoyTableHeaderCell sx={{ width: 120 }}>
+                              <Box component="span" sx={visuallyHiddenSx}>
+                                Add
+                              </Box>
+                            </JoyTableHeaderCell>
                           </JoyTableRow>
                         </JoyTableHead>
                         <JoyTableBody>
                           {audienceCustomerOptions.map((customer) => {
-                            const selected =
-                              draftAdditionalCustomerIds.includes(customer.id);
+                            const added = additionalCustomerIds.includes(
+                              customer.id,
+                            );
+                            const verdict = searchEligibilityQuery.data?.get(
+                              customer.id,
+                            );
+                            const checking =
+                              !verdict && searchEligibilityQuery.isPending;
+                            const cannotReceive =
+                              verdict !== undefined && !verdict.canReceive;
+                            const unknown =
+                              !verdict && !searchEligibilityQuery.isPending;
 
                             return (
                               <JoyTableRow
                                 key={customer.id}
-                                clickable={customer.hasEmail && !isLocked}
-                                onClick={() => {
-                                  if (customer.hasEmail && !isLocked) {
-                                    toggleDraftAdditionalCustomer(customer.id);
-                                  }
-                                }}
+                                data-testid={`audience-search-row-${customer.id}`}
                               >
-                                <JoyTableCell>
-                                  <Checkbox
-                                    checked={selected}
-                                    disabled={!customer.hasEmail || isLocked}
-                                    onClick={(event) => event.stopPropagation()}
-                                    onChange={() =>
-                                      toggleDraftAdditionalCustomer(customer.id)
-                                    }
-                                  />
-                                </JoyTableCell>
                                 <JoyTableCell>
                                   <Stack spacing={0.25}>
                                     <Typography level="body-sm" fontWeight="lg">
                                       {customer.name}
                                     </Typography>
-                                    {!customer.hasEmail ? (
+                                    {cannotReceive ? (
                                       <Typography
                                         level="body-xs"
                                         sx={{ color: "warning.700" }}
+                                        data-testid={`audience-search-reason-${customer.id}`}
                                       >
-                                        Cannot add this customer until an email
-                                        address is present.
+                                        Can&apos;t receive email: {verdict.label}
+                                      </Typography>
+                                    ) : unknown ? (
+                                      <Typography
+                                        level="body-xs"
+                                        sx={{ color: "neutral.600" }}
+                                      >
+                                        Couldn&apos;t check whether this person
+                                        can receive email
                                       </Typography>
                                     ) : null}
                                   </Stack>
@@ -3076,6 +3106,43 @@ function CampaignEditorScreen() {
                                       : "No segments yet"}
                                   </Typography>
                                 </JoyTableCell>
+                                <JoyTableCell>
+                                  {added ? (
+                                    <JoyButton
+                                      size="sm"
+                                      variant="outlined"
+                                      color="neutral"
+                                      disabled={isLocked}
+                                      aria-label={`Remove ${customer.name}`}
+                                      onClick={() =>
+                                        handleRemoveAdditionalCustomer(
+                                          customer.id,
+                                        )
+                                      }
+                                      sx={{ minHeight: 44, minWidth: 44 }}
+                                    >
+                                      Remove
+                                    </JoyButton>
+                                  ) : (
+                                    <JoyButton
+                                      size="sm"
+                                      variant="soft"
+                                      disabled={
+                                        isLocked ||
+                                        checking ||
+                                        unknown ||
+                                        cannotReceive
+                                      }
+                                      aria-label={`Add ${customer.name}`}
+                                      onClick={() =>
+                                        handleAddAdditionalCustomer(customer.id)
+                                      }
+                                      sx={{ minHeight: 44, minWidth: 44 }}
+                                    >
+                                      {checking ? "Checking" : "Add"}
+                                    </JoyButton>
+                                  )}
+                                </JoyTableCell>
                               </JoyTableRow>
                             );
                           })}
@@ -3092,7 +3159,9 @@ function CampaignEditorScreen() {
                   ) : (
                     <Box sx={{ p: 2.5 }}>
                       <Typography level="body-sm" sx={{ color: "neutral.600" }}>
-                        No customers matched this search.
+                        {audienceCustomerSearch.trim()
+                          ? "No customers matched this search."
+                          : "This business has no customers yet."}
                       </Typography>
                     </Box>
                   )}
@@ -3102,18 +3171,8 @@ function CampaignEditorScreen() {
           </Stack>
 
           <DialogActions>
-            <Button
-              variant="plain"
-              color="neutral"
-              onClick={() => setAudienceExpansionOpen(false)}
-            >
-              Cancel
-            </Button>
-            <JoyButton
-              onClick={handleSaveAudienceExpansion}
-              disabled={isLocked}
-            >
-              Save audience expansion
+            <JoyButton onClick={() => setAudienceExpansionOpen(false)}>
+              Done
             </JoyButton>
           </DialogActions>
         </ModalDialog>
