@@ -37,6 +37,7 @@ import {
   describeCampaignBlockLinkIssues,
   findCampaignLinkIssues,
 } from "@/lib/email/blockLinkIssues";
+import { isValidTestRecipient, useTestSendRecipient } from "./useTestSendRecipient";
 
 type PreviewDevice = "desktop" | "tablet" | "mobile";
 type PreviewTab = "preview" | "test";
@@ -50,8 +51,6 @@ type StudioPreviewDialogProps = {
   campaignId: string;
   /** When set, the tab shown each time the dialog opens. */
   initialTab?: PreviewTab;
-  /** Fills the test recipient when the dialog opens and the field is empty. */
-  initialTestEmail?: string;
 };
 
 const DEVICE_OPTIONS: Array<{
@@ -144,12 +143,14 @@ export default function StudioPreviewDialog({
   previewText,
   campaignId,
   initialTab,
-  initialTestEmail,
 }: StudioPreviewDialogProps) {
   const { designSystem } = useDesignSystem();
   const { settings } = useNewsletterDesign();
   const [device, setDevice] = React.useState<PreviewDevice>("desktop");
   const [activeTab, setActiveTab] = React.useState<PreviewTab>("preview");
+  // Starts as the last address used for a test this session, else the
+  // signed-in user's email. Filling it in never sends anything.
+  const { getDefaultRecipient, rememberRecipient } = useTestSendRecipient();
   const [testEmail, setTestEmail] = React.useState("");
   const [isSending, setIsSending] = React.useState(false);
   const [sendStatus, setSendStatus] = React.useState<{
@@ -216,9 +217,10 @@ export default function StudioPreviewDialog({
       setSendStatus(null);
       setCheck(null);
       if (initialTab) setActiveTab(initialTab);
-      if (initialTestEmail) setTestEmail((current) => current || initialTestEmail);
+      const recipient = getDefaultRecipient();
+      if (recipient) setTestEmail((current) => current || recipient);
     }
-  }, [initialTab, initialTestEmail, open]);
+  }, [getDefaultRecipient, initialTab, open]);
 
   const handleSendTest = React.useCallback(async () => {
     const toEmail = testEmail.trim();
@@ -227,6 +229,14 @@ export default function StudioPreviewDialog({
       setSendStatus({
         type: "danger",
         message: "Enter an email address first.",
+      });
+      return;
+    }
+
+    if (!isValidTestRecipient(toEmail)) {
+      setSendStatus({
+        type: "danger",
+        message: "Enter a valid email address, like you@yourdomain.com.",
       });
       return;
     }
@@ -266,8 +276,9 @@ export default function StudioPreviewDialog({
       return;
     }
 
+    rememberRecipient(toEmail);
     setSendStatus({ type: "success", message: "Test email sent." });
-  }, [blocks, campaignId, previewText, subjectLine, testEmail]);
+  }, [blocks, campaignId, previewText, rememberRecipient, subjectLine, testEmail]);
 
   return (
     <Modal open={open} onClose={onClose}>

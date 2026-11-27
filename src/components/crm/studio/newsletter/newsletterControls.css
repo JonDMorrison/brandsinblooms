@@ -57,8 +57,8 @@
 .nl-field select:focus,
 .nl-field textarea:focus {
   outline: none;
-  border-color: var(--joy-palette-primary-400, #1f5b63);
-  box-shadow: 0 0 0 3px var(--joy-palette-primary-100, #d9e8e6);
+  border-color: var(--joy-palette-primary-400);
+  box-shadow: 0 0 0 3px var(--joy-palette-primary-100);
 }
 .nl-field input[aria-invalid="true"],
 .nl-field input[aria-invalid="true"]:focus {
@@ -96,7 +96,7 @@
 .nl-slider-row input[type="range"] {
   width: 100%;
   min-width: 0;
-  accent-color: var(--joy-palette-primary-500, #1f5b63);
+  accent-color: var(--joy-palette-primary-500);
 }
 .nl-slider-row input[type="number"] {
   width: 100%;
@@ -126,12 +126,22 @@
 .nl-action {
   border: 0;
   border-radius: 6px;
-  background: #234b49;
-  color: #fff;
+  background: var(--joy-palette-primary-solidBg);
+  color: var(--joy-palette-primary-solidColor);
   padding: 9px 14px;
   font: inherit;
   font-weight: 600;
   cursor: pointer;
+}
+.nl-action:hover:not(:disabled) {
+  background: var(--joy-palette-primary-solidHoverBg);
+}
+.nl-action:active:not(:disabled) {
+  background: var(--joy-palette-primary-solidActiveBg);
+}
+.nl-action:focus-visible {
+  outline: 2px solid var(--joy-palette-primary-400);
+  outline-offset: 2px;
 }
 .nl-action:disabled,
 .nl-quiet:disabled {
@@ -227,7 +237,7 @@
   border: 0;
   padding: 2px 0;
   background: transparent;
-  color: var(--joy-palette-primary-600, #1f5b63);
+  color: var(--joy-palette-primary-600);
   font: inherit;
   font-size: 12px;
   font-weight: 600;
@@ -237,7 +247,7 @@
 }
 .nl-input-clear:focus-visible,
 .nl-text-action:focus-visible {
-  outline: 2px solid var(--joy-palette-primary-400, #1f5b63);
+  outline: 2px solid var(--joy-palette-primary-400);
   outline-offset: 2px;
 }
 
@@ -250,13 +260,13 @@
   transition: outline-color 120ms ease, background-color 120ms ease;
 }
 .nl-preview [data-nl-edit]:hover {
-  outline-color: rgba(31, 91, 99, 0.55);
+  outline-color: rgba(var(--joy-palette-primary-mainChannel) / 0.55);
 }
 .nl-preview [data-nl-edit]:focus-visible {
-  outline: 2px solid rgba(31, 91, 99, 0.75);
+  outline: 2px solid rgba(var(--joy-palette-primary-mainChannel) / 0.75);
 }
 .nl-preview [data-nl-edit][data-nl-editing] {
-  outline: 2px solid #1f5b63;
+  outline: 2px solid var(--joy-palette-primary-500);
   background-color: rgba(255, 255, 255, 0.35);
   /* A long word typed into a button must not be clipped. */
   min-width: 1ch;

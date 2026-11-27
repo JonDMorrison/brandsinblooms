@@ -9,17 +9,18 @@ import { useNavigate } from "react-router-dom";
 import { JoyButton } from "@/components/joy/JoyButton";
 import { JoyDialog, JoyDialogActions, JoyDialogContent } from "@/components/joy/JoyDialog";
 import {
+  catalogNoMatchesMessage,
   connectedContentRequest,
   type ConnectedContentItem,
   type ConnectedContentResponse,
 } from "@/lib/connectedContent";
 
 const categories=[
-  {value:"events",label:"Events"},
-  {value:"pages",label:"Pages"},
-  {value:"products",label:"Products"},
-  {value:"blogs",label:"Blog"},
-  {value:"fundraisers",label:"Fundraisers"},
+  {value:"events",label:"Events",noun:"events"},
+  {value:"pages",label:"Pages",noun:"pages"},
+  {value:"products",label:"Products",noun:"products"},
+  {value:"blogs",label:"Blog",noun:"blog posts"},
+  {value:"fundraisers",label:"Fundraisers",noun:"fundraisers"},
 ] as const;
 
 function eventDateLabel(item: ConnectedContentItem): string {
@@ -43,6 +44,8 @@ export function ConnectedContentPicker({
   const [category,setCategory]=React.useState("events");
   const [search,setSearch]=React.useState("");
   const [result,setResult]=React.useState<ConnectedContentResponse|null>(null);
+  // What the shown result was fetched for, so the empty state names it.
+  const [resultFor,setResultFor]=React.useState({category:"events",search:""});
   const [loading,setLoading]=React.useState(false);
   const [error,setError]=React.useState("");
   const [selected,setSelected]=React.useState<string[]>([]);
@@ -59,6 +62,7 @@ export function ConnectedContentPicker({
       }).then(data=>{
         if(!active)return;
         setResult(data);
+        setResultFor({category,search:search.trim()});
         if(initialItemId && data.items.some(item=>item.id===initialItemId && item.eventStatus!=="cancelled" && item.eventStatus!=="sold_out")){
           setSelected([initialItemId]);
         }
@@ -126,8 +130,12 @@ export function ConnectedContentPicker({
             </Sheet>
           ):null}
           {!loading&&!error&&hasSites&&result?.items.length===0?(
-            <Typography level="body-sm" color="neutral" sx={{py:3}}>
-              No matching published content was found. Try another category or search.
+            <Typography level="body-sm" color="neutral" role="status" sx={{py:3}}>
+              {catalogNoMatchesMessage({
+                query:resultFor.search,
+                kindLabel:categories.find(type=>type.value===resultFor.category)?.noun??"items",
+                siteNames:(result?.connections??[]).map(connection=>connection.site_name),
+              })}{" "}Try another category or search.
             </Typography>
           ):null}
           {!loading&&!error&&result?.sources.some(source=>source.error)?(

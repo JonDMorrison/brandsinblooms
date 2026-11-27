@@ -17,6 +17,7 @@ import {
   type CampaignDraftConflictError,
   type SavedCampaignBlock,
 } from "@/lib/crm/campaignDraftPersistence";
+import { CampaignNotFoundError } from "@/lib/crm/campaignLookup";
 
 type CampaignRow = Database["public"]["Tables"]["crm_campaigns"]["Row"];
 type SegmentRow = Database["public"]["Tables"]["crm_segments"]["Row"];
@@ -464,15 +465,32 @@ export async function fetchCampaignCatalog(tenantId: string) {
   return items;
 }
 
-export async function fetchCampaignEditorRecord(campaignId: string) {
-  const { data: campaignRow, error: campaignError } = await supabase
+/**
+ * Loads one campaign for editing. With `tenantId`, only a campaign of that
+ * business is returned: an id from another business reads as not found, so
+ * nothing of it reaches the screen. Throws CampaignNotFoundError when there
+ * is no such campaign. Never creates one.
+ */
+export async function fetchCampaignEditorRecord(
+  campaignId: string,
+  options: { tenantId?: string | null } = {},
+) {
+  let campaignQuery = supabase
     .from("crm_campaigns")
     .select("*")
-    .eq("id", campaignId)
-    .single();
+    .eq("id", campaignId);
+  if (options.tenantId) {
+    campaignQuery = campaignQuery.eq("tenant_id", options.tenantId);
+  }
+  const { data: campaignRow, error: campaignError } =
+    await campaignQuery.maybeSingle();
 
   if (campaignError) {
     throw campaignError;
+  }
+
+  if (!campaignRow) {
+    throw new CampaignNotFoundError(campaignId);
   }
 
   const [{ data: campaignSegments }, { data: campaignPersonas }] =

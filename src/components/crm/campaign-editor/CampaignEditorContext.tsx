@@ -20,6 +20,10 @@ import {
   writeCampaignDraftSnapshot,
   type DraftSnapshotTrigger,
 } from "@/lib/crm/campaignDraftPersistence";
+import {
+  CampaignNotFoundError,
+  isCampaignIdShaped,
+} from "@/lib/crm/campaignLookup";
 import { SYSTEM_PERSONAS } from "@/config/systemPersonas";
 import {
   AUTO_SAVE_MAX_RETRIES,
@@ -53,6 +57,27 @@ type AutoSaveStatus =
   // The user-facing "we tried 3 times and gave up" terminal state. Distinct
   // from "error" so the UI can render a different (clearer, scarier) message.
   | "failed";
+
+/**
+ * Where the campaign named in the address stands.
+ * - "new": /crm/campaigns/new. The first save inserts the draft.
+ * - "loading": the campaign in the address is being read.
+ * - "loaded": it was read from the current business. Saves update it.
+ * - "not-found": no such campaign in the current business (or the id is not
+ *   a campaign id at all). Nothing is shown and nothing is saved.
+ * - "error": it could not be read. Nothing is saved.
+ */
+export type CampaignLoadState =
+  | "new"
+  | "loading"
+  | "loaded"
+  | "not-found"
+  | "error";
+
+function initialLoadState(campaignId: string | null | undefined): CampaignLoadState {
+  if (!campaignId) return "new";
+  return isCampaignIdShaped(campaignId) ? "loading" : "not-found";
+}
 
 export interface CampaignEditorState {
   campaignId: string | null;
@@ -111,6 +136,8 @@ interface CampaignActivationOptions extends CampaignSendInvocationOptions {
 
 interface CampaignEditorContextValue extends CampaignEditorState {
   isLoading: boolean;
+  /** Whether the campaign in the address was found. See CampaignLoadState. */
+  loadState: CampaignLoadState;
   /** True once the company this editor saves into is known. Saving earlier
    *  would fall back to the user's own company. */
   isTenantReady: boolean;
@@ -372,13 +399,30 @@ export function CampaignEditorProvider({
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { tenant } = useTenant();
+  const { tenant, loading: tenantLoading } = useTenant();
+  const tenantId = tenant?.id ?? null;
   const { senderConfig } = useSenderConfiguration();
   const { designSystem } = useDesignSystem();
   const [state, setState] = React.useState<CampaignEditorState>(() =>
     createInitialState(searchParams, designSystem, location.state),
   );
-  const [isLoading, setIsLoading] = React.useState(Boolean(campaignId));
+  const [loadState, setLoadStateValue] = React.useState<CampaignLoadState>(
+    () => initialLoadState(campaignId),
+  );
+  // Read by the save path, which must never insert a draft for an address
+  // that names a campaign this editor has not loaded.
+  const loadStateRef = React.useRef<CampaignLoadState>(loadState);
+  const setLoadState = React.useCallback((next: CampaignLoadState) => {
+    loadStateRef.current = next;
+    setLoadStateValue(next);
+  }, []);
+  const [isLoading, setIsLoading] = React.useState(
+    () => initialLoadState(campaignId) === "loading",
+  );
+  // "<tenant>:<campaign>" of the campaign now in state, and of the read in
+  // flight. A read for an older address or business is dropped.
+  const loadedKeyRef = React.useRef<string | null>(null);
+  const loadRequestKeyRef = React.useRef<string | null>(null);
   const campaignIdRef = React.useRef<string | null>(state.campaignId);
   // The id in the address (/crm/campaigns/<id>), or null on /new.
   const routeCampaignIdRef = React.useRef<string | null>(campaignId ?? null);
@@ -418,7 +462,8 @@ export function CampaignEditorProvider({
   const syncedAudienceLinksRef = React.useRef<string | null>(null);
   // A draft inserted here moves the address from /crm/campaigns/new to
   // /crm/campaigns/<id>. The editor stays mounted on that change, and this
-  // id is already in state, so it is not fetched again.
+  // id is already in state, so it is not fetched again. Held as
+  // "<tenant>:<campaign>": in another business it is looked up afresh.
   const adoptedCampaignIdRef = React.useRef<string | null>(null);
   const fromEmailDomainIdRef = React.useRef<string | null>(
     senderConfig?.fromEmailDomainId ?? null,
@@ -568,37 +613,144 @@ export function CampaignEditorProvider({
     });
   }, []);
 
+  // Nothing of a campaign that is not in this business stays on screen, and
+  // nothing is left to save.
+  const markCampaignMissing = React.useCallback(
+    (next: "not-found" | "error") => {
+      loadedKeyRef.current = null;
+      campaignIdRef.current = null;
+      lastSavedFingerprintRef.current = null;
+      lastUpdatedAtRef.current = null;
+      if (autosaveTimerRef.current) {
+        clearTimeout(autosaveTimerRef.current);
+        autosaveTimerRef.current = null;
+      }
+      if (autoSaveRetryTimerRef.current) {
+        clearTimeout(autoSaveRetryTimerRef.current);
+        autoSaveRetryTimerRef.current = null;
+      }
+      setState((current) =>
+        current.campaignId === null && !current.isDirty
+          ? current
+          : {
+              ...current,
+              campaignId: null,
+              status: "draft",
+              sendBlockedReason: null,
+              name: "",
+              subjectLine: "",
+              preheaderText: "",
+              senderName: "",
+              senderEmail: "",
+              replyTo: "",
+              selectedSegments: [],
+              selectedPersonas: [],
+              includeAllCustomers: false,
+              additionalCustomerIds: [],
+              contentBlocks: [],
+              smsMessage: "",
+              sendAt: null,
+              sendImmediately: true,
+              isDirty: false,
+              isSaving: false,
+              lastSavedAt: null,
+              autoSaveStatus: "idle",
+              autoSaveMessage: null,
+              isLocked: false,
+            },
+      );
+      setLoadState(next);
+      setIsLoading(false);
+    },
+    [setLoadState],
+  );
+
   const reload = React.useCallback(async () => {
     if (!campaignId) {
+      loadRequestKeyRef.current = null;
+      setLoadState("new");
       setIsLoading(false);
       return;
     }
 
-    const shouldShowInitialLoading = !hasHydratedRef.current;
+    // Not a campaign id: no request is made.
+    if (!isCampaignIdShaped(campaignId)) {
+      loadRequestKeyRef.current = null;
+      markCampaignMissing("not-found");
+      return;
+    }
 
-    if (shouldShowInitialLoading) {
+    // The campaign is looked up in the current business only, so wait until
+    // that business is known (a master admin's active business included).
+    if (!tenantId) {
+      loadRequestKeyRef.current = null;
+      if (tenantLoading) {
+        setLoadState("loading");
+        setIsLoading(true);
+        return;
+      }
+      markCampaignMissing("not-found");
+      return;
+    }
+
+    const requestKey = `${tenantId}:${campaignId}`;
+    loadRequestKeyRef.current = requestKey;
+    // A first read, or a read for another campaign or business, hides the
+    // editor until it answers. A refresh of the campaign on screen does not.
+    const isRefresh = loadedKeyRef.current === requestKey;
+    if (!isRefresh) {
+      setLoadState("loading");
       setIsLoading(true);
     }
 
     try {
-      const record = await fetchCampaignEditorRecord(campaignId);
+      const record = await fetchCampaignEditorRecord(campaignId, { tenantId });
+      if (loadRequestKeyRef.current !== requestKey) return;
       applyLoadedCampaign(record);
+      loadedKeyRef.current = requestKey;
+      setLoadState("loaded");
     } catch (error) {
+      if (loadRequestKeyRef.current !== requestKey) return;
+      if (error instanceof CampaignNotFoundError) {
+        markCampaignMissing("not-found");
+        return;
+      }
       toast.error(
         error instanceof Error ? error.message : "Failed to load campaign",
       );
+      if (!isRefresh) {
+        markCampaignMissing("error");
+      }
     } finally {
-      hasHydratedRef.current = true;
-      setIsLoading(false);
+      if (loadRequestKeyRef.current === requestKey) {
+        hasHydratedRef.current = true;
+        setIsLoading(false);
+      }
     }
-  }, [applyLoadedCampaign, campaignId]);
+  }, [
+    applyLoadedCampaign,
+    campaignId,
+    markCampaignMissing,
+    setLoadState,
+    tenantId,
+    tenantLoading,
+  ]);
 
+  // Read when the address or the business changes, not when reload's other
+  // inputs do (a re-read would replace edits that are not saved yet).
+  const reloadRef = React.useRef(reload);
+  reloadRef.current = reload;
+  const waitingForTenant = !tenantId && Boolean(tenantLoading);
   React.useEffect(() => {
-    if (campaignId && campaignId === adoptedCampaignIdRef.current) {
+    // The draft this editor just inserted on /new is already in state.
+    if (
+      campaignId &&
+      `${tenantId}:${campaignId}` === adoptedCampaignIdRef.current
+    ) {
       return;
     }
-    void reload();
-  }, [campaignId, reload]);
+    void reloadRef.current();
+  }, [campaignId, tenantId, waitingForTenant]);
 
   React.useEffect(() => {
     if (!campaignId) {
@@ -1009,6 +1161,16 @@ export function CampaignEditorProvider({
       fingerprint: string;
       requestedStatus: CampaignStatus;
     }) => {
+      // A draft is inserted only from /crm/campaigns/new. An address that
+      // names a campaign saves only once that campaign has loaded from this
+      // business: an unknown, malformed or other-business id saves nothing.
+      if (
+        routeCampaignIdRef.current &&
+        (loadStateRef.current !== "loaded" || !campaignIdRef.current)
+      ) {
+        return null;
+      }
+
       if (
         campaignIdRef.current &&
         fingerprint === lastSavedFingerprintRef.current &&
@@ -1102,8 +1264,12 @@ export function CampaignEditorProvider({
 
         // The first save of a new draft: put its id in the address
         // (history.replaceState) so a reload reopens this draft.
+        if (!existingCampaignId) {
+          loadedKeyRef.current = `${payload.tenantId}:${saved.id}`;
+          setLoadState("loaded");
+        }
         if (!existingCampaignId && routeCampaignIdRef.current !== saved.id) {
-          adoptedCampaignIdRef.current = saved.id;
+          adoptedCampaignIdRef.current = `${payload.tenantId}:${saved.id}`;
           navigate(`/crm/campaigns/${saved.id}`, { replace: true });
         }
 
@@ -1149,7 +1315,7 @@ export function CampaignEditorProvider({
         return null;
       }
     },
-    [navigate, syncPersistedCampaignVersion],
+    [navigate, setLoadState, syncPersistedCampaignVersion],
   );
 
   const saveDraft = React.useCallback(
@@ -1258,8 +1424,12 @@ export function CampaignEditorProvider({
     ],
   );
 
+  // /new, or a campaign that loaded. Never an address whose campaign did not.
+  const canPersistDraft = !campaignId || loadState === "loaded";
+
   React.useEffect(() => {
     if (
+      !canPersistDraft ||
       !state.isDirty ||
       state.isLocked ||
       isLoading ||
@@ -1285,6 +1455,7 @@ export function CampaignEditorProvider({
     };
   }, [
     autoSavePaused,
+    canPersistDraft,
     draftFingerprint,
     isLoading,
     saveDraft,
@@ -1302,6 +1473,7 @@ export function CampaignEditorProvider({
   // cleanup below and clears the pending timer.
   React.useEffect(() => {
     if (
+      !canPersistDraft ||
       state.autoSaveStatus !== "error" ||
       !state.isDirty ||
       state.isLocked ||
@@ -1334,6 +1506,7 @@ export function CampaignEditorProvider({
     };
   }, [
     autoSavePaused,
+    canPersistDraft,
     isLoading,
     saveDraft,
     state.autoSaveStatus,
@@ -1371,6 +1544,8 @@ export function CampaignEditorProvider({
     if (
       !campaignId ||
       isLoading ||
+      loadState !== "loaded" ||
+      state.campaignId !== campaignId ||
       state.campaignType !== "email" ||
       state.isLocked ||
       !senderConfig?.isVerified ||
@@ -1400,10 +1575,12 @@ export function CampaignEditorProvider({
   }, [
     campaignId,
     isLoading,
+    loadState,
     senderConfig?.fromEmailDomainId,
     senderConfig?.isVerified,
     senderConfig?.replyToEmail,
     senderConfig?.senderEmail,
+    state.campaignId,
     state.campaignType,
     state.isLocked,
     state.replyTo,
@@ -1702,6 +1879,7 @@ export function CampaignEditorProvider({
     () => ({
       ...state,
       isLoading,
+      loadState,
       isTenantReady: Boolean(tenant?.id),
       syncLiveCampaign,
       updateSetup,
@@ -1724,6 +1902,7 @@ export function CampaignEditorProvider({
       activate,
       cancel,
       isLoading,
+      loadState,
       tenant?.id,
       reload,
       resume,

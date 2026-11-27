@@ -44,6 +44,7 @@ import { useAIImageGeneration } from "@/hooks/useAIImageGeneration";
 import { useAIImageStudio } from "@/hooks/useAIImageStudio";
 import { supabase } from "@/integrations/supabase/client";
 import { useWebsiteProductImages } from "@/hooks/useWebsiteProductImages";
+import { catalogNoMatchesMessage } from "@/lib/connectedContent";
 
 const CAMPAIGN_IMAGE_BUCKET = "campaign-images";
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -136,6 +137,7 @@ function ProductImagePanel({ onPick }: { onPick: (url: string, altText: string) 
     return () => window.clearTimeout(handle);
   }, [search]);
   const products = useWebsiteProductImages(query, true);
+  const productItems = products.data?.items ?? [];
   return (
     <Stack spacing={1} data-testid="image-source-products">
       <Input
@@ -152,9 +154,13 @@ function ProductImagePanel({ onPick }: { onPick: (url: string, altText: string) 
         <Typography level="body-xs" sx={{ color: "danger.600" }}>
           {products.error instanceof Error ? products.error.message : "Could not load your website products."}
         </Typography>
-      ) : (products.data ?? []).length === 0 ? (
-        <Typography level="body-xs" sx={{ color: "text.tertiary" }}>
-          No product photos found on your website.
+      ) : productItems.length === 0 ? (
+        <Typography level="body-xs" role="status" sx={{ color: "text.tertiary" }}>
+          {catalogNoMatchesMessage({
+            query,
+            kindLabel: "product photos",
+            siteNames: products.data?.siteNames ?? [],
+          })}
         </Typography>
       ) : (
         <Box
@@ -166,7 +172,7 @@ function ProductImagePanel({ onPick }: { onPick: (url: string, altText: string) 
             overflowY: "auto",
           }}
         >
-          {(products.data ?? []).map((product) => (
+          {productItems.map((product) => (
             <Box
               key={product.id}
               component="button"
