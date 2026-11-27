@@ -377,4 +377,23 @@ describe("campaign editor Organize step", () => {
     }
     view.unmount();
   });
+
+  it("group colour and campaign colour pickers share one grid column and size", async () => {
+    editor.current = draft({ recordExternalSave: vi.fn() });
+    const view = await reload();
+    fireEvent.click(stepToggle());
+    const grid = screen.getByTestId("campaign-organization-form-grid");
+    const groupColour = screen.getByLabelText("Group colour") as HTMLInputElement;
+    const campaignColour = screen.getByLabelText("Campaign colour") as HTMLInputElement;
+    expect(groupColour.type).toBe("color");
+    expect(campaignColour.type).toBe("color");
+    // Both pickers are grid cells of the same grid (the group one inside its
+    // FormControl), with identical styling.
+    expect(grid.contains(groupColour) && grid.contains(campaignColour)).toBe(true);
+    expect(campaignColour.parentElement).toBe(grid);
+    expect(groupColour.parentElement?.parentElement).toBe(grid);
+    expect(groupColour.className).toBe(campaignColour.className);
+    expect(getComputedStyle(grid).display).toBe("grid");
+    view.unmount();
+  });
 });
