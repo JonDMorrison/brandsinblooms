@@ -14,6 +14,10 @@ import {
 
 // FIX: [issue #62] - TODO: Replace console.log statements with a proper logging service for production
 
+/** Shown when the database refuses a schedule because the email is not approved. */
+export const APPROVAL_REQUIRED_SCHEDULE_MESSAGE =
+  "This email needs approval before it can be scheduled. Open it, choose Send now, and send it for approval.";
+
 export interface CampaignData {
   id?: string; // Optional - if provided, will UPDATE instead of INSERT
   name: string;
@@ -512,6 +516,13 @@ export const updateCampaignSchedule = async (
 
       // If RPC doesn't exist/visible yet, fall back.
       const msg = String((error as any)?.message || "");
+      // The database refuses to schedule an email that needs approval. Say
+      // so plainly and stop: the direct update below would be refused too.
+      if (/campaign approval required/i.test(msg)) {
+        options?.onFailureMessage?.(APPROVAL_REQUIRED_SCHEDULE_MESSAGE);
+        if (!options?.silent) toast.error(APPROVAL_REQUIRED_SCHEDULE_MESSAGE);
+        return false;
+      }
       const looksLikeMissingRpc =
         msg.toLowerCase().includes("could not find the function") ||
         msg.toLowerCase().includes("schema cache");
