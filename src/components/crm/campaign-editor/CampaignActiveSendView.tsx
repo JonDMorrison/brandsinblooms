@@ -803,14 +803,6 @@ export function CampaignActiveSendView({
             p: { xs: 2, md: 3 },
             backgroundColor: "background.surface",
             gridColumn: { lg: "1" }, gridRow: { lg: "1" },
-            position: "relative", overflow: "hidden",
-            "&::before": {
-              content: '""', position: "absolute", right: -24, top: -30,
-              width: 260, height: 280,
-              background: 'url("/images/dashboard/botanical-corner.svg") center / contain no-repeat',
-              pointerEvents: "none",
-            },
-            "& > *": { position: "relative" },
           }}
         >
           <Stack spacing={2.5}>

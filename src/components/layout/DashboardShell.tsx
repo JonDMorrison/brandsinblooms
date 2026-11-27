@@ -167,13 +167,10 @@ export function DashboardShell({
   const isAskBloomPanelOpen = Boolean(
     askBloom?.state.isOpen && !askBloom.state.isCollapsed,
   );
-  const showBotanicalCanvas = mode !== "admin" &&
+  // Dashboard, analytics and CRM pages use the tighter content padding.
+  const usesCompactPagePadding = mode !== "admin" &&
     /^\/(dashboard|analytics|crm)(\/|$)/.test(pathname) &&
     !/studio|email-builder/.test(pathname);
-  // The campaign editor (/crm/campaigns/new, /:id and /:id/edit) draws its
-  // own page background, without the leaf artwork.
-  const isCampaignEditorRoute =
-    /^\/crm\/campaigns\/(?!templates$|blocks$)[^/]+(\/edit)?\/?$/.test(pathname);
   const resolvedContentWidth = useMemo(
     () => contentWidth ?? resolveDashboardContentWidth(pathname, mode),
     [contentWidth, mode, pathname],
@@ -363,23 +360,6 @@ export function DashboardShell({
             scrollBehavior: "smooth",
             overscrollBehavior: "contain",
             backgroundColor: "var(--joy-palette-neutral-50)",
-            backgroundImage: showBotanicalCanvas && !isCampaignEditorRoute
-              ? 'url("/images/dashboard/botanical-corner.svg"), url("/images/dashboard/botanical-corner.svg")'
-              : "none",
-            // Outlined/plain controls must remain opaque over the botanical canvas.
-            // Control groups that draw their own surface (underline tabs, a
-            // segmented track) opt out with data-bare-controls.
-            ...(showBotanicalCanvas ? {
-              "& :is(.MuiButton-variantOutlined, .MuiButton-variantPlain, .MuiIconButton-variantOutlined, .MuiIconButton-variantPlain):not([data-bare-controls] *)": {
-                backgroundColor: "var(--joy-palette-background-surface) !important",
-                "&:hover": { backgroundColor: "var(--joy-palette-neutral-100) !important" },
-                "&:active": { backgroundColor: "var(--joy-palette-neutral-200) !important" },
-                "&.Mui-disabled": { backgroundColor: "var(--joy-palette-background-surface) !important", opacity: 1 },
-              },
-            } : {}),
-            backgroundRepeat: "no-repeat",
-            backgroundSize: { xs: "180px, 160px", md: "360px, 300px" },
-            backgroundPosition: "right top, left bottom",
             scrollbarWidth: "thin",
             scrollbarColor: "var(--joy-palette-neutral-300) transparent",
             "&::-webkit-scrollbar": {
@@ -403,8 +383,8 @@ export function DashboardShell({
               width: "100%",
               height: "100%",
               minHeight: "100%",
-              px: isBloomRoute ? 0 : showBotanicalCanvas ? { xs: 2, md: 4 } : { xs: 4, md: 6 },
-              py: isBloomRoute ? 0 : showBotanicalCanvas ? { xs: 3, md: 4 } : 8,
+              px: isBloomRoute ? 0 : usesCompactPagePadding ? { xs: 2, md: 4 } : { xs: 4, md: 6 },
+              py: isBloomRoute ? 0 : usesCompactPagePadding ? { xs: 3, md: 4 } : 8,
               mx: isBloomRoute ? 0 : "auto",
               maxWidth:
                 isBloomRoute || resolvedContentWidth === "full"

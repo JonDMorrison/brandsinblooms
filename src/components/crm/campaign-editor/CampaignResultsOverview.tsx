@@ -52,7 +52,7 @@ export function CampaignResultsOverview(props: ResultsProps) {
   const sent = stats?.sent ?? null;
   const needsReview = props.failed > 0 || (props.bounced ?? 0) > 0;
   return <Stack spacing={2.5} sx={{ width: "100%", maxWidth: 1280, mx: "auto" }}>
-    <Sheet variant="outlined" sx={{ borderRadius: "xl", p: { xs: 2.5, md: 4 }, position: "relative", overflow: "hidden", boxShadow: "0 5px 24px rgb(24 60 83 / 5%)", bgcolor: "background.surface", "&::before": { content: '""', position: "absolute", right: -20, top: -45, width: 340, height: 320, background: 'url("/images/dashboard/botanical-corner.svg") center / contain no-repeat', pointerEvents: "none" }, "& > *": { position: "relative" } }}>
+    <Sheet variant="outlined" sx={{ borderRadius: "xl", p: { xs: 2.5, md: 4 }, boxShadow: "0 5px 24px rgb(24 60 83 / 5%)", bgcolor: "background.surface" }}>
       <Stack direction={{ xs: "column", md: "row" }} spacing={3} justifyContent="space-between" alignItems={{ xs: "stretch", md: "center" }}>
         <Stack spacing={1.25} sx={{ minWidth: 0, maxWidth: 700 }}>
           <Stack direction="row" gap={1} alignItems="center">

@@ -198,7 +198,7 @@ const AnalyticsPage = () => {
           sx={{ borderBottom: "1px solid", borderColor: "neutral.200" }}
         >
           <Stack direction="row" spacing={2.5} useFlexGap flexWrap="wrap"
-            role="group" aria-label="Analytics sections" data-bare-controls
+            role="group" aria-label="Analytics sections"
             sx={{ mb: "-1px" }}>
             {views.map((view) => {
               const active = activeView === view.id;
@@ -240,7 +240,6 @@ const AnalyticsPage = () => {
                 variant="soft"
                 role="group"
                 aria-label="Reporting period"
-                data-bare-controls
                 sx={{
                   display: { xs: "none", sm: "inline-flex" },
                   alignSelf: { sm: "flex-start", md: "center" },
