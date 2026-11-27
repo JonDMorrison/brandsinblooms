@@ -119,6 +119,14 @@ jobs:
             supabase/functions/generate-content/__tests__/index.test.ts \
             supabase/functions/generate-weekly-themes/__tests__/index.test.ts
 
+      - name: Test read-only BloomSites bridge (Lacoste fixture)
+        run: |
+          deno test \
+            --config supabase/functions/deno.json \
+            --frozen-lockfile \
+            --allow-env \
+            supabase/functions/_shared/bloomsitesBridge.test.ts
+
       - name: Test retired function stubs
         run: |
           deno test \
