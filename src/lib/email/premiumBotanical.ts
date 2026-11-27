@@ -56,7 +56,6 @@ export function renderBloomSystemEmail(p:BloomSystemEmail):string{
  const button=action?'<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:22px 0"><tr><td bgcolor="'+t.navy+'" style="border-radius:8px;background:'+t.navy+'"><a href="'+bloomEmailEscape(action)+'" style="display:inline-block;padding:15px 22px;color:#FFFFFF;font-size:15px;line-height:22px;font-weight:700;text-decoration:none">'+bloomEmailEscape(p.action!.label)+'</a></td></tr></table>':"";
  return '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="x-apple-disable-message-reformatting"><title>'+
  bloomEmailEscape(p.title)+'</title></head><body style="margin:0;padding:0;color:'+t.navy+';background:'+t.ivory+';font-family:Arial,Helvetica,sans-serif">'+
- '<div style="display:none;max-height:0;max-width:0;overflow:hidden;opacity:0;mso-hide:all">'+bloomEmailEscape(p.preheader||p.title)+'</div>'+
  '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:'+t.ivory+'"><tr><td align="center" style="padding:24px 12px">'+
  '<table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:600px;border:1px solid '+t.border+';border-radius:16px;background:#FFFFFF;overflow:hidden">'+
  '<tr><td bgcolor="'+t.navy+'" style="padding:25px 28px;background:'+t.navy+';color:#FFFFFF;font-size:22px;line-height:28px;font-weight:700">'+brand+'</td></tr>'+
