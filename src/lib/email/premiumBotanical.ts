@@ -20,12 +20,10 @@ export const BLOOM_EMAIL = Object.freeze({
   muted:"#5B6B79",
 });
 export type BloomEmailIcon = "sun"|"water"|"soil"|"check"|"truck"|"calendar"|"mail"|"alert"|"leaf";
-const ICONS="https://bloomsites.app/email/premium-icons/";
 export const bloomEmailEscape=(v:unknown)=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]!));
-export function bloomEmailIcon(name:BloomEmailIcon,size=44):string{
-  const n=Math.max(20,Math.min(56,Math.round(size)));
-  return '<img src="'+ICONS+name+'.png" alt="" width="'+n+'" height="'+n+
-    '" style="display:block;border:0;width:'+n+'px;height:'+n+'px;object-fit:contain"/>';
+export function bloomEmailIcon(_name:BloomEmailIcon,_size=44):string{
+  // Keep the compatibility API while avoiding remote artwork in system mail.
+  return "";
 }
 function verifiedLink(v:string):string{
   try{const u=new URL(v);return u.protocol==="https:"&&!u.username&&!u.password&&u.href.length<=2048?u.href:"";}catch{return "";}
