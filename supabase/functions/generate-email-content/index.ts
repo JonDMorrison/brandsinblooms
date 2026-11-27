@@ -1,24 +1,67 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'npm:@supabase/supabase-js@2'
+import {
+  authorizeGeneratorRequest,
+  readJsonBody,
+  type GeneratorAuthDeps,
+} from "../_shared/generatorAuth.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-serve(async (req) => {
+interface EmailContentRequest {
+  prompt?: string;
+  persona?: string;
+  type?: string;
+  personas?: Array<{ persona_name?: string; name?: string }>;
+  postType?: string;
+  campaignTitle?: string;
+  campaignContext?: string;
+  blockIndex?: number;
+  previousBlocks?: Array<{ title?: string; headline?: string; content?: string; body?: string }>;
+  totalBlocks?: number;
+}
+
+interface PersonaRow {
+  name: string;
+  description: string | null;
+  tone: string | null;
+  sample_phrases: string[] | null;
+  buying_triggers: string[] | null;
+}
+
+interface PersonaQuery {
+  eq(column: string, value: string): PersonaQuery;
+  single(): PromiseLike<{ data: PersonaRow | null; error: unknown }>;
+}
+
+interface PersonaClient {
+  from(table: "personas"): { select(columns: string): PersonaQuery };
+}
+
+const defaultDeps: GeneratorAuthDeps = {
+  createClient: createClient as GeneratorAuthDeps["createClient"],
+  envGet: (key) => Deno.env.get(key),
+};
+
+export async function handleGenerateEmailContent(
+  req: Request,
+  deps: GeneratorAuthDeps = defaultDeps,
+): Promise<Response> {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // SECURITY: [E18] - Add JWT authentication
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'Authorization required' }), { status: 401, headers: corsHeaders });
-    }
+    const body = await readJsonBody<EmailContentRequest>(req);
+    // The caller's JWT and tenant membership are verified before any query.
+    // The user is the token's user; no user id is read from the request.
+    const auth = await authorizeGeneratorRequest(req, body, deps, corsHeaders);
+    if (!auth.ok) return auth.response;
 
     const {
       prompt,
@@ -31,18 +74,17 @@ serve(async (req) => {
       blockIndex = 0,
       previousBlocks = [],
       totalBlocks = 1
-    } = await req.json();
+    } = body;
 
     // Get OpenAI API key
-    const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+    const openAIApiKey = deps.envGet('OPENAI_API_KEY');
     if (!openAIApiKey) {
       throw new Error('OpenAI API key not configured');
     }
 
-    // Create Supabase client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    // personas is readable by any authenticated user (RLS), so the caller's
+    // JWT-scoped client is used; no service key is needed here.
+    const supabase = auth.userClient as PersonaClient;
 
     // Format personas for prompt context
     const formatPersonasForPrompt = (personas: any[]): string => {
@@ -318,4 +360,8 @@ NARRATIVE ARC REQUIREMENT: Each block should serve a distinct purpose in the ove
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
-});
+}
+
+if (import.meta.main) {
+  serve((req) => handleGenerateEmailContent(req));
+}

@@ -105,6 +105,22 @@ jobs:
             supabase/functions/mailchimp-import/__tests__/index.test.ts \
             supabase/functions/mailchimp-fetch-preview/__tests__/index.test.ts
 
+      # These handlers carry type errors that predate their auth checks, so
+      # the tests run unchecked (as newsletter-editor-checks does).
+      - name: Test AI generator JWT and tenant membership checks
+        run: |
+          deno test \
+            --config supabase/functions/deno.json \
+            --frozen-lockfile \
+            --no-check \
+            --allow-env \
+            supabase/functions/generate-email-content/__tests__/index.test.ts \
+            supabase/functions/generate-newsletter/__tests__/index.test.ts \
+            supabase/functions/generate-structured-newsletter/__tests__/index.test.ts \
+            supabase/functions/generate-cohesive-newsletter/__tests__/index.test.ts \
+            supabase/functions/generate-content/__tests__/index.test.ts \
+            supabase/functions/generate-weekly-themes/__tests__/index.test.ts
+
       - name: Test campaign recipient email dedup
         run: |
           deno test \

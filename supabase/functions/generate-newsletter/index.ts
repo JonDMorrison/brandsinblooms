@@ -3,35 +3,82 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { fetchCampaignContent } from './content-processor.ts';
+import {
+  authorizeGeneratorRequest,
+  GENERATOR_UUID,
+  readJsonBody,
+  type GeneratorAuthDeps,
+} from "../_shared/generatorAuth.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-serve(async (req) => {
+interface CampaignLookup {
+  from(table: "campaigns"): {
+    select(columns: string): {
+      eq(column: string, value: string): {
+        eq(column: string, value: string): {
+          maybeSingle(): PromiseLike<{ data: { id: string } | null; error: unknown }>;
+        };
+      };
+    };
+  };
+}
+
+const defaultDeps: GeneratorAuthDeps = {
+  createClient: createClient as GeneratorAuthDeps["createClient"],
+  envGet: (key) => Deno.env.get(key),
+};
+
+export async function handleGenerateNewsletter(
+  req: Request,
+  deps: GeneratorAuthDeps = defaultDeps,
+): Promise<Response> {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // SECURITY: [E17] - Add JWT authentication
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'Authorization required' }), { status: 401, headers: corsHeaders });
-    }
+    const body = await readJsonBody(req);
+    // The caller's JWT and tenant membership are verified before any query.
+    // The user is the token's user; a userId in the body is ignored.
+    const auth = await authorizeGeneratorRequest(req, body, deps, corsHeaders);
+    if (!auth.ok) return auth.response;
 
-    const { campaignId, userId } = await req.json();
+    const userId = auth.userId;
+    const campaignId = typeof body.campaignId === 'string' && body.campaignId !== 'undefined'
+      ? body.campaignId
+      : undefined;
     
-    console.log('Newsletter generation request:', { campaignId, userId });
+    console.log('Newsletter generation request:', { campaignId, userId, tenantId: auth.tenantId });
 
-    if (!userId) {
-      throw new Error('User ID is required');
+    // campaigns and content_tasks are tenant-scoped by RLS, so the caller's
+    // JWT-scoped client is used; no service key is needed here.
+    const supabase = auth.userClient;
+
+    // A named campaign must belong to the verified tenant.
+    if (campaignId) {
+      if (!GENERATOR_UUID.test(campaignId)) {
+        return new Response(JSON.stringify({ error: 'invalid_campaign' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const { data: campaign, error: campaignError } = await (supabase as CampaignLookup)
+        .from('campaigns')
+        .select('id')
+        .eq('id', campaignId)
+        .eq('tenant_id', auth.tenantId)
+        .maybeSingle();
+      if (campaignError || !campaign) {
+        return new Response(JSON.stringify({ error: 'campaign_not_found' }), {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
     }
-
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Fetch campaign content with improved error handling
     const contentResult = await fetchCampaignContent(supabase, campaignId, userId);
@@ -54,7 +101,7 @@ serve(async (req) => {
     }
 
     // Generate newsletter content
-    const newsletterContent = await generateNewsletterFromTasks(tasks, campaign);
+    const newsletterContent = await generateNewsletterFromTasks(tasks, campaign, deps.envGet('OPENAI_API_KEY'));
 
     console.log('Newsletter generated successfully');
 
@@ -84,15 +131,18 @@ serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
-});
+}
+
+if (import.meta.main) {
+  serve((req) => handleGenerateNewsletter(req));
+}
 
 // Cache for company profiles to avoid repeated DB calls
 let companyProfileCache = new Map();
 
-async function generateNewsletterFromTasks(tasks: any[], campaign: any) {
+async function generateNewsletterFromTasks(tasks: any[], campaign: any, openAIApiKey: string | undefined) {
   console.log('🚀 OPTIMIZED: Starting newsletter generation with cached profiles');
-  const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
-  
+
   if (!openAIApiKey) {
     throw new Error('OpenAI API key not configured');
   }

@@ -136,17 +136,9 @@ export async function generateHolidayContent(
         taskData.tenant_id = tenant.id;
         taskData.created_by_user_id = user.id;
       } else {
-        // Fallback: try to get tenant from user if not provided
-        const { data: userTenant } = await supabase
-          .from("tenants")
-          .select("id")
-          .limit(1)
-          .single();
-
-        if (userTenant) {
-          taskData.tenant_id = userTenant.id;
-          taskData.created_by_user_id = user.id;
-        }
+        // Never guess a tenant: an unscoped tenants lookup could attach the
+        // task to another account. The calendar caller always passes one.
+        throw new Error("A tenant is required to save holiday content.");
       }
 
       // Pre-insert field validation with allowed fields list
