@@ -23279,6 +23279,30 @@ export type Database = {
           subscription_id: string;
         }[];
       };
+      email_campaign_eligibility: {
+        Args: {
+          p_customer_ids?: string[];
+          p_include_all_customers?: boolean;
+          p_persona_ids?: string[];
+          p_segment_ids?: string[];
+          p_tenant_id: string;
+        };
+        Returns: {
+          asked_to_stop: number;
+          audience_configured: boolean;
+          blocked: number;
+          duplicates: number;
+          eligible: number;
+          eligible_with_both_overrides: number;
+          eligible_with_consent_override: number;
+          eligible_with_soft_override: number;
+          never_opted_in: number;
+          single_eligible_email: string | null;
+          total: number;
+          unsendable: number;
+          waiting: number;
+        }[];
+      };
       email_gov_cfg_int: { Args: { p_path: string[] }; Returns: number };
       email_gov_cfg_interval: { Args: { p_path: string[] }; Returns: string };
       email_gov_cfg_num: { Args: { p_path: string[] }; Returns: number };

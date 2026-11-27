@@ -14,7 +14,9 @@ export type CampaignStepState =
   | { kind: "done" }
   | { kind: "attention"; count: number }
   | { kind: "required" }
-  | { kind: "optional" };
+  | { kind: "optional" }
+  /** A server check for this step has not returned yet. */
+  | { kind: "checking"; label: string };
 
 export function CampaignStepBadge({ state }: { state: CampaignStepState }) {
   if (state.kind === "done") {
@@ -44,6 +46,19 @@ export function CampaignStepBadge({ state }: { state: CampaignStepState }) {
         sx={{ "--Typography-gap": "4px", color: "success.plainColor", fontWeight: "lg" }}
       >
         Done
+      </Typography>
+    );
+  }
+
+  if (state.kind === "checking") {
+    return (
+      <Typography
+        component="span"
+        level="body-sm"
+        data-testid="campaign-step-badge-checking"
+        sx={{ color: "text.secondary", fontWeight: "md" }}
+      >
+        {state.label}
       </Typography>
     );
   }

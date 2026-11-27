@@ -116,6 +116,8 @@ export function CampaignScheduleDrawer({
   onSchedule,
   onSendNow,
   canConfirm = true,
+  checking = false,
+  blockedReason = null,
   initialMode,
 }: {
   open: boolean;
@@ -123,6 +125,10 @@ export function CampaignScheduleDrawer({
   onSchedule: (scheduledDateTime: Date) => void;
   onSendNow: () => void;
   canConfirm?: boolean;
+  /** The email eligibility check has not returned yet. */
+  checking?: boolean;
+  /** Why the audience cannot be sent to, from the editor's send checks. */
+  blockedReason?: string | null;
   initialMode?: ScheduleMode;
 }) {
   const { sendImmediately, sendAt } = useCampaignEditor();
@@ -177,7 +183,7 @@ export function CampaignScheduleDrawer({
   const timezoneOffset = getTimezoneOffsetLabel(timezone, now);
   const currentTime = format(now, "h:mm a");
   const confirmDisabled =
-    !canConfirm || (mode === "later" && !validScheduledDateTime);
+    checking || !canConfirm || (mode === "later" && !validScheduledDateTime);
 
   const handleSelectMode = (nextMode: ScheduleMode) => {
     setMode(nextMode);
@@ -487,11 +493,21 @@ export function CampaignScheduleDrawer({
           }}
         >
           <Stack spacing={1.5}>
+            {!checking && blockedReason ? (
+              <Typography
+                level="body-sm"
+                data-testid="schedule-drawer-blocked-reason"
+                sx={{ color: "warning.plainColor" }}
+              >
+                {blockedReason}
+              </Typography>
+            ) : null}
             <JoyButton
               variant="solid"
               color="primary"
               size="md"
               fullWidth
+              data-testid="schedule-drawer-confirm"
               startDecorator={
                 mode === "now" ? (
                   <Send size={16} />
@@ -502,7 +518,11 @@ export function CampaignScheduleDrawer({
               onClick={handleConfirm}
               disabled={confirmDisabled}
             >
-              {mode === "now" ? "Send Now" : "Confirm Schedule"}
+              {checking
+                ? "Checking audience"
+                : mode === "now"
+                  ? "Send Now"
+                  : "Confirm Schedule"}
             </JoyButton>
 
             <JoyButton

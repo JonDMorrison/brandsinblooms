@@ -28,13 +28,30 @@ describe("campaign sending design and palette invariants", () => {
     // The header's Schedule button is the way to send: it opens the schedule
     // drawer, whose "Send now" and "Schedule" both go through the confirmation.
     const cta = findByTestId("campaign-editor-schedule-cta");
-    const disabled = new Function("isLocked", "canSendCampaign", "pendingTemplateSave", "sendBlockers", `return (${expressionOf(cta, "disabled")})`);
-    expect(disabled(false, true, null, [])).toBe(false);
-    expect(disabled(true, true, null, [])).toBe(true);
-    expect(disabled(false, false, null, [])).toBe(true);
-    expect(disabled(false, true, {}, [])).toBe(true);
+    // The button and the drawer share one gate, which also waits for the
+    // server email eligibility check (docs/email-eligibility.md).
+    expect(expressionOf(cta, "disabled")).toBe("sendControlsDisabled");
+    let gate: ts.Expression | undefined;
+    const findGate = (node: ts.Node) => {
+      if (ts.isVariableDeclaration(node) && node.name.getText(ast) === "sendControlsDisabled") gate = node.initializer;
+      ts.forEachChild(node, findGate);
+    };
+    findGate(ast);
+    const disabled = (patch: Record<string, unknown> = {}) => {
+      const values = {
+        isLocked: false, canSendCampaign: true, pendingTemplateSave: null, sendBlockers: [],
+        eligibilityChecking: false, campaignType: "email", isAudienceLoading: false, ...patch,
+      };
+      return new Function(...Object.keys(values), `return (${gate!.getText(ast)})`)(...Object.values(values));
+    };
+    expect(disabled()).toBe(false);
+    expect(disabled({ isLocked: true })).toBe(true);
+    expect(disabled({ canSendCampaign: false })).toBe(true);
+    expect(disabled({ pendingTemplateSave: {} })).toBe(true);
     // #10: the button waits until every blocker in the checklist is fixed.
-    expect(disabled(false, true, null, [{ message: "Add a subject line" }])).toBe(true);
+    expect(disabled({ sendBlockers: [{ message: "Add a subject line" }] })).toBe(true);
+    // ...and until the eligibility check has returned.
+    expect(disabled({ eligibilityChecking: true })).toBe(true);
     expect(expressionOf(cta, "onClick")).toBe("handleScheduleForLater");
     let drawer: ts.JsxSelfClosingElement | undefined;
     const findDrawer = (node: ts.Node) => {
@@ -46,7 +63,8 @@ describe("campaign sending design and palette invariants", () => {
     new Function("updateSchedule", "openSendConfirmation", `return (${expressionOf(drawer, "onSendNow")})`)(schedule, review)();
     expect(schedule).toHaveBeenCalledWith({sendImmediately: true, sendAt: null});
     expect(review).toHaveBeenCalledOnce();
-    expect(expressionOf(drawer, "canConfirm")).toBe("!isLocked && canSendCampaign");
+    expect(expressionOf(drawer, "canConfirm")).toBe("!sendControlsDisabled");
+    expect(expressionOf(drawer, "checking")).toBe("eligibilityChecking");
     expect(editor).toContain("<CampaignSendConfirmation");
     expect(editor).toContain("builderBlockers={");
   });

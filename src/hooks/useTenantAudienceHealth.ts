@@ -1,12 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { resolveAudienceRecipientIds } from "@/lib/computeAudienceRecipientCount";
 
 /**
- * Email reachability for a tenant or a campaign audience. Every customer in
- * scope is in exactly one bucket, so
+ * Tenant-wide email reachability (dashboard cards). Every customer in scope
+ * is in exactly one bucket, so
  *   total = confirmed + pending + optedOut + neverOptedIn + suppressed.
  * Definition (one place): public.email_reachability_summary.
+ * Campaign audiences are counted by public.email_campaign_eligibility instead
+ * (src/hooks/useCampaignEmailEligibility.ts), which also collapses shared
+ * addresses the way the send worker does.
  */
 export interface TenantAudienceHealth {
   total: number;
@@ -175,93 +177,5 @@ export function summarizeReachability(
     description: reasons.length ? `${lead} ${reasons.join("; ")}.` : lead,
     explained: true,
   };
-}
-
-
-export interface CampaignAudienceHealthOptions {
-  tenantId: string | null | undefined;
-  includeAllCustomers: boolean;
-  additionalCustomerIds: string[];
-  segmentIds: string[];
-  personaIds: string[];
-  enabled?: boolean;
-}
-
-const RESERVED_EMAIL_TLDS = ["invalid", "test", "localhost", "example"];
-const RESERVED_EMAIL_DOMAINS = ["example.com", "example.net", "example.org"];
-
-/**
- * RFC 2606 / 6761 reserved domains never receive mail (demo and test data).
- * Same rule as the send path (_shared/canSendEmail.ts) and
- * public.is_reserved_email_domain.
- */
-export function isReservedEmailDomain(email: string): boolean {
-  const domain = (email.split("@").pop() ?? "").trim().toLowerCase().replace(/\.$/, "");
-  if (!domain) return false;
-  if (RESERVED_EMAIL_DOMAINS.some((d) => domain === d || domain.endsWith(`.${d}`))) return true;
-  return RESERVED_EMAIL_TLDS.includes(domain.split(".").pop() ?? "");
-}
-
-/** Imported IdealPOS placeholders and reserved domains are not deliverable. */
-export function hasUsableCampaignEmail(value: string | null | undefined): boolean {
-  if (!value) return false;
-  const email = value.trim();
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) &&
-    !email.toLowerCase().endsWith("@noemail.local") &&
-    !isReservedEmailDomain(email);
-}
-
-export async function fetchCampaignAudienceHealth(
-  options: Omit<CampaignAudienceHealthOptions, "enabled"> & { tenantId: string },
-): Promise<TenantAudienceHealth> {
-  const hasExplicitAudience =
-    options.includeAllCustomers ||
-    options.additionalCustomerIds.length > 0 ||
-    options.segmentIds.length > 0 ||
-    options.personaIds.length > 0;
-
-  // No audience chosen yet, or "everyone": the whole tenant, counted in SQL.
-  if (!hasExplicitAudience || options.includeAllCustomers) {
-    return fetchEmailReachability(options.tenantId, null);
-  }
-
-  const customerIds = await resolveAudienceRecipientIds({
-    tenantId: options.tenantId,
-    includeAllCustomers: false,
-    additionalCustomerIds: options.additionalCustomerIds,
-    fallbackToAllCustomers: false,
-    segmentIds: options.segmentIds,
-    personaIds: options.personaIds,
-  });
-
-  if (customerIds.length === 0) {
-    return EMPTY_HEALTH;
-  }
-
-  return fetchEmailReachability(options.tenantId, customerIds);
-}
-
-export function useCampaignAudienceHealth(options: CampaignAudienceHealthOptions) {
-  return useQuery({
-    queryKey: [
-      "campaign-audience-health",
-      options.tenantId,
-      options.includeAllCustomers,
-      options.additionalCustomerIds,
-      options.segmentIds,
-      options.personaIds,
-    ],
-    enabled: (options.enabled ?? true) && Boolean(options.tenantId),
-    staleTime: 60_000,
-    queryFn: () =>
-      fetchCampaignAudienceHealth({
-        tenantId: options.tenantId as string,
-        includeAllCustomers: options.includeAllCustomers,
-        additionalCustomerIds: options.additionalCustomerIds,
-        segmentIds: options.segmentIds,
-        personaIds: options.personaIds,
-      }),
-    placeholderData: EMPTY_HEALTH,
-  });
 }
 
