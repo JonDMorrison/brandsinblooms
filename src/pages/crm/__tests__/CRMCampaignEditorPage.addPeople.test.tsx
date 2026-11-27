@@ -52,6 +52,7 @@ vi.mock("@/contexts/DesignSystemContext", () => ({
 }));
 // A master admin working in Northfield: the active tenant is not their home one.
 vi.mock("@/hooks/useTenant", () => ({ useTenant: () => ({ tenant: { id: "tenant-northfield" }, loading: false }) }));
+vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ user: { id: "user-test", email: "owner@fernhill.com" } }) }));
 vi.mock("@/hooks/useUserRole", () => ({ useUserRole: () => ({ hasPermission: () => true, tenantId: "tenant-northfield" }) }));
 vi.mock("@/hooks/useEmailDomains", () => ({
   useEmailDomains: () => ({
