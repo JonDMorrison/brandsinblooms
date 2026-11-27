@@ -78,7 +78,7 @@ Rules that stay in force for every step:
 
 | Item | Status | Evidence / gap |
 | --- | --- | --- |
-| Editor-wide design audit | Open | |
-| Email client rendering consistency | Open | |
+| Editor-wide design audit | Partly done | Audit in BUILDER-2.0-AUDITS.md. 42 clashing labels fixed. Naming clean-up list open. |
+| Email client rendering consistency | Partly done | Code audit in BUILDER-2.0-AUDITS.md. Outlook photo squash fixed for five blocks. No real inbox tests run. |
 | QA newsletter "Newsletter Builder 2.0 — Full QA" in Northfield, unsent | Partial | Draft `193e9118-187f-46ce-8d37-72e7ca4c36f7`, status draft, never scheduled, 0 messages queued. 11 blocks, including a Plant Care Spotlight. It has the Birthday Club audience and an approved review from the approval test. It does not yet hold one of every block type. |
 | Report for Jon and draft email to Mike | Done | `docs/newsletter/BUILDER-2.0-REPORT.md`. The email is a draft in that file. It has not been sent. |

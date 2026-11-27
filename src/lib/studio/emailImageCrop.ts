@@ -112,3 +112,17 @@ export function resolveCroppedEmailImage(
 
   return { src: imageUrl, cropped: false };
 }
+
+/**
+ * Desktop Outlook (Word engine) ignores `object-fit`. A photo cropped only by
+ * CSS, with a fixed pixel height, is squashed to that height there. This
+ * gives Outlook the whole photo at its own proportions and every other
+ * client the cropped one. `src` and `alt` must already be attribute-escaped.
+ */
+export function withOutlookWholePhoto(
+  croppedImageHtml: string,
+  image: { src: string; alt: string; width: number },
+): string {
+  const width = Math.max(1, Math.round(image.width));
+  return `<!--[if mso]><img src="${image.src}" alt="${image.alt}" width="${width}" style="display:block;width:${width}px;height:auto;border:0;" /><![endif]--><!--[if !mso]><!-->${croppedImageHtml}<!--<![endif]-->`;
+}

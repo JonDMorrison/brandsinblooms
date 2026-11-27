@@ -45,6 +45,7 @@ import {
 import { getImageObjectPosition } from "./imageFocalPoint.ts";
 import {
   resolveCroppedEmailImage,
+  withOutlookWholePhoto,
   type ImageCropFrame,
 } from "./emailImageCrop.ts";
 import {
@@ -1675,9 +1676,14 @@ function renderGalleryImageCell(
   const height = numberValue(imageHeight, 180);
   const src = safeUrl(image.url, { image: true });
   const imageHtml = `<img class="responsive-image" src="${escapeAttribute(src)}" alt="${escapeAttribute(image.alt || "Gallery image")}" width="${Math.floor((EMAIL_WIDTH - 64) / columns)}" height="${height}" style="display:block;width:100%;height:${height}px;object-fit:cover;border:0;outline:none;text-decoration:none;border-radius:${radius}px;" />`;
+  const galleryImageHtml = withOutlookWholePhoto(imageHtml, {
+    src: escapeAttribute(src),
+    alt: escapeAttribute(image.alt || "Gallery image"),
+    width: Math.floor((EMAIL_WIDTH - 64) / columns),
+  });
   const linked = safeUrl(image.linkUrl)
-    ? `<a href="${escapeAttribute(safeUrl(image.linkUrl))}" target="_blank" style="text-decoration:none;">${imageHtml}</a>`
-    : imageHtml;
+    ? `<a href="${escapeAttribute(safeUrl(image.linkUrl))}" target="_blank" style="text-decoration:none;">${galleryImageHtml}</a>`
+    : galleryImageHtml;
   return `<td class="responsive-column gallery-grid-item" width="${100 / columns}%" valign="top" style="width:${100 / columns}%;vertical-align:top;padding:${gap / 2}px;">${linked}</td>`;
 }
 

@@ -31,8 +31,8 @@ merged and deployed, not yet checked on production. **Partial** means part of it
 | Locked templates | Partial | A designer can lock a template. Emails started from it keep the design. Enforced in the database. The Studio still shows design controls to staff who cannot use them; their save is refused. |
 | Spreadsheet import for blocks | Partial | Checked against the brief. The dialog takes Excel, CSV, TSV, JSON, pasted rows or a feed, shows the rows, lets you match columns, and makes Coupons, Product Cards, Product Gallery, Image Gallery or a Data Table. Missing: a downloadable Excel template per type, Events, Announcements and Blog Posts, a list of rows with missing required fields, and a choice to add to or replace existing content. |
 | iContact migration (Arts Nursery, January 2027) | Open | Not started. A live connection cannot be proved without Arts Nursery's iContact access. |
-| Editor design audit | Open | |
-| Email client rendering check | Open | |
+| Editor design audit | Partly done | See BUILDER-2.0-AUDITS.md. Clashing labels fixed, naming list open. |
+| Email client rendering check | Partly done | Code audit only. Outlook photo squash fixed for five blocks. |
 
 ## What Mike can do now
 

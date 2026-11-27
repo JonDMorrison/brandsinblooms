@@ -19,6 +19,7 @@ import {
   textCss,
 } from "./settings.ts";
 import { sanitizeEmailHtml } from "./emailHtmlSanitizer.ts";
+import { withOutlookWholePhoto } from "../emailImageCrop.ts";
 import { barcodeFormatName, checkBarcode, couponBarcodeFormat } from "./barcode.ts";
 
 const text = (value: unknown) =>
@@ -127,9 +128,13 @@ function picture(block: StudioBlock, width = 220, sizing?: PictureSizing): strin
         : "auto";
   const fit = sizing?.fit ?? block.imageFit ?? "contain";
   const image = `<img data-newsletter-image="imageUrl" class="responsive-image${sizing?.className ? ` ${sizing.className}` : ""}" src="${attr(url)}" alt="${attr(block.imageAlt || block.headline || block.productName || "")}" width="${width}"${sizing?.height ? ` height="${sizing.height}"` : ""} style="display:block;width:100%;max-width:${width}px;height:${height};object-fit:${fit};border:0;border-radius:${clampNumber(block.borderRadius, 6, 0, 48)}px;" />`;
-  const linked = safeEmailUrl(block.linkUrl)
-    ? `<a href="${attr(safeEmailUrl(block.linkUrl))}" target="_blank" rel="noopener noreferrer">${image}</a>`
+  // A CSS-only crop (fixed height + cover) is squashed by desktop Outlook.
+  const safeImage = height !== "auto" && fit === "cover"
+    ? withOutlookWholePhoto(image, { src: attr(url), alt: attr(block.imageAlt || block.headline || block.productName || ""), width })
     : image;
+  const linked = safeEmailUrl(block.linkUrl)
+    ? `<a href="${attr(safeEmailUrl(block.linkUrl))}" target="_blank" rel="noopener noreferrer">${safeImage}</a>`
+    : safeImage;
   return `<div style="padding:${edgeCss(block.appearance?.imagePadding)};margin:${edgeCss(block.appearance?.imageMargin)};">${linked}</div>`;
 }
 function badges(block: StudioBlock): string {
@@ -266,6 +271,10 @@ function renderEventCard(block: StudioBlock, width: number, editing = false): st
   const image = imageUrl
     ? `<img data-newsletter-image="imageUrl" class="responsive-image${wholePhoto ? "" : " responsive-crop-image"}" src="${attr(imageUrl)}" alt="${attr(block.imageAlt || block.headline || "Event photo")}" width="${imageWidth}"${wholePhoto ? "" : ` height="${imageHeight}"`} style="display:block;width:100%;max-width:${imageWidth}px;height:${wholePhoto ? "auto" : `${imageHeight}px`};${wholePhoto ? "" : `object-fit:${fit};object-position:50% 50%;`}border:0;outline:none;text-decoration:none;border-radius:12px;" />`
     : "";
+  // A CSS-only crop is squashed by desktop Outlook; give it the whole photo.
+  const eventImage = image && fit === "cover"
+    ? withOutlookWholePhoto(image, { src: attr(imageUrl), alt: attr(block.imageAlt || block.headline || "Event photo"), width: imageWidth })
+    : image;
   const chosenDate = /^\d{4}-\d{2}-\d{2}$/.test(block.eventStartDate ?? "")
     ? new Date(`${block.eventStartDate}T12:00:00Z`).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" })
     : "";
@@ -295,10 +304,10 @@ function renderEventCard(block: StudioBlock, width: number, editing = false): st
   }
 
   const vertical = sideVerticalAlign(block);
-  const imageCell = `<td dir="ltr" class="responsive-column product-card-image event-card-cell" width="42%" valign="middle" style="width:42%;vertical-align:middle;padding:${imageSide === "right" ? "22px 22px 22px 11px" : "22px 11px 22px 22px"};">${image}</td>`;
+  const imageCell = `<td dir="ltr" class="responsive-column product-card-image event-card-cell" width="42%" valign="middle" style="width:42%;vertical-align:middle;padding:${imageSide === "right" ? "22px 22px 22px 11px" : "22px 11px 22px 22px"};">${eventImage}</td>`;
   const contentCell = `<td dir="ltr" class="responsive-column product-card-details event-card-cell" width="58%" valign="${vertical}" style="width:58%;vertical-align:${vertical};padding:${imageSide === "right" ? "26px 11px 26px 26px" : "26px 26px 26px 11px"};">${content}</td>`;
   if (block.imagePosition === "top") {
-    return `<div class="mobile-padding" style="padding:18px;border:1px solid #e4e7e2;border-radius:14px;background-color:${emailColor(block.backgroundColor, "#ffffff")};">${image}<div style="padding:18px 8px;">${content}</div></div>`;
+    return `<div class="mobile-padding" style="padding:18px;border:1px solid #e4e7e2;border-radius:14px;background-color:${emailColor(block.backgroundColor, "#ffffff")};">${eventImage}<div style="padding:18px 8px;">${content}</div></div>`;
   }
   return `<table role="presentation" class="product-card-row" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:separate;border:1px solid #e4e7e2;border-radius:14px;background-color:${emailColor(block.backgroundColor, "#ffffff")};"><tr>${imageSide === "right" ? contentCell + imageCell : imageCell + contentCell}</tr></table>`;
 }
