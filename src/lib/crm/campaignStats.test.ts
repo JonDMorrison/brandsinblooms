@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveCampaignStats } from "./campaignStats";
+import { percentOf, resolveCampaignCompletedAt, resolveCampaignStats } from "./campaignStats";
 import { normalizeEmailCampaignReportingSnapshot } from "@/hooks/analytics/useCampaignDerivedMetrics";
 
 // get_email_campaign_reporting_snapshot output from production, 2026-11-24.
@@ -39,16 +39,19 @@ const recordedSnapshot = {
 describe("resolveCampaignStats (one rollup for every campaign surface)", () => {
   it("labels the stored-rollup fallback as estimated", () => {
     expect(resolveCampaignStats(estimatedSnapshot)).toEqual({
-      recipients: 1973, delivered: 1973, opens: 821, clicks: 158,
-      openRate: 41.61, clickRate: 8.01, estimated: true,
+      recipients: 1973, sent: 1973, delivered: 1973, opens: 821, clicks: 158,
+      deliveryRate: 100, openRate: 41.61, clickRate: 8.01, estimated: true,
     });
   });
 
   it("reads recorded sends as-is", () => {
-    expect(resolveCampaignStats(recordedSnapshot)).toEqual({
-      recipients: 2568, delivered: 2549, opens: 1139, clicks: 2,
-      openRate: 44.68, clickRate: 0.08, estimated: false,
+    const stats = resolveCampaignStats(recordedSnapshot);
+    expect(stats).toEqual({
+      recipients: 2568, sent: 2568, delivered: 2549, opens: 1139, clicks: 2,
+      deliveryRate: expect.any(Number), openRate: 44.68, clickRate: 0.08, estimated: false,
     });
+    // The delivery rate is computed from the two counts it is shown with.
+    expect(stats?.deliveryRate).toBeCloseTo((2549 / 2568) * 100, 10);
   });
 
   it.each([
@@ -63,6 +66,20 @@ describe("resolveCampaignStats (one rollup for every campaign surface)", () => {
     const report = resolveCampaignStats(normalized?.metrics);
     expect(report).toEqual(list);
     expect(normalized?.metrics.estimated).toBe(list?.estimated);
+  });
+
+  it("computes percentages from the counts and guards a zero denominator", () => {
+    expect(percentOf(1973, 1973)).toBe(100);
+    expect(percentOf(5, 0)).toBe(0);
+    expect(percentOf(5, -1)).toBe(0);
+    const empty = resolveCampaignStats({ metrics: { totals: { sent: 0, delivered: 0 } } });
+    expect(empty?.deliveryRate).toBe(0);
+  });
+
+  it("dates completion by send_completed_at, then sent_at", () => {
+    expect(resolveCampaignCompletedAt({ sendCompletedAt: "2026-11-16T11:17:00Z", sentAt: "2026-11-16T11:00:00Z" })).toBe("2026-11-16T11:17:00Z");
+    expect(resolveCampaignCompletedAt({ sendCompletedAt: null, sentAt: "2026-11-16T11:17:00Z" })).toBe("2026-11-16T11:17:00Z");
+    expect(resolveCampaignCompletedAt({ sendCompletedAt: null, sentAt: null })).toBeNull();
   });
 
   it("returns null for a value that is not a snapshot", () => {

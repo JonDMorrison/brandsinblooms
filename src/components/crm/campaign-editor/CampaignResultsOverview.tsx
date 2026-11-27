@@ -5,20 +5,24 @@ import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
 import { CheckCircle, Copy, Eye, MailCheck, MousePointerClick, RefreshCw, Send, Users } from "lucide-react";
 import { JoyButton } from "@/components/joy/JoyButton";
+import {
+  ESTIMATED_STATS_EXPLANATION,
+  ESTIMATED_STATS_LABEL,
+  type CampaignStats,
+} from "@/lib/crm/campaignStats";
 
 interface ResultsProps {
   name: string;
   subject: string;
   completedAt: string;
-  sent: number;
-  delivered: number | null;
-  opened: number | null;
-  clicked: number | null;
+  /**
+   * The shared campaign rollup (src/lib/crm/campaignStats.ts), the same one
+   * the campaigns list, report, dashboard and Reports > Overview read. Null
+   * while it loads or when it is unavailable.
+   */
+  stats: CampaignStats | null;
   bounced: number | null;
   failed: number;
-  deliveryRate: number | null;
-  openRate: number | null;
-  clickRate: number | null;
   cloning: boolean;
   onReport: () => void;
   onRecipients: () => void;
@@ -41,6 +45,8 @@ function ResultMetric({ label, value, detail, icon }: { label: string; value: nu
 }
 
 export function CampaignResultsOverview(props: ResultsProps) {
+  const { stats } = props;
+  const sent = stats?.sent ?? null;
   const needsReview = props.failed > 0 || (props.bounced ?? 0) > 0;
   return <Stack spacing={2.5} sx={{ width: "100%", maxWidth: 1280, mx: "auto" }}>
     <Sheet variant="outlined" sx={{ borderRadius: "xl", p: { xs: 2.5, md: 4 }, position: "relative", overflow: "hidden", boxShadow: "0 5px 24px rgb(24 60 83 / 5%)", bgcolor: "background.surface", "&::before": { content: '\"\"', position: "absolute", right: -20, top: -45, width: 340, height: 320, background: 'url("/images/dashboard/botanical-corner.svg") center / contain no-repeat', pointerEvents: "none" }, "& > *": { position: "relative" } }}>
@@ -50,21 +56,22 @@ export function CampaignResultsOverview(props: ResultsProps) {
             <CheckCircle size={19} color="var(--joy-palette-success-700)" aria-hidden="true" />
             <Typography level="body-sm" fontWeight="lg">Sending finished</Typography>
           </Stack>
-          <Typography level="h2" sx={{ fontWeight: 700, letterSpacing: "-.025em" }}>{props.sent > 0 ? "Your campaign is out in the world." : "Sending finished. Let’s review the results."}</Typography>
+          <Typography level="h2" sx={{ fontWeight: 700, letterSpacing: "-.025em" }}>{sent !== null && sent > 0 ? "Your campaign is out in the world." : "Sending finished. Let’s review the results."}</Typography>
           <Typography level="body-md" textColor="text.secondary">
-            <strong>{props.sent.toLocaleString()} emails sent.</strong> Here’s how your campaign is doing so far.
+            {sent === null ? "Loading your campaign’s results." : <><strong>{sent.toLocaleString()} emails sent.</strong> Here’s how your campaign is doing so far.</>}
           </Typography>
           <Typography level="body-xs" textColor="text.secondary">Completed {props.completedAt} · Results update as activity arrives.</Typography>
+          {stats?.estimated ? <Typography level="body-xs" textColor="text.secondary" data-testid="campaign-results-estimated">{ESTIMATED_STATS_LABEL}: {ESTIMATED_STATS_EXPLANATION}</Typography> : null}
         </Stack>
         <JoyButton variant="solid" color="primary" size="lg" startDecorator={<MailCheck size={18} />} onClick={props.onReport} sx={{ flexShrink: 0 }}>Explore full report</JoyButton>
       </Stack>
     </Sheet>
 
     <Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", lg: "repeat(4, minmax(0, 1fr))" }, gap: 1.5 }}>
-      <ResultMetric label="Emails sent" value={props.sent} detail="Accepted by the email provider" icon={<Send size={18} />} />
-      <ResultMetric label="Delivery confirmed" value={props.delivered} detail={`${rate(props.deliveryRate)}${props.deliveryRate === null ? "" : " of sent emails"}`} icon={<MailCheck size={18} />} />
-      <ResultMetric label="People who clicked" value={props.clicked} detail={`${rate(props.clickRate)}${props.clickRate === null ? "" : " click-through rate"}`} icon={<MousePointerClick size={18} />} />
-      <ResultMetric label="Reported opens" value={props.opened} detail={`${rate(props.openRate)}${props.openRate === null ? "" : " reported open rate"}`} icon={<Eye size={18} />} />
+      <ResultMetric label="Emails sent" value={sent} detail="Accepted by the email provider" icon={<Send size={18} />} />
+      <ResultMetric label="Delivery confirmed" value={stats?.delivered ?? null} detail={stats ? `${rate(stats.deliveryRate)} of sent emails` : rate(null)} icon={<MailCheck size={18} />} />
+      <ResultMetric label="People who clicked" value={stats?.clicks ?? null} detail={stats ? `${rate(stats.clickRate)} click-through rate` : rate(null)} icon={<MousePointerClick size={18} />} />
+      <ResultMetric label="Reported opens" value={stats?.opens ?? null} detail={stats ? `${rate(stats.openRate)} reported open rate` : rate(null)} icon={<Eye size={18} />} />
     </Box>
 
     <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "minmax(0, 1.2fr) minmax(0, 1fr)" }, gap: 2 }}>

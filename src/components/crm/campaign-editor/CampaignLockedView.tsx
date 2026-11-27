@@ -48,6 +48,10 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { retryFailedEmailMessages } from "@/lib/email/emailRetryService";
 import { updateCampaignStatus } from "@/lib/crm/campaignEditor";
+import {
+  resolveCampaignCompletedAt,
+  resolveCampaignStats,
+} from "@/lib/crm/campaignStats";
 import { unscheduleCampaign } from "@/utils/crmCampaignService";
 
 type CampaignRow = Database["public"]["Tables"]["crm_campaigns"]["Row"];
@@ -594,13 +598,11 @@ export function CampaignLockedView({
   const remaining = getRemaining(normalizedSnapshot);
   const failedCount = snapshot.messagesFailed;
   const deliveredMetrics = metrics.metrics;
-  const deliveredCount = deliveredMetrics?.totals.delivered ?? null;
-  const openedCount = deliveredMetrics?.totals.opens ?? null;
-  const clickedCount = deliveredMetrics?.totals.clicks ?? null;
+  // Sent, delivered, opens and clicks come from the shared rollup
+  // (get_email_campaign_reporting_snapshot via resolveCampaignStats), the same
+  // source as the campaigns list, report, dashboard and Reports > Overview.
+  const campaignStats = resolveCampaignStats(deliveredMetrics);
   const bouncedCount = deliveredMetrics?.totals.bounces ?? null;
-  const deliveredRate = deliveredMetrics?.rates.delivery ?? null;
-  const openedRate = deliveredMetrics?.rates.open_reported ?? null;
-  const clickedRate = deliveredMetrics?.rates.click ?? null;
 
   const closeDialog = () => {
     if (!actionLoading) {
@@ -950,16 +952,10 @@ export function CampaignLockedView({
     <CampaignResultsOverview
       name={snapshot.name}
       subject={snapshot.subjectLine}
-      completedAt={formatTimestamp(snapshot.sendCompletedAt || snapshot.sentAt)}
-      sent={snapshot.messagesSent}
-      delivered={deliveredCount}
-      opened={openedCount}
-      clicked={clickedCount}
+      completedAt={formatTimestamp(resolveCampaignCompletedAt(snapshot))}
+      stats={campaignStats}
       bounced={bouncedCount}
       failed={failedCount}
-      deliveryRate={deliveredRate}
-      openRate={openedRate}
-      clickRate={clickedRate}
       cloning={isCloning}
       onReport={actions.report}
       onRecipients={actions.recipients}
