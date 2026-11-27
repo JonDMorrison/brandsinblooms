@@ -189,7 +189,7 @@ function factLink(link: BotanicalEmailFact["link"]): string {
 }
 
 /** Compact branded hero (BloomSites botanicalEmailHero). */
-export function botanicalEmailHero(eyebrow: string, heading: string, copy?: string, icon: BotanicalEmailIcon = "leaf"): string {
+export function botanicalEmailHero(eyebrow: string, heading: string, copy?: string, _icon: BotanicalEmailIcon = "leaf"): string {
   const t = PREMIUM_BOTANICAL_EMAIL;
   return '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" ' +
     'style="margin:0 0 22px;background:' + t.panel + ";border:1px solid " + t.border +
@@ -210,13 +210,12 @@ export function botanicalEmailHero(eyebrow: string, heading: string, copy?: stri
  * Titled panel (POS posEmailSection / BloomSites calloutBlock). `html` must be
  * built from escaped fragments; it is not re-escaped here.
  */
-export function botanicalEmailSection(title: string, html: string, icon: BotanicalEmailIcon = "leaf"): string {
+export function botanicalEmailSection(title: string, html: string, _icon: BotanicalEmailIcon = "leaf"): string {
   const t = PREMIUM_BOTANICAL_EMAIL;
   return '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" ' +
     'style="margin:18px 0;background:' + t.callout + ";border:1px solid " + t.border +
     ';border-radius:14px"><tr><td style="padding:18px">' +
     '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 6px"><tr>' +
-    '<td width="51" valign="middle" style="width:51px;vertical-align:middle">' + botanicalEmailIcon(icon, 38) + "</td>" +
     '<td valign="middle" style="vertical-align:middle"><h2 style="margin:0;font-size:18px;line-height:1.35;font-weight:700;color:' + t.navy + '">' +
     esc(title) + '</h2></td></tr></table><div style="color:' + t.body + ';font-size:15px;line-height:1.65">' +
     html + "</div></td></tr></table>";
