@@ -78,8 +78,13 @@ function text(row: Record<string, unknown>, field: string): string {
 /**
  * The user_id whose company_profiles row represents the campaign's business.
  * A creator who belongs to the tenant keeps today's resolution
- * (profile_user_id_for). Otherwise the tenant's own profile is used; if the
- * tenant has none, or anything fails, the creator-based resolution is kept.
+ * (profile_user_id_for). A creator outside the tenant (a master admin
+ * switched into a client) never gets their own company: the tenant's ranked
+ * profile is used, and when the tenant has none, the tenant's lead member is
+ * returned so no profile row is found. The send path then uses the tenant
+ * name, shows no website, and stops on the missing postal address.
+ * Returns "" when the tenant has no members at all. Only when membership
+ * cannot be read at all is the creator-based resolution kept.
  */
 export async function resolveCampaignBusinessProfileUserId(
   supabase: TenantProfileClient,
@@ -89,45 +94,53 @@ export async function resolveCampaignBusinessProfileUserId(
   const fallback = () => resolveBusinessProfileUserId(supabase, userId);
   if (!tenantId) return fallback();
 
+  let members: Record<string, unknown>[];
   try {
-    const members = rowsOf(
-      await selectRows(supabase, "users", "id, role, created_at").eq(
-        "tenant_id",
-        tenantId,
-      ),
+    const result = await selectRows(supabase, "users", "id, role, created_at").eq(
+      "tenant_id",
+      tenantId,
     );
-    if (members.length === 0) return fallback();
-    if (members.some((member) => text(member, "id") === userId)) {
-      return fallback();
-    }
+    // Membership unknown: the creator may well belong to the tenant.
+    if (result.error || !Array.isArray(result.data)) return fallback();
+    members = rowsOf(result);
+  } catch {
+    return fallback();
+  }
+  if (members.some((member) => text(member, "id") === userId)) {
+    return fallback();
+  }
 
-    const memberIds = members.map((member) => text(member, "id")).filter(Boolean);
-    const profiles = rowsOf(
-      await selectRows(supabase, "company_profiles", "user_id, created_at").in(
-        "user_id",
-        memberIds,
-      ),
-    );
-    if (profiles.length === 0) return fallback();
-
-    const roleOf = new Map(
-      members.map((member) => [text(member, "id"), text(member, "role")]),
-    );
-    const isLead = (id: string) => {
-      const role = roleOf.get(id);
-      return role === "owner" || role === "admin";
-    };
-    const ranked = [...profiles].sort((a, b) => {
-      const aId = text(a, "user_id");
-      const bId = text(b, "user_id");
+  // From here the creator is known not to belong to the tenant.
+  const roleOf = new Map(
+    members.map((member) => [text(member, "id"), text(member, "role")]),
+  );
+  const isLead = (id: string) => {
+    const role = roleOf.get(id);
+    return role === "owner" || role === "admin";
+  };
+  const rankIds = (rows: Record<string, unknown>[], idField: string) =>
+    [...rows].sort((a, b) => {
+      const aId = text(a, idField);
+      const bId = text(b, idField);
       const lead = Number(isLead(bId)) - Number(isLead(aId));
       if (lead !== 0) return lead;
       const created = text(a, "created_at").localeCompare(text(b, "created_at"));
       if (created !== 0) return created;
       return aId.localeCompare(bId);
     });
-    return text(ranked[0], "user_id") || (await fallback());
+  const leadMember = text(rankIds(members, "id")[0] ?? {}, "id");
+
+  const memberIds = members.map((member) => text(member, "id")).filter(Boolean);
+  if (memberIds.length === 0) return "";
+  try {
+    const profiles = rowsOf(
+      await selectRows(supabase, "company_profiles", "user_id, created_at").in(
+        "user_id",
+        memberIds,
+      ),
+    );
+    return text(rankIds(profiles, "user_id")[0] ?? {}, "user_id") || leadMember;
   } catch {
-    return fallback();
+    return leadMember;
   }
 }
