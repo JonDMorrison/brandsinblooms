@@ -7,6 +7,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { loadTenantWebsite } from "../_shared/tenantWebsite.ts";
 import {
   convertLegacyTags,
   createMergeTagDataFromCustomer,
@@ -226,6 +227,21 @@ serve(async (req) => {
         }
       }
     }
+
+    // {{company.website}} is the tenant's own website (resolveTenantWebsite),
+    // never a platform address.
+    const mergeTenantId =
+      (typeof customer?.tenant_id === "string" ? customer.tenant_id : null) ||
+      tenantId ||
+      null;
+    companyInfo = {
+      ...companyInfo,
+      website_url:
+        (await loadTenantWebsite(supabase, mergeTenantId, {
+          website_url:
+            typeof companyInfo.website_url === "string" ? companyInfo.website_url : null,
+        })) || null,
+    };
 
     // Render the HTML with merge tags
     const result = renderEmailHtmlWithMergeTags({

@@ -12,10 +12,22 @@ vi.mock("@/integrations/supabase/client", () => {
     eq: () => chain,
     maybeSingle: () => mocks.maybeSingle(),
   };
+  // The footer website reads (tenants, domains, crm_connected_websites):
+  // nothing stored, and not counted as profile loads.
+  const empty = { data: null, error: null };
+  const websiteChain = {
+    select: () => websiteChain,
+    eq: () => websiteChain,
+    order: () => websiteChain,
+    maybeSingle: () => Promise.resolve(empty),
+    then: (resolve: (value: typeof empty) => unknown) =>
+      Promise.resolve(empty).then(resolve),
+  };
   const channel = { on: () => channel, subscribe: () => channel };
   return {
     supabase: {
-      from: () => chain,
+      from: (table: string) =>
+        table === "company_profiles" ? chain : websiteChain,
       channel: () => channel,
       removeChannel: vi.fn(),
     },

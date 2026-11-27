@@ -21,6 +21,7 @@ import {
 import { resolveSender, buildFromAddress } from "../_shared/senderResolver.ts";
 import { COMPANY_PROFILE_WITH_DESIGN_SYSTEM_SELECT } from "../_shared/resolveDesignSystem.ts";
 import { resolveBusinessProfileUserId } from "../_shared/businessProfileUserId.ts";
+import { profileWithTenantWebsite } from "../_shared/tenantWebsite.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -210,6 +211,8 @@ const handler = async (req: Request): Promise<Response> => {
         .single();
       companyProfile = (profile as CompanyProfileShape | null) || null;
     }
+    // Footer website: the tenant's own (resolveTenantWebsite).
+    companyProfile = await profileWithTenantWebsite(supabase, automation.tenant_id, companyProfile);
 
     let sent = 0;
     let skipped = 0;

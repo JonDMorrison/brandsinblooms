@@ -25,6 +25,7 @@ import {
 } from "../_shared/campaignEmailContent.ts";
 import { COMPANY_PROFILE_WITH_DESIGN_SYSTEM_SELECT } from "../_shared/resolveDesignSystem.ts";
 import { resolveCampaignBusinessProfileUserId } from "../_shared/businessProfileUserId.ts";
+import { profileWithTenantWebsite } from "../_shared/tenantWebsite.ts";
 import { resolveCampaignSenderDisplayName } from "../_shared/campaignFromHeader.ts";
 
 const corsHeaders = {
@@ -1248,6 +1249,7 @@ serve((req: Request) => {
         const campaignSourceCache = new Map<string, CampaignEmailSource>();
         const companyProfileCache = new Map<string, any>();
         const profileUserIdCache = new Map<string, string>();
+        const tenantProfileCache = new Map<string, any>();
         const trackedLinkMapCache = new Map<string, Map<string, string>>();
         const replyToCache = new Map<string, string | undefined>();
         const domainInvestigationCache = new Map<string, boolean>();
@@ -1863,7 +1865,19 @@ serve((req: Request) => {
                       );
                     if (pRow) companyProfileCache.set(userId, pRow);
                   }
-                  companyProfile = companyProfileCache.get(userId) || null;
+                  // The footer website follows the campaign tenant's own
+                  // settings, profile and linked site (resolveTenantWebsite).
+                  if (!tenantProfileCache.has(profileCacheKey)) {
+                    tenantProfileCache.set(
+                      profileCacheKey,
+                      await profileWithTenantWebsite(
+                        supabase,
+                        campaignTenant,
+                        (userId && companyProfileCache.get(userId)) || null,
+                      ),
+                    );
+                  }
+                  companyProfile = tenantProfileCache.get(profileCacheKey) || null;
                 }
 
                 if (campaign) {

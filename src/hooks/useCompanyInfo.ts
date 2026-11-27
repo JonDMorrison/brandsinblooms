@@ -14,6 +14,7 @@ import {
   realBusinessName,
   realPostalAddress,
 } from "@/lib/studio/businessPlaceholders";
+import { loadTenantWebsite } from "@/lib/studio/tenantWebsite";
 
 // Re-exported so existing consumers can keep importing these from the hook.
 export type { BrandFooterColors, CompanyInfo };
@@ -26,8 +27,8 @@ const DEFAULT_COMPANY_INFO: CompanyInfo = {
   phone: "",
 };
 
-function companyInfoWithName(name: string): CompanyInfo {
-  return { ...DEFAULT_COMPANY_INFO, name };
+function companyInfoWithName(name: string, websiteUrl = ""): CompanyInfo {
+  return { ...DEFAULT_COMPANY_INFO, name, websiteUrl };
 }
 const COMPANY_PROFILE_CHANNEL_CONNECT_DELAY_MS = 2000;
 const COMPANY_PROFILE_CHANNEL_RETRY_INTERVAL_MS = 250;
@@ -98,7 +99,13 @@ export const useCompanyInfo = () => {
         }
 
         if (!profileUserId) {
-          setCompanyInfoIfChanged(companyInfoWithName(fallbackName));
+          // No business profile: the website still follows the tenant's
+          // own settings and linked site (resolveTenantWebsite).
+          const tenantWebsite = await loadTenantWebsite(supabase, targetTenantId, null);
+          if (!isMountedRef.current || requestId !== loadRequestIdRef.current) {
+            return;
+          }
+          setCompanyInfoIfChanged(companyInfoWithName(fallbackName, tenantWebsite));
           return;
         }
 
@@ -151,9 +158,21 @@ export const useCompanyInfo = () => {
           return;
         }
 
+        // The footer website: the tenant's settings, then this profile, then
+        // the linked BloomSites site. Same resolver as the server send path.
+        const tenantWebsite = await loadTenantWebsite(
+          supabase,
+          targetTenantId,
+          error ? null : profile,
+        );
+
+        if (!isMountedRef.current || requestId !== loadRequestIdRef.current) {
+          return;
+        }
+
         if (error) {
           console.error("Error loading company profile:", error);
-          setCompanyInfoIfChanged(companyInfoWithName(fallbackName));
+          setCompanyInfoIfChanged(companyInfoWithName(fallbackName, tenantWebsite));
           return;
         }
 
@@ -186,7 +205,7 @@ export const useCompanyInfo = () => {
             // Read phone from proper column, fallback to feature_flags for legacy
             phone: profile.company_phone || featureFlags?.company_phone || "",
             email: profile.company_email || "",
-            websiteUrl: profile.website_url || "",
+            websiteUrl: tenantWebsite,
             // Structured address fields
             streetAddress: profile.street_address || "",
             city: profile.city || "",
@@ -270,7 +289,7 @@ export const useCompanyInfo = () => {
               : undefined,
           });
         } else {
-          setCompanyInfoIfChanged(companyInfoWithName(fallbackName));
+          setCompanyInfoIfChanged(companyInfoWithName(fallbackName, tenantWebsite));
         }
       } catch (error) {
         console.error("Error loading company info:", error);

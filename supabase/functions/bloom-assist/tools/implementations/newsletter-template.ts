@@ -1,6 +1,7 @@
 import { generateEmailHtml } from "../../../../../src/lib/studio/emailHtmlGenerator.ts";
 import { buildBotanicalEditorial, isBotanicalTemplateId, parseBotanicalBrief } from "../../../../../src/lib/studio/botanicalEditorial.ts";
 import { COMPANY_PROFILE_WITH_DESIGN_SYSTEM_SELECT, resolveDesignSystem, type ServerCompanyProfileShape } from "../../../_shared/resolveDesignSystem.ts";
+import { loadTenantWebsite } from "../../../_shared/tenantWebsite.ts";
 import type { JsonObject } from "../../types.ts";
 import type { ToolExecutionContext } from "../types.ts";
 import { getQueryClient } from "./shared.ts";
@@ -29,7 +30,10 @@ export async function newsletterTemplateMetadata(params: JsonObject, context: To
   if (profiles.error) throw profiles.error;
   if (!profiles.data?.length) throw new Error("Complete this account's brand profile before creating a branded newsletter.");
   if (profiles.data.length > 1) throw new Error("This account has multiple brand profiles. Create the newsletter in its Design Studio to use the selected brand.");
-  const design = resolveDesignSystem(profiles.data[0] as unknown as ServerCompanyProfileShape);
+  // Footer website: this tenant's own (resolveTenantWebsite), as in Studio.
+  const profile = profiles.data[0] as unknown as ServerCompanyProfileShape;
+  const website = await loadTenantWebsite(client, context.tenantId, profile);
+  const design = resolveDesignSystem({ ...profile, website_url: website || null });
   const brief = parseBotanicalBrief(params.newsletter_brief);
   const blocks = buildBotanicalEditorial(params.template_id, design, brief);
   const metadata = JSON.parse(JSON.stringify({

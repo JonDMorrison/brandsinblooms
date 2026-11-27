@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from '@/components/ui-legacy/alert';
 import { Badge } from '@/components/ui-legacy/badge';
 import { Loader2, Send, User, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { getAdminTenantHeaderValue } from '@/integrations/supabase/adminTenantScope';
 import { useAuth } from '@/hooks/useAuth';
 import { useTenant } from '@/hooks/useTenant';
 import { useQuery } from '@tanstack/react-query';
@@ -103,6 +104,8 @@ export const TestSendModal: React.FC<TestSendModalProps> = ({
         campaignId,
         automationId,
         automationNodeId,
+        // The tab's company, so the test footer is that company's.
+        admin_tenant_id: getAdminTenantHeaderValue() ?? null,
       };
 
       if (previewMode === 'customer' && selectedCustomerId) {

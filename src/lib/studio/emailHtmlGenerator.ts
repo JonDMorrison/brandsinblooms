@@ -48,6 +48,7 @@ import {
   resolveSocialFollowIcon,
 } from "./socialIcons.ts";
 import { getImageObjectPosition } from "./imageFocalPoint.ts";
+import { normalizeTenantWebsite } from "./tenantWebsite.ts";
 import {
   resolveCroppedEmailImage,
   withOutlookWholePhoto,
@@ -2081,18 +2082,20 @@ export function footerWebsiteLabel(url: string | null | undefined): string {
 }
 
 /**
- * The footer's website link: the active tenant's business profile website
- * (designSystem.company.websiteUrl), or "" when the tenant has none or the
- * footer's "Show Website Link" switch is off. A website saved on the block
- * itself is never used: it is a snapshot from whoever built the draft, which
- * put a master admin's own company website in a client's footer.
+ * The footer's website link: the active tenant's website
+ * (designSystem.company.websiteUrl, from resolveTenantWebsite), or "" when the
+ * tenant has none or the footer's "Show Website Link" switch is off. A website
+ * saved on the block itself is never used: it is a snapshot from whoever built
+ * the draft, which put a master admin's own company website in a client's
+ * footer. A platform address (getclear.ca, brandsinblooms.com, ...) is never
+ * rendered, whatever the design system carries.
  */
 export function resolveFooterWebsiteUrl(
   block: Pick<StudioBlock, "showWebsiteLink">,
   designSystem: { company: { websiteUrl?: string | null } } | null | undefined,
 ): string {
   if (block.showWebsiteLink === false) return "";
-  return (designSystem?.company.websiteUrl ?? "").trim();
+  return normalizeTenantWebsite(designSystem?.company.websiteUrl);
 }
 
 function renderFooterLinks(
@@ -2265,7 +2268,7 @@ export function createFooterBlockFromDesignSystem(
     // The link follows the tenant's profile website at render time and is
     // hidden while there is none (resolveFooterWebsiteUrl).
     showWebsiteLink: true,
-    websiteUrl: designSystem.company.websiteUrl,
+    websiteUrl: normalizeTenantWebsite(designSystem.company.websiteUrl),
     showSocialInFooter: designSystem.social.hasConfiguredLinks,
     footerSocialLinks: designSystem.social.links,
     footerIconStyle: "filled",
@@ -2320,7 +2323,7 @@ export function createFooterBlockFromProfile(
     // The link follows the profile website at render time and is hidden
     // while there is none (resolveFooterWebsiteUrl).
     showWebsiteLink: true,
-    websiteUrl: stringValue(profile?.website_url),
+    websiteUrl: normalizeTenantWebsite(profile?.website_url),
     backgroundColor: footerColors?.backgroundColor || "#1e293b",
     textColor: footerColors?.textColor || "#ffffff",
     linkColor: footerColors?.linkColor || "#cbd5e1",

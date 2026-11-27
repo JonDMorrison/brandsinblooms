@@ -32,6 +32,7 @@ import {
 } from "./campaignEmailContent.ts";
 import { sanitizeEmailHtmlImageSources } from "./emailImageUrl.ts";
 import type { ServerCompanyProfileShape } from "./resolveDesignSystem.ts";
+import { normalizeTenantWebsite } from "./tenantWebsite.ts";
 import {
   resolveEmailPreferenceLinks,
   type EmailPreferenceLinks,
@@ -494,7 +495,7 @@ function buildMergeData(
       address: companyProfile?.location_info || "",
       phone: companyProfile?.company_phone || "",
       email: companyProfile?.company_email || "",
-      website: companyProfile?.website_url || "",
+      website: normalizeTenantWebsite(companyProfile?.website_url),
     },
     system: {
       unsubscribe_url: "#",
@@ -538,7 +539,7 @@ function appendFooter(
     company_name: companyProfile?.company_name || "",
     company_phone: companyProfile?.company_phone || "",
     company_email: companyProfile?.company_email || "",
-    website_url: companyProfile?.website_url || "",
+    website_url: normalizeTenantWebsite(companyProfile?.website_url),
     street_address: companyProfile?.street_address || "",
     city: companyProfile?.city || "",
     state_province: companyProfile?.state_province || "",
