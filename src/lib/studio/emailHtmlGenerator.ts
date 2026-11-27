@@ -95,6 +95,9 @@ export type StudioFooterProfile = {
       backgroundColor?: string;
       textColor?: string;
       linkColor?: string;
+      dividerColor?: string;
+      logoBackgroundColor?: string;
+      logoTextColor?: string;
     };
   } | null;
 };

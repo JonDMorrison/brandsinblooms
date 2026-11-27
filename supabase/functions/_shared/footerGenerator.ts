@@ -10,8 +10,15 @@ import {
 
 const ICON_BASE_URL = "https://bloomsuite.app/social-icons";
 
-export interface CompanyProfileData
-  extends StudioFooterProfile, ServerCompanyProfileShape {}
+/**
+ * A company_profiles row as the send functions load it. The server shape
+ * already carries every field the footer reads, with the wider stored
+ * feature_flags (legacy colour keys, showLogo); normalizeFooterProfile
+ * narrows it to what the shared footer renderer takes.
+ */
+export type CompanyProfileData = ServerCompanyProfileShape;
+
+const textOrUndefined = (value: string | null | undefined) => value || undefined;
 
 export const socialIcons: Record<string, string> = {
   facebook: `<img src="${ICON_BASE_URL}/facebook.png" alt="Facebook" width="20" height="20" style="display:block;border:0;outline:none;text-decoration:none;" />`,
@@ -22,7 +29,8 @@ export const socialIcons: Record<string, string> = {
   linkedin: `<img src="${ICON_BASE_URL}/linkedin.png" alt="LinkedIn" width="20" height="20" style="display:block;border:0;outline:none;text-decoration:none;" />`,
 };
 
-function normalizeFooterProfile(
+/** A stored profile narrowed to what the shared footer renderer reads. */
+export function normalizeFooterProfile(
   profile: CompanyProfileData,
 ): StudioFooterProfile {
   const colors = profile.feature_flags?.footer_colors;
@@ -32,15 +40,15 @@ function normalizeFooterProfile(
     feature_flags: {
       ...profile.feature_flags,
       company_logo_url: profile.feature_flags?.company_logo_url,
-      footer_settings: profile.feature_flags?.footer_settings,
+      footer_settings: profile.feature_flags?.footer_settings ?? undefined,
       footer_colors: colors
         ? {
-            backgroundColor: colors.backgroundColor || colors.background,
-            textColor: colors.textColor || colors.text,
-            linkColor: colors.linkColor || colors.link,
-            dividerColor: colors.dividerColor,
-            logoBackgroundColor: colors.logoBackgroundColor,
-            logoTextColor: colors.logoTextColor,
+            backgroundColor: textOrUndefined(colors.backgroundColor) ?? textOrUndefined(colors.background),
+            textColor: textOrUndefined(colors.textColor) ?? textOrUndefined(colors.text),
+            linkColor: textOrUndefined(colors.linkColor) ?? textOrUndefined(colors.link),
+            dividerColor: textOrUndefined(colors.dividerColor),
+            logoBackgroundColor: textOrUndefined(colors.logoBackgroundColor),
+            logoTextColor: textOrUndefined(colors.logoTextColor),
           }
         : undefined,
     },
