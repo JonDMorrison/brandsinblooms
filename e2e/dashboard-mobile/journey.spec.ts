@@ -6,7 +6,9 @@ test("mobile actions and KPIs are visible, not lost in whitespace", async ({
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(String(error)));
   await page.goto("/e2e/dashboard-mobile/fixture.html?scenario=owner");
-  await expect(page.getByText("What would you like to do?")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Welcome back, Example" }),
+  ).toBeVisible();
   for (const name of ["Create an email", "Send a text", "Customers"]) {
     const button = page.getByRole("button", { name: new RegExp(name) });
     await expect(button).toBeVisible();
@@ -20,7 +22,7 @@ test("mobile actions and KPIs are visible, not lost in whitespace", async ({
     .getByRole("button", { name: /Create an email/ })
     .boundingBox();
   const heading = await page
-    .getByText("What would you like to do?")
+    .getByRole("heading", { level: 1 })
     .boundingBox();
   expect((first?.y ?? Infinity) - (heading?.y ?? 0)).toBeLessThan(150);
   await expect(page.getByText("Recent performance")).toBeVisible();
@@ -44,7 +46,7 @@ test("no permission state is explicit rather than a blank page", async ({
   page,
 }) => {
   await page.goto("/e2e/dashboard-mobile/fixture.html?scenario=no-permissions");
-  const heading = page.getByText("What would you like to do?");
+  const heading = page.getByRole("heading", { level: 1 });
   await expect(heading).toBeVisible();
   const warning = page.getByRole("alert");
   await expect(warning).toContainText(
