@@ -129,3 +129,22 @@ Deno.test("generate-content returns 200 for a member of the tenant", async () =>
     openai.restore();
   }
 });
+
+Deno.test("generate-content builds its own newsletter prompt when no customPrompt is sent", async () => {
+  const { client } = authedClient({ canAccess: true, extra: { "company_profiles:select": { data: { company_name: "Lacoste Garden Centre" }, error: null } } });
+  const { createClient } = recordingCreateClient(client);
+  const openai = stubOpenAI("", { content: CONTENT, imageQuery: "tulip bulbs" });
+  const { customPrompt: _unused, ...withoutCustomPrompt } = BODY;
+  try {
+    const response = await handleGenerateContent(
+      generatorRequest({ ...withoutCustomPrompt, tenantId: OWN_TENANT_ID }),
+      deps(createClient),
+    );
+    assertEquals(response.status, 200);
+    // The newsletter format guidelines name the campaign theme.
+    const sent = JSON.stringify(openai.requests.map((request) => request.body));
+    assert(sent.includes('Reference the overall campaign theme: \\"Spring bulbs\\"'), "campaign title missing from prompt");
+  } finally {
+    openai.restore();
+  }
+});
