@@ -53,6 +53,7 @@ import StudioTextField from "@/components/crm/studio/fields/StudioTextField";
 import StudioToggleField from "@/components/crm/studio/fields/StudioToggleField";
 import { useDesignSystem } from "@/contexts/DesignSystemContext";
 import { isFooterSocialVisible } from "@/lib/studio/socialIcons";
+import { footerWebsiteLabel } from "@/lib/studio/emailHtmlGenerator";
 import type { EditorCampaignType } from "@/lib/crm/campaignEditor";
 import {
   getStudioLayoutPresets,
@@ -4389,22 +4390,20 @@ function PanelContent({
                         updateField("showManagePreferences", value)
                       }
                     />
+                    {/* The website is the active tenant's profile website,
+                        never one typed into this draft. */}
                     <StudioSwitchField
                       label="Show Website Link"
-                      checked={block.showWebsiteLink ?? false}
+                      checked={block.showWebsiteLink !== false}
+                      description={
+                        designSystem?.company.websiteUrl?.trim()
+                          ? `Links to ${footerWebsiteLabel(designSystem.company.websiteUrl)} from your business profile.`
+                          : "Add a website in Contact & Footer settings to show this link."
+                      }
                       onChange={(value) =>
                         updateField("showWebsiteLink", value)
                       }
                     />
-                    {block.showWebsiteLink ? (
-                      <StudioTextField
-                        label="Website URL"
-                        placeholder="https://..."
-                        type="url"
-                        value={block.websiteUrl ?? ""}
-                        onChange={(value) => updateField("websiteUrl", value)}
-                      />
-                    ) : null}
                   </>
                 ),
               },

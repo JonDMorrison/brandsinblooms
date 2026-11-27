@@ -33,6 +33,9 @@ interface ResultsProps {
 const count = (value: number | null) => value === null ? "—" : value.toLocaleString();
 const rate = (value: number | null) => value === null ? "Updating as results arrive" : `${value.toFixed(1)}%`;
 
+/** "100.0% of 1,973": the delivery rate and the number of emails sent. */
+const deliveryDetail = (stats: CampaignStats) => `${rate(stats.deliveryRate)} of ${stats.sent.toLocaleString()}`;
+
 function ResultMetric({ label, value, detail, icon }: { label: string; value: number | null; detail: string; icon: ReactNode }) {
   return <Sheet variant="outlined" sx={{ p: { xs: 2, md: 2.5 }, borderRadius: "lg", minWidth: 0, bgcolor: "background.surface", boxShadow: "0 3px 14px rgb(24 60 83 / 4%)" }}>
     <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1}>
@@ -49,7 +52,7 @@ export function CampaignResultsOverview(props: ResultsProps) {
   const sent = stats?.sent ?? null;
   const needsReview = props.failed > 0 || (props.bounced ?? 0) > 0;
   return <Stack spacing={2.5} sx={{ width: "100%", maxWidth: 1280, mx: "auto" }}>
-    <Sheet variant="outlined" sx={{ borderRadius: "xl", p: { xs: 2.5, md: 4 }, position: "relative", overflow: "hidden", boxShadow: "0 5px 24px rgb(24 60 83 / 5%)", bgcolor: "background.surface", "&::before": { content: '\"\"', position: "absolute", right: -20, top: -45, width: 340, height: 320, background: 'url("/images/dashboard/botanical-corner.svg") center / contain no-repeat', pointerEvents: "none" }, "& > *": { position: "relative" } }}>
+    <Sheet variant="outlined" sx={{ borderRadius: "xl", p: { xs: 2.5, md: 4 }, position: "relative", overflow: "hidden", boxShadow: "0 5px 24px rgb(24 60 83 / 5%)", bgcolor: "background.surface", "&::before": { content: '""', position: "absolute", right: -20, top: -45, width: 340, height: 320, background: 'url("/images/dashboard/botanical-corner.svg") center / contain no-repeat', pointerEvents: "none" }, "& > *": { position: "relative" } }}>
       <Stack direction={{ xs: "column", md: "row" }} spacing={3} justifyContent="space-between" alignItems={{ xs: "stretch", md: "center" }}>
         <Stack spacing={1.25} sx={{ minWidth: 0, maxWidth: 700 }}>
           <Stack direction="row" gap={1} alignItems="center">
@@ -69,7 +72,7 @@ export function CampaignResultsOverview(props: ResultsProps) {
 
     <Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", lg: "repeat(4, minmax(0, 1fr))" }, gap: 1.5 }}>
       <ResultMetric label="Emails sent" value={sent} detail="Accepted by the email provider" icon={<Send size={18} />} />
-      <ResultMetric label="Delivery confirmed" value={stats?.delivered ?? null} detail={stats ? `${rate(stats.deliveryRate)} of sent emails` : rate(null)} icon={<MailCheck size={18} />} />
+      <ResultMetric label="Delivery confirmed" value={stats?.delivered ?? null} detail={stats ? deliveryDetail(stats) : rate(null)} icon={<MailCheck size={18} />} />
       <ResultMetric label="People who clicked" value={stats?.clicks ?? null} detail={stats ? `${rate(stats.clickRate)} click-through rate` : rate(null)} icon={<MousePointerClick size={18} />} />
       <ResultMetric label="Reported opens" value={stats?.opens ?? null} detail={stats ? `${rate(stats.openRate)} reported open rate` : rate(null)} icon={<Eye size={18} />} />
     </Box>

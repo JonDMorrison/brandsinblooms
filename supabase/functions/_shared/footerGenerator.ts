@@ -53,10 +53,8 @@ export function generateServerFooterHtml(
   managePreferencesUrl?: string,
 ): string {
   const normalizedProfile = normalizeFooterProfile(profile);
-  const websiteUrl =
-    profile.website_url ||
-    profile.feature_flags?.footer_settings?.websiteUrl ||
-    "";
+  // The website link comes from the design system resolved from this same
+  // profile (resolveFooterWebsiteUrl), and is hidden when it has none.
   const footerBlock = createFooterBlockFromProfile(normalizedProfile, {
     logoUrl:
       profile.feature_flags?.footer_settings?.showLogo === false
@@ -64,8 +62,6 @@ export function generateServerFooterHtml(
         : profile.feature_flags?.company_logo_url || "",
     showManagePreferences:
       profile.feature_flags?.footer_settings?.showManagePreferences !== false,
-    showWebsiteLink: Boolean(websiteUrl),
-    websiteUrl,
   });
   const designSystem = resolveDesignSystem(normalizedProfile);
 
@@ -74,7 +70,6 @@ export function generateServerFooterHtml(
     {
       unsubscribeUrl,
       preferencesUrl: managePreferencesUrl || unsubscribeUrl,
-      websiteUrl,
     },
     designSystem,
   );

@@ -188,7 +188,11 @@ export function hydrateFooterBlockWithDesignSystem(
     if (stored && !hasPlaceholderCopyright(stored)) return stored;
     return businessName ? `© ${new Date().getFullYear()} ${businessName}` : "";
   };
-  const websiteUrl = block.websiteUrl || designSystem.company.websiteUrl;
+  // The website always follows the active tenant's profile: a website saved
+  // on an older draft can be the master admin's own company (getclear.ca on
+  // Northfield), so it is replaced, never kept. Only "Show Website Link" off
+  // is the operator's to keep.
+  const websiteUrl = designSystem.company.websiteUrl;
 
   const nextBlock = {
     ...block,
@@ -202,7 +206,7 @@ export function hydrateFooterBlockWithDesignSystem(
       DEFAULT_COMPLIANCE_TEXT,
     logoUrl: block.logoUrl || designSystem.company.logoUrl,
     websiteUrl,
-    showWebsiteLink: block.showWebsiteLink ?? Boolean(websiteUrl),
+    showWebsiteLink: block.showWebsiteLink ?? true,
     backgroundColor: valueMatchesDefault(block.backgroundColor, [
       DEFAULT_FOOTER_BACKGROUND,
     ])

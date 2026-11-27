@@ -612,7 +612,8 @@ export function createStudioBlock(
         logoSize: 64,
         showUnsubscribe: true,
         showManagePreferences: true,
-        showWebsiteLink: Boolean(stringValue(designSystem?.company.websiteUrl)),
+        // Shown whenever the tenant's profile has a website (resolveFooterWebsiteUrl).
+        showWebsiteLink: true,
         websiteUrl: stringValue(designSystem?.company.websiteUrl),
         showSocialInFooter: false,
         footerSocialLinks: defaultSocialLinks,
