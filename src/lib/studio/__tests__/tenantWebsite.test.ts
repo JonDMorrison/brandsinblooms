@@ -9,7 +9,9 @@ import {
 } from "@/lib/studio/emailHtmlGenerator";
 import { buildCampaignPreviewHtml } from "@/lib/crm/campaignPreviewHtml";
 import {
+  BRANDS_IN_BLOOMS_TENANT_ID,
   isPlatformWebsite,
+  isWebsiteReservedForAnotherTenant,
   loadTenantWebsite,
   normalizeTenantWebsite,
   PLATFORM_WEBSITE_DOMAINS,
@@ -159,6 +161,31 @@ describe("resolveTenantWebsite", () => {
     expect(await profileWithTenantWebsite(client, "tenant-1", null)).toEqual({ website_url: "https://northfieldgardens.ca" });
   });
 
+  it("accepts brandsinblooms.com only for the Brands in Blooms tenant", async () => {
+    const bibProfile = { website_url: "https://brandsinblooms.com" };
+    expect(resolveTenantWebsite({ tenantId: BRANDS_IN_BLOOMS_TENANT_ID, profile: bibProfile }))
+      .toBe("https://brandsinblooms.com");
+    expect(resolveTenantWebsite({ tenantId: "3eade43c-2e5a-4ad0-80fb-500e3d7afbd4", profile: bibProfile }))
+      .toBe("");
+    expect(resolveTenantWebsite({ profile: bibProfile })).toBe("");
+    expect(resolveTenantWebsite({
+      tenantId: "3eade43c-2e5a-4ad0-80fb-500e3d7afbd4",
+      profile: { website_url: "https://www.brandsinblooms.com/shop" },
+      site: { connectedSiteOrigins: ["https://northfieldgardens.ca"] },
+    })).toBe("https://northfieldgardens.ca");
+    // getclear.ca stays blocked for every tenant, Brands in Blooms included.
+    expect(resolveTenantWebsite({
+      tenantId: BRANDS_IN_BLOOMS_TENANT_ID,
+      profile: { website_url: "https://getclear.ca" },
+    })).toBe("");
+    expect(isWebsiteReservedForAnotherTenant("https://brandsinblooms.com", BRANDS_IN_BLOOMS_TENANT_ID)).toBe(false);
+    expect(isWebsiteReservedForAnotherTenant("https://brandsinblooms.com", "tenant-1")).toBe(true);
+    expect(isWebsiteReservedForAnotherTenant("https://northfieldgardens.ca", "tenant-1")).toBe(false);
+    expect(await loadTenantWebsite(fakeClient({}), BRANDS_IN_BLOOMS_TENANT_ID, bibProfile))
+      .toBe("https://brandsinblooms.com");
+    expect(await loadTenantWebsite(fakeClient({}), "tenant-1", bibProfile)).toBe("");
+  });
+
   it("withTenantWebsite replaces the stored website", () => {
     expect(withTenantWebsite({ company_name: "A", website_url: "https://getclear.ca" }, ""))
       .toEqual({ company_name: "A", website_url: null });
@@ -251,7 +278,7 @@ describe("footer website in every renderer", () => {
         subject: "Hi",
         previewText: "",
         footer: staleFooter,
-        designSystem: buildStudioDesignSystem({ name: "X", websiteUrl: "https://www.brandsinblooms.com" }),
+        designSystem: buildStudioDesignSystem({ name: "X", websiteUrl: "https://www.getclear.ca/about" }),
       }),
       renderMergeTags(
         "<a href=\"{{company.website}}\">site</a>",

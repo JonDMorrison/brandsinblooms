@@ -14,9 +14,11 @@
 //   3. the linked BloomSites site: a verified custom domain (public.domains)
 //      first, then the active connected site's public origin
 //      (crm_connected_websites.site_origin)
-// A platform address (getclear.ca, brandsinblooms.com, bloomsuite.*, ...) is
-// never a tenant's website and is skipped at every step. With no website the
-// footer shows no website link: there is no default.
+// A platform address (getclear.ca, bloomsuite.*, ...) is never a tenant's
+// website and is skipped at every step. An operator domain that is also one
+// tenant's real website (brandsinblooms.com) is that tenant's only: the
+// resolver skips it for every other tenant. With no website the footer shows
+// no website link: there is no default.
 import { pickVerifiedSiteDomain, type SiteDomainRow } from "../siteDomain.ts";
 
 /**
@@ -25,13 +27,26 @@ import { pickVerifiedSiteDomain, type SiteDomainRow } from "../siteDomain.ts";
  */
 export const PLATFORM_WEBSITE_DOMAINS: readonly string[] = [
   "getclear.ca",
-  "brandsinblooms.com",
   "bloomsuite.app",
   "bloomsuite.com",
   "bloomsuite.io",
   "supabase.co",
   "supabase.in",
 ];
+
+/** The Brands in Blooms tenant, whose own website is brandsinblooms.com. */
+export const BRANDS_IN_BLOOMS_TENANT_ID = "0a626809-3f46-45d8-b325-55de9c4ba576";
+
+/**
+ * Operator domains that are one tenant's real website. The resolver accepts
+ * one only for its owning tenant, so another tenant's footer never links to
+ * it (a master admin's profile or a copied draft carried it into clients'
+ * emails). Downstream renderers receive the resolver's output, so they
+ * accept these hosts.
+ */
+export const TENANT_RESERVED_WEBSITE_DOMAINS: Readonly<Record<string, string>> = {
+  "brandsinblooms.com": BRANDS_IN_BLOOMS_TENANT_ID,
+};
 
 /**
  * BloomSites serves each tenant's site at {subdomain}.bloomsites.app, which is
@@ -86,6 +101,24 @@ export function isPlatformWebsite(value: unknown): boolean {
 }
 
 /**
+ * True when the address is on an operator domain reserved for a tenant other
+ * than tenantId (or when tenantId is unknown, so ownership can't be shown).
+ */
+export function isWebsiteReservedForAnotherTenant(
+  value: unknown,
+  tenantId: string | null | undefined,
+): boolean {
+  const url = parseWebsite(value);
+  if (!url) return false;
+  const host = url.hostname.toLowerCase().replace(/\.$/, "");
+  const owner = Object.entries(TENANT_RESERVED_WEBSITE_DOMAINS).find(
+    ([domain]) => host === domain || host.endsWith(`.${domain}`),
+  )?.[1];
+  if (!owner) return false;
+  return !tenantId || tenantId.toLowerCase() !== owner;
+}
+
+/**
  * A usable tenant website as an absolute http(s) URL ("northfield.ca" →
  * "https://northfield.ca"), or "" when the value is empty, malformed or a
  * platform address.
@@ -126,6 +159,8 @@ export interface TenantWebsiteSiteFacts {
 }
 
 export interface TenantWebsiteSources {
+  /** The tenant being resolved; needed to accept its reserved domain. */
+  tenantId?: string | null;
   tenant?: TenantWebsiteTenantFacts | null;
   profile?: TenantWebsiteProfileFacts | null;
   site?: TenantWebsiteSiteFacts | null;
@@ -154,6 +189,7 @@ export function tenantWebsiteCandidates(sources: TenantWebsiteSources): unknown[
  */
 export function resolveTenantWebsite(sources: TenantWebsiteSources): string {
   for (const candidate of tenantWebsiteCandidates(sources)) {
+    if (isWebsiteReservedForAnotherTenant(candidate, sources.tenantId)) continue;
     const website = normalizeTenantWebsite(candidate);
     if (website) return website;
   }
@@ -267,7 +303,7 @@ export async function loadTenantWebsite(
   profile: TenantWebsiteProfileFacts | null | undefined,
 ): Promise<string> {
   const { tenant, site } = await loadTenantWebsiteFacts(client, tenantId);
-  return resolveTenantWebsite({ tenant, profile: profile ?? null, site });
+  return resolveTenantWebsite({ tenantId, tenant, profile: profile ?? null, site });
 }
 
 /**
