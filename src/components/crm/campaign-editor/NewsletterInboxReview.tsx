@@ -12,9 +12,12 @@ import {
   draftInboxSuggestion,
   inboxInsights,
   newsletterInboxText,
+  subjectLengthHint,
 } from "@/lib/crm/newsletterInbox";
+import { sanitizeInboxSuggestions } from "../../../../supabase/functions/generate-subject-lines/suggestions";
 
 type Suggestion = { subject: string; preview: string };
+
 // The inbox preview shows what a customer sees, so the first-name code is
 // shown as an example name. The subject box keeps the real code.
 const FIRST_NAME_TAG = /\{\{\s*first_name\s*\}\}/g;
@@ -82,14 +85,13 @@ export function NewsletterInboxReview({
   const [suggestions, setSuggestions] = React.useState<Suggestion[]>([]);
   const [error, setError] = React.useState<string | null>(null);
   const [suggestionContext, setSuggestionContext] = React.useState("");
+  // Preview text is drafted by the editor (usePreviewTextAutoDraft), which
+  // stays mounted while this step is closed. Only the subject is seeded here.
   React.useEffect(() => {
     if (disabled || !context || seeded.current) return;
     seeded.current = true;
-    const fields: { subjectLine?: string; preheaderText?: string } = {};
-    if (!subject.trim()) fields.subjectLine = starter.subject;
-    if (!preview.trim()) fields.preheaderText = starter.preview;
-    if (Object.keys(fields).length) onChange(fields);
-  }, [context, disabled, onChange, preview, starter, subject]);
+    if (!subject.trim() && starter.subject) onChange({ subjectLine: starter.subject });
+  }, [context, disabled, onChange, starter, subject]);
   const improve = async () => {
     if (busy || !context) return;
     setBusy(true);
@@ -103,17 +105,10 @@ export function NewsletterInboxReview({
       if (requestError || data?.success === false)
         throw requestError ?? new Error("Unavailable");
       if (revision.current !== requestedContext) return;
-      const options = Array.isArray(data?.suggestions)
-        ? data.suggestions
-            .filter(
-              (s: Suggestion) =>
-                typeof s.subject === "string" &&
-                typeof s.preview === "string",
-            )
-            // Only the pair is shown; any explanation text is dropped.
-            .map((s: Suggestion) => ({ subject: s.subject, preview: s.preview }))
-            .slice(0, 3)
-        : [];
+      // The same house rules the function applies (under 60 characters, no
+      // em dashes, no exclamation marks). Only the pair is shown; any
+      // explanation text is dropped.
+      const options: Suggestion[] = sanitizeInboxSuggestions(data?.suggestions);
       if (!options.length) throw new Error("No suggestions");
       const signature = fingerprint(requestedContext);
       setReviewedFingerprint(signature);
@@ -162,7 +157,9 @@ export function NewsletterInboxReview({
   const tips = inboxInsights(subject, preview);
   const currentSuggestions = suggestionContext === context ? suggestions : [];
   const subjectLength = subject.length;
-  const subjectInRange = subjectLength >= 40 && subjectLength <= 60;
+  const lengthHint = subjectLengthHint(subjectLength);
+  const hintColor =
+    lengthHint.tone === "success" ? "success.plainColor" : "warning.plainColor";
   const fromLabel = senderName?.trim() || "Your business";
   return (
     <Stack spacing={2.5}>
@@ -191,16 +188,27 @@ export function NewsletterInboxReview({
               sx={{
                 fontSize: 14,
                 fontWeight: 600,
-                color: subjectInRange ? "success.700" : "text.secondary",
+                color: hintColor,
               }}
             >
               {subjectLength}
             </Typography>
           }
           helperText={
-            hasFirstNameTag(subject)
-              ? `${subjectLength} characters · Aim for 40–60 · {{ first_name }} becomes each customer's first name`
-              : `${subjectLength} characters · Aim for 40–60`
+            <>
+              {`${subjectLength} characters · `}
+              <Box
+                component="span"
+                data-testid="subject-length-hint"
+                data-tone={lengthHint.tone}
+                sx={{ color: hintColor, fontWeight: 600 }}
+              >
+                {lengthHint.message}
+              </Box>
+              {hasFirstNameTag(subject)
+                ? " · {{ first_name }} becomes each customer's first name"
+                : null}
+            </>
           }
         />
         {currentSuggestions.length ? (

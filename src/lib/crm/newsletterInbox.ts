@@ -25,6 +25,13 @@ const clean = (text: string) =>
     .trim();
 const placeholder =
   /^(newsletter title|your (headline|heading|title|text|content)|lorem ipsum|add (your )?(text|content)|click to edit)/i;
+const NON_CONTENT_BLOCKS = [
+  "footer",
+  "newsletter-header",
+  "social-follow",
+  "divider",
+  "spacer",
+];
 export function newsletterInboxText(blocks: StudioBlock[]): string[] {
   const found: string[] = [];
   function walk(value: unknown, key = "", depth = 0) {
@@ -42,13 +49,7 @@ export function newsletterInboxText(blocks: StudioBlock[]): string[] {
     .filter(
       (b) =>
         b.visible !== false &&
-        ![
-          "footer",
-          "newsletter-header",
-          "social-follow",
-          "divider",
-          "spacer",
-        ].includes(b.type),
+        !NON_CONTENT_BLOCKS.includes(b.type),
     )
     .forEach((b) => walk(b));
   return found;
@@ -102,6 +103,46 @@ export function skipGreetingText(text: string): string {
   return sentences.join(" ");
 }
 
+// Body copy, in the order a block's text is read. Headlines are left to the
+// subject line.
+const BODY_TEXT_KEYS = ["body", "text", "content", "description"] as const;
+
+/** The lines of body copy in the first block that has any, as plain text. */
+function firstTextBlockLines(blocks: StudioBlock[]): string[] {
+  for (const block of blocks) {
+    if (block.visible === false || NON_CONTENT_BLOCKS.includes(block.type)) continue;
+    const record = block as unknown as Record<string, unknown>;
+    for (const key of BODY_TEXT_KEYS) {
+      const value = record[key];
+      if (typeof value !== "string") continue;
+      // Paragraph and line breaks end a line of copy.
+      const lines = value
+        .replace(/<\/(p|div|h[1-6]|li)>|<br\s*\/?>/gi, "\n")
+        .split("\n")
+        .map(clean)
+        .filter(Boolean);
+      if (lines.length && !placeholder.test(lines.join(" "))) return lines;
+    }
+  }
+  return [];
+}
+
+/**
+ * Drafts preview text from the design: the first sentence of the first text
+ * block, after any leading greeting ("Hi {{ first_name }},", "Good
+ * morning,") is removed. Returns "" when nothing is left, so the field stays
+ * empty rather than showing a greeting.
+ */
+export function draftPreviewText(blocks: StudioBlock[]): string {
+  for (const line of firstTextBlockLines(blocks)) {
+    const copy = skipGreetingText(line);
+    if (!copy) continue;
+    const firstSentence = copy.split(/(?<=[.!?])\s+/)[0]?.trim() ?? "";
+    return shorten(firstSentence, 150);
+  }
+  return "";
+}
+
 export function draftInboxSuggestion(lines: string[]) {
   // Greeting lines ("Hi {{first_name}},") are dropped and greeting sentences
   // are trimmed before anything is copied into the preview text.
@@ -115,6 +156,16 @@ export function draftInboxSuggestion(lines: string[]) {
     preview: shorten(body.join(" ") || fallback[0] || "", 150),
   };
 }
+/** Subject length guidance: 40 to 60 characters reads well on most phones. */
+export function subjectLengthHint(length: number): {
+  message: string;
+  tone: "warning" | "success";
+} {
+  if (length < 40) return { message: "A little short. Aim for 40 to 60", tone: "warning" };
+  if (length <= 60) return { message: "Good length", tone: "success" };
+  return { message: "May be cut off on phones", tone: "warning" };
+}
+
 export function inboxInsights(subject: string, preview: string) {
   const tips: string[] = [];
   if (subject.length > 60)

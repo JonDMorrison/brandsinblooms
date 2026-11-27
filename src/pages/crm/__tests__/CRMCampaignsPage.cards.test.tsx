@@ -56,6 +56,21 @@ describe("campaign card view", () => {
     expect(screen.getAllByRole("link")).toHaveLength(2);
   });
 
+  it("always lists a draft with a custom name, even with no subject or content", async () => {
+    openList(
+      campaign({ isEmptyDraft: false, hasAudience: true }),
+      undefined,
+      "/crm/campaigns?status=all",
+      [
+        campaign({ id: "named-empty", name: "Spring plans", subjectLine: "", isEmptyDraft: true }),
+        campaign({ id: "empty-1", name: "", subjectLine: "", isEmptyDraft: true }),
+      ],
+    );
+    expect(await screen.findByRole("link", { name: "Open Spring plans" })).toBeInTheDocument();
+    expect(screen.getByText(/1 empty draft hidden/)).toBeInTheDocument();
+    expect(screen.getAllByRole("link")).toHaveLength(2);
+  });
+
   it("drops the schedule and rate columns from the drafts table", async () => {
     openList(campaign({ isEmptyDraft: false }), undefined, "/crm/campaigns?status=draft&view=table");
     await screen.findAllByRole("button", { name: "November garden news" });

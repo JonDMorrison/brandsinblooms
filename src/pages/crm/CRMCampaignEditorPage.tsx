@@ -18,7 +18,11 @@ import {
   resolveFooterPostalAddress,
 } from "@/lib/studio/businessPlaceholders";
 import { hasContentBlocks } from "@/lib/studio/emailHtmlGenerator";
-import { deriveCampaignDisplayName, isUnsetCampaignName } from "@/lib/crm/campaignDisplayName";
+import {
+  deriveCampaignDisplayName,
+  formatDraftDefaultName,
+  isUnsetCampaignName,
+} from "@/lib/crm/campaignDisplayName";
 import { CampaignOrganization } from "@/components/crm/campaigns/CampaignOrganization";
 import { reviewConnectedEvents } from "@/lib/connectedContent";
 import { reviewCampaignContent } from "@/lib/crm/campaignContentReview";
@@ -91,6 +95,7 @@ import {
 import StudioPreviewDialog from "@/components/crm/studio/StudioPreviewDialog";
 import { useCampaignOrganization } from "@/lib/crm/campaignOrganization";
 import { NewsletterInboxReview } from "@/components/crm/campaign-editor/NewsletterInboxReview";
+import { usePreviewTextAutoDraft } from "@/components/crm/campaign-editor/usePreviewTextAutoDraft";
 import { IntentPicker } from "@/components/crm/campaign-editor/IntentPicker";
 import { ManageTemplatesModal } from "@/components/crm/campaign-editor/ManageTemplatesModal";
 import { SaveAsTemplateModal } from "@/components/crm/campaign-editor/SaveAsTemplateModal";
@@ -685,8 +690,44 @@ function CampaignEditorScreen() {
     saveDraft,
     setOrigin,
     recordExternalSave,
+    revertName,
     isTenantReady,
   } = useCampaignEditor();
+
+  // Preview text follows the design until the person writes their own.
+  const draftPreviewIntoSetup = React.useCallback(
+    (previewText: string) => updateSetup({ preheaderText: previewText }),
+    [updateSetup],
+  );
+  usePreviewTextAutoDraft({
+    blocks: contentBlocks,
+    previewText: preheaderText,
+    onDraft: draftPreviewIntoSetup,
+    enabled: !isLoading && !isLocked && campaignType === "email",
+  });
+
+  // Campaign name: Escape puts back the last saved name without saving; an
+  // empty name on blur becomes "Draft, <date>" and says so.
+  const [defaultNameApplied, setDefaultNameApplied] = React.useState<string | null>(null);
+  const nameEscapedRef = React.useRef(false);
+  const handleNameKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== "Escape") return;
+    event.preventDefault();
+    nameEscapedRef.current = true;
+    revertName();
+    event.currentTarget.blur();
+  };
+  const handleNameBlur = () => {
+    if (nameEscapedRef.current) {
+      nameEscapedRef.current = false;
+      return;
+    }
+    if (isLocked || !isUnsetCampaignName(name)) return;
+    const defaultName = formatDraftDefaultName(new Date());
+    setDefaultNameApplied(defaultName);
+    updateSetup({ name: defaultName });
+  };
+  const showDefaultNameHint = defaultNameApplied !== null && name === defaultNameApplied;
 
   // Email eligibility comes from one server function (the send worker's rule).
   // Every surface below reads this query; none of them recounts.
@@ -738,7 +779,6 @@ function CampaignEditorScreen() {
   const [manageTemplatesOpen, setManageTemplatesOpen] = React.useState(false);
   const [pendingTemplateSave, setPendingTemplateSave] = React.useState<{
     templateName: string;
-    navigateToSavedDraft: boolean;
   } | null>(null);
 
   // Three-bucket sender classification (ready / warning / blocked)
@@ -804,10 +844,8 @@ function CampaignEditorScreen() {
         return;
       }
 
-      if (savedId && pendingTemplateSave.navigateToSavedDraft && !campaignId) {
-        navigate(`/crm/campaigns/${savedId}/edit`, { replace: true });
-      }
-
+      // The first save moves the address to /crm/campaigns/<id> (see
+      // CampaignEditorProvider), so a reload reopens this draft.
       if (savedId) {
         toast.success(`${pendingTemplateSave.templateName} applied`);
       } else {
@@ -824,7 +862,7 @@ function CampaignEditorScreen() {
     return () => {
       cancelled = true;
     };
-  }, [campaignId, navigate, pendingTemplateSave, saveDraft]);
+  }, [pendingTemplateSave, saveDraft]);
 
   const segmentsQuery = useQuery({
     queryKey: ["crm-campaign-editor-segments", tenant?.id],
@@ -1639,12 +1677,9 @@ function CampaignEditorScreen() {
       updateContent({
         contentBlocks: applyCampaignTemplate(template, designSystem),
       });
-      setPendingTemplateSave({
-        templateName: template.name,
-        navigateToSavedDraft: !campaignId,
-      });
+      setPendingTemplateSave({ templateName: template.name });
     },
-    [campaignId, designSystem, setOrigin, updateContent, updateSetup],
+    [designSystem, setOrigin, updateContent, updateSetup],
   );
 
   const handleApplyTemplate = React.useCallback(
@@ -2108,9 +2143,12 @@ function CampaignEditorScreen() {
                 value={isUnsetCampaignName(name) ? "" : name}
                 placeholder={deriveCampaignDisplayName({ name: "", subjectLine, blocks: contentBlocks })}
                 disabled={isLocked}
+                aria-describedby={showDefaultNameHint ? "campaign-editor-name-hint" : undefined}
                 onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
                   updateSetup({ name: event.target.value })
                 }
+                onKeyDown={handleNameKeyDown}
+                onBlur={handleNameBlur}
                 sx={{
                   all: "unset",
                   boxSizing: "border-box",
@@ -2126,6 +2164,16 @@ function CampaignEditorScreen() {
                 }}
               />
             </Typography>
+            {showDefaultNameHint ? (
+              <Typography
+                id="campaign-editor-name-hint"
+                level="body-sm"
+                data-testid="campaign-editor-name-hint"
+                sx={{ color: "text.secondary" }}
+              >
+                Using a default name
+              </Typography>
+            ) : null}
             <Stack direction="row" spacing={1} alignItems="center" useFlexGap flexWrap="wrap">
               <JoyStatusChip status={status} />
               <JoyChip variant="soft" color="neutral" size="sm">

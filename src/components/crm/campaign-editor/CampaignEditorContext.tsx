@@ -156,6 +156,8 @@ interface CampaignEditorContextValue extends CampaignEditorState {
   /** Records a save made outside the draft row (groups, campaign colour), so
    *  the header's "Saved <time>" reflects it. */
   recordExternalSave: (savedAt: Date) => void;
+  /** Puts the campaign name back to its last saved value, without saving. */
+  revertName: () => void;
   captureDraftSnapshot: (trigger: DraftSnapshotTrigger) => Promise<void>;
   activate: (
     options?: CampaignActivationOptions,
@@ -265,6 +267,43 @@ function buildDraftFingerprint(input: {
   });
 }
 
+function fingerprintEditorState(
+  state: CampaignEditorState,
+  fromEmailDomainId: string | null,
+) {
+  return buildDraftFingerprint({
+    campaignId: state.campaignId,
+    campaignType: state.campaignType,
+    status: state.status,
+    name: state.name,
+    subjectLine: state.subjectLine,
+    preheaderText: state.preheaderText,
+    senderName: state.senderName,
+    senderEmail: state.senderEmail,
+    fromEmailDomainId,
+    replyTo: state.replyTo,
+    contentBlocks: state.contentBlocks,
+    smsMessage: state.smsMessage,
+    sendAt: state.sendAt,
+    sendImmediately: state.sendImmediately,
+    segments: state.selectedSegments,
+    personas: state.selectedPersonas,
+    includeAllCustomers: state.includeAllCustomers,
+    additionalCustomerIds: state.additionalCustomerIds,
+    sourceContentTaskId: state.sourceContentTaskId,
+    sourceSegmentId: state.sourceSegmentId,
+    sourcePersonaId: state.sourcePersonaId,
+  });
+}
+
+/** Which segments and personas the campaign's link tables hold. */
+function audienceLinksKey(segments: Segment[], personas: Persona[]) {
+  return JSON.stringify([
+    segments.map((segment) => segment.id),
+    personas.map((persona) => persona.id),
+  ]);
+}
+
 function createInitialState(
   searchParams: URLSearchParams,
   designSystem: ReturnType<typeof useDesignSystem>["designSystem"],
@@ -338,6 +377,9 @@ export function CampaignEditorProvider({
   );
   const [isLoading, setIsLoading] = React.useState(Boolean(campaignId));
   const campaignIdRef = React.useRef<string | null>(state.campaignId);
+  // The id in the address (/crm/campaigns/<id>), or null on /new.
+  const routeCampaignIdRef = React.useRef<string | null>(campaignId ?? null);
+  routeCampaignIdRef.current = campaignId ?? null;
   const campaignStatusRef = React.useRef<CampaignStatus>(state.status);
   const autosaveTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(
     null,
@@ -366,6 +408,19 @@ export function CampaignEditorProvider({
   // treat it as a fresh attempt and reset autoSaveAttemptRef.
   const autoSaveLastTriedFingerprintRef = React.useRef<string | null>(null);
   const [autoSavePaused, setAutoSavePausedState] = React.useState(false);
+  // The name as last saved (or loaded), for Escape in the name field.
+  const savedNameRef = React.useRef(state.name);
+  // The segment and persona links last written for this campaign. A save
+  // whose audience is unchanged skips rewriting the link tables.
+  const syncedAudienceLinksRef = React.useRef<string | null>(null);
+  // A draft inserted here moves the address from /crm/campaigns/new to
+  // /crm/campaigns/<id>. The editor stays mounted on that change, and this
+  // id is already in state, so it is not fetched again.
+  const adoptedCampaignIdRef = React.useRef<string | null>(null);
+  const fromEmailDomainIdRef = React.useRef<string | null>(
+    senderConfig?.fromEmailDomainId ?? null,
+  );
+  fromEmailDomainIdRef.current = senderConfig?.fromEmailDomainId ?? null;
 
   React.useEffect(() => {
     campaignIdRef.current = state.campaignId;
@@ -423,6 +478,11 @@ export function CampaignEditorProvider({
         fromEmailDomainId: senderConfig?.fromEmailDomainId ?? null,
       });
       lastUpdatedAtRef.current = record.updatedAt;
+      savedNameRef.current = record.name;
+      syncedAudienceLinksRef.current = audienceLinksKey(
+        record.segments,
+        record.personas,
+      );
 
       setState((current) => ({
         ...current,
@@ -531,8 +591,11 @@ export function CampaignEditorProvider({
   }, [applyLoadedCampaign, campaignId]);
 
   React.useEffect(() => {
+    if (campaignId && campaignId === adoptedCampaignIdRef.current) {
+      return;
+    }
     void reload();
-  }, [reload]);
+  }, [campaignId, reload]);
 
   React.useEffect(() => {
     if (!campaignId) {
@@ -986,15 +1049,24 @@ export function CampaignEditorProvider({
         autoSaveMessage: null,
       }));
 
+      const existingCampaignId = campaignIdRef.current ?? payload.campaignId;
+      const audienceKey = audienceLinksKey(payload.segments, payload.personas);
+
       try {
         const saved = await persistCampaignDraft({
           ...payload,
-          campaignId: campaignIdRef.current ?? payload.campaignId,
+          campaignId: existingCampaignId,
           expectedUpdatedAt: lastUpdatedAtRef.current,
           status: requestedStatus,
+          syncAudienceLinks: audienceKey !== syncedAudienceLinksRef.current,
+          // The block mirror is a best-effort copy; "Saving…" ends when the
+          // campaign row is saved, not after the mirror catches up.
+          mirrorBlocksInBackground: true,
         });
 
         lastSavedFingerprintRef.current = fingerprint;
+        savedNameRef.current = payload.name;
+        syncedAudienceLinksRef.current = audienceKey;
         syncPersistedCampaignVersion({
           campaignId: saved.id,
           status: saved.status,
@@ -1024,6 +1096,13 @@ export function CampaignEditorProvider({
               : current,
           );
         }, AUTO_SAVE_SUCCESS_VISIBILITY_MS);
+
+        // The first save of a new draft: put its id in the address
+        // (history.replaceState) so a reload reopens this draft.
+        if (!existingCampaignId && routeCampaignIdRef.current !== saved.id) {
+          adoptedCampaignIdRef.current = saved.id;
+          navigate(`/crm/campaigns/${saved.id}`, { replace: true });
+        }
 
         return saved.id;
       } catch (error) {
@@ -1067,7 +1146,7 @@ export function CampaignEditorProvider({
         return null;
       }
     },
-    [syncPersistedCampaignVersion],
+    [navigate, syncPersistedCampaignVersion],
   );
 
   const saveDraft = React.useCallback(
@@ -1120,6 +1199,19 @@ export function CampaignEditorProvider({
         ? current
         : { ...current, lastSavedAt: savedAt },
     );
+  }, []);
+
+  const revertName = React.useCallback(() => {
+    setState((current) => {
+      const savedName = savedNameRef.current;
+      if (current.name === savedName) return current;
+      const next = { ...current, name: savedName };
+      // Back to exactly what was saved: nothing is left to save.
+      const matchesSaved =
+        fingerprintEditorState(next, fromEmailDomainIdRef.current) ===
+        lastSavedFingerprintRef.current;
+      return matchesSaved ? { ...next, isDirty: false } : next;
+    });
   }, []);
 
   const captureDraftSnapshot = React.useCallback(
@@ -1617,6 +1709,7 @@ export function CampaignEditorProvider({
       setAutoSavePaused,
       setOrigin,
       recordExternalSave,
+      revertName,
       captureDraftSnapshot,
       activate,
       pause,
@@ -1635,6 +1728,7 @@ export function CampaignEditorProvider({
       setAutoSavePaused,
       setOrigin,
       recordExternalSave,
+      revertName,
       captureDraftSnapshot,
       syncLiveCampaign,
       state,

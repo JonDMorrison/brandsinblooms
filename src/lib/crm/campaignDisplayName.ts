@@ -58,6 +58,14 @@ const draftDateFormat = new Intl.DateTimeFormat(undefined, {
   year: "numeric",
 });
 
+/**
+ * The name an empty campaign name falls back to ("Draft, Nov 27, 2026"), in
+ * the same date format the campaign list and Studio use.
+ */
+export function formatDraftDefaultName(date: Date = new Date()) {
+  return `Draft, ${draftDateFormat.format(date)}`;
+}
+
 /** The first headline a reader sees (not the header's store name). */
 export function firstContentHeadline(blocks: ReadonlyArray<BlockLike> | null | undefined) {
   for (const block of blocks ?? []) {
@@ -116,5 +124,7 @@ export function deriveCampaignDisplayName(input: {
         ? new Date(rawDate)
         : new Date();
   const safeDate = Number.isNaN(date.getTime()) ? new Date() : date;
-  return `${isDraft ? "Draft" : "Campaign"}, ${draftDateFormat.format(safeDate)}`;
+  return isDraft
+    ? formatDraftDefaultName(safeDate)
+    : `Campaign, ${draftDateFormat.format(safeDate)}`;
 }
