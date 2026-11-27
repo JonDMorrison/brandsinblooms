@@ -72,6 +72,7 @@ import type {
 } from "@/hooks/bloom/types";
 import { useIsSuperAdmin } from "@/hooks/useIsSuperAdmin";
 import { useTenant } from "@/hooks/useTenant";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 const ADMIN_PERIOD_OPTIONS = [
   { value: "this_month", label: "This Month" },
@@ -1856,7 +1857,7 @@ function BloomAdminDashboard() {
           alignItems={{ xs: "flex-start", sm: "center" }}
         >
           <Stack spacing={0.6}>
-            <Typography level="h1">Bloom Admin Dashboard</Typography>
+            <PageTitle>Bloom Admin Dashboard</PageTitle>
             <Typography
               level="body-sm"
               sx={{ color: "neutral.500", maxWidth: 680 }}

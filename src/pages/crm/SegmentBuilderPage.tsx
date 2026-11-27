@@ -70,6 +70,7 @@ import {
 import { buildGenericFocus } from "@/utils/askBloomContextBuilders";
 import { registerResourceAccessor } from "@/utils/askBloomResourceRegistry";
 import { subscribeAskBloomResourceSync } from "@/utils/askBloomResourceSync";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 const SEGMENT_CURRENCY_FORMATTER = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -780,9 +781,7 @@ export default function SegmentBuilderPage() {
               </Typography>
             </Stack>
 
-            <Typography level="h3" fontWeight="bold">
-              {pageTitle}
-            </Typography>
+            <PageTitle>{pageTitle}</PageTitle>
             <Typography
               level="body-sm"
               sx={{

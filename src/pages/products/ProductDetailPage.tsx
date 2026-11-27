@@ -40,6 +40,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Product, ProductFormData } from "@/types/product";
 import { buildProductFocus } from "@/utils/askBloomContextBuilders";
 import { registerResourceAccessor } from "@/utils/askBloomResourceRegistry";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 const STATUS_OPTIONS = [
   { value: "draft", label: "Draft" },
@@ -650,17 +651,7 @@ export default function ProductDetailPage() {
           alignItems={{ xs: "flex-start", lg: "flex-start" }}
         >
           <Stack spacing={1} sx={{ minWidth: 0 }}>
-            <Typography
-              level="h2"
-              sx={{
-                fontSize: "20px",
-                fontWeight: 700,
-                color: "neutral.900",
-                lineHeight: 1.2,
-              }}
-            >
-              {isNew ? "New Product" : product?.name}
-            </Typography>
+            <PageTitle>{isNew ? "New Product" : product?.name}</PageTitle>
             <Typography
               level="body-sm"
               sx={{

@@ -14,6 +14,7 @@ import { useIntegrationsHubData } from "@/hooks/useIntegrationsHubData";
 import { POSCheckoutSmsConsentDialog } from "@/components/integrations/pos/POSCheckoutSmsConsentDialog";
 import { SUPPORT_EMAIL } from "@/lib/bloomSupport/constants";
 import { getUserFacingIntegrationError } from "@/components/integrations/integrationDetailModel";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 const VALID_VMX_URL = /^https:\/\/[a-z0-9-]+\.vmxllc\.com\/pos\/api\/?$/i;
 
@@ -124,7 +125,7 @@ export default function VMXSetupPage() {
           All integrations
         </Button>
         <Stack spacing={0.5}>
-          <Typography level="h2">VMX POS</Typography>
+          <PageTitle>VMX POS</PageTitle>
           <Typography level="body-sm" sx={{ color: "neutral.600" }}>
             Connect a VMX point-of-sale system to BloomSuite using the API details VMX supplies for this garden centre.
           </Typography>

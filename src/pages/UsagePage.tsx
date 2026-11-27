@@ -12,6 +12,7 @@ import { UsageAlertSettings } from "@/components/settings/UsageAlertSettings";
 import { JoyButton } from "@/components/joy/JoyButton";
 import { UsageDashboard } from "@/components/subscription/UsageDashboard";
 import { UsageWarningBanner } from "@/components/subscription/UsageWarningBanner";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 type UsageTabId = "overview" | "alerts";
 
@@ -42,9 +43,7 @@ const UsagePage = () => {
             Settings
           </JoyButton>
         </Stack>
-        <Typography fontWeight={700} level="h3">
-          Usage & Alerts
-        </Typography>
+        <PageTitle>Usage & Alerts</PageTitle>
         <Typography level="body-sm" sx={{ color: "text.tertiary" }}>
           Monitor your plan usage and configure alert thresholds.
         </Typography>

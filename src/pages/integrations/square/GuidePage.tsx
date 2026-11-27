@@ -27,6 +27,7 @@ import {
   Table,
   Typography,
 } from "@mui/joy";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 const SquareGuidePage = () => {
   const navigate = useNavigate();
@@ -50,7 +51,7 @@ const SquareGuidePage = () => {
             <Plug style={{ width: 24, height: 24 }} />
           </Box>
           <Box>
-            <Typography level="h3" fontWeight="xl" mb={0.25}>Square Integration Guide</Typography>
+            <PageTitle sx={{ mb: 0.25 }}>Square Integration Guide</PageTitle>
             <Typography level="body-sm" textColor="text.tertiary">Complete setup guide for connecting Square POS with BloomSuite</Typography>
           </Box>
         </Stack>

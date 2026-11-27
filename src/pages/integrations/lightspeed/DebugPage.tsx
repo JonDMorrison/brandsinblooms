@@ -12,6 +12,7 @@ import {
   RefreshCw,
   XCircle,
 } from "lucide-react";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 type DiagnosticStatus = "pass" | "warn" | "fail";
 
@@ -188,7 +189,7 @@ export default function LightspeedDebugPage() {
     return (
       <div className="container mx-auto max-w-5xl space-y-6 px-4 py-8">
         <Card className="p-6">
-          <h1 className="text-xl font-semibold">Checking permissions...</h1>
+          <PageTitle>Checking permissions...</PageTitle>
           <p className="mt-2 text-sm text-muted-foreground">
             Verifying super admin access for Lightspeed diagnostics.
           </p>
@@ -201,7 +202,7 @@ export default function LightspeedDebugPage() {
     return (
       <div className="container mx-auto max-w-5xl space-y-6 px-4 py-8">
         <Card className="p-6">
-          <h1 className="text-xl font-semibold">Access Denied</h1>
+          <PageTitle>Access Denied</PageTitle>
           <p className="mt-2 text-sm text-muted-foreground">
             Lightspeed diagnostics are available to super admins only.
           </p>
@@ -213,7 +214,7 @@ export default function LightspeedDebugPage() {
   return (
     <div className="container mx-auto max-w-5xl space-y-6 px-4 py-8">
       <div className="space-y-2">
-        <h1 className="text-3xl font-bold">Lightspeed Diagnostics</h1>
+        <PageTitle>Lightspeed Diagnostics</PageTitle>
         <p className="text-muted-foreground">
           Verify the real customer, sales, product, webhook, queue, and CRM sync
           paths for your Lightspeed integration.

@@ -58,6 +58,7 @@ import {
   isToday,
   startOfWeek,
 } from "date-fns";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 type AdminHubStats = {
   total_tenants: number;
@@ -887,7 +888,7 @@ export default function AdminHub() {
                       <Shield size={24} />
                     </Sheet>
                     <Stack spacing={0.5}>
-                      <Typography level="h2">Admin home</Typography>
+                      <PageTitle>Admin home</PageTitle>
                       <Typography level="body-sm" color="neutral">
                         How clients are doing, billing to check, and admin tasks
                         that need attention.

@@ -31,6 +31,7 @@ import {
 import { JoyChip } from "@/components/joy/JoyChip";
 import { PageContainer } from "@/components/joy/PageContainer";
 import { useActivityEvent } from "@/hooks/useActivityEvent";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 const LABEL_MAP: Record<string, string> = {
   customer_id: "Customer",
@@ -166,6 +167,7 @@ export default function ActivityDetailsPage() {
       >
         Back
       </Button>
+      <PageTitle>Event details</PageTitle>
     </Stack>
   );
 

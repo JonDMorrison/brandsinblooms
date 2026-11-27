@@ -64,6 +64,7 @@ import {
   validateFormForPublish,
 } from "@/lib/forms/publish";
 import { getPublicFormUrl } from "@/lib/forms/share";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 const FORM_EDITOR_TABS = [
   "build",
@@ -704,17 +705,9 @@ export default function FormEditorPage() {
                           },
                         }}
                       >
-                        <Typography
-                          level="title-md"
-                          noWrap
-                          sx={{
-                            fontWeight: 600,
-                            letterSpacing: "-0.01em",
-                            minWidth: 0,
-                          }}
-                        >
+                        <PageTitle noWrap>
                           {name || "Untitled form"}
-                        </Typography>
+                        </PageTitle>
                         <IconButton
                           className="form-name-edit"
                           size="sm"

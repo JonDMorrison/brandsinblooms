@@ -35,6 +35,7 @@ import { JoyDrawer } from "@/components/joy/JoyDrawer";
 import { JoyInput } from "@/components/joy/JoyInput";
 import { PageContainer } from "@/components/joy/PageContainer";
 import { type SMSMessageRecord, useSMSMessages } from "@/hooks/useSMSMessages";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 const PAGE_SIZE = 25;
 const MOUNT_SKELETON_MS = 260;
@@ -814,9 +815,7 @@ export default function SMSMessagesPage() {
             </Breadcrumbs>
 
             <Stack spacing={0.5}>
-              <Typography level="h3" fontWeight="lg">
-                Messages
-              </Typography>
+              <PageTitle>Messages</PageTitle>
               <Typography level="body-sm" color="neutral">
                 Complete history of all SMS messages sent and received across
                 your account

@@ -36,6 +36,7 @@ import {
   Minus,
   Package
 } from 'lucide-react';
+import { PageTitle } from "@/components/joy/PageHeader";
 
 interface SavedBlock {
   id: string;
@@ -242,7 +243,7 @@ export const SavedBlocksPage: React.FC = () => {
             Back to Campaigns
           </Button>
           <div>
-            <h1 className="text-3xl font-bold">Saved Blocks</h1>
+            <PageTitle>Saved Blocks</PageTitle>
             <p className="text-muted-foreground">
               Manage your reusable email content blocks
             </p>

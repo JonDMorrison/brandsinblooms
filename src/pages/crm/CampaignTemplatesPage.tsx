@@ -32,6 +32,7 @@ import {
   type TemplateSort,
 } from "@/lib/crm/templateLibrary";
 import { toast } from "@/utils/toast";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 /** Where "Use for a new email" sends people. The editor applies the design once. */
 export const newEmailFromTemplatePath = (templateId: string) =>
@@ -212,7 +213,7 @@ export function CampaignTemplatesPage() {
           </JoyButton>
           <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} justifyContent="space-between" alignItems={{ md: "center" }}>
             <Stack spacing={0.25}>
-              <Typography level="h2" component="h1">Templates</Typography>
+              <PageTitle>Templates</PageTitle>
               <Typography level="body-sm" sx={{ color: "neutral.700", maxWidth: 640 }}>
                 Designs your business has saved to use again. A template is never sent. Using one makes a new email, and later changes to the template do not change that email.
               </Typography>

@@ -22,6 +22,7 @@ import { CampaignApprovalSetting } from "./CampaignApprovalSetting";
 import { usePOSConnection } from "@/hooks/usePOSConnection";
 import { useSenderConfiguration } from "@/hooks/useSenderConfiguration";
 import { useDomains } from "@/hooks/useDomains";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 type SettingsTabId = "connections" | "organization" | "account" | "compliance" | "debug" | "support";
 type StatusChipColor = "success" | "warning" | "neutral";
@@ -282,7 +283,7 @@ export const SettingsHub = () => {
   return (
     <Stack spacing={3}>
       <Box>
-        <Typography level="h3">Settings</Typography>
+        <PageTitle>Settings</PageTitle>
         <Typography level="body-sm" sx={{ color: "text.secondary", mt: 0.5 }}>
           Manage locations, team access, connections, billing, compliance, and support from one place.
         </Typography>

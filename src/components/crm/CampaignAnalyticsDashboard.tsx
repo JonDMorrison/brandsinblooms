@@ -32,6 +32,7 @@ import {
   aggregateRevenue,
   toPerformanceMetrics,
 } from "@/lib/crm/campaignAnalyticsSummary";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 interface Campaign {
   id: string;
@@ -269,7 +270,7 @@ export const CampaignAnalyticsDashboard: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Campaign Analytics</h1>
+          <PageTitle>Campaign Analytics</PageTitle>
           <p className="text-muted-foreground">
             Track the performance of your email campaigns
           </p>

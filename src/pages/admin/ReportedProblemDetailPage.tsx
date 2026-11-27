@@ -24,6 +24,7 @@ import { format } from "date-fns";
 import { ProblemStatus, ProblemPriority } from "@/types/reportedProblems";
 import { ReadableData } from "@/components/admin/ReadableData";
 import Box from "@mui/joy/Box";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 const ReportedProblemDetailPage: React.FC = () => {
   const { problemId } = useParams<{ problemId: string }>();
@@ -121,7 +122,7 @@ const ReportedProblemDetailPage: React.FC = () => {
             <ArrowLeft className="h-5 w-5" />
           </JoyButton>
           <Stack spacing={0.5}>
-            <Typography level="h2">{problem.title}</Typography>
+            <PageTitle>{problem.title}</PageTitle>
             <Typography level="body-sm" color="neutral">
               Reported by {problem.user_email} on{" "}
               {format(new Date(problem.created_at), "PPp")}

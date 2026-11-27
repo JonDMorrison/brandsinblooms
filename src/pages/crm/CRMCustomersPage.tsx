@@ -82,6 +82,7 @@ import { useTenant } from "@/hooks/useTenant";
 import { useUserRole } from "@/hooks/useUserRole";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 
 export const CRMCustomersPage: React.FC = () => {
@@ -448,9 +449,7 @@ export const CRMCustomersPage: React.FC = () => {
           spacing={2}
         >
           <Stack spacing={0.5} sx={{ minWidth: 0 }}>
-            <Typography level="h3" fontWeight="bold">
-              Customers
-            </Typography>
+            <PageTitle>Customers</PageTitle>
             <Typography
               level="body-sm"
               sx={{ color: "neutral.600" }}

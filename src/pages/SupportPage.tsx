@@ -21,6 +21,7 @@ import { TicketDetailPane } from "@/components/bloomSupport/TicketDetailPane";
 import { StatusChip } from "@/components/bloomSupport/chips";
 import { bloomSupport, type TicketSummary } from "@/lib/bloomSupport/api";
 import { isNextAction } from "../../supabase/functions/_shared/bloom-support/next-step";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 export const SUPPORT_MOBILE_GRID_TRACK = "minmax(0, 1fr)";
 
@@ -89,7 +90,7 @@ const SupportPage = () => {
       <PageContainer>
         <Stack spacing={2} aria-busy="true">
           <div>
-            <Typography level="h2">Loading support</Typography>
+            <PageTitle>Loading support</PageTitle>
             <Typography level="body-md" textColor="text.secondary">Loading your support workspace…</Typography>
           </div>
           <Sheet
@@ -114,7 +115,7 @@ const SupportPage = () => {
       <PageContainer>
         <Stack spacing={2}>
           <div>
-            <Typography level="h2">Support unavailable</Typography>
+            <PageTitle>Support unavailable</PageTitle>
             <Typography level="body-md" textColor="text.secondary">We couldn't confirm which support workspace you should see.</Typography>
           </div>
           <Sheet role="alert" variant="outlined" sx={{ p: 2, borderRadius: "lg" }}>
@@ -152,7 +153,7 @@ const SupportPage = () => {
       <Stack spacing={3} sx={staff ? { height: "100%", minHeight: 0 } : undefined}>
         <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ sm: "flex-end" }} spacing={2}>
           <Stack spacing={0.5}>
-            <Typography level="h2">{staff ? "Support" : "Help & Support"}</Typography>
+            <PageTitle>{staff ? "Support" : "Help & Support"}</PageTitle>
             <Typography level="body-md" textColor="text.secondary">
               {staff
                 ? "Stay focused on the client conversation. Bloom keeps the background work moving."

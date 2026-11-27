@@ -58,6 +58,7 @@ import type {
   FormStatus,
   FormWithStats,
 } from "@/types/formBuilder";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 type StatusFilter = "all" | FormStatus;
 type SortOption =
@@ -1440,7 +1441,7 @@ export default function FormsPage() {
           <Stack spacing={2}>
             <Box>
               <Stack spacing={0.35}>
-                <Typography level="h4">Forms</Typography>
+                <PageTitle>Forms</PageTitle>
                 <Typography level="body-sm" color="neutral">
                   {safeForms.length.toLocaleString()}{" "}
                   {safeForms.length === 1 ? "form" : "forms"}

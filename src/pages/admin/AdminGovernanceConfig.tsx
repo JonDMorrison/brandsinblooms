@@ -27,6 +27,7 @@ import {
   JoyTableRow,
 } from "@/components/joy/JoyTable";
 import Skeleton from "@mui/joy/Skeleton";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 interface GovernanceConfig {
   version: number;
@@ -529,7 +530,7 @@ export default function AdminGovernanceConfig() {
         <Stack direction="row" spacing={1.5} alignItems="center">
           <Shield className="h-7 w-7 text-warning" />
           <Stack spacing={0.5}>
-            <Typography level="h2">Email sending rules</Typography>
+            <PageTitle>Email sending rules</PageTitle>
             <Typography level="body-md" color="neutral">
               Safety limits that protect every client's email reputation: when
               sending pauses, how fast large sends go out, and how much new

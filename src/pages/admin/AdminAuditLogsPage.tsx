@@ -40,6 +40,7 @@ import {
 import { useIsSuperAdmin } from "@/hooks/useIsSuperAdmin";
 import { supabase } from "@/integrations/supabase/client";
 import { ReadableData } from "@/components/admin/ReadableData";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 interface InternalAuditRow {
   id: string;
@@ -232,7 +233,7 @@ export default function AdminAuditLogsPage() {
                   <FileText className="h-6 w-6" />
                 </Sheet>
                 <Stack spacing={0.75}>
-                  <Typography level="h2">Change history</Typography>
+                  <PageTitle>Change history</PageTitle>
                   <Typography level="body-sm" color="neutral">
                     A record of every change made by admins and by automation,
                     with who made it and when.

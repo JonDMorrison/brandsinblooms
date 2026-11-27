@@ -68,6 +68,7 @@ import {
 import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 type AutomationRow = Database["public"]["Tables"]["crm_automations"]["Row"];
 type AutomationRunRow = Pick<
@@ -1287,9 +1288,7 @@ export default function CRMAutomations() {
           spacing={2}
         >
           <Stack spacing={0.5}>
-            <Typography level="h3" fontWeight="bold">
-              Automations
-            </Typography>
+            <PageTitle>Automations</PageTitle>
             <Typography level="body-sm" sx={{ color: "neutral.600" }}>
               Set up automated workflows to engage your customers with triggers,
               delays, and actions.

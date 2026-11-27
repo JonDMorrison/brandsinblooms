@@ -43,6 +43,7 @@ import {
   getLifecyclePresentation,
   getPersonaLabel,
 } from "./customerDashboardUtils";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 export interface CustomerProfileHeaderProps {
   customerName: string;
@@ -236,17 +237,15 @@ export function CustomerProfileHeader({
                   alignItems={{ xs: "flex-start", sm: "center" }}
                   sx={{ minWidth: 0 }}
                 >
-                  <Typography
-                    level="h3"
+                  <PageTitle
                     sx={{
-                      minWidth: 0,
                       overflow: "hidden",
                       textOverflow: "ellipsis",
                       whiteSpace: "nowrap",
                     }}
                   >
                     {customerName}
-                  </Typography>
+                  </PageTitle>
                   <JoyChip
                     color={lifecycle.color}
                     variant="soft"

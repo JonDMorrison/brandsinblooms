@@ -59,6 +59,7 @@ import { CalendarTaskDetailsDialog } from "./calendar/CalendarTaskDetailsDialog"
 import { QuickAddSheet } from "./calendar/QuickAddSheet";
 import { CalendarToolbar } from "./calendar/CalendarToolbar";
 import { CalendarWeeklyThemesDialog } from "./calendar/CalendarWeeklyThemesDialog";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 type ViewMode = "month" | "week" | "list";
 
@@ -765,9 +766,7 @@ export const CalendarView = React.memo(function CalendarView({
           spacing={2}
         >
           <Stack spacing={0.5}>
-            <Typography level="h3" fontWeight="bold">
-              Campaign Calendar
-            </Typography>
+            <PageTitle>Campaign Calendar</PageTitle>
             <Typography level="body-sm" sx={{ color: "neutral.600" }}>
               Plan email campaigns, customer events, and seasonal moments from
               one organized workspace.

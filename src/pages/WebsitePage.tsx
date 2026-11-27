@@ -3,6 +3,7 @@ import { Button } from "@/components/ui-legacy/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui-legacy/card";
 import { Globe, Construction, Sparkles } from "lucide-react";
 import { SUPPORT_EMAIL } from "@/lib/bloomSupport/constants";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 export const WebsitePage = () => {
   return (
@@ -11,7 +12,7 @@ export const WebsitePage = () => {
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-4">
             <Globe className="w-8 h-8 text-blue-800" />
-            <h1 className="text-4xl font-bold text-gray-900">Website Builder</h1>
+            <PageTitle>Website Builder</PageTitle>
           </div>
           <p className="text-xl text-gray-600 mb-6">
             Build stunning, professional websites with AI assistance

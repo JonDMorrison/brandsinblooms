@@ -45,6 +45,7 @@ import {
 } from "@/lib/automation/extractTriggerConditions";
 import { buildGenericFocus } from "@/utils/askBloomContextBuilders";
 import { registerResourceAccessor } from "@/utils/askBloomResourceRegistry";
+import { PAGE_TITLE_LEVEL } from "@/components/joy/PageHeader";
 
 interface AutomationRunSummary {
   executionCount: number;
@@ -603,9 +604,8 @@ export const CRMAutomationBuilder = () => {
                     <InlineEditableText
                       value={automationName}
                       onCommit={setAutomationName}
-                      level="h4"
+                      level={PAGE_TITLE_LEVEL}
                       fallbackValue="New Automation"
-                      typographySx={{ fontWeight: 700, lineHeight: 1.1 }}
                       inputSx={{ maxWidth: 420 }}
                     />
                     <Typography

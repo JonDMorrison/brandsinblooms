@@ -27,6 +27,7 @@ import {
   MessageSquare,
   Tag,
 } from "lucide-react";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 type CustomerFormData = {
   email: string;
@@ -345,9 +346,7 @@ const AddCustomer = () => {
     return (
       <div className="container mx-auto p-6 max-w-4xl">
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-foreground">
-            Add New Customer
-          </h1>
+          <PageTitle>Add New Customer</PageTitle>
           <p className="text-muted-foreground">
             Add a new customer to your garden center database
           </p>
@@ -402,7 +401,7 @@ const AddCustomer = () => {
       </Button>
 
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-foreground">Add New Customer</h1>
+        <PageTitle>Add New Customer</PageTitle>
         <p className="text-muted-foreground">
           Add a new customer to your garden center database
         </p>

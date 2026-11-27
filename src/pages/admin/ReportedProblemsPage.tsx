@@ -46,6 +46,7 @@ import {
   ShieldAlert,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 const ReportedProblemsPage = () => {
   const navigate = useNavigate();
@@ -169,7 +170,7 @@ const ReportedProblemsPage = () => {
                   <AlertTriangle className="h-6 w-6" />
                 </Sheet>
                 <Stack spacing={0.75}>
-                  <Typography level="h2">Problem reports</Typography>
+                  <PageTitle>Problem reports</PageTitle>
                   <Typography level="body-sm" color="neutral">
                     Problems people reported from inside the app. Open one to see
                     what happened and where it is up to.

@@ -83,6 +83,7 @@ import {
 } from "@/lib/crm/customerPurchaseSummary";
 import { useAdmin } from "@/contexts/AdminContext";
 import { registerResourceAccessor } from "@/utils/askBloomResourceRegistry";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 type DashboardTab =
   | "overview"
@@ -208,7 +209,7 @@ function FatalState({ onRetry }: { onRetry: () => Promise<void> | void }) {
       >
         <Stack spacing={1.5} alignItems="center">
           <AlertCircle size={40} />
-          <Typography level="h3">Unable to load customer</Typography>
+          <PageTitle>Unable to load customer</PageTitle>
           <Typography level="body-md" color="danger">
             The requested customer could not be loaded, or you no longer have
             access to this record.

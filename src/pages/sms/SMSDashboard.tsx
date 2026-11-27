@@ -35,6 +35,7 @@ import { SMSStatCards } from "@/components/sms/SMSStatCards";
 import { SendATextCard } from "@/components/sms/SendATextCard";
 import { SendToSegmentCard } from "@/components/sms/SendToSegmentCard";
 import { useSMSStats, type SMSStats } from "@/hooks/useSMSStats";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 type DashboardSectionKey =
   | "stats"
@@ -692,9 +693,7 @@ export default function SMSDashboard() {
             }}
           >
             <Stack spacing={0.75} sx={{ minWidth: 0, flex: 1 }}>
-              <Typography level="h3" fontWeight="lg">
-                SMS Campaigns
-              </Typography>
+              <PageTitle>SMS Campaigns</PageTitle>
               <Typography level="body-sm" color="neutral">
                 Create, launch, and monitor SMS marketing from one polished
                 command center.

@@ -70,6 +70,7 @@ import {
   sanitizeFileNamePart,
 } from "@/lib/crm/campaignRecipientOperations";
 import { retryCampaignRecipientMessage } from "@/lib/email/emailRetryService";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 type DetailTab = "timeline" | "content" | "diagnostics";
 
@@ -1549,10 +1550,10 @@ export default function CRMCampaignRecipientDetailPage() {
                   </Avatar>
                 )}
                 <Stack spacing={0.25} sx={{ minWidth: 0 }}>
-                  <Typography ref={headingRef} tabIndex={-1} level="title-lg">
+                  <PageTitle ref={headingRef} tabIndex={-1}>
                     {liveRecipient?.customer_name ||
                       liveRecipient?.customer_email || <Skeleton width={220} />}
-                  </Typography>
+                  </PageTitle>
                   <Typography level="body-sm" color="neutral">
                     {liveRecipient?.customer_email || <Skeleton width={180} />}
                   </Typography>

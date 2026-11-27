@@ -28,6 +28,7 @@ import {
 import { PageContainer } from "@/components/joy/PageContainer";
 import { useIntegrationsHubData } from "@/hooks/useIntegrationsHubData";
 import { IntegrationsHeaderActions } from "@/components/integrations/IntegrationsHeaderActions";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 const FILTER_OPTIONS: Array<{
   value: IntegrationTabValue;
@@ -315,7 +316,7 @@ export function IntegrationsHubIndex({
                     ? "Integration catalog"
                     : "Category landing"}
                 </Typography>
-                <Typography level="h2">{pageTitle}</Typography>
+                <PageTitle>{pageTitle}</PageTitle>
                 <Typography
                   level="body-sm"
                   sx={{ color: "text.secondary", maxWidth: 720 }}

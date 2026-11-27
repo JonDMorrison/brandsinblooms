@@ -8,6 +8,7 @@ import { useTickets } from '@/hooks/helpdesk/useTickets';
 import { TicketStatusBadge } from '@/components/helpdesk/TicketStatusBadge';
 import { TicketPriorityBadge } from '@/components/helpdesk/TicketPriorityBadge';
 import { format } from 'date-fns';
+import { PageTitle } from "@/components/joy/PageHeader";
 
 const TicketListPage = () => {
   const navigate = useNavigate();
@@ -20,7 +21,7 @@ const TicketListPage = () => {
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">My Tickets</h1>
+          <PageTitle>My Tickets</PageTitle>
           <p className="text-muted-foreground mt-1">
             View and manage your support tickets
           </p>

@@ -45,6 +45,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { useTenant } from "@/hooks/useTenant";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 const surfaceTransition =
   "transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out, border-color 0.2s ease-in-out, background-color 0.2s ease-in-out";
@@ -864,12 +865,7 @@ export const NewslettersPage = () => {
                 >
                   <Mail size={24} />
                 </Sheet>
-                <Typography
-                  level="h2"
-                  sx={{ fontWeight: 700, letterSpacing: "-0.03em" }}
-                >
-                  Newsletter Studio
-                </Typography>
+                <PageTitle>Newsletter Studio</PageTitle>
               </Stack>
 
               <Typography

@@ -58,6 +58,7 @@ import {
   toRecipientKey,
   type EmailTrackingEventRow,
 } from "@/lib/crm/emailTrackingRealtime";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 const PAGE_SIZE = 50;
 const SEARCH_DEBOUNCE_MS = 300;
@@ -818,9 +819,9 @@ export default function CRMCampaignRecipientsPage() {
               >
                 Campaign
               </JoyButton>
-              <Typography level="title-lg" sx={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              <PageTitle sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {recipientsQuery.isLoading ? <Skeleton width={260} /> : campaignName}
-              </Typography>
+              </PageTitle>
               <JoyChip variant="soft" color={getCampaignStatusColor(campaignStatus)}>
                 {getCampaignStatusLabel(campaignStatus || "draft")}
               </JoyChip>

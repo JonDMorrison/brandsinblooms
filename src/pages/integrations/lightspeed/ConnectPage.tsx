@@ -17,6 +17,7 @@ import {
 } from "@mui/joy";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 const FIRST_PARTY_LIGHTSPEED_CALLBACK_ORIGINS = new Set([
   "https://bloomsuite.app",
@@ -229,9 +230,7 @@ export default function LightspeedConnectPage() {
               <Plug style={{ width: 22, height: 22 }} />
             </Box>
             <Box>
-              <Typography level="title-md" fontWeight="xl">
-                Connect Lightspeed X-Series
-              </Typography>
+              <PageTitle>Connect Lightspeed X-Series</PageTitle>
               <Typography level="body-sm" textColor="text.tertiary">
                 Enter your store domain to get started
               </Typography>

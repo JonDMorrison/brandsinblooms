@@ -5,6 +5,7 @@ import Button from "@mui/joy/Button";
 import { AlertTriangle, CirclePause, Plus, ShieldAlert } from "lucide-react";
 import type { ReactNode } from "react";
 import { bloomState, deskAlerts, type DeskAlert, type DeskAlertKind, type DeskAlertTarget, type DeskSummary } from "./deskModel";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 const ALERT_ICON: Record<DeskAlertKind, ReactNode> = {
   paused: <CirclePause size={18} aria-hidden />,
@@ -26,7 +27,7 @@ export function DeskHeader({ summary, summaryFailed, urgent, onNewRequest, onAle
       <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ xs: "flex-start", sm: "center" }} spacing={2}>
         <Stack spacing={0.5} sx={{ minWidth: 0 }}>
           <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap" useFlexGap>
-            <Typography level="h1" component="h1">Support desk</Typography>
+            <PageTitle>Support desk</PageTitle>
             <BloomPill tone={state.tone} label={state.label} />
           </Stack>
           <Typography level="body-lg" textColor="text.secondary" sx={{ maxWidth: 640 }}>

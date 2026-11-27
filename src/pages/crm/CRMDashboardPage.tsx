@@ -7,6 +7,7 @@ import { CRMStatsCards } from "@/components/crm/CRMStatsCards";
 import { CRMSegmentsSummary } from "@/components/crm/segments/CRMSegmentsSummary";
 import { CRMRecentActivity } from "@/components/crm/CRMRecentActivity";
 import { OverdueCampaignsBanner } from "@/components/crm/OverdueCampaignsBanner";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 export const CRMDashboardPage: React.FC = () => {
   const { stats, loading, refetch } = useCRMRealStats();
@@ -24,7 +25,7 @@ export const CRMDashboardPage: React.FC = () => {
     return (
       <div className="space-y-6 animate-fade-in">
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold">CRM Dashboard</h1>
+          <PageTitle>CRM Dashboard</PageTitle>
           <div className="h-9 bg-muted animate-pulse rounded w-24"></div>
         </div>
 
@@ -53,7 +54,7 @@ export const CRMDashboardPage: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">CRM Dashboard</h1>
+          <PageTitle>CRM Dashboard</PageTitle>
           <p className="text-muted-foreground mt-1">
             Quick insights and navigation to your customer data
           </p>

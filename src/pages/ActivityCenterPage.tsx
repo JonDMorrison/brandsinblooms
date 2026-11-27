@@ -27,6 +27,7 @@ import type { ActivityFeedFilters } from "@/types/activity";
 import { parseCsvParam, parseDateParam } from "@/lib/activityUtils";
 import type { ActivityGroupMode } from "@/lib/activityGrouping";
 import { toast } from "sonner";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 function getStatusBreakdown(
   events: ReturnType<typeof useActivityFeed>["data"],
@@ -216,9 +217,7 @@ export default function ActivityCenterPage() {
           spacing={2}
         >
           <Stack spacing={0.5} sx={{ maxWidth: 720 }}>
-            <Typography level="h3" fontWeight="bold">
-              Activity Center
-            </Typography>
+            <PageTitle>Activity Center</PageTitle>
             <Typography level="body-sm" sx={{ color: "neutral.600" }}>
               Track CRM updates, campaigns, automations, and integrations in one
               continuous feed.

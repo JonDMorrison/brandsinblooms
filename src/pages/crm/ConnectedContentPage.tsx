@@ -28,6 +28,7 @@ import {
   type ConnectedContentResponse,
   type ConnectedWebsite,
 } from "@/lib/connectedContent";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 const categoryOptions=[
   {id:"events",label:"Events"},
@@ -201,7 +202,7 @@ function ContentWorkspace() {
             <Globe2 size={22} aria-hidden="true"/>
           </Box>
           <Box>
-            <Typography level="h3">Connected websites</Typography>
+            <PageTitle>Connected websites</PageTitle>
             <Typography level="body-sm" color="neutral">
               Create on BloomSites. Promote with BloomSuite.
             </Typography>

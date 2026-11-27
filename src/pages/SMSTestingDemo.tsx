@@ -13,6 +13,7 @@ import {
   AlertTriangle,
   Info
 } from 'lucide-react';
+import { PageTitle } from "@/components/joy/PageHeader";
 
 const SMSTestingDemo = () => {
   // Mock campaign data for testing
@@ -23,7 +24,7 @@ const SMSTestingDemo = () => {
     <div className="container mx-auto p-6 space-y-8">
       {/* Header */}
       <div className="space-y-2">
-        <h1 className="text-3xl font-bold">SMS Testing Demo</h1>
+        <PageTitle>SMS Testing Demo</PageTitle>
         <p className="text-muted-foreground">
           Comprehensive testing environment for SMS functionality, compliance, and delivery validation.
         </p>

@@ -16,6 +16,7 @@ import {
   Stack,
   Typography,
 } from "@mui/joy";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 const GuidePage = () => {
   const navigate = useNavigate();
@@ -35,7 +36,7 @@ const GuidePage = () => {
         </Button>
 
         <Box>
-          <Typography level="h3" fontWeight="xl" mb={0.5}>Lightspeed Integration Guide</Typography>
+          <PageTitle sx={{ mb: 0.5 }}>Lightspeed Integration Guide</PageTitle>
           <Typography level="body-md" textColor="text.tertiary">
             Legacy guide for the Lightspeed Retail POS integration. Use the current dashboard and documentation for the latest implementation status.
           </Typography>

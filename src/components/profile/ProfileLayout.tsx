@@ -3,6 +3,7 @@ import Tab, { tabClasses } from "@mui/joy/Tab";
 import TabList from "@mui/joy/TabList";
 import Tabs from "@mui/joy/Tabs";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import { PageTitle } from "@/components/joy/PageHeader";
 
 const profileTabs = [
   { label: "Company Information", path: "/profile/company" },
@@ -24,9 +25,7 @@ export const ProfileLayout = () => {
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Page Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground">
-            Profile Settings
-          </h1>
+          <PageTitle>Profile Settings</PageTitle>
           <p className="text-muted-foreground mt-2">
             Manage your business information and preferences
           </p>
