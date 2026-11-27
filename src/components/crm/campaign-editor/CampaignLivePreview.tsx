@@ -173,19 +173,22 @@ export function CampaignLivePreview({
   const scale = containerWidth > 0 ? Math.min(1, containerWidth / frameWidth) : 1;
 
   // The preview box is one scroll container kept across views, so without a
-  // reset its scroll position carries over: switching Mobile, Desktop or Dark
-  // (or the email arriving after the skeleton) left the email part-way down
-  // and the first block out of sight. Each of those starts at the top. The
-  // email is rendered fresh after Dark changes and when content first arrives,
-  // so the iframe's own document is also reset once it has loaded.
+  // reset its scroll position carries over: switching Mobile, Desktop or Dark,
+  // the email arriving after the skeleton, or a new design left the email
+  // part-way down and the first block out of sight. Each of those starts at
+  // the top. The email is rendered fresh after Dark or the design changes and
+  // when content first arrives, so the iframe's own document is also reset
+  // once it has loaded. Subject and preview-text edits re-render the email
+  // too, but keep the reader's place.
   const resetOnNextLoadRef = React.useRef(true);
   const showEmail = !loading && hasContent;
+  const designKey = React.useMemo(() => JSON.stringify(blocks), [blocks]);
   React.useLayoutEffect(() => {
     resetOnNextLoadRef.current = true;
-  }, [dark, showEmail]);
+  }, [dark, showEmail, designKey]);
   React.useLayoutEffect(() => {
     if (containerRef.current) containerRef.current.scrollTop = 0;
-  }, [containerRef, dark, device, showEmail]);
+  }, [containerRef, dark, device, showEmail, designKey]);
 
   const handleLoad = (event: React.SyntheticEvent<HTMLIFrameElement>) => {
     observerRef.current?.disconnect();
@@ -245,6 +248,7 @@ export function CampaignLivePreview({
       </Typography>
       <Box
         ref={containerRef}
+        data-testid="campaign-live-preview-scroll"
         sx={{
           borderRadius: "lg",
           bgcolor: dark ? "neutral.800" : "background.level2",

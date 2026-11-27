@@ -84,6 +84,13 @@ export interface PersistCampaignRecordInput {
   metadata?: Record<string, unknown>;
   /** crm_campaigns.origin, written only on insert. */
   origin?: string | null;
+  /**
+   * Write the campaign_blocks mirror without waiting for it. The mirror is a
+   * best-effort copy (metadata.contentBlocks is authoritative), and it costs
+   * two more round trips after the campaign row is saved. Mirror writes for
+   * one campaign always run in order. Default false.
+   */
+  mirrorBlocksInBackground?: boolean;
 }
 
 export function isCampaignContentLocked(record: {sendBlockedReason?: string | null; metadata?: unknown}): boolean {
@@ -692,6 +699,29 @@ async function syncCampaignBlocksBackup(
   }
 }
 
+// One chain per campaign, so a slow mirror write can never land after a
+// newer one (each write deletes and re-inserts every row).
+const blockMirrorQueue = new Map<string, Promise<void>>();
+
+function queueCampaignBlocksBackup(
+  campaignId: string,
+  contentBlocks: StudioBlock[],
+): Promise<void> {
+  const previous = blockMirrorQueue.get(campaignId) ?? Promise.resolve();
+  const next = previous
+    .then(() => syncCampaignBlocksBackup(campaignId, contentBlocks))
+    .catch((backupError: unknown) => {
+      console.error("Campaign block backup synchronization failed", backupError);
+    });
+  blockMirrorQueue.set(campaignId, next);
+  void next.then(() => {
+    if (blockMirrorQueue.get(campaignId) === next) {
+      blockMirrorQueue.delete(campaignId);
+    }
+  });
+  return next;
+}
+
 async function loadWriterCompanyProfile(userId: string) {
   const { data, error } = await supabase
     .from("company_profiles")
@@ -984,10 +1014,9 @@ export async function persistCampaignRecord(input: PersistCampaignRecordInput) {
     campaignRow = insertedRow as CampaignRow;
   }
 
-  try {
-    await syncCampaignBlocksBackup(campaignRow.id, contentBlocks);
-  } catch (backupError) {
-    console.error('Campaign block backup synchronization failed', backupError);
+  const mirror = queueCampaignBlocksBackup(campaignRow.id, contentBlocks);
+  if (!input.mirrorBlocksInBackground) {
+    await mirror;
   }
 
   return {

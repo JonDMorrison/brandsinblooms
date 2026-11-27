@@ -126,6 +126,14 @@ export interface PersistCampaignDraftInput {
   /** How the campaign was started (crm_campaigns.origin). Only used when the
    *  save inserts a new row; existing rows keep their original value. */
   origin?: string | null;
+  /**
+   * Rewrite the campaign_segments and campaign_personas links. A caller that
+   * knows the audience is unchanged since its last save passes false to skip
+   * four round trips. Default true.
+   */
+  syncAudienceLinks?: boolean;
+  /** See PersistCampaignRecordInput.mirrorBlocksInBackground. */
+  mirrorBlocksInBackground?: boolean;
 }
 
 function toRecord(value: unknown): Record<string, unknown> {
@@ -603,6 +611,8 @@ export async function persistCampaignDraft(input: PersistCampaignDraftInput) {
     sourceSegmentId = null,
     sourcePersonaId = null,
     origin = null,
+    syncAudienceLinks = true,
+    mirrorBlocksInBackground = false,
   } = input;
 
   const savedCampaign = await persistCampaignRecord({
@@ -631,11 +641,15 @@ export async function persistCampaignDraft(input: PersistCampaignDraftInput) {
     origin,
     segmentIds: segments.map((segment) => segment.id),
     personaIds: personas.map((persona) => persona.id),
+    mirrorBlocksInBackground,
   });
 
   // A brand-new blank draft has no audience associations to reconcile.
   // Do not turn optional membership cleanup into a prerequisite for opening Studio.
-  if (campaignId || segments.length > 0 || personas.length > 0) {
+  if (
+    syncAudienceLinks &&
+    (campaignId || segments.length > 0 || personas.length > 0)
+  ) {
     await Promise.all([
       syncCampaignSegments(savedCampaign.campaign.id, segments),
       syncCampaignPersonas(savedCampaign.campaign.id, personas),

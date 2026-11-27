@@ -3,6 +3,7 @@
  * send's time, a sent campaign's results. Pure, so the page stays simple.
  */
 import { CAMPAIGN_STATUS } from "@/constants/campaignStatuses";
+import { isUnsetCampaignName } from "@/lib/crm/campaignDisplayName";
 import type { CampaignCatalogItem } from "@/lib/crm/campaignEditor";
 
 export type CampaignStage = "draft" | "scheduled" | "sending" | "sent" | "failed";
@@ -60,14 +61,24 @@ export function campaignReadiness(campaign: ReadinessInput): CampaignReadiness {
   return { steps, ready: !missing, nextStep };
 }
 
-/** Empty drafts are hidden by default; they carry no work worth showing. */
-export function partitionEmptyDrafts<T extends Pick<CampaignCatalogItem, "isEmptyDraft">>(
+/**
+ * Empty drafts are hidden by default; they carry no work worth showing. A
+ * draft is empty only with no name, no subject and no content: one the
+ * person has named is their work and always shows.
+ */
+export function isHiddenEmptyDraft(
+  campaign: Pick<CampaignCatalogItem, "isEmptyDraft" | "name">,
+) {
+  return campaign.isEmptyDraft && isUnsetCampaignName(campaign.name);
+}
+
+export function partitionEmptyDrafts<T extends Pick<CampaignCatalogItem, "isEmptyDraft" | "name">>(
   campaigns: T[],
 ): { visible: T[]; empty: T[] } {
   const visible: T[] = [];
   const empty: T[] = [];
   for (const campaign of campaigns) {
-    (campaign.isEmptyDraft ? empty : visible).push(campaign);
+    (isHiddenEmptyDraft(campaign) ? empty : visible).push(campaign);
   }
   return { visible, empty };
 }

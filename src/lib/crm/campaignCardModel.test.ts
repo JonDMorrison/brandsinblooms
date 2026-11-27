@@ -29,9 +29,23 @@ describe("campaign card model", () => {
   });
 
   it("separates empty drafts from real work", () => {
-    const { visible, empty } = partitionEmptyDrafts([{ isEmptyDraft: true }, { isEmptyDraft: false }, { isEmptyDraft: true }]);
+    const { visible, empty } = partitionEmptyDrafts([
+      { isEmptyDraft: true, name: "" },
+      { isEmptyDraft: false, name: "" },
+      { isEmptyDraft: true, name: "Untitled Campaign" },
+    ]);
     expect(visible).toHaveLength(1);
     expect(empty).toHaveLength(2);
+  });
+
+  it("always shows a draft with a custom name, even with no subject or content", () => {
+    const { visible, empty } = partitionEmptyDrafts([
+      { isEmptyDraft: true, name: "Spring plans" },
+      { isEmptyDraft: true, name: "Draft, Nov 27, 2026" },
+      { isEmptyDraft: true, name: "  " },
+    ]);
+    expect(visible.map((item) => item.name)).toEqual(["Spring plans", "Draft, Nov 27, 2026"]);
+    expect(empty).toHaveLength(1);
   });
 
   it("only shows schedule and rate columns where they mean something", () => {

@@ -893,7 +893,7 @@ export function CRMCampaignsPage() {
     return filtered;
   }, [catalog, query, sortColumn, sortDirection, statusFilter, channelFilter, groupFilter, organization.data]);
 
-  // Empty drafts (no content, no subject) carry no work. They stay out of the
+  // Empty drafts (no name, no subject, no content) carry no work. They stay out of the
   // list unless someone asks to see them.
   const { visible: nonEmptyCampaigns, empty: emptyDrafts } = React.useMemo(
     () => partitionEmptyDrafts(filteredCampaigns),
@@ -1028,7 +1028,7 @@ export function CRMCampaignsPage() {
   const clearEmptyDrafts = React.useCallback(async () => {
     setClearingEmpty(true);
     try {
-      // Only drafts with no content and no subject; anything else is skipped.
+      // Only drafts with no name, content or subject; anything else is skipped.
       const targets = emptyDrafts.filter(
         (campaign) => campaign.isEmptyDraft && campaign.status === CAMPAIGN_STATUS.DRAFT,
       );

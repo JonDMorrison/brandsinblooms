@@ -375,3 +375,55 @@ describe("campaign editor Send test", () => {
     expect(testSendCalls()).toHaveLength(0);
   });
 });
+
+describe("campaign name field", () => {
+  it("Escape puts back the last saved name, blurs, and saves nothing", () => {
+    const revertName = vi.fn();
+    const updateSetup = vi.fn();
+    const saveDraft = vi.fn().mockResolvedValue("campaign-test");
+    editor.current = draft({ revertName, updateSetup, saveDraft, subjectLine: "Winter wreath workshops" });
+    renderEditor();
+    const input = screen.getByRole("textbox", { name: "Campaign name" });
+    input.focus();
+    fireEvent.change(input, { target: { value: "Typo" } });
+    updateSetup.mockClear();
+    fireEvent.keyDown(input, { key: "Escape" });
+    expect(revertName).toHaveBeenCalledTimes(1);
+    expect(document.activeElement).not.toBe(input);
+    // The blur that Escape causes does not fill in a default name.
+    expect(updateSetup).not.toHaveBeenCalled();
+    expect(saveDraft).not.toHaveBeenCalled();
+  });
+
+  it("an empty name on blur becomes Draft, <date> and says it is a default", () => {
+    const updateSetup = vi.fn((next: { name?: string }) => {
+      editor.current = { ...editor.current, ...next };
+    });
+    editor.current = draft({ name: "", updateSetup, subjectLine: "Winter wreath workshops" });
+    const view = renderEditor();
+    const input = screen.getByRole("textbox", { name: "Campaign name" });
+    fireEvent.focus(input);
+    fireEvent.blur(input);
+    expect(updateSetup).toHaveBeenCalledWith({ name: expect.stringMatching(/^Draft, \w{3} \d{1,2}, \d{4}$/) });
+    view.rerender(
+      <QueryClientProvider client={new QueryClient()}>
+        <MemoryRouter initialEntries={["/crm/campaigns/campaign-test/edit"]}>
+          <Routes>
+            <Route path="/crm/campaigns/:campaignId/edit" element={<CRMCampaignEditorPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    expect(screen.getByTestId("campaign-editor-name-hint")).toHaveTextContent("Using a default name");
+  });
+
+  it("a named campaign keeps its name on blur", () => {
+    const updateSetup = vi.fn();
+    editor.current = draft({ updateSetup });
+    renderEditor();
+    const input = screen.getByRole("textbox", { name: "Campaign name" });
+    fireEvent.blur(input);
+    expect(updateSetup).not.toHaveBeenCalledWith(expect.objectContaining({ name: expect.anything() }));
+    expect(screen.queryByTestId("campaign-editor-name-hint")).toBeNull();
+  });
+});

@@ -2,6 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { NewsletterInboxReview } from "../NewsletterInboxReview";
+import { subjectLengthHint } from "@/lib/crm/newsletterInbox";
 import type { StudioBlock } from "@/types/studioBlocks";
 const invoke = vi.hoisted(() => vi.fn());
 vi.mock("@/integrations/supabase/client", () => ({
@@ -19,21 +20,30 @@ const blocks: StudioBlock[] = [
   },
 ];
 describe("NewsletterInboxReview", () => {
-  it("fills only empty fields from the actual content", async () => {
+  it("fills an empty subject from the actual content and leaves preview text to the editor", async () => {
     const onChange = vi.fn();
-    render(
+    const { rerender } = render(
       <NewsletterInboxReview
         blocks={blocks}
-        subject="My own subject"
+        subject=""
         preview=""
         onChange={onChange}
       />,
     );
     await waitFor(() =>
       expect(onChange).toHaveBeenCalledWith({
-        preheaderText: "Join us November 14.",
+        subjectLine: "Winter wreath workshops",
       }),
     );
+    // Preview text is drafted by usePreviewTextAutoDraft in the editor.
+    expect(onChange).not.toHaveBeenCalledWith(
+      expect.objectContaining({ preheaderText: expect.anything() }),
+    );
+    onChange.mockClear();
+    rerender(
+      <NewsletterInboxReview blocks={blocks} subject="My own subject" preview="" onChange={onChange} />,
+    );
+    expect(onChange).not.toHaveBeenCalled();
   });
   it("keeps AI suggestions reviewable until a pair is explicitly chosen", async () => {
     const user = userEvent.setup();
@@ -124,7 +134,46 @@ describe("NewsletterInboxReview", () => {
     expect(row).toHaveTextContent("Fernhill Gardens");
     expect(row).toHaveTextContent("Winter wreaths are here");
     expect(row).toHaveTextContent("Join us November 14.");
-    expect(screen.getByText("23 characters · Aim for 40–60")).toBeInTheDocument();
+    expect(screen.getByTestId("subject-length-hint")).toHaveTextContent("A little short. Aim for 40 to 60");
+  });
+  it("explains the subject length in three bands, coloured with warning and success", () => {
+    expect(subjectLengthHint(0)).toEqual({ message: "A little short. Aim for 40 to 60", tone: "warning" });
+    expect(subjectLengthHint(39)).toEqual({ message: "A little short. Aim for 40 to 60", tone: "warning" });
+    expect(subjectLengthHint(40)).toEqual({ message: "Good length", tone: "success" });
+    expect(subjectLengthHint(60)).toEqual({ message: "Good length", tone: "success" });
+    expect(subjectLengthHint(61)).toEqual({ message: "May be cut off on phones", tone: "warning" });
+    const { rerender } = render(
+      <NewsletterInboxReview blocks={blocks} subject={"a".repeat(45)} preview="Join us November 14." onChange={vi.fn()} />,
+    );
+    const hint = screen.getByTestId("subject-length-hint");
+    expect(hint).toHaveTextContent("Good length");
+    expect(hint).toHaveAttribute("data-tone", "success");
+    expect(screen.getByText(/45 characters ·/)).toBeInTheDocument();
+    rerender(
+      <NewsletterInboxReview blocks={blocks} subject={"a".repeat(70)} preview="Join us November 14." onChange={vi.fn()} />,
+    );
+    expect(screen.getByTestId("subject-length-hint")).toHaveTextContent("May be cut off on phones");
+    expect(screen.getByTestId("subject-length-hint")).toHaveAttribute("data-tone", "warning");
+  });
+  it("shows only suggestions under 60 characters, with no em dashes or exclamation marks", async () => {
+    const user = userEvent.setup();
+    invoke.mockResolvedValue({
+      data: {
+        suggestions: [
+          { subject: "Wreath workshops — book your seat!", preview: "Classes start November 14!" },
+          { subject: "A".repeat(60), preview: "Too long to keep" },
+          { subject: "Winter wreaths are back", preview: "Join us November 14." },
+        ],
+      },
+    });
+    render(<NewsletterInboxReview blocks={blocks} subject="My subject" preview="My preview" onChange={vi.fn()} />);
+    await user.click(screen.getByRole("button", { name: "Help me improve this" }));
+    const list = await screen.findByTestId("subject-suggestions");
+    expect(list).toHaveTextContent("Wreath workshops, book your seat");
+    expect(list).toHaveTextContent("Classes start November 14");
+    expect(list).toHaveTextContent("Winter wreaths are back");
+    expect(list.textContent).not.toMatch(/[—!]/);
+    expect(list).not.toHaveTextContent("A".repeat(60));
   });
   it("remembers a content scan across returning from Studio and preserves manual copy", async () => {
     sessionStorage.clear();

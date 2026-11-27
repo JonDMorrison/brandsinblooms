@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  draftPreviewText,
   draftInboxSuggestion,
   inboxInsights,
   newsletterInboxText,
@@ -9,6 +10,8 @@ import {
 import {
   buildInboxPrompt,
   parseInboxSuggestions,
+  sanitizeInboxSuggestions,
+  tidySuggestionText,
 } from "../../../supabase/functions/generate-subject-lines/suggestions";
 import type { StudioBlock } from "@/types/studioBlocks";
 
@@ -119,5 +122,68 @@ describe("content-first inbox suggestions", () => {
     expect(() =>
       parseInboxSuggestions('{"suggestions":[{"subject":"Incomplete"}]}'),
     ).toThrow();
+  });
+  it("asks for subjects under 60 characters with no em dashes or exclamation marks", () => {
+    const prompt = buildInboxPrompt({ content: "Wreaths" });
+    expect(prompt).toContain("40 to 59 characters, never 60 or more");
+    expect(prompt).toContain("Never use em dashes or exclamation marks");
+  });
+  it("fixes em dashes and exclamation marks, and drops subjects of 60 or more", () => {
+    expect(tidySuggestionText("Wreaths are back — book now!")).toBe("Wreaths are back, book now");
+    expect(tidySuggestionText("Roses are in! Come and see")).toBe("Roses are in. Come and see");
+    expect(tidySuggestionText("Fresh trees!!")).toBe("Fresh trees");
+    expect(tidySuggestionText("Is it spring yet!?")).toBe("Is it spring yet?");
+    expect(tidySuggestionText("Plants--now in")).toBe("Plants, now in");
+    const kept = sanitizeInboxSuggestions([
+      { subject: "Wreath workshops — book your seat!", preview: "Classes start November 14!" },
+      { subject: "B".repeat(59), preview: "Fits" },
+      { subject: "C".repeat(60), preview: "Too long" },
+      { subject: "", preview: "No subject" },
+      { subject: "No preview", preview: "" },
+      { subject: "wreath workshops, book your seat", preview: "Duplicate" },
+      "not a pair",
+    ]);
+    expect(kept).toEqual([
+      { subject: "Wreath workshops, book your seat", preview: "Classes start November 14" },
+      { subject: "B".repeat(59), preview: "Fits" },
+    ]);
+    for (const pair of kept) {
+      expect(pair.subject.length).toBeLessThan(60);
+      expect(`${pair.subject} ${pair.preview}`).not.toMatch(/[—!]/);
+    }
+    // Model output with nothing usable is an error, never invented text.
+    expect(() =>
+      parseInboxSuggestions(JSON.stringify({ suggestions: [{ subject: "D".repeat(70), preview: "x" }] })),
+    ).toThrow();
+  });
+});
+
+describe("preview text drafted from the design", () => {
+  const block = (patch: Record<string, unknown>) =>
+    ({ id: "b", type: "plain-text", label: "Text", order: 0, visible: true, ...patch }) as StudioBlock;
+  it("uses the first sentence of the first text block", () => {
+    expect(
+      draftPreviewText([
+        block({ type: "newsletter-header", body: "Northfield Garden Centre" }),
+        block({ type: "email-safe-hero", headline: "Winter wreaths", body: "<p>Our workshops are back. Book a seat today.</p>" }),
+        block({ body: "Later copy." }),
+      ]),
+    ).toBe("Our workshops are back.");
+  });
+  it("strips a leading greeting, with or without a merge tag", () => {
+    for (const greeting of ["Hi", "Hello", "Hey", "Dear", "Good morning", "Hi {{first_name}}", "Hello {{ first_name }}", "Dear {{first_name}}"]) {
+      expect(draftPreviewText([block({ body: `${greeting}, roses are 20% off this week. Come early.` })])).toBe(
+        "Roses are 20% off this week.",
+      );
+    }
+    expect(draftPreviewText([block({ body: "<p>Hi {{first_name}},</p><p>Poinsettias arrived today. More soon.</p>" })])).toBe(
+      "Poinsettias arrived today.",
+    );
+  });
+  it("leaves it empty when only a greeting is left or there is no text", () => {
+    expect(draftPreviewText([block({ body: "Hi {{first_name}}," }), block({ body: "Other news." })])).toBe("");
+    expect(draftPreviewText([block({ body: "Good morning!" })])).toBe("");
+    expect(draftPreviewText([block({ type: "footer", body: "Unsubscribe" })])).toBe("");
+    expect(draftPreviewText([])).toBe("");
   });
 });
