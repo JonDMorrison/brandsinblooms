@@ -159,7 +159,8 @@ export default function SharedEmailBlockPreview({
   };
   // Click-to-edit for plain text (headline, button words and so on). The
   // element is made editable in place and saved to its block field when the
-  // person clicks away or presses Enter. Escape puts the old words back.
+  // person clicks away, presses Enter or presses Escape. Escape keeps the new
+  // words and leaves editing; the block stays selected. Cmd/Ctrl+Z undoes.
   const editing = React.useRef<{ element: HTMLElement; original: string } | null>(null);
   const finishTextEdit = (save: boolean) => {
     const active = editing.current;
@@ -326,8 +327,10 @@ export default function SharedEmailBlockPreview({
                 event.preventDefault();
                 active.element.blur();
               } else if (event.key === "Escape") {
+                // Commit, then leave editing. stopPropagation above keeps the
+                // page's Escape (which clears the selection) from running.
                 event.preventDefault();
-                finishTextEdit(false);
+                finishTextEdit(true);
                 active.element.blur();
               }
               return;
