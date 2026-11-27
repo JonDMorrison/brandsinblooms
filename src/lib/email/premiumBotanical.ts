@@ -29,9 +29,7 @@ function verifiedLink(v:string):string{
   try{const u=new URL(v);return u.protocol==="https:"&&!u.username&&!u.password&&u.href.length<=2048?u.href:"";}catch{return "";}
 }
 export function bloomEmailFact(label:string,value:string,icon:BloomEmailIcon="leaf"):string{
- const t=BLOOM_EMAIL;return '<tr><td width="54" valign="top" style="width:54px;padding:12px 8px 14px 2px;border-bottom:1px solid '+
- t.border+'">'+bloomEmailIcon(icon,42)+'</td><td valign="top" style="padding:14px 2px;border-bottom:1px solid '+t.border+
- ';font-size:15px;line-height:1.65;color:'+t.body+'"><strong style="color:'+t.navy+'">'+bloomEmailEscape(label)+
+ const t=BLOOM_EMAIL;return '<tr><td valign="top" style="padding:14px 2px;border-bottom:1px solid '+t.border+';font-size:15px;line-height:1.65;color:'+t.body+'"><strong style="color:'+t.navy+'">'+bloomEmailEscape(label)+
  '</strong><span>&nbsp; · &nbsp;</span>'+bloomEmailEscape(value)+'</td></tr>';
 }
 export function bloomEmailCard(title:string,rows:Array<{label:string;value:string;icon:BloomEmailIcon}>,icon:BloomEmailIcon="leaf"):string{
