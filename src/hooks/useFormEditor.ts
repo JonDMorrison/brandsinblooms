@@ -1,3 +1,4 @@
+import { normalizeFormAudience } from "@/lib/forms/audience";
 import {
   createElement,
   useCallback,
@@ -67,23 +68,6 @@ function normalizeCompliance(value: unknown): FormCompliance {
   };
 }
 
-function normalizeAudience(value: unknown): FormAudience {
-  const candidate = isRecord(value) ? (value as Partial<FormAudience>) : {};
-
-  return {
-    assign_personas: Array.isArray(candidate.assign_personas)
-      ? candidate.assign_personas.filter(
-          (personaId): personaId is string => typeof personaId === "string",
-        )
-      : [],
-    assign_tags: Array.isArray(candidate.assign_tags)
-      ? candidate.assign_tags.filter(
-          (tagId): tagId is string => typeof tagId === "string",
-        )
-      : [],
-  };
-}
-
 function normalizeFields(value: unknown): FormField[] {
   return Array.isArray(value) ? (value as FormField[]) : [];
 }
@@ -95,7 +79,7 @@ function mapFormRow(row: FormRow): Form {
     fields_json: normalizeFields(row.fields_json),
     settings_json: normalizeSettings(row.settings_json),
     compliance_json: normalizeCompliance(row.compliance_json),
-    audience_json: normalizeAudience(row.audience_json),
+    audience_json: normalizeFormAudience(row.audience_json),
   };
 }
 
