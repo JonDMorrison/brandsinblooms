@@ -15,6 +15,12 @@ import {
   isTemporaryFormUploadPath,
   matchesAcceptedFileType,
 } from "../_shared/formFileUploads.ts";
+import {
+  decideFormSegments,
+  normalizeSegmentIdList,
+  summarizeSkippedSegments,
+  type FormSegmentRow,
+} from "../_shared/formSegmentAssignment.ts";
 
 // ─── CORS Headers (hardened for public embed access) ───────────────────────
 // These headers are included in ALL responses (success, error, 404, 429, etc.)
@@ -1822,44 +1828,129 @@ Deno.serve(async (req) => {
     }
 
     // ─── Step 9b: Apply audience segments (audience_json.segment_ids) ────────
+    // The ids come from the saved form, never from the visitor's payload.
+    // Each id is still checked against crm_segments for this form's tenant
+    // before any membership row is written.
     let segmentsJoined: string[] = [];
     let segmentsLeft: string[] = [];
+    const segmentErrors: string[] = [];
 
-    const audienceSegmentIds = (audience.segment_ids || []).filter(Boolean);
-    if (audienceSegmentIds.length > 0 && customerId) {
-      try {
-        for (const segmentId of audienceSegmentIds) {
-          const { error: segUpsertError } = await supabase
-            .from("customer_segments")
-            .upsert(
-              {
-                customer_id: customerId,
-                segment_id: segmentId,
-                assigned_at: new Date().toISOString(),
-              },
-              { onConflict: "customer_id,segment_id" },
-            );
+    const audienceSegmentIds = normalizeSegmentIdList(audience.segment_ids);
+    const optInSegmentIds = normalizeSegmentIdList(
+      (fields as FormField[])
+        .filter(
+          (f: FormField) =>
+            f.type === "segment_checkbox" || f.type === "checkbox",
+        )
+        .flatMap((f: FormField) => [
+          f.segment_id,
+          ...(Array.isArray(f.segment_options)
+            ? f.segment_options.map((option) => option?.segment_id)
+            : []),
+        ]),
+    );
+    const configuredSegmentIds = normalizeSegmentIdList([
+      ...audienceSegmentIds,
+      ...optInSegmentIds,
+    ]).filter(isUuidLike);
 
-          if (segUpsertError) {
-            console.warn(
-              `[submit-form] Audience segment upsert failed for ${segmentId}:`,
-              segUpsertError.message,
-            );
-          } else {
-            segmentsJoined.push(segmentId);
-          }
+    let segmentRows: FormSegmentRow[] = [];
+    let segmentLookupFailed = false;
+    if (configuredSegmentIds.length > 0) {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const { data, error } = await supabase
+          .from("crm_segments")
+          .select("id, name, tenant_id, auto_update, status, deleted_at")
+          .eq("tenant_id", tenantId)
+          .in("id", configuredSegmentIds);
+
+        if (!error) {
+          segmentRows = (data || []) as FormSegmentRow[];
+          segmentLookupFailed = false;
+          break;
         }
-        console.log(
-          `[submit-form] Audience segments: assigned ${segmentsJoined.length}/${audienceSegmentIds.length}`,
-        );
-      } catch (segError) {
-        console.warn(
-          "[submit-form] Audience segment processing error:",
-          (segError as Error).message,
-        );
-        // Non-fatal
+
+        segmentLookupFailed = true;
+        debugInfo.segment_lookup_error = error.code;
+        console.warn("[submit-form] Segment lookup error:", error.message);
       }
     }
+
+    // On a failed lookup nothing is assigned: an unchecked id is never written.
+    if (segmentLookupFailed) {
+      segmentErrors.push("lookup_failed");
+    }
+
+    const autoSegmentDecision = decideFormSegments({
+      requestedIds: segmentLookupFailed ? [] : audienceSegmentIds,
+      rows: segmentRows,
+      tenantId: String(form.tenant_id),
+      allowDynamic: false,
+    });
+    const optInSegmentDecision = decideFormSegments({
+      requestedIds: segmentLookupFailed ? [] : optInSegmentIds,
+      rows: segmentRows,
+      tenantId: String(form.tenant_id),
+      allowDynamic: true,
+    });
+    const allowedOptInSegmentIds = new Set(
+      optInSegmentDecision.assignable.map((segment) => segment.id),
+    );
+    const autoSegmentsAssigned: string[] = [];
+
+    if (autoSegmentDecision.skipped.length > 0) {
+      console.warn(
+        `[submit-form] Audience segments skipped: ${JSON.stringify(summarizeSkippedSegments(autoSegmentDecision.skipped))}`,
+      );
+    }
+
+    if (autoSegmentDecision.assignable.length > 0 && customerId) {
+      for (const segment of autoSegmentDecision.assignable) {
+        try {
+          let upsertError: { message: string; code?: string } | null = null;
+          for (let attempt = 0; attempt < 2; attempt++) {
+            const { error } = await supabase.from("customer_segments").upsert(
+              {
+                customer_id: customerId,
+                segment_id: segment.id,
+                assigned_at: new Date().toISOString(),
+              },
+              {
+                onConflict: "customer_id,segment_id",
+                // A repeat submission keeps the first join date and writes
+                // no second row.
+                ignoreDuplicates: true,
+              },
+            );
+            upsertError = error;
+            if (!error) break;
+          }
+
+          if (upsertError) {
+            console.warn(
+              `[submit-form] Audience segment upsert failed for ${segment.id}:`,
+              upsertError.message,
+            );
+            segmentErrors.push("insert_failed");
+            debugInfo.segment_insert_error = upsertError.code;
+          } else {
+            autoSegmentsAssigned.push(segment.name);
+          }
+        } catch (segError) {
+          console.warn(
+            "[submit-form] Audience segment processing error:",
+            (segError as Error).message,
+          );
+          segmentErrors.push("unexpected_error");
+          // Non-fatal
+        }
+      }
+      console.log(
+        `[submit-form] Audience segments: assigned ${autoSegmentsAssigned.length}/${audienceSegmentIds.length}`,
+      );
+    }
+
+    segmentsJoined = [...autoSegmentsAssigned];
 
     // ─── Step 10: Trigger segment evaluation (BEST-EFFORT) ──────────────────
     // If this fails, submission still returns 200. Error is recorded for debugging.
@@ -1887,7 +1978,10 @@ Deno.serve(async (req) => {
         debugInfo.segment_eval_error = errorText.slice(0, 100); // Truncate, no PII
       } else {
         const segmentResult = await segmentResponse.json();
-        segmentsJoined = segmentResult.segments_joined || [];
+        segmentsJoined = [
+          ...autoSegmentsAssigned,
+          ...(segmentResult.segments_joined || []),
+        ];
         segmentsLeft = segmentResult.segments_left || [];
         console.log(
           `[submit-form] Segment evaluation complete: joined=${segmentsJoined.length}, left=${segmentsLeft.length}`,
@@ -1924,9 +2018,12 @@ Deno.serve(async (req) => {
           // For multi-option `segment_checkbox` fields this returns one or
           // more ids. For legacy single-segment checkbox / segment_checkbox
           // fields it returns [segment_id] when fieldValue is true.
+          // Only segments that passed the tenant check in step 9b are joined.
           const selectedSegmentIds = resolveSubmittedSegmentIds(
             cbField,
             fieldValue,
+          ).filter((segmentId) =>
+            allowedOptInSegmentIds.has(segmentId.toLowerCase()),
           );
 
           // Assign to every selected segment.
@@ -1939,7 +2036,7 @@ Deno.serve(async (req) => {
                   segment_id: segmentId,
                   assigned_at: new Date().toISOString(),
                 },
-                { onConflict: "customer_id,segment_id" },
+                { onConflict: "customer_id,segment_id", ignoreDuplicates: true },
               );
 
             if (segErr) {
@@ -2014,6 +2111,8 @@ Deno.serve(async (req) => {
       tagErrors.length > 0 ||
       segmentsJoined.length > 0 ||
       segmentsLeft.length > 0 ||
+      audienceSegmentIds.length > 0 ||
+      segmentErrors.length > 0 ||
       Object.keys(debugInfo).length > 0;
 
     if (hasAudienceActivity) {
@@ -2031,6 +2130,14 @@ Deno.serve(async (req) => {
                 tags_requested: requestedTagIdentifiers.length,
                 tags_assigned: tagsAssigned,
                 tags_errors: tagErrors.length > 0 ? tagErrors : null,
+                auto_segments_requested: audienceSegmentIds.length,
+                auto_segments_assigned:
+                  autoSegmentsAssigned.length > 0 ? autoSegmentsAssigned : null,
+                auto_segments_skipped: summarizeSkippedSegments(
+                  autoSegmentDecision.skipped,
+                ),
+                segments_errors:
+                  segmentErrors.length > 0 ? segmentErrors : null,
                 segments_joined:
                   segmentsJoined.length > 0 ? segmentsJoined : null,
                 segments_left: segmentsLeft.length > 0 ? segmentsLeft : null,

@@ -1,3 +1,4 @@
+import { normalizeFormAudience } from "@/lib/forms/audience";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -412,23 +413,6 @@ function normalizeCompliance(value: unknown): FormCompliance {
   };
 }
 
-function normalizeAudience(value: unknown): FormAudience {
-  const candidate = isRecord(value) ? (value as Partial<FormAudience>) : {};
-
-  return {
-    assign_personas: Array.isArray(candidate.assign_personas)
-      ? candidate.assign_personas.filter(
-          (personaId): personaId is string => typeof personaId === "string",
-        )
-      : DEFAULT_FORM_AUDIENCE.assign_personas,
-    assign_tags: Array.isArray(candidate.assign_tags)
-      ? candidate.assign_tags.filter(
-          (tagId): tagId is string => typeof tagId === "string",
-        )
-      : DEFAULT_FORM_AUDIENCE.assign_tags,
-  };
-}
-
 /**
  * forms.status is constrained to draft | published | archived
  * (CHECK constraint); anything else reads as a draft.
@@ -448,7 +432,7 @@ function mapFormRow(row: FormRow): Form {
       : [],
     settings_json: normalizeSettings(row.settings_json),
     compliance_json: normalizeCompliance(row.compliance_json),
-    audience_json: normalizeAudience(row.audience_json),
+    audience_json: normalizeFormAudience(row.audience_json),
   };
 }
 

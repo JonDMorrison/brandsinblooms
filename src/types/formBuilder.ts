@@ -438,6 +438,12 @@ export interface FormSubmissionMetadata {
     tags_requested?: number;
     tags_assigned?: number;
     tags_errors?: string[] | null;
+    /** Segments chosen on the Audience tab (automatic assignment). */
+    auto_segments_requested?: number;
+    auto_segments_assigned?: string[] | null;
+    /** Count per reason: not_found, deleted, inactive, dynamic, invalid_id. */
+    auto_segments_skipped?: Record<string, number> | null;
+    segments_errors?: string[] | null;
     segments_joined?: string[] | null;
     segments_left?: string[] | null;
     processed_at?: string;
@@ -499,6 +505,7 @@ export const DEFAULT_FORM_COMPLIANCE: FormCompliance = {
 export const DEFAULT_FORM_AUDIENCE: FormAudience = {
   assign_personas: [],
   assign_tags: [],
+  segment_ids: [],
 };
 
 // Mapping key options for form fields

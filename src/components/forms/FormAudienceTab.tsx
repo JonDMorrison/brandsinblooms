@@ -6,28 +6,36 @@ import Sheet from "@mui/joy/Sheet";
 import Skeleton from "@mui/joy/Skeleton";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
-import { AlertTriangle, ArrowRight, RefreshCw, Tag } from "lucide-react";
+import { AlertTriangle, ArrowRight, RefreshCw, Users } from "lucide-react";
+import { Link as RouterLink } from "react-router-dom";
 import { JoyAutocomplete } from "@/components/joy/JoyAutocomplete";
 import ChipDelete from "@mui/joy/ChipDelete";
 import { JoyChip } from "@/components/joy/JoyChip";
 import { useCRMPersonas } from "@/hooks/useCRMPersonas";
 import { useCRMTags } from "@/hooks/useCRMTags";
+import { useSegments, type SegmentListItem } from "@/hooks/useSegments";
+import { segmentAssignmentProblem } from "@/lib/forms/audience";
+import type { FormAudience } from "@/types/formBuilder";
 
 interface FormAudienceTabProps {
-  audience: {
-    assign_personas: string[];
-    assign_tags: string[];
-  };
-  onAudienceChange: (audience: {
-    assign_personas: string[];
-    assign_tags: string[];
-  }) => void;
+  audience: FormAudience;
+  onAudienceChange: (audience: FormAudience) => void;
 }
 
 interface SelectOption {
   value: string;
   label: string;
   description?: string | null;
+  /** Shown in the list but cannot be chosen. */
+  disabled?: boolean;
+  /** A saved choice that submissions will skip. */
+  problem?: string | null;
+}
+
+const SEGMENTS_PATH = "/crm/segments";
+
+function memberCountLabel(count: number): string {
+  return `${count.toLocaleString()} ${count === 1 ? "contact" : "contacts"}`;
 }
 
 function AudienceSection(props: {
@@ -107,6 +115,12 @@ function AssignmentPicker(props: {
   onRetry: () => void;
   onChange: (nextValue: string[]) => void;
   statusAlert?: React.ReactNode;
+  /** Shown under the picker and under the empty state. */
+  footer?: React.ReactNode;
+  /** Options that can be chosen. Defaults to every option. */
+  selectableCount?: number;
+  unavailableLabel?: string;
+  unavailableDescription?: string;
 }) {
   const selectedOptions = React.useMemo(() => {
     const optionMap = new Map(
@@ -119,12 +133,32 @@ function AssignmentPicker(props: {
       return (
         matched || {
           value,
-          label: "Unavailable selection",
-          description: "This item is no longer available in CRM.",
+          label: props.unavailableLabel ?? "Unavailable selection",
+          description:
+            props.unavailableDescription ??
+            "This item is no longer available in CRM.",
+          problem: props.unavailableDescription ?? null,
         }
       );
     });
-  }, [props.options, props.value]);
+  }, [
+    props.options,
+    props.value,
+    props.unavailableLabel,
+    props.unavailableDescription,
+  ]);
+
+  // A saved choice that no longer exists still needs a matching option, so
+  // the picker can show it as selected.
+  const pickerOptions = React.useMemo(() => {
+    const known = new Set(props.options.map((option) => option.value));
+    return [
+      ...props.options,
+      ...selectedOptions
+        .filter((option) => !known.has(option.value))
+        .map((option) => ({ ...option, disabled: true })),
+    ];
+  }, [props.options, selectedOptions]);
 
   return (
     <Stack spacing={1.25}>
@@ -160,7 +194,7 @@ function AssignmentPicker(props: {
           {props.error.message ||
             `Could not load ${props.label.toLowerCase()}.`}
         </Alert>
-      ) : props.options.length === 0 ? (
+      ) : (props.selectableCount ?? props.options.length) === 0 ? (
         <Sheet
           variant="soft"
           sx={{
@@ -177,7 +211,7 @@ function AssignmentPicker(props: {
         <JoyAutocomplete<SelectOption, true, false, false>
           multiple
           label={props.label}
-          options={props.options}
+          options={pickerOptions}
           value={selectedOptions}
           disableCloseOnSelect
           renderTags={() => null}
@@ -187,6 +221,7 @@ function AssignmentPicker(props: {
           isOptionEqualToValue={(option, selected) =>
             option.value === selected.value
           }
+          getOptionDisabled={(option) => Boolean(option.disabled)}
           onValueChange={(nextValue) =>
             props.onChange((nextValue ?? []).map((option) => option.value))
           }
@@ -214,7 +249,8 @@ function AssignmentPicker(props: {
               key={option.value}
               size="sm"
               variant="soft"
-              color="primary"
+              color={option.problem ? "warning" : "primary"}
+              title={option.problem ?? undefined}
               endDecorator={
                 <ChipDelete
                   aria-label={`Remove ${option.label}`}
@@ -231,6 +267,27 @@ function AssignmentPicker(props: {
           ))}
         </Stack>
       ) : null}
+
+      {selectedOptions.some((option) => option.problem) ? (
+        <Alert
+          size="sm"
+          color="warning"
+          variant="soft"
+          startDecorator={<AlertTriangle size={16} />}
+        >
+          <Stack spacing={0.25}>
+            {selectedOptions
+              .filter((option) => option.problem)
+              .map((option) => (
+                <Typography key={option.value} level="body-sm">
+                  <strong>{option.label}:</strong> {option.problem}
+                </Typography>
+              ))}
+          </Stack>
+        </Alert>
+      ) : null}
+
+      {props.footer}
     </Stack>
   );
 }
@@ -251,6 +308,62 @@ export function FormAudienceTab({
     error: tagsError,
     fetchTags,
   } = useCRMTags();
+
+  const segmentsQuery = useSegments();
+  const allSegments = segmentsQuery.allSegments;
+  const selectedSegmentIds = React.useMemo(
+    () => audience.segment_ids ?? [],
+    [audience.segment_ids],
+  );
+
+  const segmentOptions = React.useMemo<SelectOption[]>(() => {
+    const selected = new Set(selectedSegmentIds);
+    const byName = (left: SegmentListItem, right: SegmentListItem) =>
+      left.name.localeCompare(right.name);
+
+    const fixedLists = allSegments
+      .filter((segment) => segmentAssignmentProblem(segment) === null)
+      .sort(byName)
+      .map((segment) => ({
+        value: segment.id,
+        label: segment.name,
+        description: `Fixed list · ${memberCountLabel(segment.memberCount)}`,
+      }));
+
+    // Rule-based segments stay visible so the difference is clear, but they
+    // cannot be chosen. A saved choice that stopped being usable is kept in
+    // the list so its chip can explain what to do.
+    const others = allSegments
+      .filter((segment) => segmentAssignmentProblem(segment) !== null)
+      .filter(
+        (segment) =>
+          selected.has(segment.id) ||
+          (segment.type === "dynamic" && segment.status === "active"),
+      )
+      .sort(byName)
+      .map((segment) => ({
+        value: segment.id,
+        label: segment.name,
+        description:
+          segment.type === "dynamic"
+            ? "Rule-based · people join when they match its rules"
+            : "Not active",
+        disabled: true,
+        problem: selected.has(segment.id)
+          ? segmentAssignmentProblem(segment)
+          : null,
+      }));
+
+    return [...fixedLists, ...others];
+  }, [allSegments, selectedSegmentIds]);
+
+  const selectableSegmentCount = React.useMemo(
+    () => segmentOptions.filter((option) => !option.disabled).length,
+    [segmentOptions],
+  );
+  const hasRuleBasedSegments = allSegments.some(
+    (segment) => segment.type === "dynamic" && segment.status === "active",
+  );
 
   const personaOptions = React.useMemo<SelectOption[]>(
     () =>
@@ -273,8 +386,7 @@ export function FormAudienceTab({
         .map((tag) => ({
           value: tag.id,
           label: tag.name,
-          description:
-            "Stored on this form configuration for downstream CRM automation.",
+          description: "Added to the contact when they submit this form.",
         })),
     [tags],
   );
@@ -286,6 +398,57 @@ export function FormAudienceTab({
         description="When a visitor submits this form, their CRM profile is automatically updated with the following assignments."
       >
         <Stack spacing={2.5}>
+          <AssignmentPicker
+            label="Automatically add to segments"
+            helperText="Everyone who submits this form will automatically be added to the selected segments. This selection is not visible to the customer."
+            emptyMessage="You have no fixed-list segments yet. Create one in Segments, then come back and choose it here."
+            searchPlaceholder="Search segments"
+            loading={segmentsQuery.isLoading}
+            error={segmentsQuery.error ?? null}
+            options={segmentOptions}
+            selectableCount={selectableSegmentCount + selectedSegmentIds.length}
+            value={selectedSegmentIds}
+            unavailableLabel="Deleted segment"
+            unavailableDescription="This segment was deleted. Remove it from this form."
+            onRetry={() => {
+              void segmentsQuery.refetch();
+            }}
+            onChange={(segment_ids) =>
+              onAudienceChange({
+                ...audience,
+                segment_ids,
+              })
+            }
+            footer={
+              <Stack spacing={1.25}>
+                {hasRuleBasedSegments ? (
+                  <Typography level="body-xs" color="neutral">
+                    Rule-based segments cannot be chosen here. They add and
+                    remove people by their own rules. To get someone into one,
+                    collect the matching detail on this form, or assign a tag or
+                    persona below that the segment looks for.
+                  </Typography>
+                ) : null}
+                <Typography level="body-xs" color="neutral">
+                  Joining a segment does not give permission to email or text
+                  someone. Permission comes only from the consent boxes on the
+                  form. People who unsubscribed stay unsubscribed.
+                </Typography>
+                <Box>
+                  <Button
+                    component={RouterLink}
+                    to={SEGMENTS_PATH}
+                    size="sm"
+                    variant="plain"
+                    startDecorator={<Users size={14} />}
+                  >
+                    Manage segments
+                  </Button>
+                </Box>
+              </Stack>
+            }
+          />
+
           <AssignmentPicker
             label="Assign personas"
             helperText="Selected personas will be automatically assigned to the customer's CRM profile on submission."
@@ -308,7 +471,7 @@ export function FormAudienceTab({
 
           <AssignmentPicker
             label="Assign tags"
-            helperText="Selected tags are stored on the form configuration for CRM assignment workflows."
+            helperText="Selected tags are added to the customer's CRM profile on submission."
             emptyMessage="No CRM tags configured yet. Create tags in CRM to use them here."
             searchPlaceholder="Search tags"
             loading={tagsLoading}
@@ -324,25 +487,40 @@ export function FormAudienceTab({
                 assign_tags,
               })
             }
-            statusAlert={
-              <Alert
-                size="sm"
-                color="warning"
-                variant="soft"
-                startDecorator={<Tag size={16} />}
-              >
-                Selected tags are stored on the form configuration. Tag write
-                behavior is being finalized — tags may not yet be applied
-                automatically on submission.
-              </Alert>
-            }
           />
         </Stack>
       </AudienceSection>
 
       <AudienceSection
-        title="Segment evaluation"
-        description="Segment membership is automatically re-evaluated for every customer after form submission. This is always active and cannot be disabled."
+        title="Two ways to put people in segments"
+        description="Use either one, or both on the same form."
+      >
+        <Stack spacing={1.5}>
+          <Stack spacing={0.35}>
+            <Typography level="body-sm" sx={{ fontWeight: 600 }}>
+              Automatic: you choose, the customer does not see it
+            </Typography>
+            <Typography level="body-sm" color="neutral">
+              Pick the segments above. Every person who submits this form joins
+              them. Use this for a form with one clear purpose, such as a
+              Wholesale signup form.
+            </Typography>
+          </Stack>
+          <Stack spacing={0.35}>
+            <Typography level="body-sm" sx={{ fontWeight: 600 }}>
+              Segment Opt-In field: the customer chooses
+            </Typography>
+            <Typography level="body-sm" color="neutral">
+              Add a Segment Opt-In field on the Build tab. The customer ticks
+              the interests they want, and joins only those segments.
+            </Typography>
+          </Stack>
+        </Stack>
+      </AudienceSection>
+
+      <AudienceSection
+        title="Rule-based segments"
+        description="After every submission, BloomSuite checks the contact against your rule-based segments. This is always on."
         actions={
           <JoyChip size="sm" variant="soft" color="success">
             Always active
@@ -365,16 +543,11 @@ export function FormAudienceTab({
           >
             <ArrowRight size={18} />
           </Box>
-          <Stack spacing={0.5}>
-            <Typography level="body-sm" sx={{ fontWeight: 600 }}>
-              Automatic evaluation stays in the submission pipeline.
-            </Typography>
-            <Typography level="body-sm" color="neutral">
-              Personas and tags selected above enrich the CRM profile
-              immediately. Segment qualification continues automatically after
-              each submission without any additional toggle in this workspace.
-            </Typography>
-          </Stack>
+          <Typography level="body-sm" color="neutral">
+            A contact joins a rule-based segment when they match its rules, and
+            leaves when they stop matching. This check does not remove anyone
+            from the fixed-list segments you chose above.
+          </Typography>
         </Stack>
       </AudienceSection>
     </Stack>
