@@ -1,6 +1,6 @@
 import "@testing-library/jest-dom";
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   DEFAULT_FORM_COMPLIANCE,
@@ -8,6 +8,10 @@ import {
 } from "@/types/formBuilder";
 
 import { FormPreviewDialog } from "../preview/FormPreviewDialog";
+
+vi.mock("@/hooks/useBrandColors", () => ({
+  useBrandColors: () => ({ data: null }),
+}));
 
 describe("FormPreviewDialog", () => {
   it("renders file fields with the upload control instead of a plain text input", async () => {

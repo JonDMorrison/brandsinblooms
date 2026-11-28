@@ -54,6 +54,7 @@ import {
   FormSettings,
   FormStep,
 } from "@/types/formBuilder";
+import { resolveFormColors } from "@/lib/forms/formColors";
 
 interface FormPreviewRendererProps {
   fields: FormField[];
@@ -254,9 +255,10 @@ export function FormPreviewRenderer({
 
   const tokens = useMemo<ThemeTokens>(() => {
     const background = theme.background_style === "green-tint" ? "#F2F8F1" : theme.background_style === "white" ? "#FFFFFF" : theme.background_color ?? "#FFFFFF";
-    const text = theme.text_color ?? "#1F2937";
-    const primary = theme.primary_color ?? "#22C55E";
-    const secondary = theme.secondary_color ?? "#1E40AF";
+    const colors = resolveFormColors(theme);
+    const text = colors.text_color;
+    const primary = colors.primary_color;
+    const secondary = colors.secondary_color;
     const isDarkBackground = isDarkColor(background);
 
     return {

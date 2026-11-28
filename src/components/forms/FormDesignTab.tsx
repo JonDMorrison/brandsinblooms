@@ -28,10 +28,12 @@ import {
 import { JoyInput } from "@/components/joy/JoyInput";
 import { JoySelect } from "@/components/joy/JoySelect";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { useBrandColors } from "@/hooks/useBrandColors";
 import {
-  DEFAULT_BRAND_COLORS,
-  useBrandColors,
-} from "@/hooks/useBrandColors";
+  applyFormBrandColors,
+  NEUTRAL_FORM_COLORS,
+  resolveFormColors,
+} from "@/lib/forms/formColors";
 import {
   FONT_FAMILY_CSS_MAP,
   FORM_BACKGROUND_STYLE_OPTIONS,
@@ -119,7 +121,7 @@ function getPreviewCanvasSx(theme: FormTheme) {
       return {
         backgroundColor: "#F2F8F1",
         backgroundImage:
-          "radial-gradient(circle at top right, rgba(34, 197, 94, 0.18), transparent 36%), linear-gradient(180deg, rgba(34, 197, 94, 0.06) 0%, rgba(255, 255, 255, 0.9) 100%)",
+          "radial-gradient(circle at top right, rgba(84, 130, 94, 0.18), transparent 36%), linear-gradient(180deg, rgba(84, 130, 94, 0.06) 0%, rgba(255, 255, 255, 0.9) 100%)",
       };
     case "custom":
       return {
@@ -139,7 +141,7 @@ function getPreviewCanvasSx(theme: FormTheme) {
       return {
         backgroundColor: "#F7F4EE",
         backgroundImage:
-          "radial-gradient(circle at top, rgba(15, 23, 42, 0.03), transparent 48%), radial-gradient(circle at bottom right, rgba(34, 197, 94, 0.1), transparent 35%)",
+          "radial-gradient(circle at top, rgba(15, 23, 42, 0.03), transparent 48%), radial-gradient(circle at bottom right, rgba(48, 80, 110, 0.08), transparent 35%)",
       };
   }
 }
@@ -250,7 +252,7 @@ function ColorControl({
           setDraft(normalized);
           onChange(normalized);
         }}
-        placeholder="#22C55E"
+        placeholder={NEUTRAL_FORM_COLORS.primary}
         helperText={helperText}
         sx={{
           "& .MuiInput-input": {
@@ -493,7 +495,7 @@ function BackgroundStylePreview({ style }: { style: FormTheme["background_style"
     sx = {
       bgcolor: "#ECF7EC",
       backgroundImage:
-        "radial-gradient(circle at top right, rgba(34,197,94,0.16), transparent 36%), linear-gradient(180deg, rgba(34,197,94,0.08) 0%, rgba(255,255,255,0.9) 100%)",
+        "radial-gradient(circle at top right, rgba(84,130,94,0.16), transparent 36%), linear-gradient(180deg, rgba(84,130,94,0.08) 0%, rgba(255,255,255,0.9) 100%)",
     };
   }
 
@@ -626,7 +628,7 @@ export function FormDesignTab({
     [rawTheme, settings],
   );
   const { data: queriedBrandColors } = useBrandColors();
-  const brandColors = queriedBrandColors ?? DEFAULT_BRAND_COLORS;
+  const brandColors = queriedBrandColors ?? null;
   const isStackedLayout = useMediaQuery("(max-width: 1199.95px)");
   const previewSectionRef = React.useRef<HTMLDivElement | null>(null);
   const [expandedSections, setExpandedSections] = React.useState(
@@ -698,17 +700,21 @@ export function FormDesignTab({
     [normalizedSettings.theme, updateSettings],
   );
 
+  // Clearing the colours makes the form follow the brand again, including
+  // later brand changes. Copying hex values in would freeze today's brand.
   const handleResetBrandColors = React.useCallback(() => {
     updateTheme({
-      primary_color:
-        brandColors.primary ?? DEFAULT_FORM_SETTINGS.theme.primary_color,
-      secondary_color:
-        brandColors.secondary ?? DEFAULT_FORM_SETTINGS.theme.secondary_color,
-      text_color: brandColors.text ?? DEFAULT_FORM_SETTINGS.theme.text_color,
-      background_color:
-        brandColors.background ?? DEFAULT_FORM_SETTINGS.theme.background_color,
+      primary_color: undefined,
+      secondary_color: undefined,
+      text_color: undefined,
+      background_color: DEFAULT_FORM_SETTINGS.theme.background_color,
     });
-  }, [brandColors, updateTheme]);
+  }, [updateTheme]);
+
+  const resolvedColors = React.useMemo(
+    () => resolveFormColors(normalizedSettings.theme, brandColors),
+    [brandColors, normalizedSettings.theme],
+  );
 
   const publicPreviewUrl = React.useMemo(
     () => getPublicFormUrl(uploadEmbedKey || "preview"),
@@ -717,13 +723,16 @@ export function FormDesignTab({
 
   const previewSettings = React.useMemo(
     () =>
-      previewMode === "embed"
-        ? normalizeFormSettings({
-            ...normalizedSettings,
-            success_redirect_url: null,
-          })
-        : normalizedSettings,
-    [normalizedSettings, previewMode],
+      applyFormBrandColors(
+        previewMode === "embed"
+          ? normalizeFormSettings({
+              ...normalizedSettings,
+              success_redirect_url: null,
+            })
+          : normalizedSettings,
+        brandColors,
+      ),
+    [brandColors, normalizedSettings, previewMode],
   );
 
   const previewModeHelperText =
@@ -858,31 +867,19 @@ export function FormDesignTab({
                 <ColorControl
                   label="Primary"
                   helperText="Buttons, links, and focus states."
-                  value={
-                    normalizedSettings.theme.primary_color ??
-                    DEFAULT_FORM_SETTINGS.theme.primary_color ??
-                    "#22C55E"
-                  }
+                  value={resolvedColors.primary_color}
                   onChange={(primary_color) => updateTheme({ primary_color })}
                 />
                 <ColorControl
                   label="Secondary"
                   helperText="Accents and supportive emphasis."
-                  value={
-                    normalizedSettings.theme.secondary_color ??
-                    DEFAULT_FORM_SETTINGS.theme.secondary_color ??
-                    "#1E40AF"
-                  }
+                  value={resolvedColors.secondary_color}
                   onChange={(secondary_color) => updateTheme({ secondary_color })}
                 />
                 <ColorControl
                   label="Text"
                   helperText="Headings, labels, and body copy."
-                  value={
-                    normalizedSettings.theme.text_color ??
-                    DEFAULT_FORM_SETTINGS.theme.text_color ??
-                    "#1F2937"
-                  }
+                  value={resolvedColors.text_color}
                   onChange={(text_color) => updateTheme({ text_color })}
                 />
                 <ColorControl

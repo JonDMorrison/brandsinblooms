@@ -20,6 +20,7 @@ import {
   type FormField,
   type FormSettings,
 } from "@/types/formBuilder";
+import { resolveFormColors } from "@/lib/forms/formColors";
 
 interface FormConfig {
   form_id: string;
@@ -121,7 +122,7 @@ function buildPublicSubmissionData(
 function getHostedPageBackgroundSx(settings: FormSettings) {
   const resolvedSettings = normalizeFormSettings(settings);
   const backgroundColor = resolvedSettings.theme.background_color ?? "#FFFFFF";
-  const primaryColor = resolvedSettings.theme.primary_color ?? "#22C55E";
+  const primaryColor = resolveFormColors(resolvedSettings.theme).primary_color;
   const backgroundStyle = resolvedSettings.theme.background_style ?? "white";
 
   if (backgroundStyle === "green-tint") {

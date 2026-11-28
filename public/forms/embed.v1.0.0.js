@@ -48,17 +48,17 @@
     
     // Text inputs
     '.' + CSS_PREFIX + 'input { display: block; width: 100%; padding: 10px 12px; font-size: 14px; line-height: 1.5; color: #1f2937; background-color: #ffffff; border: 1px solid #d1d5db; border-radius: var(--bs-form-radius, 8px); transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out; -webkit-appearance: none; appearance: none; }',
-    '.' + CSS_PREFIX + 'input:focus { outline: none; border-color: var(--bs-form-primary, #22C55E); box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15); }',
+    '.' + CSS_PREFIX + 'input:focus { outline: none; border-color: var(--bs-form-primary, #30506E); box-shadow: 0 0 0 3px rgba(48, 80, 110, 0.15); }',
     '.' + CSS_PREFIX + 'input::placeholder { color: #9ca3af; }',
     '.' + CSS_PREFIX + 'input:disabled { background-color: #f3f4f6; cursor: not-allowed; }',
     
     // Select
     '.' + CSS_PREFIX + 'select { display: block; width: 100%; padding: 10px 36px 10px 12px; font-size: 14px; line-height: 1.5; color: #1f2937; background-color: #ffffff; background-image: url("data:image/svg+xml,%3csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 20 20\'%3e%3cpath stroke=\'%236b7280\' stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'1.5\' d=\'M6 8l4 4 4-4\'/%3e%3c/svg%3e"); background-position: right 12px center; background-repeat: no-repeat; background-size: 16px 12px; border: 1px solid #d1d5db; border-radius: var(--bs-form-radius, 8px); -webkit-appearance: none; appearance: none; cursor: pointer; }',
-    '.' + CSS_PREFIX + 'select:focus { outline: none; border-color: var(--bs-form-primary, #22C55E); box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15); }',
+    '.' + CSS_PREFIX + 'select:focus { outline: none; border-color: var(--bs-form-primary, #30506E); box-shadow: 0 0 0 3px rgba(48, 80, 110, 0.15); }',
     
     // Checkbox wrapper
     '.' + CSS_PREFIX + 'checkbox-wrap { display: flex; align-items: flex-start; gap: 10px; }',
-    '.' + CSS_PREFIX + 'checkbox { flex-shrink: 0; width: 18px; height: 18px; margin-top: 2px; accent-color: var(--bs-form-primary, #22C55E); cursor: pointer; }',
+    '.' + CSS_PREFIX + 'checkbox { flex-shrink: 0; width: 18px; height: 18px; margin-top: 2px; accent-color: var(--bs-form-primary, #30506E); cursor: pointer; }',
     '.' + CSS_PREFIX + 'checkbox-text { font-size: 14px; color: #4b5563; line-height: 1.5; cursor: pointer; -webkit-user-select: none; user-select: none; }',
     
     // Consent fields (special styling)
@@ -66,12 +66,12 @@
     '.' + CSS_PREFIX + 'consent .' + CSS_PREFIX + 'checkbox-text { font-size: 13px; color: #6b7280; }',
     
     // Submit button
-    '.' + CSS_PREFIX + 'submit { display: block; width: 100%; padding: 12px 24px; font-size: 16px; font-weight: 600; color: #ffffff; background-color: var(--bs-form-primary, #22C55E); border: none; border-radius: var(--bs-form-radius, 8px); cursor: pointer; transition: background-color 0.15s ease-in-out, transform 0.1s ease-in-out; -webkit-appearance: none; appearance: none; }',
-    '.' + CSS_PREFIX + 'submit:hover { background-color: var(--bs-form-primary-hover, #16a34a); }',
+    '.' + CSS_PREFIX + 'submit { display: block; width: 100%; padding: 12px 24px; font-size: 16px; font-weight: 600; color: #ffffff; background-color: var(--bs-form-primary, #30506E); border: none; border-radius: var(--bs-form-radius, 8px); cursor: pointer; transition: background-color 0.15s ease-in-out, transform 0.1s ease-in-out; -webkit-appearance: none; appearance: none; }',
+    '.' + CSS_PREFIX + 'submit:hover { background-color: var(--bs-form-primary-hover, #203C4E); }',
     '.' + CSS_PREFIX + 'submit:active { transform: scale(0.98); }',
     '.' + CSS_PREFIX + 'submit:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }',
-    '.' + CSS_PREFIX + 'submit-outline { background-color: transparent; border: 2px solid var(--bs-form-primary, #22C55E); color: var(--bs-form-primary, #22C55E); }',
-    '.' + CSS_PREFIX + 'submit-outline:hover { background-color: var(--bs-form-primary, #22C55E); color: #ffffff; }',
+    '.' + CSS_PREFIX + 'submit-outline { background-color: transparent; border: 2px solid var(--bs-form-primary, #30506E); color: var(--bs-form-primary, #30506E); }',
+    '.' + CSS_PREFIX + 'submit-outline:hover { background-color: var(--bs-form-primary, #30506E); color: #ffffff; }',
     '.' + CSS_PREFIX + 'submit-rounded { border-radius: 9999px; }',
     
     // Error states
@@ -81,13 +81,13 @@
     
     // Success state
     '.' + CSS_PREFIX + 'success { text-align: center; padding: 32px 24px; background: #f0fdf4; border-radius: var(--bs-form-radius, 8px); border: 1px solid #bbf7d0; }',
-    '.' + CSS_PREFIX + 'success-icon { width: 56px; height: 56px; margin: 0 auto 16px; background: #22C55E; border-radius: 50%; display: flex; align-items: center; justify-content: center; }',
+    '.' + CSS_PREFIX + 'success-icon { width: 56px; height: 56px; margin: 0 auto 16px; background: #30506E; border-radius: 50%; display: flex; align-items: center; justify-content: center; }',
     '.' + CSS_PREFIX + 'success-icon svg { width: 28px; height: 28px; stroke: #ffffff; fill: none; }',
     '.' + CSS_PREFIX + 'success-text { font-size: 18px; font-weight: 600; color: #166534; margin: 0; }',
     
     // Loading state
     '.' + CSS_PREFIX + 'loading { text-align: center; padding: 48px 24px; color: #6b7280; font-size: 14px; }',
-    '.' + CSS_PREFIX + 'spinner { display: inline-block; width: 24px; height: 24px; border: 2px solid #e5e7eb; border-top-color: var(--bs-form-primary, #22C55E); border-radius: 50%; animation: ' + CSS_PREFIX + 'spin 0.8s linear infinite; margin-bottom: 12px; }',
+    '.' + CSS_PREFIX + 'spinner { display: inline-block; width: 24px; height: 24px; border: 2px solid #e5e7eb; border-top-color: var(--bs-form-primary, #30506E); border-radius: 50%; animation: ' + CSS_PREFIX + 'spin 0.8s linear infinite; margin-bottom: 12px; }',
     '@keyframes ' + CSS_PREFIX + 'spin { to { transform: rotate(360deg); } }',
     
     // Branding
@@ -363,7 +363,7 @@
     
     var formContainer = createElement('div', 'container');
     
-    var primaryColor = theme.primary_color || '#22C55E';
+    var primaryColor = theme.primary_color || '#30506E';
     formContainer.style.setProperty('--bs-form-primary', primaryColor);
     formContainer.style.setProperty('--bs-form-primary-hover', darkenColor(primaryColor, -20));
     formContainer.style.setProperty('--bs-form-radius', theme.border_radius || '8px');

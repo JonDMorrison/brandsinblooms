@@ -4,6 +4,7 @@ import {
   getSpacingValue,
 } from "@/lib/forms/designSettings";
 import { DEFAULT_FORM_SETTINGS, type FormSettings } from "@/types/formBuilder";
+import { resolveFormColors } from "@/lib/forms/formColors";
 
 export interface FormBuilderTokens {
   backgroundColor: string;
@@ -41,12 +42,9 @@ export function createFormBuilderTokens(
   settings: FormSettings,
 ): FormBuilderTokens {
   const theme = settings.theme ?? DEFAULT_FORM_SETTINGS.theme;
-  const primaryColor =
-    theme.primary_color ??
-    DEFAULT_FORM_SETTINGS.theme.primary_color ??
-    "#22C55E";
-  const textColor =
-    theme.text_color ?? DEFAULT_FORM_SETTINGS.theme.text_color ?? "#1F2937";
+  const colors = resolveFormColors(theme);
+  const primaryColor = colors.primary_color;
+  const textColor = colors.text_color;
   const backgroundColor =
     theme.background_color ??
     DEFAULT_FORM_SETTINGS.theme.background_color ??

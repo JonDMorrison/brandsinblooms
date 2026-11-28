@@ -478,10 +478,9 @@ export const DEFAULT_FORM_SETTINGS: FormSettings = {
   success_redirect_url: null,
   submit_button_text: "Submit",
   show_branding: true,
+  // No primary, secondary or text colour: forms inherit the tenant brand
+  // colours at render time (src/lib/forms/formColors.ts).
   theme: {
-    primary_color: "#22C55E",
-    secondary_color: "#1E40AF",
-    text_color: "#1F2937",
     background_color: "#FFFFFF",
     font_family: "inter",
     border_radius: "8px",
