@@ -29,7 +29,7 @@ are outside the brief. Treat this as a code audit, not proof in Outlook.
 | --- | --- | --- | --- |
 | Same `object-fit` squash | Photo Banner (graphic hero) in crop mode, quote avatar, circle logo, legacy product block | Medium for Photo Banner, low for the rest | Extend the real-crop upload (`getEmailImageCropFrame`) to Photo Banner. Square avatars and logos are not affected. |
 | Photo and Photo + Text rely on a real cropped file | full-width image, image-text | Low. If the crop upload has not finished, Outlook shows a squashed photo. | Apply the same Outlook fallback when no cropped file exists. |
-| No `color-scheme` declaration | Whole email | Low to medium. Dark mode recolouring is left to each client. | Product decision. Declaring light-only changes how Apple Mail shows every email. |
+| No `color-scheme` declaration | Whole email | Fixed 2026-11-27. The email now declares light-only. Apple Mail honours it. Gmail and Outlook apps ignore the declaration and may still recolour. Not checked in a real inbox. | To undo, remove the two meta tags and the `:root` rule in `generateEmailHtml`. |
 | Rounded corners and card shadows | All cards | Cosmetic in Outlook | None needed. |
 
 ## 2. Editor design audit
@@ -47,11 +47,6 @@ compared. 295 distinct labels, 426 uses.
 
 | Finding | Examples | Suggested fix |
 | --- | --- | --- |
-| About 120 other labels are still Title Case | "Background Colour", "Button Size", "Logo Alignment" | One pass to sentence case. Copy only. |
-| Six names for one control | "Corner roundness", "Rounded Corners", "Rounded", "Corner radius (px)", "Card corner roundness", "Box corner roundness" | Use "Corner roundness" everywhere. |
-| "Image" and "Photo" both used | "Image height", "Photo height", "Image placement", "Where the photo goes" | Pick "Photo" for customer-facing labels. |
-| Five names for a link field | "Link (web address)" (13 uses), "Button URL", "Website URL", "Image link URL", "Website link" | Use "Link (web address)". |
-| Button text has three names | "Button Text", "Button label", "Words on the button" | Pick one. |
+| Label naming (case, Photo vs Image, spacing, button text, corners) | 88 labels | Fixed 2026-11-27. "Image link URL" kept because Arts Nursery asked for it. |
 | Units shown on some labels only | "Image height (px)" and "Image height" | Drop "(px)" and show the unit beside the slider value. |
-| Spacing has four names | "Content Padding", "Padding Above", "Vertical Padding", "Add space around the photo" | Use "Space above", "Space below", "Space inside". |
 | Locked designs still show design controls | Studio panels for a locked email | Hide or disable them. The server already refuses the save. |

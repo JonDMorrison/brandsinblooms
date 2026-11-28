@@ -2768,9 +2768,14 @@ export function generateEmailHtml({
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="color-scheme" content="light only">
+  <meta name="supported-color-schemes" content="light only">
   <title>${escapedSubject}</title>
 ${buildFontLinks(designSystem)}  <!--[if !mso]><!-->
   <style type="text/css">
+    /* The email is designed in light colours. Tell clients that support
+       the declaration (Apple Mail) to leave them alone in dark mode. */
+    :root { color-scheme:light only; supported-color-schemes:light only; }
     *, *::before, *::after { box-sizing:border-box; }
     body, table, td, a { -webkit-text-size-adjust:100%; -ms-text-size-adjust:100%; }
     table, td { mso-table-lspace:0pt; mso-table-rspace:0pt; }
