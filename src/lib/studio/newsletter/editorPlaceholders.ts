@@ -22,10 +22,12 @@ export function editorImagePlaceholder(options: {
   radius?: number;
   label?: string;
   field?: string;
+  /** Which gallery slot a click fills. Defaults to the first. */
+  index?: number;
 } = {}): string {
   const height = Math.max(80, Math.round(options.height ?? 220));
   const radius = Math.max(0, Math.round(options.radius ?? 6));
-  const field = options.field ? ` data-newsletter-image="${escapeText(options.field)}" data-newsletter-index="0"` : "";
+  const field = options.field ? ` data-newsletter-image="${escapeText(options.field)}" data-newsletter-index="${Math.max(0, Math.round(options.index ?? 0))}"` : "";
   return `<div data-editor-placeholder="image"${field} style="display:flex;flex-direction:column;align-items:center;justify-content:center;box-sizing:border-box;width:100%;height:${height}px;background:${FRAME_BG};border:1px solid ${FRAME_BORDER};border-radius:${radius}px;color:${MUTED};font-family:Arial,sans-serif;font-size:13px;font-weight:600;text-align:center;${options.field ? "cursor:pointer;" : ""}">${IMAGE_ICON}${escapeText(options.label ?? "Add a photo")}</div>`;
 }
 

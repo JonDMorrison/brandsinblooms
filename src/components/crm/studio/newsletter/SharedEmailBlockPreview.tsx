@@ -493,10 +493,13 @@ export default function SharedEmailBlockPreview({
                 return;
               if (selected.field === "galleryImages") {
                 const images = [...(current.block.galleryImages || [])];
-                const index = images.findIndex(
-                  (image) => image.id === selected.itemId,
-                );
-                if (index < 0) return;
+                // An empty slot has no item yet: fill the list up to it.
+                const index = selected.itemId
+                  ? images.findIndex((image) => image.id === selected.itemId)
+                  : selected.index;
+                if (index < 0 || index > 11) return;
+                while (images.length <= index)
+                  images.push({ id: crypto.randomUUID(), url: "", alt: "" });
                 images[index] = { ...images[index], url };
                 current.onUpdateBlockField(
                   current.block.id,
@@ -505,10 +508,19 @@ export default function SharedEmailBlockPreview({
                 );
               } else if (selected.field === "galleryProducts") {
                 const products = [...(current.block.galleryProducts || [])];
-                const index = products.findIndex(
-                  (product) => product.id === selected.itemId,
-                );
-                if (index < 0) return;
+                const index = selected.itemId
+                  ? products.findIndex(
+                      (product) => product.id === selected.itemId,
+                    )
+                  : selected.index;
+                if (index < 0 || index > 11) return;
+                while (products.length <= index)
+                  products.push({
+                    id: crypto.randomUUID(),
+                    imageUrl: "",
+                    name: "",
+                    price: "",
+                  });
                 products[index] = { ...products[index], imageUrl: url };
                 current.onUpdateBlockField(
                   current.block.id,

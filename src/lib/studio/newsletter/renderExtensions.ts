@@ -19,6 +19,8 @@ import {
   textCss,
 } from "./settings.ts";
 import { sanitizeEmailHtml } from "./emailHtmlSanitizer.ts";
+import { visibleTextColumns } from "./textColumns.ts";
+import { editorImagePlaceholder } from "./editorPlaceholders.ts";
 import { withOutlookWholePhoto } from "../emailImageCrop.ts";
 import { barcodeFormatName, checkBarcode, couponBarcodeFormat } from "./barcode.ts";
 
@@ -598,39 +600,10 @@ export function renderExtendedBlock(
         index,
       }));
       const gap = clampNumber(block.gridGap, 12, 0, 48);
-      const imageHtml = (index: number, available: number) => {
-        const item = items[index];
-        if (!item) return "";
-        const url = safeEmailUrl(item.image.url, true);
-        if (!url) return "";
-        const image = `<img data-newsletter-image="galleryImages" data-newsletter-index="${item.index}" class="responsive-image" src="${attr(url)}" alt="${attr(item.image.alt || "")}" width="${Math.floor(available)}" style="display:block;width:100%;height:auto;border:0;border-radius:${clampNumber(block.borderRadius, 6, 0, 48)}px;"/>`;
-        const spacedImage = `<div style="padding:${edgeCss(item.image.imagePadding ?? block.appearance?.imagePadding)};margin:${edgeCss(item.image.imageMargin ?? block.appearance?.imageMargin)};">${image}</div>`;
-        const link = safeEmailUrl(item.image.linkUrl);
-        return (
-          (link
-            ? `<a href="${attr(link)}" target="_blank" rel="noopener noreferrer">${spacedImage}</a>`
-            : spacedImage) + paragraph(block, item.image.caption, "smallPrint", 12)
-        );
-      };
-      if (
+      const featureGrid =
         block.layout === "feature-grid" ||
-        block.layoutPreset === "gallery-feature-grid"
-      ) {
-        const featured = imageHtml(0, width * 0.6 - gap);
-        const side = items
-          .slice(1)
-          .map(
-            (_, i) =>
-              `<tr><td style="padding:0 0 ${gap}px ${gap}px;">${imageHtml(i + 1, width * 0.4 - gap)}</td></tr>`,
-          )
-          .join("");
-        return featured || side
-          ? table(
-              `<tr><td class="responsive-column" valign="top" width="60%">${featured}</td><td class="responsive-column" valign="top" width="40%">${table(side)}</td></tr>`,
-            )
-          : "";
-      }
-      const columns = Math.floor(
+        block.layoutPreset === "gallery-feature-grid";
+      const galleryColumns = Math.floor(
         clampNumber(
           block.layout === "grid-4"
             ? 2
@@ -642,7 +615,50 @@ export function renderExtendedBlock(
           4,
         ),
       );
-      const cells = items
+      // While editing, the first row always shows every slot.
+      const editorSlots = editing ? (featureGrid ? 3 : galleryColumns) : 0;
+      const imageHtml = (index: number, available: number) => {
+        const item = items[index];
+        const url = item ? safeEmailUrl(item.image.url, true) : "";
+        if (!item || !url) {
+          // Editor only: an empty slot keeps its "Add a photo" frame, so a
+          // click on it fills that slot.
+          return editing && index < editorSlots
+            ? editorImagePlaceholder({
+                height: Math.max(100, Math.min(260, Number(block.imageHeight) || 160)),
+                radius: clampNumber(block.borderRadius, 6, 0, 48),
+                field: "galleryImages",
+                index,
+              })
+            : "";
+        }
+        const image = `<img data-newsletter-image="galleryImages" data-newsletter-index="${item.index}" class="responsive-image" src="${attr(url)}" alt="${attr(item.image.alt || "")}" width="${Math.floor(available)}" style="display:block;width:100%;height:auto;border:0;border-radius:${clampNumber(block.borderRadius, 6, 0, 48)}px;"/>`;
+        const spacedImage = `<div style="padding:${edgeCss(item.image.imagePadding ?? block.appearance?.imagePadding)};margin:${edgeCss(item.image.imageMargin ?? block.appearance?.imageMargin)};">${image}</div>`;
+        const link = safeEmailUrl(item.image.linkUrl);
+        return (
+          (link
+            ? `<a href="${attr(link)}" target="_blank" rel="noopener noreferrer">${spacedImage}</a>`
+            : spacedImage) + paragraph(block, item.image.caption, "smallPrint", 12)
+        );
+      };
+      if (featureGrid) {
+        const featured = imageHtml(0, width * 0.6 - gap);
+        const side = Array.from({
+          length: Math.max(items.length, editorSlots) - 1,
+        })
+          .map(
+            (_, i) =>
+              `<tr><td style="padding:0 0 ${gap}px ${gap}px;">${imageHtml(i + 1, width * 0.4 - gap)}</td></tr>`,
+          )
+          .join("");
+        return featured || side
+          ? table(
+              `<tr><td class="responsive-column" valign="top" width="60%">${featured}</td><td class="responsive-column" valign="top" width="40%">${table(side)}</td></tr>`,
+            )
+          : "";
+      }
+      const columns = galleryColumns;
+      const cells = Array.from({ length: Math.max(items.length, editorSlots) })
         .map((_, i) => imageHtml(i, (width - gap * (columns + 1)) / columns))
         .filter(Boolean)
         .map(
@@ -670,7 +686,21 @@ export function renderExtendedBlock(
     }
     case "youtube": {
       const id = youtubeVideoId(block.videoUrl || "");
-      if (!id) return "";
+      if (!id) {
+        // Editor only: words typed before the link is added stay on the
+        // canvas, with a frame where the video goes. Sent mail and Preview
+        // & Test still leave out a video block that has no video.
+        if (!editing) return "";
+        return (
+          heading(block) +
+          editorImagePlaceholder({ height: 280, radius: 0, label: "Add a YouTube link" }) +
+          paragraph(block, block.body) +
+          alignedButton(block, renderNewsletterButton({
+            ...block,
+            buttonText: block.buttonText || "Watch video",
+          }, undefined, undefined, true))
+        );
+      }
       const thumbnail =
         safeEmailUrl(block.imageUrl, true) ||
         `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
@@ -716,7 +746,7 @@ export function renderExtendedBlock(
       return copy + table(`<tr>${cells.join("")}</tr>`);
     }
     case "text-columns": {
-      const columns = (block.textColumns || [""]).slice(0, 3);
+      const columns = visibleTextColumns(block);
       return table(
         `<tr>${columns.map((value) => `<td class="responsive-column" width="${100 / columns.length}%" valign="top" style="padding:0 10px;${role(block, "body", 16)}">${formatDraftRichText(value)}</td>`).join("")}</tr>`,
       );

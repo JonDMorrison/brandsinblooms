@@ -1412,9 +1412,11 @@ export const navigationPresets: LayoutPreset[] = [
 export const footerPresets: LayoutPreset[] = [
   {
     key: "footer-standard-dark",
-    name: "Dark Standard",
+    // Every footer layout is painted in the business's saved footer colours,
+    // which are often light. The name describes the layout, not a colour.
+    name: "Standard",
     thumbnail: "footer-standard-dark",
-    description: "Dark footer with logo, address, compliance, and links",
+    description: "Logo, address, compliance and links, in your footer colours",
     fields: {
       layout: "standard-dark",
       logoAlignment: "left",
