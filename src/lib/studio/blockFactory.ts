@@ -180,6 +180,7 @@ export function createStudioBlock(
       return {
         ...base,
         textColumns: ["", ""],
+        gridColumns: 2,
         appearance: { padding: { top: 24, right: 14, bottom: 24, left: 14 } },
       };
     case "data-table":

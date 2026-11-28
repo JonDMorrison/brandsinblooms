@@ -8,6 +8,7 @@
 // (and so this module) in Deno.
 import type { StudioBlock } from "../../../types/studioBlocks.ts";
 import { editorImagePlaceholder, editorSampleCopy } from "./editorPlaceholders.ts";
+import { textColumnCount, visibleTextColumns } from "./textColumns.ts";
 
 type Align = "left" | "center" | "right";
 
@@ -40,7 +41,7 @@ export function isEditorEmptyBlock(block: StudioBlock): boolean {
     case "image-text":
       return !anyPresent([block.imageUrl, block.headline, block.subheading, block.body, block.buttonText, block.buttonUrl]);
     case "text-columns":
-      return !(block.textColumns ?? []).some(present);
+      return !visibleTextColumns(block).some(present);
     case "button-group":
     case "navigation":
       return linksEmpty && !anyPresent([block.headline, block.subheading]);
@@ -154,7 +155,7 @@ function layoutFor(block: StudioBlock): string | null {
       );
     }
     case "text-columns": {
-      const count = Math.max(2, Math.min(3, (block.textColumns ?? []).length || 2));
+      const count = textColumnCount(block);
       return row(
         Array.from({ length: count }, (_, i) =>
           editorSampleCopy({ heading: `Column ${i + 1}`, text: "A short paragraph of text.", button: null, headingSize: 16 })),
@@ -181,16 +182,17 @@ function layoutFor(block: StudioBlock): string | null {
       const columns = columnCount(block, 3);
       const height = Math.max(100, Math.min(260, Number(block.imageHeight) || 160));
       return row(
-        Array.from({ length: columns }, () => editorImagePlaceholder({ height, radius: Number(block.borderRadius) || 6 })),
+        Array.from({ length: columns }, (_, index) => editorImagePlaceholder({ height, radius: Number(block.borderRadius) || 6, field: "galleryImages", index })),
         Number(block.gridGap) || 8,
       );
     }
     case "product-gallery": {
       const columns = columnCount(block, 3);
-      const card = editorImagePlaceholder({ height: columns >= 4 ? 120 : columns === 3 ? 160 : 220, radius: 6 }) +
+      const card = (index: number) =>
+        editorImagePlaceholder({ height: columns >= 4 ? 120 : columns === 3 ? 160 : 220, radius: 6, field: "galleryProducts", index }) +
         `<div style="height:10px;line-height:10px;">&nbsp;</div>` +
         editorSampleCopy({ heading: "Product name", text: "Price", button: "Shop now", align: "center", headingSize: 15 });
-      return row(Array.from({ length: columns }, () => card), Number(block.cardGap) || 16);
+      return row(Array.from({ length: columns }, (_, index) => card(index)), Number(block.cardGap) || 16);
     }
     case "data-table": {
       const cols = Math.max(2, Math.min(4, (block.tableHeaders ?? []).length || 3));

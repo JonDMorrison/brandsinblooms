@@ -66,3 +66,61 @@ describe("new blocks show their real layout in the editor", () => {
     }
   });
 });
+
+describe("fixes reported from the Arts Nursery review", () => {
+  const editing = (block: StudioBlock) =>
+    renderNewsletterBlock(block, null, undefined, { editing: true });
+
+  it("a new gallery marks each photo frame with the slot a click fills", () => {
+    const images = editing(fresh("image-gallery"));
+    const products = editing(fresh("product-gallery"));
+    for (const index of [0, 1, 2]) {
+      expect(images).toContain(`data-newsletter-image="galleryImages" data-newsletter-index="${index}"`);
+      expect(products).toContain(`data-newsletter-image="galleryProducts" data-newsletter-index="${index}"`);
+    }
+  });
+
+  it("a gallery with one photo keeps clickable frames for its empty slots, in the editor only", () => {
+    const block = {
+      ...fresh("image-gallery"),
+      galleryImages: [{ id: "a", url: "https://cdn.example.com/a.jpg", alt: "Fern" }],
+    } as StudioBlock;
+    const html = editing(block);
+    expect(html).toContain('src="https://cdn.example.com/a.jpg"');
+    expect(html).toContain('data-newsletter-image="galleryImages" data-newsletter-index="1"');
+    expect(html).toContain('data-newsletter-image="galleryImages" data-newsletter-index="2"');
+    expect(renderNewsletterBlock(block)).not.toContain("data-editor-placeholder");
+  });
+
+  it("a video block with words but no link keeps the words in the editor and stays out of sent mail", () => {
+    const block = { ...fresh("youtube"), body: "Lorem ipsum dolor sit amet." } as StudioBlock;
+    const html = editing(block);
+    expect(text(html)).toContain("Lorem ipsum dolor sit amet.");
+    expect(text(html)).toContain("Add a YouTube link");
+    expect(text(renderNewsletterBlock(block))).not.toContain("Lorem ipsum");
+    expect(renderNewsletterBlock(block)).not.toContain("data-editor-placeholder");
+  });
+
+  it("text columns show the chosen number and keep the words of a hidden column", () => {
+    const three = {
+      ...fresh("text-columns"),
+      textColumns: ["One", "Two", "Three"],
+      gridColumns: 3,
+    } as StudioBlock;
+    expect(text(renderNewsletterBlock(three))).toBe("One Two Three");
+
+    const two = { ...three, gridColumns: 2 } as StudioBlock;
+    expect(text(renderNewsletterBlock(two))).toBe("One Two");
+    expect(two.textColumns).toEqual(["One", "Two", "Three"]);
+
+    // Saved before the column count had its own field.
+    const legacy = { ...three, gridColumns: undefined } as StudioBlock;
+    expect(text(renderNewsletterBlock(legacy))).toBe("One Two Three");
+  });
+
+  it("a new text columns block starts with two columns", () => {
+    const html = editing(fresh("text-columns"));
+    expect(text(html)).toContain("Column 2");
+    expect(text(html)).not.toContain("Column 3");
+  });
+});

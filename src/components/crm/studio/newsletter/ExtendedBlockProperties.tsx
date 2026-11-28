@@ -1,3 +1,7 @@
+import {
+  textColumnCount,
+  visibleTextColumns,
+} from "@/lib/studio/newsletter/textColumns";
 import * as React from "react";
 import type {
   StudioBlock,
@@ -1257,51 +1261,64 @@ export default function ExtendedBlockProperties({
         </>
       );
       break;
-    case "text-columns":
+    case "text-columns": {
+      const columnCount = textColumnCount(block);
+      const columnTexts = visibleTextColumns(block);
       content = (
         <>
-          <Choice
-            label="Columns"
-            value={String(block.textColumns?.length || 2)}
-            options={[1, 2, 3].map((n) => ({
-              value: String(n),
-              label: String(n),
-            }))}
-            onChange={(value) => {
-              const count = Number(value);
-              const current = block.textColumns || [];
-              if (
-                count < current.length &&
-                current.slice(count).some((item) => item.trim()) &&
-                !window.confirm(
-                  "Changing columns will remove text from the extra columns. Continue?",
-                )
-              )
-                return;
-              update(
-                "textColumns",
-                Array.from({ length: count }, (_, i) => current[i] || ""),
-              );
-            }}
-          />
-          {(block.textColumns || ["", ""]).map((value, index) => (
+          <p className="nl-note">
+            Choose how many columns to show. Your words are kept when you
+            change the number. For one column, use a Text block.
+          </p>
+          <div className="nl-grid-2" role="group" aria-label="Columns">
+            {[2, 3].map((n) => (
+              <button
+                type="button"
+                key={n}
+                aria-pressed={columnCount === n}
+                className="nl-quiet"
+                style={{
+                  borderColor:
+                    columnCount === n
+                      ? "var(--joy-palette-primary-500)"
+                      : undefined,
+                }}
+                onClick={() => {
+                  const current = block.textColumns || [];
+                  // Keep every saved column; only add empty ones when needed.
+                  if (current.length < n)
+                    update(
+                      "textColumns",
+                      Array.from({ length: n }, (_, i) => current[i] || ""),
+                    );
+                  update("gridColumns", n);
+                }}
+              >
+                {"▯".repeat(n)} &nbsp; {n} across
+              </button>
+            ))}
+          </div>
+          {columnTexts.map((value, index) => (
             <StudioRichTextField
               key={index}
               label={`Column ${index + 1}`}
               value={value}
-              onChange={(next) =>
+              onChange={(next) => {
+                const current = block.textColumns || [];
                 update(
                   "textColumns",
-                  (block.textColumns || ["", ""]).map((old, i) =>
-                    i === index ? next : old,
+                  Array.from(
+                    { length: Math.max(current.length, columnCount) },
+                    (_, i) => (i === index ? next : current[i] || ""),
                   ),
-                )
-              }
+                );
+              }}
             />
           ))}
         </>
       );
       break;
+    }
     case "data-table":
       content = (
         <>
