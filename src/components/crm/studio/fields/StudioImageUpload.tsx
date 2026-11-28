@@ -370,7 +370,7 @@ function getImageSourceIndicator(
     case "ai-generated":
       return {
         icon: <Sparkles size={12} strokeWidth={1.9} />,
-        label: "AI Generated",
+        label: "AI generated",
       };
     case "upload":
       return {

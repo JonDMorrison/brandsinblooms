@@ -2631,7 +2631,7 @@ function PanelContent({
                 ? [
                     {
                       id: "button-style",
-                      title: "Button Style",
+                      title: "Button style",
                       content: (
                         <CollapsibleSection
                           label="Customize button"
@@ -2969,7 +2969,7 @@ function PanelContent({
               }] : []),
               {
                 id: "primary-button",
-                title: "Primary Button",
+                title: "Primary button",
                 content: (
                   <>
                     <StudioTextField
@@ -3058,7 +3058,7 @@ function PanelContent({
               },
               {
                 id: "secondary-link",
-                title: "Secondary Link",
+                title: "Secondary link",
                 content: (
                   <CollapsibleSection
                     label="Show secondary link"
@@ -3249,10 +3249,10 @@ function PanelContent({
                       label="Overlay direction"
                       options={[
                         { label: "Uniform", value: "uniform" },
-                        { label: "Top Fade", value: "top-to-bottom" },
-                        { label: "Bottom Fade", value: "bottom-to-top" },
-                        { label: "Left Fade", value: "left-to-right" },
-                        { label: "Right Fade", value: "right-to-left" },
+                        { label: "Top fade", value: "top-to-bottom" },
+                        { label: "Bottom fade", value: "bottom-to-top" },
+                        { label: "Left fade", value: "left-to-right" },
+                        { label: "Right fade", value: "right-to-left" },
                       ]}
                       value={block.overlayGradientDirection ?? "uniform"}
                       onChange={(value) =>
@@ -3267,7 +3267,7 @@ function PanelContent({
               },
               {
                 id: "text-overlay",
-                title: "Text Overlay",
+                title: "Text overlay",
                 content: (
                   <CollapsibleSection
                     label="Show text overlay"
@@ -3766,7 +3766,7 @@ function PanelContent({
               },
               {
                 id: "ornament-spacing",
-                title: "Ornament & Spacing",
+                title: "Ornament & spacing",
                 content: (
                   <>
                     <CollapsibleSection
@@ -4125,7 +4125,7 @@ function PanelContent({
             {renderSections([
               {
                 id: "social-links",
-                title: "Social Links",
+                title: "Social links",
                 content: (
                   <SocialLinksManager block={block} updateField={updateField} />
                 ),
@@ -4151,7 +4151,7 @@ function PanelContent({
               },
               {
                 id: "icon-style",
-                title: "Icon Style",
+                title: "Icon style",
                 content: (
                   <>
                     <StudioToggleField
@@ -4694,7 +4694,7 @@ function PanelContent({
               },
               {
                 id: "author-image",
-                title: "Author Image",
+                title: "Author photo",
                 content: (
                   <CollapsibleSection
                     label="Show author photo"
@@ -4949,8 +4949,8 @@ function PanelContent({
                     <StudioToggleField
                       label="Badge position"
                       options={[
-                        { label: "Top Left", value: "top-left" },
-                        { label: "Top Right", value: "top-right" },
+                        { label: "Top left", value: "top-left" },
+                        { label: "Top right", value: "top-right" },
                       ]}
                       value={block.badgePosition ?? "top-left"}
                       onChange={(value) =>
