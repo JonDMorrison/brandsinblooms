@@ -47,7 +47,7 @@
     '.' + CSS_PREFIX + 'field{margin-bottom:1em}',
     '.' + CSS_PREFIX + 'label{display:block;margin-bottom:.25em;font-weight:bold}',
     '.' + CSS_PREFIX + 'input,.' + CSS_PREFIX + 'select{width:100%;padding:.5em;border:1px solid #ccc}',
-    '.' + CSS_PREFIX + 'submit{padding:.75em 1.5em;background:#22C55E;color:#fff;border:none;cursor:pointer;width:100%}',
+    '.' + CSS_PREFIX + 'submit{padding:.75em 1.5em;background:#30506E;color:#fff;border:none;cursor:pointer;width:100%}',
     '.' + CSS_PREFIX + 'checkbox-wrap{display:flex;gap:.5em;align-items:flex-start}',
     '.' + CSS_PREFIX + 'consent{padding:.75em;background:#f5f5f5;border:1px solid #ddd;margin-bottom:1em}',
     '.' + CSS_PREFIX + 'success{text-align:center;padding:2em;background:#f0fdf4;border:1px solid #bbf7d0}',
@@ -416,7 +416,7 @@
     var formContainer = createElement('div', 'container');
     
     // Apply theme CSS variables
-    var primaryColor = theme.primary_color || '#22C55E';
+    var primaryColor = theme.primary_color || '#30506E';
     formContainer.style.setProperty('--bs-form-primary', primaryColor);
     formContainer.style.setProperty('--bs-form-primary-hover', darkenColor(primaryColor, -20));
     formContainer.style.setProperty('--bs-form-radius', theme.border_radius || '8px');

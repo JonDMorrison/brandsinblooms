@@ -20,6 +20,8 @@ import { toast } from "sonner";
 import { JoyChip } from "@/components/joy/JoyChip";
 import { SUPABASE_URL } from "@/integrations/supabase/config";
 import { normalizeFormSettings } from "@/lib/forms/designSettings";
+import { applyFormBrandColors } from "@/lib/forms/formColors";
+import { useBrandColors } from "@/hooks/useBrandColors";
 import {
   DEFAULT_FORM_COMPLIANCE,
   type FormCompliance,
@@ -172,9 +174,10 @@ export function FormPreviewDialog({
     React.useState(false);
   const [resetSignal, setResetSignal] = React.useState(0);
 
+  const { data: brandColors } = useBrandColors();
   const resolvedSettings = React.useMemo(
-    () => normalizeFormSettings(settings),
-    [settings],
+    () => applyFormBrandColors(normalizeFormSettings(settings), brandColors),
+    [brandColors, settings],
   );
   const resolvedCompliance = React.useMemo(
     () => ({ ...DEFAULT_FORM_COMPLIANCE, ...compliance }),

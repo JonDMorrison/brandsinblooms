@@ -505,7 +505,7 @@ export function FormBuilderSettingsDrawer({
               label="Primary color"
               value={settings.theme.primary_color ?? ""}
               onValueChange={(primary_color) => onThemePatch({ primary_color })}
-              placeholder="#16A34A"
+              placeholder="Brand colour"
             />
           </Box>
         </Stack>

@@ -38,7 +38,6 @@ import {
   SubmissionResult,
 } from "@/types/formBuilder";
 import { Database, Json } from "@/integrations/supabase/types";
-import { fetchBrandColors } from "@/hooks/useBrandColors";
 
 interface CreateFormData {
   name: string;
@@ -829,16 +828,15 @@ export function useForms() {
   const createFormMutation = useMutation({
     mutationFn: async (formData: CreateFormData) => {
       const scopedTenantId = requireTenantId(tenantId);
-      const userId = await getAuthenticatedUserId();
+      await getAuthenticatedUserId();
 
-      const brandColors = await fetchBrandColors(userId);
-
+      // No colours are copied in: a new form inherits the tenant brand
+      // colours at render time and keeps following them.
       const settingsWithBrandColors: FormSettings = {
         ...DEFAULT_FORM_SETTINGS,
         ...formData.settings_json,
         theme: {
           ...DEFAULT_FORM_SETTINGS.theme,
-          primary_color: brandColors.primary,
           ...formData.settings_json?.theme,
         },
       };

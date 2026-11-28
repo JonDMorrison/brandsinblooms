@@ -1,5 +1,9 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
+import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { sanitizeFileFieldRules } from "../_shared/formFileUploads.ts";
+import {
+  type FormBrandColors,
+  resolveFormColors,
+} from "../_shared/formColors.ts";
 
 // ─── CORS Headers (hardened for public embed access) ───────────────────────
 // These headers are included in ALL responses (success, error, 404, 429, etc.)
@@ -198,10 +202,24 @@ Deno.serve(async (req) => {
 
     // ─── Step 5: Build response (SANITIZED - no secrets, no PII) ────────────
     // SECURITY: All output is filtered through explicit allowlists
+    // Colours are resolved here so every consumer (hosted page and every
+    // embed script version) gets the form's choice, then the tenant brand,
+    // then the neutral palette. Stock defaults never reach the browser.
+    const settings = sanitizeSettings(form.settings_json);
+    const sanitizedTheme =
+      settings.theme && typeof settings.theme === "object"
+        ? (settings.theme as Record<string, unknown>)
+        : {};
+    const brandColors = await loadTenantBrandColors(supabase, form.tenant_id);
+    settings.theme = {
+      ...sanitizedTheme,
+      ...resolveFormColors(sanitizedTheme, brandColors),
+    };
+
     const responseData = {
       form_id: form.id,
       fields_json: sanitizeFields(form.fields_json),
-      settings_json: sanitizeSettings(form.settings_json),
+      settings_json: settings,
       compliance_json: sanitizeCompliance(form.compliance_json),
     };
 
@@ -216,6 +234,77 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: "Internal server error" }, 500);
   }
 });
+
+// ─── Tenant brand colours ─────────────────────────────────────────────────
+
+/**
+ * Brand colours from the tenant's business profile. Picks the same row as
+ * public.tenant_profile_user_id (owner/admin first, then the oldest profile);
+ * that RPC needs auth.uid(), so it cannot run under the service role here.
+ * Returns null on any failure: the form then uses the neutral palette.
+ */
+async function loadTenantBrandColors(
+  supabase: SupabaseClient,
+  tenantId: string | null,
+): Promise<FormBrandColors | null> {
+  if (!tenantId) return null;
+  try {
+    const { data: members, error: membersError } = await supabase
+      .from("users")
+      .select("id, role")
+      .eq("tenant_id", tenantId);
+    if (membersError || !Array.isArray(members) || members.length === 0) {
+      return null;
+    }
+
+    const roleById = new Map<string, string>(
+      (members as { id: string; role: string | null }[]).map((member) => [
+        member.id,
+        member.role ?? "",
+      ]),
+    );
+    const { data: profiles, error: profilesError } = await supabase
+      .from("company_profiles")
+      .select(
+        "user_id, created_at, brand_primary_color, brand_secondary_color, brand_text_color",
+      )
+      .in("user_id", [...roleById.keys()]);
+    if (profilesError || !Array.isArray(profiles) || profiles.length === 0) {
+      return null;
+    }
+
+    type ProfileRow = {
+      user_id: string;
+      created_at: string | null;
+      brand_primary_color: string | null;
+      brand_secondary_color: string | null;
+      brand_text_color: string | null;
+    };
+    const isLead = (id: string) => {
+      const role = roleById.get(id);
+      return role === "owner" || role === "admin";
+    };
+    const [profile] = [...(profiles as ProfileRow[])].sort((a, b) => {
+      const lead = Number(isLead(b.user_id)) - Number(isLead(a.user_id));
+      if (lead !== 0) return lead;
+      const created = (a.created_at ?? "").localeCompare(b.created_at ?? "");
+      if (created !== 0) return created;
+      return a.user_id.localeCompare(b.user_id);
+    });
+
+    return {
+      primary: profile.brand_primary_color,
+      secondary: profile.brand_secondary_color,
+      text: profile.brand_text_color,
+    };
+  } catch (error) {
+    console.error(
+      "[get-form-config] Brand colour lookup failed:",
+      (error as Error).message,
+    );
+    return null;
+  }
+}
 
 // ─── Output Sanitization (SECURITY CRITICAL) ──────────────────────────────
 

@@ -12,6 +12,7 @@ import {
   FormTheme,
   FormWidth,
 } from "@/types/formBuilder";
+import { chosenFormColor } from "@/lib/forms/formColors";
 
 const HEX_COLOR_REGEX = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 
@@ -376,18 +377,10 @@ export function normalizeFormTheme(value: unknown): FormTheme {
       : {};
 
   return {
-    primary_color: normalizeHexColor(
-      candidate.primary_color,
-      DEFAULT_FORM_SETTINGS.theme.primary_color ?? "#22C55E",
-    ),
-    secondary_color: normalizeHexColor(
-      candidate.secondary_color,
-      DEFAULT_FORM_SETTINGS.theme.secondary_color ?? "#1E40AF",
-    ),
-    text_color: normalizeHexColor(
-      candidate.text_color,
-      DEFAULT_FORM_SETTINGS.theme.text_color ?? "#1F2937",
-    ),
+    // Missing or stock colours stay unset so the form inherits the brand.
+    primary_color: chosenFormColor(candidate.primary_color, "primary"),
+    secondary_color: chosenFormColor(candidate.secondary_color, "secondary"),
+    text_color: chosenFormColor(candidate.text_color, "text"),
     background_color: normalizeHexColor(
       candidate.background_color,
       DEFAULT_FORM_SETTINGS.theme.background_color ?? "#FFFFFF",

@@ -63,6 +63,8 @@ import {
   reindexFormSteps,
 } from "@/lib/forms/formFlow";
 import type { PublishValidationIssue } from "@/lib/forms/publish";
+import { applyFormBrandColors } from "@/lib/forms/formColors";
+import { useBrandColors } from "@/hooks/useBrandColors";
 import type {
   FormCompliance,
   FormField,
@@ -729,9 +731,15 @@ export function FormBuildTab({
     [focusedStepIndex, stepGroups],
   );
   const canvasFields = multiStepEnabled ? currentStepGroup.fields : fields;
+  const { data: brandColors } = useBrandColors();
+  // Canvas colours only. The unresolved `settings` stay the saved value.
+  const brandedSettings = React.useMemo(
+    () => applyFormBrandColors(settings, brandColors),
+    [brandColors, settings],
+  );
   const tokens = React.useMemo(
-    () => createFormBuilderTokens(settings),
-    [settings],
+    () => createFormBuilderTokens(brandedSettings),
+    [brandedSettings],
   );
   const activeBuildIssue =
     publishValidationIssue?.targetTab === "build"
@@ -2433,8 +2441,8 @@ export function FormBuildTab({
                         fontFamily: tokens.fontFamily,
                         ...(settings.theme.button_style === "filled"
                           ? {
-                              backgroundColor: settings.theme.primary_color,
-                              borderColor: settings.theme.primary_color,
+                              backgroundColor: brandedSettings.theme.primary_color,
+                              borderColor: brandedSettings.theme.primary_color,
                             }
                           : null),
                       }}

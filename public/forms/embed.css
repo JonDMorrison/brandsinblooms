@@ -66,8 +66,8 @@
 
 .bs-form-input:focus {
   outline: none;
-  border-color: var(--bs-form-primary, #22C55E);
-  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15);
+  border-color: var(--bs-form-primary, #30506E);
+  box-shadow: 0 0 0 3px rgba(48, 80, 110, 0.15);
 }
 
 .bs-form-input::placeholder {
@@ -101,8 +101,8 @@
 
 .bs-form-select:focus {
   outline: none;
-  border-color: var(--bs-form-primary, #22C55E);
-  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15);
+  border-color: var(--bs-form-primary, #30506E);
+  box-shadow: 0 0 0 3px rgba(48, 80, 110, 0.15);
 }
 
 /* ─── Checkbox ──────────────────────────────────────────────────────────── */
@@ -117,7 +117,7 @@
   width: 18px;
   height: 18px;
   margin-top: 2px;
-  accent-color: var(--bs-form-primary, #22C55E);
+  accent-color: var(--bs-form-primary, #30506E);
   cursor: pointer;
 }
 
@@ -151,7 +151,7 @@
   font-size: 16px;
   font-weight: 600;
   color: #ffffff;
-  background-color: var(--bs-form-primary, #22C55E);
+  background-color: var(--bs-form-primary, #30506E);
   border: none;
   border-radius: var(--bs-form-radius, 8px);
   cursor: pointer;
@@ -161,7 +161,7 @@
 }
 
 .bs-form-submit:hover {
-  background-color: var(--bs-form-primary-hover, #16a34a);
+  background-color: var(--bs-form-primary-hover, #203C4E);
 }
 
 .bs-form-submit:active {
@@ -176,12 +176,12 @@
 
 .bs-form-submit-outline {
   background-color: transparent;
-  border: 2px solid var(--bs-form-primary, #22C55E);
-  color: var(--bs-form-primary, #22C55E);
+  border: 2px solid var(--bs-form-primary, #30506E);
+  color: var(--bs-form-primary, #30506E);
 }
 
 .bs-form-submit-outline:hover {
-  background-color: var(--bs-form-primary, #22C55E);
+  background-color: var(--bs-form-primary, #30506E);
   color: #ffffff;
 }
 
@@ -217,7 +217,7 @@
   width: 56px;
   height: 56px;
   margin: 0 auto 16px;
-  background: #22C55E;
+  background: #30506E;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -251,7 +251,7 @@
   width: 24px;
   height: 24px;
   border: 2px solid #e5e7eb;
-  border-top-color: var(--bs-form-primary, #22C55E);
+  border-top-color: var(--bs-form-primary, #30506E);
   border-radius: 50%;
   animation: bs-form-spin 0.8s linear infinite;
   margin-bottom: 12px;
@@ -323,7 +323,7 @@
 
 .bs-form-fallback .bs-form-submit {
   padding: 0.75em 1.5em;
-  background: #22C55E;
+  background: #30506E;
   color: white;
   border: none;
   cursor: pointer;
