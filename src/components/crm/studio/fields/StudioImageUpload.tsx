@@ -1265,7 +1265,7 @@ export default function StudioImageUpload({
                   size="sm"
                   variant="soft"
                   color="danger"
-                  aria-label="Remove image"
+                  aria-label="Remove photo"
                   onClick={(event) => {
                     event.stopPropagation();
                     setResolvedUrl("");

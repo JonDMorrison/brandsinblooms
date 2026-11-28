@@ -710,7 +710,7 @@ export default function AppearanceControls({
               }
             />
             <NumericField
-              label="Corner radius (px)"
+              label="Corner roundness (px)"
               value={value.border?.radius}
               max={48}
               onChange={(radius) =>

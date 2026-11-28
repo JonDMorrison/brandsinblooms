@@ -135,7 +135,7 @@ describe("block-specific properties", () => {
   it("offers portrait fit, one column split and one optional image link", () => {
     openPanel({ ...createStudioBlock("image-text"), imageLinkEnabled: true });
     expect(screen.getByText("9:16")).toBeInTheDocument();
-    expect(screen.getAllByText("Column Split")).toHaveLength(1);
+    expect(screen.getAllByText("Column split")).toHaveLength(1);
     expect(screen.getByText("Image link URL")).toBeInTheDocument();
     const vertical = screen.getByRole("group", { name: "Line up the words beside the photo" });
     expect(within(vertical).getAllByRole("button").map((button) => button.getAttribute("aria-label"))).toEqual(["Top", "Middle", "Bottom"]);
