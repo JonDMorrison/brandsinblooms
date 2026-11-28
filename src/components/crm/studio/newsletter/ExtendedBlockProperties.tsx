@@ -286,7 +286,7 @@ function ButtonFields({
       {shown && (
         <>
           <Field
-            label="Words on the button"
+            label="Button text"
             value={block.buttonText}
             placeholder={defaultText}
             onChange={(value) => update("buttonText", value)}
@@ -485,7 +485,7 @@ function CouponFields({
       </p>
       <TextAlignField value={block.textAlign} onChange={(value) => update("textAlign", value)} />
       <StudioImageUpload
-        label="Coupon image"
+        label="Coupon photo"
         value={block.imageUrl || ""}
         onChange={(value) => update("imageUrl", value)}
       />
@@ -741,7 +741,7 @@ function GalleryFields({
       {product && (
         <details className="nl-controls">
           <summary>Product display options</summary>
-          <Choice label="Image ratio" value={galleryImageRatio(block)}
+          <Choice label="Photo ratio" value={galleryImageRatio(block)}
             options={[
               ...(galleryImageRatio(block) === "" ? [{ value: "", label: "Fixed height" }] : []),
               { value: "1:1", label: "Square" }, { value: "4:3", label: "4:3" }, { value: "3:4", label: "3:4" }, { value: "auto", label: "Original" },
@@ -752,7 +752,7 @@ function GalleryFields({
             onChange={(value) => update("imageFit", value as StudioBlock["imageFit"])} />
           {/* Older galleries set a fixed height; a chosen ratio replaces it. */}
           {block.imageRatio == null && block.imageHeight != null && (
-            <NumericField label="Image height (px)" value={block.imageHeight} min={120} max={480}
+            <NumericField label="Photo height (px)" value={block.imageHeight} min={120} max={480}
               onChange={(value) => update("imageHeight", value)} />
           )}
           <StudioSwitchField
@@ -878,12 +878,12 @@ function GalleryFields({
                   onChange={(linkUrl) => patchProduct(index, { linkUrl })}
                 />
                 <Field
-                  label="Button label"
+                  label="Button text"
                   value={products[index]?.buttonText}
                   onChange={(buttonText) => patchProduct(index, { buttonText })}
                 />
                 <LinkField
-                  label="Button URL"
+                  label="Button link (web address)"
                   value={products[index]?.buttonUrl}
                   onChange={(buttonUrl) => patchProduct(index, { buttonUrl })}
                   required={Boolean(products[index]?.buttonText?.trim())}
@@ -901,7 +901,7 @@ function GalleryFields({
             ) : (
               <>
                 <Field
-                  label="Alt text"
+                  label="Describe the photo"
                   value={images[index]?.alt}
                   onChange={(alt) => patchImage(index, { alt })}
                 />

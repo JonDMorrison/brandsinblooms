@@ -277,7 +277,7 @@ export default function ImageGalleryRenderer({
             variant="soft"
             color="neutral"
             size="sm"
-            aria-label="Remove gallery image"
+            aria-label="Remove gallery photo"
             onClick={(event) => {
               event.stopPropagation();
               removeImage(slotIndex);
