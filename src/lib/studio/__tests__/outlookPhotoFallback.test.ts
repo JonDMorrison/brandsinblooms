@@ -40,4 +40,11 @@ describe("cropped photos in desktop Outlook", () => {
     expect(html).toContain("<!--[if mso]><img ");
     expect(html).toContain("<!--[if !mso]><!-->");
   });
+
+  it("declares the email light-only so dark mode leaves the brand colours alone", () => {
+    const html = generateEmailHtml({ blocks: [block("event", {})] } as Parameters<typeof generateEmailHtml>[0]);
+    expect(html).toContain('<meta name="color-scheme" content="light only">');
+    expect(html).toContain('<meta name="supported-color-schemes" content="light only">');
+    expect(html).toContain(":root { color-scheme:light only;");
+  });
 });
